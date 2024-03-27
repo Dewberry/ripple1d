@@ -1,0 +1,17 @@
+ geopandas
+ plotly
+ hydroeval
+ scikit-learn
+ rasterio
+ xarray
+ #kaleido==0.1.0.post1
+ folium
+ dataframe_image
+#  pydsstools
+ folium
+ mapclassify
+ ipyleaflet
+ streamlit
+ streamlit-folium 
+ h5py
+ boto3
