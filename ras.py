@@ -1,0 +1,701 @@
+import os
+import glob
+import win32com.client
+import datetime
+import numpy as np
+import h5py
+import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Polygon, LineString, Point
+from dataclasses import dataclass
+import boto3
+
+
+from consts import (
+    HDFGEOMETRIES,
+    PLOTTINGSTRUCTURES,
+    PLOTTINGREFERENCE,
+)
+
+
+@dataclass
+class XS:
+
+    river: str
+    reach: str
+    rs: float
+
+
+class Ras:
+
+    def __init__(self, path: str,s3_client:boto3.client=None,s3_bucket:str=None):
+        
+        self.ras_folder = path
+        self.client=s3_client
+        self.bucket=s3_bucket
+        
+        self.projection_file = None
+        self.projection = ""
+        self.get_ras_project_file()
+
+        self.plans = {}
+        self.geoms = {}
+        self.flows = {}
+        self.plan = None
+        self.geom = None
+        self.flow = None
+
+        try:
+            self.get_ras_projection()
+
+        except (FileNotFoundError, ValueError) as e:
+            print(e)
+
+        self.read_content()
+
+        self.title = self.content.splitlines()[0].split("=")[1]
+        self.get_plans()
+        self.get_geoms()
+        self.get_flows()
+        self.get_active_plan()
+
+    def read_content(self):
+        """
+        Attempts to read content of the RAS project text file. Checks both locally and on s3
+
+        Raises:
+            FileNotFoundError: 
+        """
+
+        if os.path.exists(self.ras_project_file):
+
+            with open(self.ras_project_file) as f:
+                self.content = f.read()
+        else:
+
+            try:
+
+                response = self.client.get_object(
+                    Bucket=self.bucket, Key=self.ras_project_file
+                )
+                self.content = response["Body"].read().decode()
+
+            except Exception as E:
+
+                print(E)
+
+                raise FileNotFoundError(
+                    f"could not find {self.ras_project_file} locally nor on s3"
+                )
+
+    def update_content(self):
+
+        """
+        Updates the content of the RAS project with any changes made to the flow, geom, or plans. 
+        This does not update the actual file; use the 'write' method to do this. 
+        """
+
+        lines=[]
+        for line in self.content.splitlines():
+
+            if "Y Axis Title=Elevation" in line:
+
+                for plan in self.plans.values():
+                    lines.append(f"Plan File={plan.extension.lstrip(".")}")
+
+                for geom in self.geoms.values():
+                    lines.append(f"Geom File={geom.extension.lstrip(".")}")
+
+                for flow in self.flows.values():
+                    lines.append(f"Flow File={flow.extension.lstrip(".")}")
+
+            if line.split("=")[0] not in ["Geom File","Flow File","Plan File"]:
+                lines.append(line)
+        
+            self.content="\n".join(lines)
+
+    def set_current_plan(self,current_plan:Plan):
+        """
+        Update the current RAS plan in the RAS project content. 
+        This does not update the actual file; use the 'write' method to do this. 
+
+        Args:
+            current_plan (Plan): The plan to set as the current plan 
+        """
+
+        lines=[]
+        for line in self.content.splitlines():
+            if "Current Plan=" in line:
+                line=f"Current Plan={current_plan.extension.lstrip(".")}"
+            lines.append(line)
+
+        self.content="\n".join(lines)
+
+    def write(self, ras_project_file=None):
+
+        if not ras_project_file:
+            ras_project_file = self.ras_project_file
+
+        print(f"writing: {ras_project_file}")
+
+        if os.path.exists(ras_project_file):
+
+            with open(ras_project_file, "w") as f:
+                f.write(self.content)
+
+        else:
+
+            self.client.put_object(
+                Body=self.content, Bucket=self.bucket, Key=ras_project_file
+            )
+
+    def write_new_flow(self, title: str, discharges:list, cross_sections: list, ds_water_surface:float):
+
+        """
+        Write a new flow file contaning the specified title, discharges, cross sections, and ds known water surface elevation. 
+
+        Args:
+            title (str): Title of the flow file
+            discharges (list): A list of discharges (profiles) to apply 
+            cross_sections (list): A list of cross sections to apply the discharges to 
+            ds_water_surface (float): Downstream known water surface elevation to apply to all reaches.
+        """
+
+        lines = []
+        line = ""
+        
+        #write headers
+        lines.append(f"Flow Title={title}")
+        lines.append(f"Number of Profiles= {len(discharges)}")
+        lines.append(f"Profile Names={','.join([str(i) for i in discharges])}")
+
+        #write discharges 
+        for xs in cross_sections:
+
+            lines.append(
+                f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).ljust(8,' ')}"
+            )
+
+            for i, flow in enumerate(discharges):
+
+                line += f"{str(flow).rjust(8,' ')}"
+
+                if (i + 1) % 10 == 0:
+
+                    lines.append(line)
+                    line = ""
+
+            if (i + 1) % 10 != 0:
+                lines.append(line)
+
+        #write DS boundary conditions
+        for river_reach in set([f"{xs.river},{xs.reach.ljust(16,' ')}"]):
+
+            for i,flow in enumerate(discharges):
+                lines.append(f"Boundary for River Rch & Prof#={river_reach},{i+1}")
+                lines.append(f"Up Type= 0 ")
+                lines.append(f"Dn Type= 1 ")
+                lines.append(f"Dn Known WS={ds_water_surface}")
+
+        # get a new extension number for the new flow file
+        new_extension_number = self.get_new_extension_number(self.flows)
+        file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
+
+        # write the new flow file
+        with open(file, "w") as src:
+            src.write("\n".join(lines))
+
+        # add new flow to the ras class
+        flow = Flow(file)
+        self.flows.update({title: flow})
+        self.flows[flow.title] = flow
+
+    def write_new_plan(self, geom:Geom, flow:Flow, title: str, short_id: str):
+
+        """
+        Write a new plan file with the given geom, flow, tite. and short ID.
+
+        Args:
+            geom (Geom): Geometry to set for this new plan.
+            flow (Flow): Flow to set for this new plan.
+            title (str): Title of this new plan.
+            short_id (str): Short ID to set for this new plan. 
+        """
+
+        # create necessary lines for the content of the text file.
+        lines = []
+        lines.append(f"Plan Title={title}")
+        lines.append(f"Short Identifier={short_id}")
+        lines.append(f"Geom File={geom.extension.lstrip('.')}")
+        lines.append(f"Flow File={flow.extension.lstrip('.')}")
+
+        # get a new extension number for the new plan
+        new_extension_number = self.get_new_extension_number(self.plans)
+
+        file = self.ras_project_file.rstrip(".prj") + f".p{new_extension_number}"
+
+        # write the new plan file
+        with open(file, "w") as src:
+            src.write("\n".join(lines))
+
+        # add new plan to the ras class
+        plan = Plan(file, self.projection)
+        self.plans[plan.title] = plan
+
+    def get_new_extension_number(self, dict_of_ras_subclasses: dict)->str:
+
+        """
+        Determines the next numeric extension that should be used when creating a new plan, flow, or geom;
+        e.g., if you are adding a new plan and .p01, and .p02 already exists then the new plan will have a .p03 extension.  
+
+        Args:
+            dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys and objects plan/geom/flow as values.
+
+        Returns:
+            new file extension (str): The new file exension.
+        """
+
+        extension_number = []
+        for val in dict_of_ras_subclasses.values():
+            extension_number.append(int(val.extension[2:]))
+
+        return f"{(max(extension_number)+1):02d}"
+
+    def RunSIM(self, pid_running=None, close_ras=True,show_ras=False):
+
+        """
+        Run the current plan. 
+
+        Args:
+            pid_running (_type_, optional): _description_. Defaults to None.
+            close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
+            show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
+        """
+
+        RC = win32com.client.Dispatch("RAS631.HECRASCONTROLLER")
+
+        RC.Project_Open(self.ras_project_file)
+
+        RC.Compute_CurrentPlan()
+        
+        if show_ras:
+            RC.ShowRas()
+
+        if close_ras:
+            RC.QuitRas()
+            # RC.Close()
+
+    def get_active_plan(self):
+
+        """
+        Reads the content of the RAS project file to determine what the current plan is and sets the asociated plans,geoms,and flows as active.  
+        """
+
+        if "Current Plan=" in self.content.splitlines()[1]:
+            current_plan_extension = self.content.splitlines()[1].split("=")[1]
+
+        for plan in self.plans.values():
+            if plan.extension == f".{current_plan_extension}":
+                self.plan = plan
+                self.geom = plan.geom
+                self.flow = plan.flow
+
+    def get_plans(self):
+        """
+        Reads the contents of RAS project file to determine the plans that are associated with the RAS project
+        then creates plan objects for each plan. 
+        """
+        for plan_file in self.get_ras_files("Plan"):
+            try:
+                plan = Plan(plan_file, self.projection)
+                self.plans[plan.title] = plan
+            except FileExistsError as E:
+                print(E)
+
+    def get_geoms(self):
+        """
+        Reads the contents of RAS project file to determine the geoms that are associated with the RAS project
+        then creates geom objects for each geom. 
+        """
+        for geom_file in self.get_ras_files("Geom"):
+            geom = Geom(geom_file, self.projection)
+            self.geoms[geom.title] = geom
+
+    def get_flows(self):
+        """
+        Reads the contents of RAS project file to determine the flows that are associated with the RAS project
+        then creates flow objects for each flow. 
+        """
+        for flow_file in self.get_ras_files("Flow"):
+            flow = Flow(flow_file)
+            self.flows[flow.title] = flow
+
+    def get_ras_projection(self):
+
+        """
+        Attempts to find the RAS projection by reading the .rasmap file. Raises Errors if .rasmap or 
+        projection file can't be found or if the projection is not specified.  
+
+        Raises:
+            FileNotFoundError: If .rasmap file can't be found.
+            FileNotFoundError: If projection file can't be found.
+            ValueError: If projection is not specified.
+        """
+
+        # look for .rasmap files
+        try:
+            rm = glob.glob(self.ras_folder + "/*.rasmap")[0]
+        except IndexError as E:
+            raise FileNotFoundError(
+                f"Could not find a '.rasmap' file for this project."
+            )
+
+        # read .rasmap file to retrieve projection file.
+        with open(rm) as f:
+            lines = f.readlines()
+            for line in lines:
+                if "RASProjectionFilename Filename=" in line:
+                    relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
+                    self.projection_file = self.ras_folder + relative_path
+
+        # check if the projection fiile exists
+        if self.projection_file:
+            if os.path.exists(self.projection_file):
+                with open(self.projection_file) as src:
+                    self.projection = src.read()
+            else:
+                raise FileNotFoundError(
+                    f"Could not find projection file for this project"
+                )
+        else:
+            raise ValueError(f"No projection specified in .rasmap file.")
+
+    def get_ras_project_file(self):
+        """
+        Find the RAS project file given a directory making sure it is not simply a projection file. 
+        """
+        prjs = glob.glob(self.ras_folder + "/*.prj")
+        for prj in prjs:
+            with open(prj) as f:
+                lines = f.readlines()
+                if "Proj Title=" in lines[0]:
+                    self.ras_project_file = prj
+                    break
+
+    def get_ras_files(self, file_type: str)->list:
+        """
+        Reads the RAS project file to determine what plan/flow/geom files are asociated with the RAS project. 
+        Only returns the associated file types specified by "file_type".  
+
+        Args:
+            file_type (str): The file type to fiter results to; e.g., Flow,Geom,Plan. 
+
+        Returns:
+            list: Returns a list of specified file types that are associated with the RAS project. 
+        """
+        proj_title = os.path.basename(self.ras_project_file).split(".")[0]
+        files = []
+        for i in self.content.splitlines():
+            if f"{file_type} File=" in i:
+                file = i.strip("\n").split("=")[-1]
+                files.append(self.ras_folder + f"/{proj_title}.{file}")
+
+        return files
+
+
+class BaseFile:
+    def __init__(self, path: str, file_type: str,s3_client:boto3.client=None,s3_bucket:str=None):
+        self.text_file = path
+        self.hdf_file = path + ".hdf"
+        self.extension = os.path.splitext(path)[1]
+
+        self.bucket=s3_bucket
+        self.client=s3_client
+
+        if not os.path.exists(self.text_file):
+            raise FileExistsError(f'The file "{self.hdf_file}" does not exists')
+
+        self.read_content()
+
+        self.title = self.content.splitlines()[0].split("=")[-1].rstrip("\n")
+        self.program_version = self.content.splitlines()[1].split("=")[-1].rstrip("\n")
+
+        self.element_types = None
+
+        if not os.path.exists(self.hdf_file):
+            print(f'The file "{self.hdf_file}" does not exists')
+
+    def read_content(self):
+        """
+        Read content of the file. Searches for the file locally and on s3. 
+
+        Raises:
+            FileNotFoundError: 
+        """
+        if os.path.exists(self.text_file):
+            with open(self.text_file) as f:
+                self.content = f.read()
+        else:
+            try:
+                response = self.client.get_object(
+                    Bucket=self.bucket, Key=self.text_file
+                )
+                self.content = response["Body"].read().decode()
+            except Exception as E:
+                print(E)
+                raise FileNotFoundError(
+                    f"could not find {self.text_file} locally nor on s3"
+                )
+
+
+class Plan(BaseFile):
+    def __init__(self, path: str, projection: str = ""):
+        super().__init__(path, "Plan")
+
+        self.projection = projection
+        self.element_type = None
+        self.element = None
+        self.elements = None
+        self.element_types: list = None
+
+        self.parse_attrs()
+        
+    def parse_attrs(self):
+        """
+        Parse basic attributes from the plan text file. 
+        """
+        for line in self.content.splitlines():
+            if "Geom File=" in line:
+                self.geom = Geom(
+                    f'{os.path.splitext(self.text_file)[0]}.{line.split("=")[1]}',
+                    self.projection,
+                )
+            elif "Flow File=" in line:
+                self.flow = Flow(
+                    f'{os.path.splitext(self.text_file)[0]}.{line.split("=")[1]}'
+                )
+            elif "Simulation Date=" in line:
+                self.date = line.split("=")[1]
+            elif "Short Identifier" in line:
+                self.short_id = line.split("=")[1]
+            elif "DSS File=" in line:
+                self.dss_f = line.split("=")[1]
+            elif "Output Interval" == line.split("=")[0]:
+                self.dss_interval = line.split("=")[1]
+
+    def set_element_type(self, value):
+        self.element_type = value
+        self.elements = self.get_element_names(value)
+
+    def set_element(self, value):
+        self.element = value
+        # self.elements = self.get_element_names(value)
+
+    def get_element_names(self, element_type):
+        with h5py.File(self.hdf_file) as hdf:
+            if element_type in PLOTTINGSTRUCTURES.keys():
+                return list(hdf[f"{self.result_base_path}/{element_type}"].keys())
+            elif element_type in PLOTTINGREFERENCE.keys():
+                return list(
+                    hdf[
+                        f"{self.result_base_path}/{element_type}/{PLOTTINGREFERENCE[element_type]['name']}"
+                    ].asstr()
+                )
+
+    def convert_24_00_hour(self, date_time_str_array):
+        time_date = []
+        for td in date_time_str_array:
+            try:
+                td = datetime.datetime.strptime(td, "%d%b%Y %H:%M:%S")
+            except:
+                td = td.replace(" 24:", " 23:")
+                td = datetime.datetime.strptime(td, "%d%b%Y %H:%M:%S")
+                td += datetime.timedelta(hours=1)
+            time_date.append(td.strftime("%Y-%m-%d %H:%M:%S"))
+        return np.array(time_date)
+
+
+class Geom(BaseFile):
+    def __init__(self, path: str, projection: str = ""):
+        super().__init__(path, "Geom")
+        self.projection = projection
+        self.feature_types = self.get_feature_types()
+        self.feature_type = None
+        self.feature = None
+        self.features = None
+
+    def set_feature_type(self, feature_type):
+        self.feature_type = feature_type
+
+    def shapefiles(self, feature_types=None):
+        out_location = os.path.join(
+            os.path.dirname(self.text_file), f"RAS_schematic/{self.title}"
+        )
+        os.makedirs(out_location, exist_ok=True)
+        for feature_type, gdf in self.gdf(feature_types).items():
+            file = os.path.join(out_location, f"{feature_type}.shp")
+            print(f"writing: {file}")
+            gdf.to_file(file)
+
+    def get_feature_types(self):
+        hdf = h5py.File(self.hdf_file)
+        return [
+            geom
+            for geom in list(hdf["Geometry"].keys())
+            if geom in HDFGEOMETRIES.keys()
+        ]
+
+    def gdf(self, feature_types=None) -> dict:
+        """reads the hdf file and returns a dictionary of geodataframes corresponding to the list of features provided.
+        run get_feature_types for a list of available features
+
+        Args:
+            feature_types (list[str], optional): list of feature_types to convert to geodataframes. Defaults to ["ALL"].
+
+        Returns:
+            dict: a dictionary of geodataframes
+        """
+        gdfs = {}
+        if feature_types == None:
+
+            if self.feature_type:
+                feature_types = [self.feature_type]
+
+            else:
+                feature_types = self.feature_types
+
+        for feature_type in feature_types:
+
+            geoms = {}
+            points, info, gdf = self.get_feature_hdf(feature_type)
+
+            if HDFGEOMETRIES[feature_type]["shape"] == "Point":
+
+                for e, p in enumerate(points):
+
+                    geoms[e] = Point(p[0], p[1])
+
+            else:
+
+                for e, i in enumerate(info.T):
+
+                    x = list(points[0][info[0][i] : info[0][i] + info[1][i]])
+                    y = list(points[1][info[0][i] : info[0][i] + info[1][i]])
+
+                    if len(x) < 2:
+                        x = x + x
+                        y = y + y
+
+                    if HDFGEOMETRIES[feature_type]["shape"] == "Line":
+                        geoms[e] = LineString(zip(x, y))
+
+                    elif HDFGEOMETRIES[feature_type]["shape"] == "Polygon":
+                        geoms[e] = Polygon(zip(x, y))
+
+            geoms = pd.DataFrame(geoms, index=["geometry"]).T
+            if isinstance(gdf, pd.DataFrame):
+                if feature_type == "Structures":
+                    gdf = gdf.join(geoms, on="temp_index")
+                else:
+                    gdf = gdf.join(geoms)
+                gdf = gpd.GeoDataFrame(gdf, crs=self.projection)
+
+            else:
+                gdf = gdf.join(geoms)
+                gdf = gpd.GeoDataFrame(crs=self.projection)
+
+            self.create_geometry_names(gdf, feature_type)
+            gdfs[feature_type] = gdf
+        return gdfs
+
+    def create_geometry_names(
+        self, gdf: gpd.GeoDataFrame, feature_type: str
+    ) -> gpd.GeoDataFrame:
+        if feature_type in ["Reference Points"]:
+            gdf["name_id"] = gdf["Name"] + "|" + gdf["SA/2D"]
+        if feature_type in ["Reference Lines", "Boundary Condition Lines"]:
+            gdf["name_id"] = gdf["Name"] + "|" + gdf["SA-2D"]
+        elif feature_type == "Cross Sections":
+            gdf["id"] = gdf["River"] + ";" + gdf["Reach"] + ";" + gdf["RS"]
+            gdf["name_id"] = (
+                gdf["River"].str.ljust(17, " ")
+                + gdf["Reach"].str.ljust(17, " ")
+                + gdf["RS"]
+            )
+        elif feature_type == "Structures":
+            gdf["name_id"] = gdf["River"] + " " + gdf["Reach"] + " " + gdf["RS"]
+            gdf.loc[gdf["Type"] == "Connection", "name_id"] = (
+                gdf["US SA/2D"] + " " + gdf["Connection"]
+            )
+        else:
+            pass
+
+    def get_feature_hdf(self, feature_type):
+
+        # open hdf file
+        with h5py.File(self.hdf_file, "r") as hdf:
+
+            # read in necessary datasets
+            if HDFGEOMETRIES[feature_type]["shape"] == "Point":
+
+                points = np.array(hdf.get(f"Geometry/{feature_type}/Points"))
+                info = None
+
+            else:
+
+                points = pd.DataFrame(
+                    np.array(
+                        hdf.get(
+                            f"Geometry/{feature_type}/{HDFGEOMETRIES[feature_type]['poly']} Points"
+                        )
+                    )
+                )
+
+                info = pd.DataFrame(
+                    np.array(
+                        hdf.get(
+                            f"Geometry/{feature_type}/{HDFGEOMETRIES[feature_type]['poly']} Info"
+                        )
+                    )
+                )
+
+            try:
+
+                attrs = pd.DataFrame(
+                    np.array(hdf.get(f"Geometry/{feature_type}/Attributes"))
+                )
+
+                # decode attrs dataframe
+                for i in attrs.columns:
+
+                    try:
+                        attrs[i] = attrs[i].str.decode(encoding="ASCII")
+                    except:
+                        pass
+
+                if feature_type == "Structures":
+
+                    attrs = self.gather_culvert_data(attrs)
+
+            except:
+                attrs = None
+            return points, info, attrs
+
+
+class Flow(BaseFile):
+    def __init__(self, path: str):
+        super().__init__(path, "Flow")
+        self.parse_attrs()
+
+    def parse_attrs(self):
+        for line in self.content.splitlines():
+            if "Number of Profiles=" in line:
+                self.profile_count = int(line.lstrip("Number of Profiles="))
+            elif "Profile Names=" in line:
+                self.profile_names = line.lstrip("Profile Names=").split(",")
+            elif "River Rch & RM=" in line:
+                pass
+            elif "Boundary for River Rch & Prof#=" in line:
+                pass
+
+
