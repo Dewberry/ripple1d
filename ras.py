@@ -523,6 +523,178 @@ class Geom(BaseFile):
         self.feature_type = None
         self.feature = None
         self.features = None
+        self.cross_sections=None
+
+    def determine_wse_increments_for_xs(self,ds_cross_sections:gpd.GeoDataFrame,increment:float)->list:
+
+        wses,wse_count,thalwegs=[],[],[]
+
+        for _,row in ds_cross_sections.iterrows():
+
+            se=pd.DataFrame(row["station_elevation"])
+
+            thalweg=np.floor(se["elevation"].min()*2)/2
+            max_elevation=se["elevation"].max()
+
+            wse=list(np.arange(thalweg,max_elevation+.5,increment))
+
+            wses.append(wse)
+            wse_count.append(len(wse))
+            thalwegs.append(thalweg)
+            
+
+
+        ds_cross_sections["wses"]=wses
+        ds_cross_sections["wse_count"]=wse_count
+        ds_cross_sections["thalweg"]=thalwegs
+
+        return ds_cross_sections
+
+
+    def us_ds_most_xs(self,us_ds:str="us")->dict:
+        """
+        return the upstream or downstream most 
+
+        Args:
+            us_ds (str, optional): _description_. Defaults to "us".
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            dict: _description_
+        """
+
+        if not isinstance(self.cross_sections,gpd.GeoDataFrame):
+            self.scan_for_xs()
+        
+        us_ds_most_xs=[]
+
+        #iterate through unique river-reach combos
+        for i in self.cross_sections["river_reach"].unique():
+
+            #get min or max river station for each unique river-reach combo
+            if us_ds=="us":
+                rs=self.cross_sections.loc[self.cross_sections["river_reach"]==i,"rs"].max()
+            elif us_ds=="ds":
+                rs=self.cross_sections.loc[self.cross_sections["river_reach"]==i,"rs"].min()
+            else:
+                raise ValueError(f"Expected 'us' or 'ds' for us_ds arg but recieved {us_ds}")
+
+            #return the unique river and reach
+            df=self.cross_sections.loc[(self.cross_sections["river_reach"]==i) & (self.cross_sections["rs"]==rs)]
+
+            #compile river,reach, and river station for each ds most xs
+            us_ds_most_xs.append(df)
+
+        return pd.concat(us_ds_most_xs)
+
+    def scan_for_xs(self)->gpd.GeoDataFrame:
+
+        lines=self.content.splitlines()
+
+        cross_sections=[]
+        xs=None
+
+        for i,line in enumerate(lines):
+
+            if "River Reach=" in line:
+                river,reach=line.lstrip("River Reach=").split(",")
+                
+            if "Type RM Length L Ch R =" in line:
+                
+                xs=self.parse_reach_lengths(line,river.rstrip(" "),reach.rstrip(" "))
+                
+            if xs:
+
+                if "XS GIS Cut Line=" in line:
+                    xs=self.parse_number_of_coords(line,xs)
+                    xs=self.parse_coords(lines[i+1:],xs)
+
+                if "#Sta/Elev=" in line:
+                    xs=self.parse_number_of_station_eleveation_points(line,xs)
+                    xs=self.parse_station_elevation_points(lines[i+1:],xs)
+                    cross_sections.append(xs)
+                    xs=None
+                if "Bank Sta=" in line:
+                    xs=self.parse_bank_stations(line,xs)
+
+        self.cross_sections=gpd.GeoDataFrame(cross_sections,geometry="coords",crs=self.projection)
+                    
+
+    def parse_reach_lengths(self,line:str,river:str,reach:str):
+
+        Type,rs,left_reach_length,channel_reach_length,right_reach_length=line.lstrip("Type RM Length L Ch R =").split(",")
+        
+        if Type=="1 ":
+            
+            xs=XS(river,reach,f"{river}_{reach}",float(rs),float(left_reach_length),float(channel_reach_length),float(right_reach_length),rs.replace(" ",""))
+            
+            return xs
+        else:
+            return None
+        
+    def parse_description(self,lines:list,xs:XS):
+        #TODO
+        pass
+
+    def parse_number_of_coords(self,line:str,xs:XS):
+        if "XS GIS Cut Line=" in line:
+            xs.number_of_coords=int(line.lstrip("XS GIS Cut Line="))
+            return xs
+            
+        
+    def parse_coords(self,lines:list,xs:XS,):
+        coords=[]
+        for line in lines:
+            for i in range(0,len(line),32):
+                x=line[i:i+16]
+                y=line[i+16:i+32]
+                coords.append((float(x),float(y)))
+
+                if len(coords)>=xs.number_of_coords:
+                    xs.coords=LineString(coords)
+                    return xs
+                
+    def parse_number_of_station_eleveation_points(self,line:str,xs:XS):
+
+        if "#Sta/Elev=" in line:
+
+            xs.number_of_station_elevation_points=int(line.lstrip("#Sta/Elev="))
+
+            return xs
+                  
+    def parse_station_elevation_points(self,lines:list,xs:XS):
+
+        se=[]
+
+        for line in lines:
+
+            for i in range(0,len(line),16):
+
+                s=line[i:i+8]
+                e=line[i+8:i+16]
+                se.append((float(s),float(e)))
+
+                if len(se)>=xs.number_of_station_elevation_points:
+                    df=pd.DataFrame(se,columns=["station","elevation"])
+
+                    #compute thalweg
+                    xs.thalweg=df["elevation"].min()
+
+                    #compute max depth for the cross section
+                    xs.max_depth=min(df["elevation"].iloc[0], df["elevation"].iloc[-1])-xs.thalweg
+
+                    xs.station_elevation=df.to_dict()
+
+                    return xs
+
+    def parse_bank_stations(self,line:list,xs:XS):
+        left_bank,right_bank=line.strip("Bank Sta=").split(",")
+        xs.left_bank=left_bank
+        xs.right_bank=right_bank
+
+        return xs
 
     def set_feature_type(self, feature_type):
         self.feature_type = feature_type
