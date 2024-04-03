@@ -45,7 +45,7 @@ class XS:
 
 class Ras:
 
-    def __init__(self, path: str,s3_client:boto3.client=None,s3_bucket:str=None):
+    def __init__(self, path: str,s3_client:boto3.client=None,s3_bucket:str=None,default_epsg:int=None):
         
         self.ras_folder = path
         self.client=s3_client
@@ -67,6 +67,9 @@ class Ras:
 
         except (FileNotFoundError, ValueError) as e:
             print(e)
+            if default_epsg:
+                self.projection=default_epsg
+                print(f"Attempting to use specified default projection: EPSG:{default_epsg}")
 
         self.read_content()
 
@@ -131,7 +134,7 @@ class Ras:
         
             self.content="\n".join(lines)
 
-    def set_current_plan(self,current_plan:Plan):
+    def set_current_plan(self,current_plan):
         """
         Update the current RAS plan in the RAS project content. 
         This does not update the actual file; use the 'write' method to do this. 
@@ -166,16 +169,16 @@ class Ras:
                 Body=self.content, Bucket=self.bucket, Key=ras_project_file
             )
 
-    def write_new_flow(self, title: str, discharges:list, cross_sections: list, ds_water_surface:float):
+    def write_new_flow(self, title: str, discharges:list, us_cross_sections:gpd.GeoDataFrame, ds_water_surface:float):
 
         """
-        Write a new flow file contaning the specified title, discharges, cross sections, and ds known water surface elevation. 
+        Write a new flow file contaning the specified title, discharges, cross sections, and downstream known water surface elevation. 
 
         Args:
             title (str): Title of the flow file
             discharges (list): A list of discharges (profiles) to apply 
-            cross_sections (list): A list of cross sections to apply the discharges to 
-            ds_water_surface (float): Downstream known water surface elevation to apply to all reaches.
+            us_cross_sections (gpd.GeoDataFrame): A list of cross sections to apply the discharges to 
+            ds_water_surface (np.array): Downstream known water surface elevation to apply to all reaches.
         """
 
         lines = []
@@ -184,10 +187,10 @@ class Ras:
         #write headers
         lines.append(f"Flow Title={title}")
         lines.append(f"Number of Profiles= {len(discharges)}")
-        lines.append(f"Profile Names={','.join([str(i) for i in discharges])}")
+        lines.append(f"Profile Names={','.join([str(i) for i in range(len(discharges))])}")
 
         #write discharges 
-        for xs in cross_sections:
+        for _,xs in us_cross_sections.iterrows():
 
             lines.append(
                 f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).ljust(8,' ')}"
@@ -206,10 +209,11 @@ class Ras:
                 lines.append(line)
 
         #write DS boundary conditions
-        for river_reach in set([f"{xs.river},{xs.reach.ljust(16,' ')}"]):
-
-            for i,flow in enumerate(discharges):
-                lines.append(f"Boundary for River Rch & Prof#={river_reach},{i+1}")
+        for _,xs in us_cross_sections.iterrows():
+            
+            for i in range(1,len(discharges)+1,1):
+                
+                lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach},{i}")
                 lines.append(f"Up Type= 0 ")
                 lines.append(f"Dn Type= 1 ")
                 lines.append(f"Dn Known WS={ds_water_surface}")
@@ -226,8 +230,9 @@ class Ras:
         flow = Flow(file)
         self.flows.update({title: flow})
         self.flows[flow.title] = flow
+        
 
-    def write_new_plan(self, geom:Geom, flow:Flow, title: str, short_id: str):
+    def write_new_plan(self, geom, flow, title: str, short_id: str):
 
         """
         Write a new plan file with the given geom, flow, tite. and short ID.
@@ -294,13 +299,15 @@ class Ras:
         RC.Project_Open(self.ras_project_file)
 
         RC.Compute_CurrentPlan()
+        while not RC.Compute_Complete():
+            time.sleep(0.2)
+        
         
         if show_ras:
             RC.ShowRas()
-
+    
         if close_ras:
             RC.QuitRas()
-            # RC.Close()
 
     def get_active_plan(self):
 
@@ -441,6 +448,7 @@ class BaseFile:
 
         if not os.path.exists(self.hdf_file):
             print(f'The file "{self.hdf_file}" does not exists')
+            self.hdf_file=None
 
     def read_content(self):
         """
@@ -476,7 +484,29 @@ class Plan(BaseFile):
         self.element_types: list = None
 
         self.parse_attrs()
+
+    def read_rating_curves(self):
+
+        def remove_multiple_spaces(x):
+            return re.sub(" +"," ",x)
         
+        with h5py.File(self.hdf_file) as hdf:
+            wse_path="/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Water Surface"
+            flow_path="/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Flow"
+            columns_path="/Results/Steady/Output/Geometry Info/Cross Section Only"
+            index_path="/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Profile Names"
+
+            columns=decode(pd.DataFrame(hdf[columns_path]))
+            index=decode(pd.DataFrame(hdf[index_path]))
+            
+            columns[0]=columns[0].apply(remove_multiple_spaces)
+
+            wse=pd.DataFrame(hdf.get(wse_path),columns=columns[0].values,index=index[0].values).T
+            flow=pd.DataFrame(hdf.get(flow_path),columns=columns[0].values,index=index[0].values).T
+
+        return {"wse":wse,"flow":flow}
+    
+
     def parse_attrs(self):
         """
         Parse basic attributes from the plan text file. 
@@ -536,7 +566,10 @@ class Geom(BaseFile):
     def __init__(self, path: str, projection: str = ""):
         super().__init__(path, "Geom")
         self.projection = projection
-        self.feature_types = self.get_feature_types()
+        if self.hdf_file:
+            self.get_feature_types()
+        else:
+            self.feature_types=None
         self.feature_type = None
         self.feature = None
         self.features = None
@@ -717,22 +750,26 @@ class Geom(BaseFile):
         self.feature_type = feature_type
 
     def shapefiles(self, feature_types=None):
+
         out_location = os.path.join(
             os.path.dirname(self.text_file), f"RAS_schematic/{self.title}"
         )
         os.makedirs(out_location, exist_ok=True)
+
         for feature_type, gdf in self.gdf(feature_types).items():
+
             file = os.path.join(out_location, f"{feature_type}.shp")
             print(f"writing: {file}")
             gdf.to_file(file)
 
     def get_feature_types(self):
         hdf = h5py.File(self.hdf_file)
-        return [
+        self.feature_types= [
             geom
             for geom in list(hdf["Geometry"].keys())
             if geom in HDFGEOMETRIES.keys()
         ]
+
 
     def gdf(self, feature_types=None) -> dict:
         """reads the hdf file and returns a dictionary of geodataframes corresponding to the list of features provided.
