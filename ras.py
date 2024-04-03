@@ -9,21 +9,38 @@ import geopandas as gpd
 from shapely.geometry import Polygon, LineString, Point
 from dataclasses import dataclass
 import boto3
-
+import time
+import re
 
 from consts import (
     HDFGEOMETRIES,
     PLOTTINGSTRUCTURES,
     PLOTTINGREFERENCE,
 )
-
+from utils import decode
 
 @dataclass
 class XS:
 
-    river: str
-    reach: str
-    rs: float
+    river: str=None
+    reach: str=None
+    river_reach:str=None
+    rs: float=None
+    left_reach_length:float=None
+    channel_reach_length:float=None
+    right_reach_length:float=None
+    rs_str:str=None
+    
+    description:str=None
+    number_of_coords:int=None
+    number_of_station_elevation_points:int=None
+    coords:list=None
+    station_elevation:list=None
+    thalweg:float=None
+    max_depth:float=None
+    mannings:list=None
+    left_bank:float=None
+    right_bank:float=None
 
 
 class Ras:
