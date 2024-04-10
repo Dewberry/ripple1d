@@ -65,3 +65,74 @@ def nhd_reach_rc(wse_flow_dict: dict, xs_fp_join: gpd.GeoDataFrame):
             reach_rc[id] = {"flow": new_flow, "depth": new_depth}
 
     return reach_rc
+
+def get_first_last_points(gdf: gpd.GeoDataFrame) -> tuple:
+
+    first_points, last_points = [], []
+
+    for _, row in gdf.iterrows():
+
+        # Multistring to first and last points
+        first, last = row.geometry.geoms[0].boundary.geoms
+
+        # append the points
+        first_points.append(first)
+        last_points.append(last)
+
+    # set point geometries to columns
+    gdf["first_point"] = first_points
+    gdf["last_point"] = last_points
+
+    # create individual copies
+    first = gdf.copy()
+    last = gdf.copy()
+
+    # set geometry and crs
+    first.set_geometry("first_point", inplace=True)
+    first.set_crs(crs=gdf.crs, inplace=True)
+
+    last.set_geometry("last_point", inplace=True)
+    last.set_crs(crs=gdf.crs, inplace=True)
+
+    return first, last
+
+
+def get_us_ds_ids(first: gpd.GeoDataFrame, last: gpd.GeoDataFrame):
+
+    rows = []
+    # iterate through the last points (downstream points)
+    for i, row in last.iterrows():
+
+        # determine which reach is downstream
+        ds = first.loc[first.intersects(row["last_point"]), "feature_id"]
+        if len(ds) > 1:
+            stream_order = first.loc[first.intersects(row["last_point"]), "strm_order"]
+            rows.append(ds[stream_order == stream_order.min()].iloc[0])
+
+        elif ds.empty:
+            rows.append(None)
+        else:
+            rows.append(ds.iloc[0])
+
+    # set downstream feature id as columns
+    last["ds_id"] = rows
+
+    rows = []
+    # iterate through the fist points (upstream points)
+    for i, row in first.iterrows():
+
+        # determine which reach is downstream
+        us = last.loc[last.intersects(row["first_point"]), "feature_id"]
+        if len(us) > 1:
+            stream_order = last.loc[last.intersects(row["first_point"]), "strm_order"]
+            rows.append(us[stream_order == stream_order.max()].iloc[0])
+
+        elif us.empty:
+            rows.append(None)
+        else:
+            rows.append(us.iloc[0])
+
+    # set downstream feature id as columns
+    first["us_id"] = rows
+
+    return first, last
