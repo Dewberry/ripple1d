@@ -1019,4 +1019,111 @@ class Flow(BaseFile):
             elif "Boundary for River Rch & Prof#=" in line:
                 pass
 
+class RasMap:
+
+    def __init__(self,path:str,s3_bucket=None,s3_client=None):
+
+        self.text_file=path
+        self.content=""
+
+        self.bucket=s3_bucket
+        self.client=s3_client
+
+        if os.path.exists(path):
+            self.read_content()
+
+        else:
+            self.new_rasmap_content()
+
+    def read_content(self):
+        """
+        Read content of the file. Searches for the file locally and on s3. 
+
+        Raises:
+            FileNotFoundError: 
+        """
+        if os.path.exists(self.text_file):
+            with open(self.text_file) as f:
+                self.content = f.read()
+        else:
+            try:
+                response = self.client.get_object(
+                    Bucket=self.bucket, Key=self.text_file
+                )
+                self.content = response["Body"].read().decode()
+            except Exception as E:
+                print(E)
+                raise FileNotFoundError(
+                    f"could not find {self.text_file} locally nor on s3"
+                )
+            
+    def new_rasmap_content(self):
+        self.content=RASMAP_631
+
+    def update_projection(self,projection_file:str):
+        
+        directory=os.path.dirname(self.text_file)
+        projection_base=os.path.basename(projection_file)
+
+        if projection_base not in os.listdir(directory):
+            raise FileNotFoundError(f"Expected projection file to be in RAS directory: {directory}. Provided location is: {projection_file}")
+        
+        lines=self.content.splitlines()
+        lines.insert(2,f'  <RASProjectionFilename Filename=".\{projection_base}" />')
+        #lines.insert(3,"    </Layer>")
+
+        self.content="\n".join(lines)
+    
+    def add_result_layers(self,plan_name:str,profiles:list):
+
+        lines=[]
+        for line in self.content.splitlines():
+            if line=="  </Results>":
+                for i,profile in enumerate(profiles):
+                    lines.append(f'      <Layer Name="Depth" Type="RASResultsMap" Checked="True" Filename=".\{plan_name}\Depth ({profile}).vrt">')
+                    lines.append(f'        <MapParameters MapType="depth" OutputMode="Stored Current Terrain" StoredFilename=".\{plan_name}\Depth ({profile}).vrt" ProfileIndex="{i}" ProfileName="{profile}" />')
+                    lines.append("      </Layer>")
+                lines.append("    </Layer>")
+            lines.append(line)
+
+        self.content="\n".join(lines)
+
+    def add_plan_layer(self,plan_title:str,plan_hdf:str,profiles:list):
+        lines=[]
+        for line in self.content.splitlines():
+
+            if line=="  <Results />":
+
+                lines.append(PLAN.replace("plan_hdf_placeholder",plan_hdf).replace("plan_name_placeholder",plan_title).replace("profile_placeholder",profiles[0]))
+                continue
+
+            lines.append(line)
+
+        self.content="\n".join(lines)
+
+    def add_terrain(self):
+
+        lines=[]
+        for line in self.content.splitlines():
+
+            if line=="  <Terrains />":
+
+                lines.append(TERRAIN)
+                continue
+
+            lines.append(line)
+
+        self.content="\n".join(lines)
+
+    def write(self):
+        
+        print(f"writing: {self.text_file}")
+
+        with open(self.text_file, "w") as f:
+            f.write(self.content)
+
+        #write backup
+        with open(self.text_file+".backup", "w") as f:
+            f.write(self.content)
+
 
