@@ -309,6 +309,101 @@ class Ras:
         if close_ras:
             RC.QuitRas()
 
+
+    def clip_dem(self,src_path:str,dest_path:str=""):
+
+        #if dest is not provided default to a Terrain directory located in the RAS directory
+        if not dest_path:
+            terrain_directory=os.path.join(self.ras_folder,"Terrain")
+
+            if not os.path.exists(terrain_directory):
+                os.makedirs(terrain_directory)
+
+            dest_path=os.path.join(terrain_directory,"Terrain.tif")
+
+        else:
+            
+            if not os.path.exists(os.path.dirname(dest_path)):
+                os.makedirs(os.path.dirname(dest_path))
+
+        
+        #open the src raster the cross section concave hull as a mask
+        with rasterio.open(src_path) as src:
+
+            out_image, out_transform = rasterio.mask.mask(src, self.geom.xs_hull.to_crs(src.crs)["geometry"], crop=True)
+            out_meta = src.meta
+        
+        #update metadata
+        out_meta.update({"driver": "GTiff",
+                        "height": out_image.shape[1],
+                        "width": out_image.shape[2],
+                        "transform": out_transform})
+
+        #write dest raster
+        with rasterio.open(dest_path, "w", **out_meta) as dest:
+            dest.write(out_image)
+        
+        return dest_path
+    
+    def create_terrain(
+        self,
+        src_terrain_filepaths: typing.List[str],
+        terrain_dirname: str = "Terrain",
+        hdf_filename: str = "Terrain.hdf",
+        vertical_units: str = "Feet",
+    ):
+        
+        """
+        Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
+        Default location is {model_directory}\Terrain\Terrain.hdf
+
+        Parameters
+        ----------
+        src_terrain_filepaths : list[str]
+            a list of terrain raster filepaths, typically tifs, to use when creating the terrain HDF
+            can be a list of 1 filepath
+        terrain_dirname : str (default="Terrain")
+            the name of the directory to put the terrain HDF into
+        hdf_filename : str (default="Terrain")
+            the filename of the output HDF terrain file, with the extension
+        vertical_units : str (default="Feet")
+            vertical units to be used, must be one of ["Feet", "Meters"]
+        """
+        if vertical_units not in ["Feet", "Meters"]:
+            raise ValueError(f"vertical_units must be either 'Feet' or 'Meters'; got: '{vertical_units}'")
+
+        missing_files = [x for x in src_terrain_filepaths if not os.path.exists(x)]
+        if missing_files:
+            raise FileNotFoundError(str(missing_files))
+
+        exe_parent_dir = os.path.split(self.terrain_exe)[0]
+        terrain_dir_fp = os.path.join(self.ras_folder, terrain_dirname)
+        subproc_args = [
+            self.terrain_exe,
+            "CreateTerrain",
+            f"units={vertical_units}",  # vertical units
+            "stitch=true",
+            f"prj={self.projection_file}",
+            f"out={os.path.join(terrain_dir_fp, hdf_filename)}",
+        ]
+        # add list of input rasters from which to build the Terrain
+        subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
+        print(subproc_args)
+        logging.info(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
+        subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
+
+        # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
+        # # compress the output tif(s) that RasProcess.exe created (otherwise could be 1+ GB at HUC12 size)
+        # layer_name = os.path.splitext(hdf_filename)[0]  # hdf file without extension
+        # tif_pattern = rf"^{layer_name}\..+\.tif$"
+        # output_tifs = [
+        #     os.path.join(terrain_dir_fp, fn) for fn in os.listdir(terrain_dir_fp) if re.fullmatch(tif_pattern, fn)
+        # ]
+        # for tif in output_tifs:
+        #     utils.recompress_tif(tif)
+        #     utils.build_tif_overviews(tif)
+
+
     def get_active_plan(self):
 
         """
