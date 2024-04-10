@@ -66,6 +66,28 @@ def nhd_reach_rc(wse_flow_dict: dict, xs_fp_join: gpd.GeoDataFrame):
 
     return reach_rc
 
+
+def get_terrain_exe_path(ras_ver: str) -> str:
+    """Return Windows path to RasProcess.exe exposing CreateTerrain subroutine, compatible with provided RAS version."""
+    # 5.0.7 version of RasProcess.exe does not expose CreateTerrain subroutine.
+    # Testing shows that RAS 5.0.7 accepts Terrain created by 6.1 version of RasProcess.exe, so use that for 5.0.7.
+    d = {
+        "507": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "5.07": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "600": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
+        "6.00": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
+        "610": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "6.10": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "6.10": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "631": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
+        "6.3.1": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
+    }
+    try:
+        return d[ras_ver]
+    except KeyError as e:
+        raise ValueError(f"Unsupported ras_ver: {ras_ver}. choices: {sorted(d)}") from e
+
+
 def get_first_last_points(gdf: gpd.GeoDataFrame) -> tuple:
 
     first_points, last_points = [], []
