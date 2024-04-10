@@ -11,13 +11,30 @@ from dataclasses import dataclass
 import boto3
 import time
 import re
+import typing
+import logging
+import subprocess
+import copy
+import rasterio
+import rasterio.mask
 
 from consts import (
     HDFGEOMETRIES,
     PLOTTINGSTRUCTURES,
     PLOTTINGREFERENCE,
 )
-from utils import decode
+from utils import decode,get_terrain_exe_path
+from model_build.rasmap import RASMAP_631,TERRAIN,PLAN
+
+@dataclass
+class FlowChangeLocation:
+
+    river:str=None
+    reach:str=None
+    rs:float=None
+    rs_str:str=None
+
+    flows:list=None
 
 @dataclass
 class XS:
@@ -26,10 +43,12 @@ class XS:
     reach: str=None
     river_reach:str=None
     rs: float=None
+    
     left_reach_length:float=None
     channel_reach_length:float=None
     right_reach_length:float=None
     rs_str:str=None
+    river_reach_rs:str=None
     
     description:str=None
     number_of_coords:int=None
@@ -45,7 +64,7 @@ class XS:
 
 class Ras:
 
-    def __init__(self, path: str,s3_client:boto3.client=None,s3_bucket:str=None,default_epsg:int=None):
+    def __init__(self, path: str,version:str="631",s3_client:boto3.client=None,s3_bucket:str=None,default_epsg:int=None):
         
         self.ras_folder = path
         self.client=s3_client
@@ -74,10 +93,14 @@ class Ras:
         self.read_content()
 
         self.title = self.content.splitlines()[0].split("=")[1]
+        self.ras_project_basename=os.path.splitext(os.path.basename(self.ras_project_file))[0]
         self.get_plans()
         self.get_geoms()
         self.get_flows()
         self.get_active_plan()
+
+        self.version=version
+        self.terrain_exe=get_terrain_exe_path(self.version)
 
     def read_content(self):
         """
@@ -150,6 +173,8 @@ class Ras:
             lines.append(line)
 
         self.content="\n".join(lines)
+
+        self.plan=current_plan
 
     def write(self, ras_project_file=None):
 
@@ -250,6 +275,7 @@ class Ras:
         lines.append(f"Short Identifier={short_id}")
         lines.append(f"Geom File={geom.extension.lstrip('.')}")
         lines.append(f"Flow File={flow.extension.lstrip('.')}")
+        lines.append(f"Run RASMapper=-1 ")
 
         # get a new extension number for the new plan
         new_extension_number = self.get_new_extension_number(self.plans)
@@ -480,8 +506,12 @@ class Ras:
         # check if the projection fiile exists
         if self.projection_file:
             if os.path.exists(self.projection_file):
-                with open(self.projection_file) as src:
-                    self.projection = src.read()
+                if self.projection_file.endswith(".prj"):
+
+                    with open(self.projection_file) as src:
+                        self.projection = src.read()
+                else:
+                    raise ValueError(f"Expected a projection file but got {self.projection_file}")
             else:
                 raise FileNotFoundError(
                     f"Could not find projection file for this project"
@@ -568,6 +598,9 @@ class BaseFile:
                 )
 
 
+
+
+
 class Plan(BaseFile):
     def __init__(self, path: str, projection: str = ""):
         super().__init__(path, "Plan")
@@ -581,6 +614,12 @@ class Plan(BaseFile):
         self.parse_attrs()
 
     def read_rating_curves(self):
+        
+        if not self.hdf_file:
+            self.hdf_file = self.text_file + ".hdf"
+
+            if not os.path.exists(self.hdf_file):
+                raise FileNotFoundError(f'The file "{self.hdf_file}" does not exists')
 
         def remove_multiple_spaces(x):
             return re.sub(" +"," ",x)
@@ -764,16 +803,21 @@ class Geom(BaseFile):
                 if "Bank Sta=" in line:
                     xs=self.parse_bank_stations(line,xs)
 
-        self.cross_sections=gpd.GeoDataFrame(cross_sections,geometry="coords",crs=self.projection)
-                    
+        if cross_sections:
+
+            self.cross_sections=gpd.GeoDataFrame(cross_sections,geometry="coords",crs=self.projection)
+            
+            self.xs_concave_hull()
+                              
 
     def parse_reach_lengths(self,line:str,river:str,reach:str):
 
         Type,rs,left_reach_length,channel_reach_length,right_reach_length=line.lstrip("Type RM Length L Ch R =").split(",")
         
         if Type=="1 ":
-            
-            xs=XS(river,reach,f"{river}_{reach}",float(rs),float(left_reach_length),float(channel_reach_length),float(right_reach_length),rs.replace(" ",""))
+            river_reach_rs=f"{river} {reach} {rs.rstrip(' ')}"
+
+            xs=XS(river,reach,f"{river}_{reach}",float(rs),float(left_reach_length),float(channel_reach_length),float(right_reach_length),rs.rstrip(" "),river_reach_rs)
             
             return xs
         else:
@@ -840,6 +884,19 @@ class Geom(BaseFile):
         xs.right_bank=right_bank
 
         return xs
+
+    def xs_concave_hull(self):
+
+        xs=self.cross_sections
+
+        points=xs.boundary.explode().unstack()
+        points_last_xs=[Point(coord) for coord in xs["coords"].iloc[-1].coords]
+        points_first_xs=[Point(coord) for coord in xs["coords"].iloc[0].coords]
+
+        polygon=Polygon(points_first_xs+list(points[0])+points_last_xs+list(points[1])[::-1])
+
+        self.xs_hull=gpd.GeoDataFrame({"geometry":[polygon]},geometry="geometry",crs=xs.crs)
+
 
     def set_feature_type(self, feature_type):
         self.feature_type = feature_type
@@ -1006,18 +1063,49 @@ class Geom(BaseFile):
 class Flow(BaseFile):
     def __init__(self, path: str):
         super().__init__(path, "Flow")
+        self.flow_change_locations=[]
         self.parse_attrs()
 
+        if self.flow_change_locations:
+            self.max_flow_applied()
+
     def parse_attrs(self):
-        for line in self.content.splitlines():
+
+        lines=self.content.splitlines()
+
+        for i,line in enumerate(lines):
+
             if "Number of Profiles=" in line:
                 self.profile_count = int(line.lstrip("Number of Profiles="))
+
             elif "Profile Names=" in line:
                 self.profile_names = line.lstrip("Profile Names=").split(",")
+
             elif "River Rch & RM=" in line:
-                pass
+                flow=self.parse_flows(lines[i:])
+                self.flow_change_locations.append(flow)
+
             elif "Boundary for River Rch & Prof#=" in line:
                 pass
+
+    def parse_flows(self,lines:list):
+        
+        river,reach,rs=lines[0].lstrip("River Rch & RM=").split(",")
+
+        flows=[]
+        for line in lines[1:]:
+
+            for i in range(0,len(line),8):
+
+                if len(flows)==self.profile_count:
+
+                    return FlowChangeLocation(river,reach.rstrip(" "),float(rs),rs,flows)
+                
+                flows.append(float(line[i:i+8].lstrip(" ")))
+
+    def max_flow_applied(self):
+        self.max_flow_applied=max([max(flow.flows) for flow in self.flow_change_locations])
+
 
 class RasMap:
 
