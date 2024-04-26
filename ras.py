@@ -814,6 +814,25 @@ class Plan(BaseFile):
         #populate the attributes above in the content of the plan 
         self.populate_content()
     
+    def populate_content(self):
+        """
+        populate the content of the plan with basic attributes (title, short_id, flow, and geom)
+
+        Raises:
+            RuntimeError: raise run time error if the plan already has content associated with it
+        """
+
+        if self.content:
+            raise RuntimeError(f"content already exists for this plan: {self.text_file}")
+        
+        # create necessary lines for the content of the plan text file.
+        lines = []
+        lines.append(f"Plan Title={self.title}")
+        lines.append(f"Short Identifier={self.short_id}")
+        lines.append(f"Geom File={self.geom.extension.lstrip('.')}")
+        lines.append(f"Flow File={self.flow.extension.lstrip('.')}")
+        lines.append(f"Run RASMapper=-1 ")
+        self.content=lines
 
 class Geom(BaseFile):
     def __init__(self, path: str, projection: str = ""):
