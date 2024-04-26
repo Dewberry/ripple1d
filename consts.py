@@ -60,13 +60,3 @@ STRUCTURGROUPS = {
     "Multiple Opening": "Multiple Opeings",
     "Connection": "SA 2D Area Conn",
 }
-
-
-FLOWS = (
-    [1, 5]
-    + [i for i in range(10, 100, 10)]
-    + [i for i in range(100, 1000, 100)]
-    + [i for i in range(1000, 10000, 1000)]
-    + [i for i in range(10000, 100000, 10000)]
-    + [i for i in range(100000, 1000000, 100000)]
-)
