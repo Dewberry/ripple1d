@@ -427,8 +427,17 @@ class Ras:
         if close_ras:
             RC.QuitRas()
 
-
+            
     def clip_dem(self,src_path:str,dest_path:str=""):
+        """Clip the provided DEM raster to the concave hull of the cross sections
+
+        Args:
+            src_path (str): path to the source raster 
+            dest_path (str), optional): path to the dest raster. Defaults to a Terrain directory located in the RAS directory
+
+        Returns:
+            dest_path (str): path to the dest raster. Defaults to a Terrain directory located in the RAS directory
+        """
 
         #if dest is not provided default to a Terrain directory located in the RAS directory
         if not dest_path:
@@ -645,10 +654,28 @@ class Ras:
 
 
 class BaseFile:
+    """
+    Represents a single ras file (plan,geom,flow).
+
+    Attributes
+    ----------
+    text_file : an absolute filepath representing the model file
+    hdf_file : hdf file for the geom, flow, or plan 
+    title : title of plan, geom, or flow 
+    content : a text representation of the files contents
+    program_version : version of the HEC-RAS model 
+    client : s3 client if reading from s3 (default=None)
+    bucket : s3 bucket if treading from s3 (default=None)
+    extension : extension of the geom, flow, or plan; e.g., .g01, .p02, f05
+
+    """
+
     def __init__(self, path: str, file_type: str,s3_client:boto3.client=None,s3_bucket:str=None):
         self.text_file = path
         self.hdf_file = path + ".hdf"
         self.extension = os.path.splitext(path)[1]
+        self.content=None
+        self.title=None
 
         self.bucket=s3_bucket
         self.client=s3_client
@@ -661,7 +688,6 @@ class BaseFile:
         self.title = self.content.splitlines()[0].split("=")[-1].rstrip("\n")
         self.program_version = self.content.splitlines()[1].split("=")[-1].rstrip("\n")
 
-        self.element_types = None
 
         if not os.path.exists(self.hdf_file):
             print(f'The file "{self.hdf_file}" does not exists')
@@ -700,39 +726,74 @@ class BaseFile:
             src.write(self.content)
 
 class Plan(BaseFile):
-    def __init__(self, path: str, projection: str = ""):
-        super().__init__(path, "Plan")
 
+    """
+    Represents a single plan file.
+
+    Attributes
+    ----------
+    short_id : short ID for the plan
+    projection : projection of the plan/RAS model
+    geom : geom associated with the plan
+    flow : flow associated with the plan
+    date : simulation date
+    dss_f : dss output file for the plan
+    dss_interval : interval for the dss output  
+    """
+
+    def __init__(self, path: str, projection: str = ""):
+        """
+        Args:
+            path (str): file path to the plan text file
+            projection (str, optional): projection file for the plan. Defaults to "".
+        """
+        try:
+            super().__init__(path, "Plan")
+     
+        except FileExistsError as e:
+            print(f"The plan file provided does not exists: {path}")
+        
+        self.short_id=None
         self.projection = projection
-        self.element_type = None
-        self.element = None
-        self.elements = None
-        self.element_types: list = None
 
         self.parse_attrs()
 
-    def read_rating_curves(self):
+    def read_rating_curves(self)->dict:
+        """
+        Read the flow and water surface elevations resulting from the computed plan
+
+        Raises:
+            FileNotFoundError: _description_
+
+        Returns:
+            dict: A dictionary containing "wse" and "flow" keys whose values are pandas dataframes 
+        """
         
+        #check if the hdf file exists; raise error if it does not
         if not self.hdf_file:
             self.hdf_file = self.text_file + ".hdf"
 
             if not os.path.exists(self.hdf_file):
                 raise FileNotFoundError(f'The file "{self.hdf_file}" does not exists')
-
+ 
         def remove_multiple_spaces(x):
             return re.sub(" +"," ",x)
-        
+
+        #read the hdf file        
         with h5py.File(self.hdf_file) as hdf:
             wse_path="/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Water Surface"
             flow_path="/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Flow"
             columns_path="/Results/Steady/Output/Geometry Info/Cross Section Only"
             index_path="/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Profile Names"
 
+            #get columns and indexes for the wse and flow arrays
             columns=decode(pd.DataFrame(hdf[columns_path]))
             index=decode(pd.DataFrame(hdf[index_path]))
             
+            #remove multiple spaces in between the river-reach-riverstation ids. 
             columns[0]=columns[0].apply(remove_multiple_spaces)
 
+            #create dataframes for the wse and flow results 
             wse=pd.DataFrame(hdf.get(wse_path),columns=columns[0].values,index=index[0].values).T
             flow=pd.DataFrame(hdf.get(flow_path),columns=columns[0].values,index=index[0].values).T
 
@@ -762,26 +823,17 @@ class Plan(BaseFile):
             elif "Output Interval" == line.split("=")[0]:
                 self.dss_interval = line.split("=")[1]
 
-    def set_element_type(self, value):
-        self.element_type = value
-        self.elements = self.get_element_names(value)
+    def convert_24_00_hour(self, date_time_str_array:np.array):
+        """
+        Convert RAS 24 hour notation to  00 hour
 
-    def set_element(self, value):
-        self.element = value
-        # self.elements = self.get_element_names(value)
+        Args:
+            date_time_str_array (np.array): array containing ras date strings
 
-    def get_element_names(self, element_type):
-        with h5py.File(self.hdf_file) as hdf:
-            if element_type in PLOTTINGSTRUCTURES.keys():
-                return list(hdf[f"{self.result_base_path}/{element_type}"].keys())
-            elif element_type in PLOTTINGREFERENCE.keys():
-                return list(
-                    hdf[
-                        f"{self.result_base_path}/{element_type}/{PLOTTINGREFERENCE[element_type]['name']}"
-                    ].asstr()
-                )
+        Returns:
+            np.array: An array of of datetime objects
+        """
 
-    def convert_24_00_hour(self, date_time_str_array):
         time_date = []
         for td in date_time_str_array:
             try:
@@ -835,56 +887,76 @@ class Plan(BaseFile):
         self.content=lines
 
 class Geom(BaseFile):
+
+    """
+    Represents a single geom file.
+
+    Attributes
+    ----------
+    projection : projection of the plan/RAS model
+    """
+
     def __init__(self, path: str, projection: str = ""):
         super().__init__(path, "Geom")
         self.projection = projection
-        if self.hdf_file:
-            self.get_feature_types()
-        else:
-            self.feature_types=None
-        self.feature_type = None
-        self.feature = None
-        self.features = None
         self.cross_sections=None
 
-    def determine_wse_increments_for_xs(self,ds_cross_sections:gpd.GeoDataFrame,increment:float)->list:
-
-        wses,wse_count,thalwegs=[],[],[]
-
-        for _,row in ds_cross_sections.iterrows():
-
-            se=pd.DataFrame(row["station_elevation"])
-
-            thalweg=np.floor(se["elevation"].min()*2)/2
-            max_elevation=se["elevation"].max()
-
-            wse=list(np.arange(thalweg,max_elevation+.5,increment))
-
-            wses.append(wse)
-            wse_count.append(len(wse))
-            thalwegs.append(thalweg)
-            
-
-
-        ds_cross_sections["wses"]=wses
-        ds_cross_sections["wse_count"]=wse_count
-        ds_cross_sections["thalweg"]=thalwegs
-
-        return ds_cross_sections
-
-
-    def us_ds_most_xs(self,us_ds:str="us")->dict:
+    def determine_wse_increments_for_xs(self,increment:float):
         """
-        return the upstream or downstream most 
+        Determine elevation increments for each cross section using the increments starting at the 
+        cross sections thalweg and increaseing to the max elevation of the cross section. Populate the incremented 
+        elevations and depths along with the thalweg and elevation_count in the cross sections geodataframe.
 
         Args:
-            us_ds (str, optional): _description_. Defaults to "us".
+            increment (float): elevation increment to use
+
+        """
+
+        elevations,elevation_count,thalwegs,depths=[],[],[],[]
+
+        #iterate through the cross sections
+        for _,row in self.cross_sections.iterrows():
+
+            #create a dataframe from the station-elevation data for this xs
+            se=pd.DataFrame(row["station_elevation"])
+
+            #determine the thalweg of the xs
+            thalweg=np.ceil(se["elevation"].min()*2)/2
+            
+            #determine the max elevation of the cross section 
+            max_elevation=se["elevation"].max()
+
+            #compute the elevation increments for this cross section
+            elevation=list(np.arange(thalweg,max_elevation+increment,increment))
+
+            #convert elevaitons to depth using the thalweg
+            depth=[i-thalweg for i in elevation]
+
+            #append the incremented elevations and depths and the thalweg and elevation_count 
+            elevations.append(elevation)
+            elevation_count.append(len(elevation))
+            thalwegs.append(thalweg)
+            depths.append(depth)
+            
+        # add relevant columns to the cross section geodataframe
+        self.cross_sections["wses"]=elevations
+        self.cross_sections["wse_count"]=elevation_count
+        self.cross_sections["thalweg"]=thalwegs
+        self.cross_sections["depths"]=depths
+
+
+    def us_ds_most_xs(self,us_ds:str="us")->pd.DataFrame:
+        """
+        Determine the upstream or downstream most cross section for a RAS river-reach 
+
+        Args:
+            us_ds (str, optional): specify "us", or "ds". Defaults to "us".
 
         Raises:
-            ValueError: _description_
+            ValueError: Raise a value error if something other that "us" or "ds" is provided
 
         Returns:
-            dict: _description_
+            pd.DataFrame: a pandas dataframe containing the upstream or downstream most cross sections 
         """
 
         if not isinstance(self.cross_sections,gpd.GeoDataFrame):
@@ -912,49 +984,86 @@ class Geom(BaseFile):
         return pd.concat(us_ds_most_xs)
 
     def scan_for_xs(self)->gpd.GeoDataFrame:
+        """
+        Scan the geom for cross sections
+
+        Returns:
+            gpd.GeoDataFrame: A geodataframe containing the cross sections in the geometry
+        """
 
         lines=self.content.splitlines()
 
         cross_sections=[]
         xs=None
 
+        #iterate through the lines in the geom contents
         for i,line in enumerate(lines):
-
+            
+            #parse river and reach 
             if "River Reach=" in line:
                 river,reach=line.lstrip("River Reach=").split(",")
                 
+            #parse river station and reach lengths for the left, channel, and right flowpaths
             if "Type RM Length L Ch R =" in line:
                 
                 xs=self.parse_reach_lengths(line,river.rstrip(" "),reach.rstrip(" "))
                 
+            # if a cross section is identified
             if xs:
 
                 if "XS GIS Cut Line=" in line:
+
+                    #parse coordinates of the cross section
                     xs=self.parse_number_of_coords(line,xs)
                     xs=self.parse_coords(lines[i+1:],xs)
 
                 if "#Sta/Elev=" in line:
+
+                    #parse station-elevation data
                     xs=self.parse_number_of_station_eleveation_points(line,xs)
                     xs=self.parse_station_elevation_points(lines[i+1:],xs)
-                    cross_sections.append(xs)
+
                     xs=None
                 if "Bank Sta=" in line:
+
+                    #parse bank stations
                     xs=self.parse_bank_stations(line,xs)
 
-        if cross_sections:
+                #gather cross sections
+                cross_sections.append(xs)
 
+        if cross_sections:
+            
+            #create cross section geodataframe
             self.cross_sections=gpd.GeoDataFrame(cross_sections,geometry="coords",crs=self.projection)
             
-            self.xs_concave_hull()
+            #create a concave hull for the cross sections
+            self.xs_hull=self.xs_concave_hull(self.cross_sections)
                               
 
     def parse_reach_lengths(self,line:str,river:str,reach:str):
+        """
+        Parse the reach lengths for a cross section from the geom content
 
+        Args:
+            line (str): lines from the geom content 
+            river (str): name of the river that this cross section is associated with
+            reach (str): name of the reach that this cross section is associated with
+
+        Returns:
+            XS: a dataclass representing a cross section
+        """
+
+        #parse the Type, rs, left_reach_length, channel_reach_length, and right_reach_length
         Type,rs,left_reach_length,channel_reach_length,right_reach_length=line.lstrip("Type RM Length L Ch R =").split(",")
         
+        #type 1 indicates a cross section
         if Type=="1 ":
+
+            #create handy river-reach-rs id
             river_reach_rs=f"{river} {reach} {rs.rstrip(' ')}"
 
+            #create XS dataclass
             xs=XS(river,reach,f"{river}_{reach}",float(rs),float(left_reach_length),float(channel_reach_length),float(right_reach_length),rs.rstrip(" "),river_reach_rs)
             
             return xs
@@ -966,12 +1075,34 @@ class Geom(BaseFile):
         pass
 
     def parse_number_of_coords(self,line:str,xs:XS):
+        """
+        parse the number of coordinates for a cross section
+
+        Args:
+            line (str): line of a goem content conntaining "XS GIS Cut Line=" 
+            xs (XS): XS data class for this cross section
+
+        Returns:
+            _type_: XS data class for this cross section with number of coordinates populated
+        """
+
         if "XS GIS Cut Line=" in line:
             xs.number_of_coords=int(line.lstrip("XS GIS Cut Line="))
             return xs
             
         
-    def parse_coords(self,lines:list,xs:XS,):
+    def parse_coords(self,lines:list,xs:XS):
+        """
+        Parse the coordinates for this cross section from the geom content
+
+        Args:
+            lines (list): lines form the geom content
+            xs (XS): XS data class for this cross section
+
+        Returns:
+            XS: XS dataclass for this cross section with coordinates populated
+        """
+
         coords=[]
         for line in lines:
             for i in range(0,len(line),32):
@@ -984,6 +1115,16 @@ class Geom(BaseFile):
                     return xs
                 
     def parse_number_of_station_eleveation_points(self,line:str,xs:XS):
+        """
+        Parse the number of station elevation points from the line containing "#Sta/Elev="
+
+        Args:
+            line (str): line containing "#Sta/Elev=" from the geom content
+            xs (XS): XS data class for this cross section 
+
+        Returns:
+            _type_: XS data class for this cross section with number of station-elevation points populated
+        """
 
         if "#Sta/Elev=" in line:
 
@@ -992,6 +1133,16 @@ class Geom(BaseFile):
             return xs
                   
     def parse_station_elevation_points(self,lines:list,xs:XS):
+        """
+        Parse the station elevation points from the geom content
+
+        Args:
+            lines (list): lines from the geom content
+            xs (XS): XS dataclass for this cross section
+
+        Returns:
+            _type_: XS dataclass for this cross section with station-elevation populated
+        """
 
         se=[]
 
@@ -1017,23 +1168,40 @@ class Geom(BaseFile):
                     return xs
 
     def parse_bank_stations(self,line:list,xs:XS):
+        """
+        Parse bank stations
+
+        Args:
+            line (list): line from the geom content containing "Bank Sta=". 
+            xs (XS): XS dataclass for this cross section
+
+        Returns:
+            _type_: XS dataclass for this cross section populated with bank stations
+        """
         left_bank,right_bank=line.strip("Bank Sta=").split(",")
         xs.left_bank=left_bank
         xs.right_bank=right_bank
 
         return xs
 
-    def xs_concave_hull(self):
+    def xs_concave_hull(self,xs:gpd.GeoDataFrame)->gpd.GeoDataFrame:
+        """
+        Compute the concave hull for the cross sections in the geom
 
-        xs=self.cross_sections
+        Args:
+            xs (gpd.GeoDataFrame): cross sections geodataframe 
+
+        Returns:
+            gpd.GeoDataFrame: concave hull geodataframe 
+        """
 
         points=xs.boundary.explode().unstack()
         points_last_xs=[Point(coord) for coord in xs["coords"].iloc[-1].coords]
-        points_first_xs=[Point(coord) for coord in xs["coords"].iloc[0].coords]
+        points_first_xs=[Point(coord) for coord in xs["coords"].iloc[0].coords[::-1]]
 
         polygon=Polygon(points_first_xs+list(points[0])+points_last_xs+list(points[1])[::-1])
 
-        self.xs_hull=gpd.GeoDataFrame({"geometry":[polygon]},geometry="geometry",crs=xs.crs)
+        return gpd.GeoDataFrame({"geometry":[polygon]},geometry="geometry",crs=xs.crs)
 
 class Flow(BaseFile):
 
@@ -1282,11 +1450,30 @@ class Flow(BaseFile):
 
 
 class RasMap:
+    """
+    Represents a single RasMapper file.
 
-    def __init__(self,path:str,s3_bucket=None,s3_client=None):
+    Attributes
+    ----------
+    text_file : Text file repressenting the RAS Mapper file
+    content : a text representation of the files contents
+    version : HEC-RAS version for this RAS Mapper file
+    client : s3 client if reading from s3 (default=None)
+    bucket : s3 bucket if treading from s3 (default=None)
 
+    """
+    def __init__(self,path:str,version:str=631,s3_bucket=None,s3_client=None):
+        """
+
+        Args:
+            path (str): file path to the plan text file
+            version (str): HEC-RAS vesion for this RAS Mapper file
+            s3_bucket (_type_, optional): s3 client if reading from s3. Defaults to None.
+            s3_client (_type_, optional): s3 bucket if reading from s3. Defaults to None.
+        """
         self.text_file=path
         self.content=""
+        self.version=version
 
         self.bucket=s3_bucket
         self.client=s3_client
@@ -1320,9 +1507,24 @@ class RasMap:
                 )
             
     def new_rasmap_content(self):
-        self.content=RASMAP_631
-
+        """
+        Populate the content with boiler plate content 
+        """
+        if self.version in ["631","6.31","6.3.1","63.1"]: 
+            self.content=RASMAP_631 
+        else:
+            raise ValueError(f"model version '{self.version}' is not supported")
+            
     def update_projection(self,projection_file:str):
+        """
+        Add/update the projection file to the RAS Mapper content 
+
+        Args:
+            projection_file (str): path to projeciton file containing the coordinate system (.prj)
+
+        Raises:
+            FileNotFoundError: 
+        """
         
         directory=os.path.dirname(self.text_file)
         projection_base=os.path.basename(projection_file)
@@ -1332,31 +1534,51 @@ class RasMap:
         
         lines=self.content.splitlines()
         lines.insert(2,f'  <RASProjectionFilename Filename=".\{projection_base}" />')
-        #lines.insert(3,"    </Layer>")
+        
 
         self.content="\n".join(lines)
     
-    def add_result_layers(self,plan_name:str,profiles:list):
+    def add_result_layers(self,plan_short_id:str,profiles:list,variable:str):
+        """
+        Add results layers to RasMap content. When the RAS plan is ran with "Floodplain Mapping" toggled on 
+        the result layer added here will output rasters.
 
+        Args:
+            plan_short_id (str): Plan short id for the output raster(s)
+            profiles (list): Profiles for the output raster(s) 
+            variable (str): Variable to create rasters for. Currently "Depth" is the only supported variable. 
+        """
+
+        if variable not in ["Depth"]:
+            raise NotImplemented(f"Variable {variable} not currently implemented. Currently only Depth is supported.")
+        
         lines=[]
         for line in self.content.splitlines():
             if line=="  </Results>":
                 for i,profile in enumerate(profiles):
-                    lines.append(f'      <Layer Name="Depth" Type="RASResultsMap" Checked="True" Filename=".\{plan_name}\Depth ({profile}).vrt">')
-                    lines.append(f'        <MapParameters MapType="depth" OutputMode="Stored Current Terrain" StoredFilename=".\{plan_name}\Depth ({profile}).vrt" ProfileIndex="{i}" ProfileName="{profile}" />')
+                    lines.append(f'      <Layer Name="{variable}" Type="RASResultsMap" Checked="True" Filename=".\{plan_short_id}\{variable} ({profile}).vrt">')
+                    lines.append(f'        <MapParameters MapType="{variable.lower()}" OutputMode="Stored Current Terrain" StoredFilename=".\{plan_short_id}\{variable} ({profile}).vrt" ProfileIndex="{i}" ProfileName="{profile}" />')
                     lines.append("      </Layer>")
                 lines.append("    </Layer>")
             lines.append(line)
 
         self.content="\n".join(lines)
 
-    def add_plan_layer(self,plan_title:str,plan_hdf:str,profiles:list):
+    def add_plan_layer(self,plan_short_id:str,plan_hdf:str,profiles:list):
+        """
+        Add a plan layer to the results in the RASMap content
+
+        Args:
+            plan_short_id (str): plan_short_id of the plan 
+            plan_hdf (str): _description_
+            profiles (list): _description_
+        """
         lines=[]
         for line in self.content.splitlines():
 
             if line=="  <Results />":
 
-                lines.append(PLAN.replace("plan_hdf_placeholder",plan_hdf).replace("plan_name_placeholder",plan_title).replace("profile_placeholder",profiles[0]))
+                lines.append(PLAN.replace("plan_hdf_placeholder",plan_hdf).replace("plan_name_placeholder",plan_short_id).replace("profile_placeholder",profiles[0]))
                 continue
 
             lines.append(line)
@@ -1364,6 +1586,9 @@ class RasMap:
         self.content="\n".join(lines)
 
     def add_terrain(self):
+        """
+        Add Terrain to RasMap content
+        """
 
         lines=[]
         for line in self.content.splitlines():
@@ -1378,6 +1603,9 @@ class RasMap:
         self.content="\n".join(lines)
 
     def write(self):
+        """
+        write Ras Map content to file
+        """
         
         print(f"writing: {self.text_file}")
 
