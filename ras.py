@@ -265,68 +265,94 @@ class Ras:
                 Body=self.content, Bucket=self.bucket, Key=ras_project_file
             )
 
-    def write_new_flow(self, title: str, discharges:list, us_cross_sections:gpd.GeoDataFrame, ds_water_surface:float):
+
+    def write_new_flow_rating_curves(self, title: str, reach_data:pd.DataFrame,normal_depth:float):
 
         """
-        Write a new flow file contaning the specified title, discharges, cross sections, and downstream known water surface elevation. 
+        Write a new flow file contaning the specified title, reach_data, and normal depth. 
 
         Args:
             title (str): Title of the flow file
-            discharges (list): A list of discharges (profiles) to apply 
-            us_cross_sections (gpd.GeoDataFrame): A list of cross sections to apply the discharges to 
-            ds_water_surface (np.array): Downstream known water surface elevation to apply to all reaches.
+            reach_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.  
+            normal_depth (float): normal_depth to apply
         """
-
-        lines = []
-        line = ""
-        
-        #write headers
-        lines.append(f"Flow Title={title}")
-        lines.append(f"Number of Profiles= {len(discharges)}")
-        lines.append(f"Profile Names={','.join([str(i) for i in range(len(discharges))])}")
-
-        #write discharges 
-        for _,xs in us_cross_sections.iterrows():
-
-            lines.append(
-                f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).ljust(8,' ')}"
-            )
-
-            for i, flow in enumerate(discharges):
-
-                line += f"{str(flow).rjust(8,' ')}"
-
-                if (i + 1) % 10 == 0:
-
-                    lines.append(line)
-                    line = ""
-
-            if (i + 1) % 10 != 0:
-                lines.append(line)
-
-        #write DS boundary conditions
-        for _,xs in us_cross_sections.iterrows():
-            
-            for i in range(1,len(discharges)+1,1):
-                
-                lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach},{i}")
-                lines.append(f"Up Type= 0 ")
-                lines.append(f"Dn Type= 1 ")
-                lines.append(f"Dn Known WS={ds_water_surface}")
 
         # get a new extension number for the new flow file
         new_extension_number = self.get_new_extension_number(self.flows)
-        file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
+        text_file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
 
-        # write the new flow file
-        with open(file, "w") as src:
-            src.write("\n".join(lines))
+        #create new flow
+        flow = Flow(text_file)
+
+        flow.content = []
+        
+        flows=[int(i) for i in reach_data["flows_rc"]]
+
+        #write headers
+        flow.write_headers(title,flows)
+
+        flow.profile_names=flows
+        flow.profile_count=len(flow.profile_names)
+        flow.title=title
+
+        #write discharges 
+        flow.write_discharges(flows,self)
+
+        #write normal depth
+        flow.write_ds_normal_depth(reach_data,normal_depth,self)
+
+        #write flow file content
+        flow.write()
 
         # add new flow to the ras class
-        flow = Flow(file)
-        self.flows.update({title: flow})
-        self.flows[flow.title] = flow
+        self.flows[title] = flow
+
+    def write_new_flow_production_runs(self, title: str, reach_data:pd.Series,normal_depth:float):
+
+        """
+        Write a new flow file contaning the specified title, reach_data, and normal depth. 
+
+        Args:
+            title (str): Title of the flow file
+            reach_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.  
+            normal_depth (np.array): normal depth to apply at the downstream terminus of the reach.
+        """
         
+        # get a new extension number for the new flow file
+        new_extension_number = self.get_new_extension_number(self.flows)
+        text_file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
+
+        #create new flow 
+        flow = Flow(text_file)
+
+        xs=self.geom.cross_sections
+        
+        #create profile names
+        profile_names,flows,wses=flow.create_profile_names(reach_data,reach_data["flows"])
+
+        flow.profile_names=profile_names
+        flow.profile_count=len(flow.profile_names)
+        flow.title=title
+
+        flow.content = []
+        
+        #write headers
+        flow.write_headers(title,profile_names)
+
+        #write discharges 
+        flow.write_discharges(flows,self)
+
+        #write DS boundary conditions
+        flow.write_ds_known_ws(reach_data,normal_depth,self)
+    
+        #add intermediate known wses
+        flow.add_intermediate_known_wse(reach_data,wses)
+
+        #write flow file content
+        flow.write()
+
+        # add new flow to the ras class
+        self.flows[title] = flow
 
     def write_new_plan(self, geom, flow, title: str, short_id: str):
 
@@ -968,179 +994,45 @@ class Geom(BaseFile):
 
         self.xs_hull=gpd.GeoDataFrame({"geometry":[polygon]},geometry="geometry",crs=xs.crs)
 
+class Flow(BaseFile):
 
-    def set_feature_type(self, feature_type):
-        self.feature_type = feature_type
+    """
+    Represents a single flow file.
 
-    def shapefiles(self, feature_types=None):
+    Attributes
+    ----------
+    flow_change_locations : cross sections where flows are applied
+    profile_count : number of flow profiles 
+    profile_names : names of the flow profiles
+    max_flow_applied : the maximum flow applied
 
-        out_location = os.path.join(
-            os.path.dirname(self.text_file), f"RAS_schematic/{self.title}"
-        )
-        os.makedirs(out_location, exist_ok=True)
+    """
 
-        for feature_type, gdf in self.gdf(feature_types).items():
-
-            file = os.path.join(out_location, f"{feature_type}.shp")
-            print(f"writing: {file}")
-            gdf.to_file(file)
-
-    def get_feature_types(self):
-        hdf = h5py.File(self.hdf_file)
-        self.feature_types= [
-            geom
-            for geom in list(hdf["Geometry"].keys())
-            if geom in HDFGEOMETRIES.keys()
-        ]
-
-
-    def gdf(self, feature_types=None) -> dict:
-        """reads the hdf file and returns a dictionary of geodataframes corresponding to the list of features provided.
-        run get_feature_types for a list of available features
+    def __init__(self, path: str):
+        """
 
         Args:
-            feature_types (list[str], optional): list of feature_types to convert to geodataframes. Defaults to ["ALL"].
-
-        Returns:
-            dict: a dictionary of geodataframes
+            path (str): path to the flow file
         """
-        gdfs = {}
-        if feature_types == None:
 
-            if self.feature_type:
-                feature_types = [self.feature_type]
+        try:
 
-            else:
-                feature_types = self.feature_types
+            super().__init__(path, "Flow")
+            self.flow_change_locations=[]
+            self.parse_attrs()
 
-        for feature_type in feature_types:
+            if self.flow_change_locations:
+                self.max_flow_applied()
 
-            geoms = {}
-            points, info, gdf = self.get_feature_hdf(feature_type)
+        except FileExistsError as e:
 
-            if HDFGEOMETRIES[feature_type]["shape"] == "Point":
-
-                for e, p in enumerate(points):
-
-                    geoms[e] = Point(p[0], p[1])
-
-            else:
-
-                for e, i in enumerate(info.T):
-
-                    x = list(points[0][info[0][i] : info[0][i] + info[1][i]])
-                    y = list(points[1][info[0][i] : info[0][i] + info[1][i]])
-
-                    if len(x) < 2:
-                        x = x + x
-                        y = y + y
-
-                    if HDFGEOMETRIES[feature_type]["shape"] == "Line":
-                        geoms[e] = LineString(zip(x, y))
-
-                    elif HDFGEOMETRIES[feature_type]["shape"] == "Polygon":
-                        geoms[e] = Polygon(zip(x, y))
-
-            geoms = pd.DataFrame(geoms, index=["geometry"]).T
-            if isinstance(gdf, pd.DataFrame):
-                if feature_type == "Structures":
-                    gdf = gdf.join(geoms, on="temp_index")
-                else:
-                    gdf = gdf.join(geoms)
-                gdf = gpd.GeoDataFrame(gdf, crs=self.projection)
-
-            else:
-                gdf = gdf.join(geoms)
-                gdf = gpd.GeoDataFrame(crs=self.projection)
-
-            self.create_geometry_names(gdf, feature_type)
-            gdfs[feature_type] = gdf
-        return gdfs
-
-    def create_geometry_names(
-        self, gdf: gpd.GeoDataFrame, feature_type: str
-    ) -> gpd.GeoDataFrame:
-        if feature_type in ["Reference Points"]:
-            gdf["name_id"] = gdf["Name"] + "|" + gdf["SA/2D"]
-        if feature_type in ["Reference Lines", "Boundary Condition Lines"]:
-            gdf["name_id"] = gdf["Name"] + "|" + gdf["SA-2D"]
-        elif feature_type == "Cross Sections":
-            gdf["id"] = gdf["River"] + ";" + gdf["Reach"] + ";" + gdf["RS"]
-            gdf["name_id"] = (
-                gdf["River"].str.ljust(17, " ")
-                + gdf["Reach"].str.ljust(17, " ")
-                + gdf["RS"]
-            )
-        elif feature_type == "Structures":
-            gdf["name_id"] = gdf["River"] + " " + gdf["Reach"] + " " + gdf["RS"]
-            gdf.loc[gdf["Type"] == "Connection", "name_id"] = (
-                gdf["US SA/2D"] + " " + gdf["Connection"]
-            )
-        else:
-            pass
-
-    def get_feature_hdf(self, feature_type):
-
-        # open hdf file
-        with h5py.File(self.hdf_file, "r") as hdf:
-
-            # read in necessary datasets
-            if HDFGEOMETRIES[feature_type]["shape"] == "Point":
-
-                points = np.array(hdf.get(f"Geometry/{feature_type}/Points"))
-                info = None
-
-            else:
-
-                points = pd.DataFrame(
-                    np.array(
-                        hdf.get(
-                            f"Geometry/{feature_type}/{HDFGEOMETRIES[feature_type]['poly']} Points"
-                        )
-                    )
-                )
-
-                info = pd.DataFrame(
-                    np.array(
-                        hdf.get(
-                            f"Geometry/{feature_type}/{HDFGEOMETRIES[feature_type]['poly']} Info"
-                        )
-                    )
-                )
-
-            try:
-
-                attrs = pd.DataFrame(
-                    np.array(hdf.get(f"Geometry/{feature_type}/Attributes"))
-                )
-
-                # decode attrs dataframe
-                for i in attrs.columns:
-
-                    try:
-                        attrs[i] = attrs[i].str.decode(encoding="ASCII")
-                    except:
-                        pass
-
-                if feature_type == "Structures":
-
-                    attrs = self.gather_culvert_data(attrs)
-
-            except:
-                attrs = None
-            return points, info, attrs
-
-
-class Flow(BaseFile):
-    def __init__(self, path: str):
-        super().__init__(path, "Flow")
-        self.flow_change_locations=[]
-        self.parse_attrs()
-
-        if self.flow_change_locations:
-            self.max_flow_applied()
-
+            print(f"The flow file provided does not exists: {path}")
+            
     def parse_attrs(self):
+        """
+        Parse the basic attributes from the contents of the flow
+
+        """
 
         lines=self.content.splitlines()
 
@@ -1160,7 +1052,17 @@ class Flow(BaseFile):
                 pass
 
     def parse_flows(self,lines:list):
+        """
+        Parse the flows from the flow content
+
+        Args:
+            lines (list): lines from the flow content
+
+        Returns:
+            FlowChangeLocation: FlowChangeLocation object
+        """
         
+        #parse river, reach, and river station for the flow change location
         river,reach,rs=lines[0].lstrip("River Rch & RM=").split(",")
 
         flows=[]
@@ -1175,7 +1077,167 @@ class Flow(BaseFile):
                 flows.append(float(line[i:i+8].lstrip(" ")))
 
     def max_flow_applied(self):
+        """
+        Compute max flow applied
+        """
+
         self.max_flow_applied=max([max(flow.flows) for flow in self.flow_change_locations])
+
+
+    def create_profile_names(self,reach_data:pd.Series,input_flows:np.array)->tuple:   
+        """
+        Create profile names from flows and ds_depths specified in the reach_data 
+
+        Args:
+            reach_data (pd.Series): NWM reach data 
+            input_flows (np.array): Flows to create profiles names from. Combine with incremental depths 
+            of the downstream cross section of the reach 
+
+        Returns:
+            tuple: tuple of profile_names, flows, and wses
+        """
+
+        profile_names,flows,wses=[],[],[]
+
+        for e,depth in enumerate(reach_data["ds_depths"]):
+
+            for flow in input_flows:
+
+                profile_names.append(f"{flow}_{depth}")
+
+                flows.append(flow)
+                wses.append(reach_data["ds_wses"][e])
+
+        return (profile_names,flows,wses)
+    
+    def write_headers(self,title:str,profile_names:list):
+        """
+        Write headers for flow content
+
+        Args:
+            title (str): title of the flow 
+            profile_names (list): profile names for the flow
+
+        Returns:
+            list: lines of the flow content 
+        """
+        lines=[]
+        lines.append(f"Flow Title={title}")
+        lines.append(f"Number of Profiles= {len(profile_names)}")
+        lines.append(f"Profile Names={','.join([str(pn) for pn in profile_names])}")
+
+        self.content+= "\n".join(lines)
+    
+    def write_discharges(self,flows:list,r:Ras):
+        """
+        Write discharges to flow content
+
+        Args:
+            flows (list): flows to write to the flow content
+            r (Ras ): Ras object representing the HEC-RAS project
+        """
+
+        us_cross_sections = r.geom.us_ds_most_xs(us_ds="us")
+
+        lines=[]
+        line = ""
+
+        for _,xs in us_cross_sections.iterrows():
+
+            lines.append(
+                f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).ljust(8,' ')}"
+            )
+
+            for i, flow in enumerate(flows):
+
+                line += f"{str(int(flow)).rjust(8,' ')}"
+
+                if (i + 1) % 10 == 0:
+
+                    lines.append(line)
+                    line = ""
+
+            if (i + 1) % 10 != 0:
+                lines.append(line)
+
+        self.content+= "\n".join(lines)
+    
+    def write_ds_known_ws(self,reach_data:pd.Series,normal_depth:float,r:Ras):
+        """
+        Write downstream known water surface elevations to flow content 
+
+        Args:
+            reach_data (pd.Series): Reach data from NWM reaches
+            normal_depth (float): Normal depth to apply if reach_data does not contain a downstream river station (ds_rs)
+            r (Ras): Ras object representing the HEC-RAS project
+        """
+
+        ds_cross_sections = r.geom.us_ds_most_xs(us_ds="ds")
+        count=0
+        lines=[]
+
+        for _,xs in ds_cross_sections.iterrows():
+
+            if reach_data["ds_rs"] == xs["rs"]:
+            
+                #get the downstream wses for this reach/xs
+                wses=reach_data["ds_wses"]
+
+                for e,wse in enumerate(wses):
+                    
+                    for i in range(len(reach_data["flows"])):
+                        count+=1
+                        lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
+                        lines.append(f"Up Type= 0 ")
+                        lines.append(f"Dn Type= 1 ")
+                        lines.append(f"Dn Known WS={wse}")
+            else:
+                lines=self.write_ds_normal_depth(lines,reach_data,normal_depth,r)
+
+        self.content+= "\n".join(lines)
+    
+    def write_ds_normal_depth(self,reach_data:pd.Series,normal_depth:float,r:Ras):
+        """
+        Write the downstream normal depth boundary condition 
+
+        Args:
+            reach_data (pd.Series): Reach data from NWM reaches
+            normal_depth (float): Normal depth slope to apply to all profiles
+            r (Ras): Ras object representing the HEC-RAS project
+        """
+        ds_cross_sections = r.geom.us_ds_most_xs(us_ds="ds")
+        count=0
+        lines=[]
+
+        for _,xs in ds_cross_sections.iterrows():
+                
+            for i in range(len(reach_data["flows_rc"])):
+                count+=1
+                lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
+                lines.append(f"Up Type= 0 ")
+                lines.append(f"Dn Type= 3 ")
+                lines.append(f"Dn Slope={normal_depth}")
+
+        self.content+= "\n".join(lines)
+
+    def add_intermediate_known_wse(self,reach_data:pd.Series,wses:list):
+        """
+        Write known water surface elevations for intermediate cross sections along the reach to the flow content. 
+
+        Args:
+            reach_data (pd.Series): Reach data from NWM reaches
+            wses (list): known water surface elvations to apply
+        """
+
+        lines=[]
+
+        reach_data["ds_rs"]
+        for e,wse in enumerate(wses):
+
+            lines.append(f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['ds_rs']}  , {e+1} , 3 ,{wse}")
+
+        self.content+= "\n".join(lines)
+
 
 
 class RasMap:
