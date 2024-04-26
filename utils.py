@@ -1,6 +1,12 @@
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+from shapely.geometry import Polygon, LineString
+from shapely.validation import make_valid
+import pandas as pd
+import plotly.graph_objects as go
+import os
+import rasterio
 
 
 def decode(df: pd.DataFrame):
@@ -12,59 +18,11 @@ def decode(df: pd.DataFrame):
 def create_flow_depth_array(flow: list, depth: list):
     min_depth = np.min(depth)
     max_depth = np.max(depth)
-    start_depth = np.floor(min_depth * 2) / 2  # round down to nearest .0 or .5
+    start_depth = np.ceil(min_depth * 2) / 2  # round down to nearest .0 or .5
     new_depth = np.arange(start_depth, max_depth + 0.5, 0.5)
     new_flow = np.interp(new_depth, np.sort(depth), np.sort(flow))
 
     return new_flow, new_depth
-
-
-def nhd_reach_rc(wse_flow_dict: dict, xs_fp_join: gpd.GeoDataFrame):
-
-    # create joining field
-    xs_fp_join["river_reach_rs"] = xs_fp_join[["river", "reach", "rs_str"]].agg(
-        " ".join, axis=1
-    )
-
-    for id, data in wse_flow_dict.items():
-
-        # unpack sub dictionary
-        wse = data["wse"]
-        flow = data["flow"]
-
-        # join cross section/flowpath gdf to flow/wse dataframes
-        xs_flowpath_wse_join = xs_fp_join.merge(
-            wse, left_on="river_reach_rs", right_index=True
-        )
-        xs_flowpath_flow_join = xs_fp_join.merge(
-            flow, left_on="river_reach_rs", right_index=True
-        )
-
-        # convert wse to depth
-        for c in wse.columns:
-            xs_flowpath_wse_join[c] = (
-                xs_flowpath_wse_join[c] - xs_flowpath_wse_join["thalweg"]
-            )
-
-        # group by nhd feature id and compute mean stage
-        mean_wses = xs_flowpath_wse_join.groupby("feature_id").apply(
-            lambda s: {i: s[i].mean() for i in wse.columns}
-        )
-        mean_flows = xs_flowpath_flow_join.groupby("feature_id").apply(
-            lambda s: {i: s[i].mean() for i in flow.columns}
-        )
-
-        # iterate through nhd flow lines and compute new rating curve for each
-        reach_rc = {}
-        for id in mean_wses.keys():
-
-            new_flow, new_depth = create_flow_depth_array(
-                list(mean_flows[id].values()), list(mean_wses[id].values())
-            )
-
-            reach_rc[id] = {"flow": new_flow, "depth": new_depth}
-
-    return reach_rc
 
 
 def get_terrain_exe_path(ras_ver: str) -> str:
@@ -88,73 +46,39 @@ def get_terrain_exe_path(ras_ver: str) -> str:
         raise ValueError(f"Unsupported ras_ver: {ras_ver}. choices: {sorted(d)}") from e
 
 
-def get_first_last_points(gdf: gpd.GeoDataFrame) -> tuple:
+def plot_xs_with_wse_increments(r):
+    df = pd.DataFrame(r.geom.cross_sections["station_elevation"].iloc[0])
+    fig = go.Figure()
 
-    first_points, last_points = [], []
+    xs = df.copy()
+    xs.loc[len(xs.index)] = [
+        xs.loc[len(xs.index) - 1, "station"],
+        xs.loc[0, "elevation"],
+    ]
+    xs.loc[len(xs.index)] = xs.loc[0]
 
-    for _, row in gdf.iterrows():
+    polygon = Polygon(zip(xs["station"], xs["elevation"]))
 
-        # Multistring to first and last points
-        first, last = row.geometry.geoms[0].boundary.geoms
+    if not polygon.is_valid:
+        polygon = make_valid(polygon).geoms[0].geoms[0]
 
-        # append the points
-        first_points.append(first)
-        last_points.append(last)
+    for wse in r.geom.cross_sections["wses"].iloc[0]:
+        line = LineString([[xs["station"].iloc[0], wse], [xs["station"].iloc[-2], wse]])
 
-    # set point geometries to columns
-    gdf["first_point"] = first_points
-    gdf["last_point"] = last_points
-
-    # create individual copies
-    first = gdf.copy()
-    last = gdf.copy()
-
-    # set geometry and crs
-    first.set_geometry("first_point", inplace=True)
-    first.set_crs(crs=gdf.crs, inplace=True)
-
-    last.set_geometry("last_point", inplace=True)
-    last.set_crs(crs=gdf.crs, inplace=True)
-
-    return first, last
-
-
-def get_us_ds_ids(first: gpd.GeoDataFrame, last: gpd.GeoDataFrame):
-
-    rows = []
-    # iterate through the last points (downstream points)
-    for i, row in last.iterrows():
-
-        # determine which reach is downstream
-        ds = first.loc[first.intersects(row["last_point"]), "feature_id"]
-        if len(ds) > 1:
-            stream_order = first.loc[first.intersects(row["last_point"]), "strm_order"]
-            rows.append(ds[stream_order == stream_order.min()].iloc[0])
-
-        elif ds.empty:
-            rows.append(None)
+        new_line = polygon.intersection(line)
+        if new_line.length == 0:
+            continue
+        if new_line.geom_type in ["GeometryCollection", "MultiLineString"]:
+            for l in new_line.geoms:
+                x, y = l.xy
+                fig.add_scatter(
+                    x=list(x), y=list(y), marker={"color": "grey", "size": 0.5}
+                )
         else:
-            rows.append(ds.iloc[0])
+            x, y = new_line.xy
+            fig.add_scatter(x=list(x), y=list(y), marker={"color": "grey", "size": 0.5})
 
-    # set downstream feature id as columns
-    last["ds_id"] = rows
+    fig.add_scatter(x=df["station"], y=df["elevation"], line={"color": "red"})
+    fig.update_layout({"showlegend": False})
 
-    rows = []
-    # iterate through the fist points (upstream points)
-    for i, row in first.iterrows():
-
-        # determine which reach is downstream
-        us = last.loc[last.intersects(row["first_point"]), "feature_id"]
-        if len(us) > 1:
-            stream_order = last.loc[last.intersects(row["first_point"]), "strm_order"]
-            rows.append(us[stream_order == stream_order.max()].iloc[0])
-
-        elif us.empty:
-            rows.append(None)
-        else:
-            rows.append(us.iloc[0])
-
-    # set downstream feature id as columns
-    first["us_id"] = rows
-
-    return first, last
+    return fig
