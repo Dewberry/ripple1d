@@ -365,27 +365,22 @@ class Ras:
             title (str): Title of this new plan.
             short_id (str): Short ID to set for this new plan. 
         """
-
-        # create necessary lines for the content of the text file.
-        lines = []
-        lines.append(f"Plan Title={title}")
-        lines.append(f"Short Identifier={short_id}")
-        lines.append(f"Geom File={geom.extension.lstrip('.')}")
-        lines.append(f"Flow File={flow.extension.lstrip('.')}")
-        lines.append(f"Run RASMapper=-1 ")
-
         # get a new extension number for the new plan
         new_extension_number = self.get_new_extension_number(self.plans)
 
-        file = self.ras_project_file.rstrip(".prj") + f".p{new_extension_number}"
+        text_file = self.ras_project_file.rstrip(".prj") + f".p{new_extension_number}"
 
-        # write the new plan file
-        with open(file, "w") as src:
-            src.write("\n".join(lines))
+        #create plan
+        plan = Plan(text_file, self.projection)
+
+        #populate new plan info 
+        plan.new_plan(geom,flow,title,short_id)
+
+        #write content
+        plan.write()
 
         # add new plan to the ras class
-        plan = Plan(file, self.projection)
-        self.plans[plan.title] = plan
+        self.plans[title] = plan
 
     def get_new_extension_number(self, dict_of_ras_subclasses: dict)->str:
 
@@ -796,8 +791,29 @@ class Plan(BaseFile):
                 td = datetime.datetime.strptime(td, "%d%b%Y %H:%M:%S")
                 td += datetime.timedelta(hours=1)
             time_date.append(td.strftime("%Y-%m-%d %H:%M:%S"))
-        return np.array(time_date)
 
+        return np.array(time_date)
+    
+    def new_plan(self,geom,flow,title:str,short_id:str):
+        """
+        create a new plan with geom, flow, title, and short_id provided
+
+        Args:
+            geom (_type_): geom to associate with this new plan
+            flow (_type_): flow to associate with this new plan
+            title (str): title for this new plan 
+            short_id (str): short id for this new plan
+        """
+
+        #assign basic attributes for the new plan
+        self.title=title
+        self.short_id=short_id
+        self.geom=geom
+        self.flow=flow
+
+        #populate the attributes above in the content of the plan 
+        self.populate_content()
+    
 
 class Geom(BaseFile):
     def __init__(self, path: str, projection: str = ""):
