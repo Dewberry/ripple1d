@@ -14,10 +14,10 @@ import re
 import typing
 import logging
 import subprocess
-import copy
 import rasterio
 import rasterio.mask
-
+import pystac
+from pyproj import CRS
 from consts import (
     HDFGEOMETRIES,
     PLOTTINGSTRUCTURES,
@@ -63,13 +63,50 @@ class XS:
 
 
 class Ras:
+    """Represents a single HEC-RAS project.
 
-    def __init__(self, path: str,version:str="631",s3_client:boto3.client=None,s3_bucket:str=None,default_epsg:int=None):
-        
-        self.ras_folder = path
+    Attributes:
+    ----------
+    stac_href : href for the stac item representation of the HEC-RAS model  
+    stac_item : stac item representing the HEC-RAS model
+    client : s3 client if reading from s3 (default=None)
+    bucket : s3 bucket if treading from s3 (default=None)
+    ras_folder : directory/s3 location where the ras model will be placed 
+    projection_file : projection file (.prj) contiaing the coordinate system 
+    projection : text representation of the projection 
+    plans : plans associated with the HEC-RAS project
+    geoms : geometries associated with the HEC-RAS project
+    flows : flows associated with the HEC-RAS project
+    plan : active plan for the RAS project; can be set to any plan object in plans
+    geom : active geom for the RAS project; can be set to any geom object in geoms
+    flow : active flow for the RAS project; can be set to any flow object in flows
+    title : title of the HEC-RAS project
+    ras_project_basename : basename of the HEC-RAS poject (not always the same as the title)
+    content : the contents of the HEC-RAS project file
+    version : HEC-RAS version 
+    terrain_exe : executable for to build the RAS Terrain
+
+    """
+    def __init__(self, path: str,stac_href:str,s3_client:boto3.client=None,s3_bucket:str=None,version:str="631",default_epsg:int=None):
+        """
+
+        Args:
+            path (str): directory/s3 location where the ras model will be placed 
+            stac_href (str): href for the stac item representation of the HEC-RAS model 
+            s3_client (boto3.client, optional): s3 client if reading from s3. Defaults to None.
+            s3_bucket (str, optional): s3 bucket if treading from s3. Defaults to None.
+            version (str, optional): HEC-RAS version. Defaults to "631".
+            default_epsg (int, optional): EPSG to default to if a projection cannot be found. Defaults to None.
+        """
+
         self.client=s3_client
         self.bucket=s3_bucket
-        
+
+        self.ras_folder = path
+        self.stac_href=stac_href
+        self.stac_item=pystac.Item.from_file(self.stac_href)
+        self.download_model()
+
         self.projection_file = None
         self.projection = ""
         self.get_ras_project_file()
@@ -87,8 +124,17 @@ class Ras:
         except (FileNotFoundError, ValueError) as e:
             print(e)
             if default_epsg:
-                self.projection=default_epsg
+
                 print(f"Attempting to use specified default projection: EPSG:{default_epsg}")
+
+                self.projection=default_epsg
+
+                self.projection_file=os.path.join(self.ras_folder,"projection.prj")
+
+                with open(self.projection_file,"w") as f:
+                    f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
+
+                
 
         self.read_content()
 
@@ -102,9 +148,29 @@ class Ras:
         self.version=version
         self.terrain_exe=get_terrain_exe_path(self.version)
 
+    def download_model(self):
+        """
+        Download HEC-RAS model form stac href
+        """
+        
+        #make RAS directory if it does not exists
+        if not os.path.exists(self.ras_folder):
+            os.makedirs(self.ras_folder)
+
+        #create stac item
+        self.stac_item = pystac.Item.from_file(self.stac_href)
+
+        #download HEC-RAS model files
+        for name,asset in self.stac_item.assets.items():
+
+            file=os.path.join(self.ras_folder,name)
+            self.client.download_file(self.bucket,asset.href.replace('https://fim.s3.amazonaws.com/',""),file)
+
+
+
     def read_content(self):
         """
-        Attempts to read content of the RAS project text file. Checks both locally and on s3
+        Attempt to read content of the RAS project text file. Checks both locally and on s3
 
         Raises:
             FileNotFoundError: 
@@ -134,7 +200,7 @@ class Ras:
     def update_content(self):
 
         """
-        Updates the content of the RAS project with any changes made to the flow, geom, or plans. 
+        Update the content of the RAS project with any changes made to the flow, geom, or plans. 
         This does not update the actual file; use the 'write' method to do this. 
         """
 
@@ -177,7 +243,12 @@ class Ras:
         self.plan=current_plan
 
     def write(self, ras_project_file=None):
+        """
+        Write the contents to the HEC-RAS project file 
 
+        Args:
+            ras_project_file (_type_, optional): _description_. Defaults to None.
+        """
         if not ras_project_file:
             ras_project_file = self.ras_project_file
 
