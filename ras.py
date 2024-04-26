@@ -693,10 +693,16 @@ class BaseFile:
                 raise FileNotFoundError(
                     f"could not find {self.text_file} locally nor on s3"
                 )
+            
+    def write(self):
+        """
+        Write the content to file
+        """
 
+        print(f"writing: {self.text_file}")
 
-
-
+        with open(self.text_file, "w") as src:
+            src.write(self.content)
 
 class Plan(BaseFile):
     def __init__(self, path: str, projection: str = ""):
