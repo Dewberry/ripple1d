@@ -60,3 +60,12 @@ STRUCTURGROUPS = {
     "Multiple Opening": "Multiple Opeings",
     "Connection": "SA 2D Area Conn",
 }
+
+MAP_DEM_UNCLIPPED_SRC_URL = (
+    "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
+)
+MAP_DEM_CLIPPED_BASENAME = "src-map-dem-clipped.tif"
+# MAP_DEM_BUFFER_DIST = 500.0  # units based on CRS of final DEM (not based on source CRS)
+MAP_DEM_DIRNAME = "MapTerrain"
+MAP_DEM_HDF_NAME = "MapTerrain.hdf"
+MAP_DEM_VERT_UNITS = "Feet"
