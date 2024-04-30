@@ -1,5 +1,6 @@
 import os
 import glob
+
 import win32com.client
 import datetime
 import numpy as np
@@ -18,12 +19,12 @@ import rasterio
 import rasterio.mask
 import pystac
 from pyproj import CRS
-from consts import (
+from ripple.consts import (
     HDFGEOMETRIES,
     PLOTTINGSTRUCTURES,
     PLOTTINGREFERENCE,
 )
-from utils import decode, get_terrain_exe_path
+from ripple.utils import decode, get_terrain_exe_path
 from ripple.rasmap import RASMAP_631, TERRAIN, PLAN
 
 
@@ -468,10 +469,12 @@ class Ras:
         terrain_dirname: str = "Terrain",
         hdf_filename: str = "Terrain.hdf",
         vertical_units: str = "Feet",
-    ):
-        """
+    ) -> str:
+        r"""
         Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
-        Default location is {model_directory}\Terrain\Terrain.hdf
+        Default location is {model_directory}\Terrain\Terrain.hdf.
+
+        Returns the full path to the local directory containing the output files.
 
         Parameters
         ----------
@@ -518,6 +521,8 @@ class Ras:
         # for tif in output_tifs:
         #     utils.recompress_tif(tif)
         #     utils.build_tif_overviews(tif)
+
+        return terrain_dir_fp
 
     def get_active_plan(self):
         """
@@ -1514,7 +1519,7 @@ class RasMap:
             )
 
         lines = self.content.splitlines()
-        lines.insert(2, f'  <RASProjectionFilename Filename=".\{projection_base}" />')
+        lines.insert(2, rf'  <RASProjectionFilename Filename=".\{projection_base}" />')
 
         self.content = "\n".join(lines)
 
@@ -1537,10 +1542,10 @@ class RasMap:
             if line == "  </Results>":
                 for i, profile in enumerate(profiles):
                     lines.append(
-                        f'      <Layer Name="{variable}" Type="RASResultsMap" Checked="True" Filename=".\{plan_short_id}\{variable} ({profile}).vrt">'
+                        rf'      <Layer Name="{variable}" Type="RASResultsMap" Checked="True" Filename=".\{plan_short_id}\{variable} ({profile}).vrt">'
                     )
                     lines.append(
-                        f'        <MapParameters MapType="{variable.lower()}" OutputMode="Stored Current Terrain" StoredFilename=".\{plan_short_id}\{variable} ({profile}).vrt" ProfileIndex="{i}" ProfileName="{profile}" />'
+                        rf'        <MapParameters MapType="{variable.lower()}" OutputMode="Stored Current Terrain" StoredFilename=".\{plan_short_id}\{variable} ({profile}).vrt" ProfileIndex="{i}" ProfileName="{profile}" />'
                     )
                     lines.append("      </Layer>")
                 lines.append("    </Layer>")
