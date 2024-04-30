@@ -1,0 +1,121 @@
+import geopandas as gpd
+from shapely.ops import nearest_points
+from shapely.geometry import Point, MultiLineString
+import boto3
+import json
+import pystac
+
+MIN_FLOW_FACTOR = 0.85
+MAX_FLOW_FACTOR = 1.5
+
+root_dir = "/Users/slawler/repos/ripple/"
+
+# NWM Data
+nwm_gpkg = f"{root_dir}/nwm_branches.gpkg" # exported from QGIS to retain branch_id
+branches = gpd.read_file(nwm_gpkg, layer="branches")
+
+nwm_gpkg_no_ids = f"{root_dir}/branches.gpkg" # original
+nodes = gpd.read_file(nwm_gpkg_no_ids, layer="nodes")
+
+# Buffer nwm nodes to identify the main stem reaches
+buffered_nodes = nodes.copy()
+buffered_nodes.geometry = nodes.geometry.buffer(250)
+
+# RAS Data
+ras_gpkg = f"{root_dir}/WFSJ Main.gpkg"
+
+ras_centerline = gpd.read_file(ras_gpkg, layer="Rivers")
+ras_centerline.to_crs(nodes.crs, inplace=True)
+
+ras_xs = gpd.read_file(ras_gpkg, layer="XS")
+ras_xs.to_crs(nodes.crs, inplace=True)
+
+# ras_banks = gpd.read_file(ras_gpkg, layer="Banks")
+# ras_banks.to_crs(nodes.crs, inplace=True)
+
+
+# Intersect the buffered nodes with the ras centerline
+intersected_nodes_ras_river = gpd.sjoin(buffered_nodes, ras_centerline, how="inner", op="intersects")
+intersecting_reaches = [int(v) for v in intersected_nodes_ras_river.branch_id.values]
+
+# Filter NWM branches to only those that intersect the ras river
+reach_ids = []
+for row in branches.itertuples():
+    for bid in json.loads(row.reaches):
+        if bid in intersecting_reaches:
+            reach_ids.append(row.Index)
+
+# Isolate the valid reaches in the NWM data to verify
+candidate_reaches=branches.loc[reach_ids]
+# candidate_reaches.to_file(f"{root_dir}/intersected_branches.gpkg", layer="nwm_reaches", driver="GPKG")
+
+# Search line segments (reaches) for connected segments and drop any dangling endpoints
+start_points = set(row.geometry.coords[0] for row in candidate_reaches.itertuples())
+end_points = set(row.geometry.coords[-1] for row in candidate_reaches.itertuples())
+
+connected_reaches = []
+for row in candidate_reaches.itertuples():
+    start_point = row.geometry.coords[0]
+    end_point = row.geometry.coords[-1]
+    
+    if end_point in start_points:
+        connected_reaches.append(row)
+
+column_names = ['Index', 'branch_id', 'control_by_node', 'reaches', 'control_nodes', 'flow_100_yr', 'flow_2_yr', 'geometry']
+connected_reaches_gdf = gpd.GeoDataFrame(connected_reaches, columns=column_names)
+connected_reaches_gdf.set_geometry('geometry', inplace=True, crs=nodes.crs)
+# connected_reaches_gdf.plot()
+# connected_reaches_gdf.to_file(f"{root_dir}/intersected_branches.gpkg", layer="flow_changes", driver="GPKG")
+
+nearest_xs = {}
+meta_data = []
+xs_multipoint = ras_xs.geometry.unary_union
+
+for reach in connected_reaches_gdf.itertuples():
+    end_point = reach.geometry.coords[-1]
+    
+    nearest_geometry = nearest_points(Point(end_point), xs_multipoint)
+    distances = ras_xs.distance(nearest_geometry[1])
+
+    nearest_xs_index = distances.idxmin()
+    if nearest_xs_index not in nearest_xs.values():
+        xs_id = ras_xs.loc[nearest_xs_index].id
+        meta_data.append( {'branch_id': str(reach.branch_id), 'min_flow_cfs': round(reach.flow_2_yr * MIN_FLOW_FACTOR), 'max_flow_cfs': round(reach.flow_100_yr * MAX_FLOW_FACTOR),
+                         'control_by_node': str(int(reach.control_by_node)), 'nearest_xs': xs_id})
+
+
+for idx, item in enumerate(meta_data):    
+    xs_id = item['nearest_xs']
+    xs = ras_xs[ras_xs["id"]==xs_id]
+
+    multiline = xs.geometry.values[0]
+    if isinstance(multiline, MultiLineString):
+        min_els, max_els = [],  []
+        for linestring in multiline.geoms:
+            # print(linestring)
+            min_els.append(min([p[2] for p in linestring.coords]))
+            max_els.append(max([p[2] for p in linestring.coords]))
+            meta_data[idx]["min_elevation"] = min(min_els)
+            meta_data[idx]["max_elevation"] = max(max_els)
+
+
+
+# Add metadata to STAC Item
+
+#  Fetch STAC Item
+ras_item = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42"
+item = pystac.Item.from_file(ras_item)
+
+# Update STAC ITEM
+item.properties["Ripple:NWM_Conflation"] = meta_data
+
+# Write to S3
+s3 = boto3.client('s3')
+bucket="fim"
+dev_key= f"stac/ripple/WFSJ_Main-cd42.json"
+
+item.set_self_href(f"https://fim.s3.amazonaws.com/{dev_key}")
+
+s3.put_object(Body=json.dumps(item.to_dict()), Bucket=bucket, Key=dev_key)
+
+# https://radiantearth.github.io/stac-browser/#/https://fim.s3.amazonaws.com/stac/ripple/WFSJ_Main-cd42.json?.language=en
