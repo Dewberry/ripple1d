@@ -1,4 +1,4 @@
-RASMAP_631 = """<RASMapper>
+RASMAP_631 = r"""<RASMapper>
   <Version>2.0.0</Version>
   <Features>
     <Layer Name="Profile Lines" Type="PolylineFeatureLayer" Filename=".\Features\Profile Lines.shp">
@@ -72,7 +72,7 @@ RASMAP_631 = """<RASMapper>
   </CurrentSettings>
 </RASMapper>"""
 
-TERRAIN = """  <Terrains Checked="True" Expanded="True">
+TERRAIN = r"""  <Terrains Checked="True" Expanded="True">
     <Layer Name="Terrain" Type="TerrainLayer" Checked="True" Filename=".\Terrain\Terrain.hdf">
       <Symbology>
         <SurfaceFill Colors="-10039894,-256,-16744448,-23296,-7667712,-5952982,-8355712,-1286" Values="-0.625,50.4063185155618,70.7601808393692,101.843506660136,135.379737550828,199.971461686389,225.529762277054,366.78125" Stretched="True" AlphaTag="255" UseDatasetMinMax="False" RegenerateForScreen="False" />
@@ -82,7 +82,7 @@ TERRAIN = """  <Terrains Checked="True" Expanded="True">
     </Layer>
   </Terrains>"""
 
-PLAN = """  <Results Expanded="True">
+PLAN = r"""  <Results Expanded="True">
     <Layer Name="plan_name_placeholder" Type="RASResults" Expanded="True" Filename=".\plan_hdf_placeholder">
       <Layer Name="Event Conditions" Type="RASEventConditions" Filename=".\plan_hdf_placeholder">
         <Layer Name="Wind Layer" Type="ResultWindLayer" Filename=".\plan_hdf_placeholder">
