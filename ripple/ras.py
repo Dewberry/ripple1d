@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import glob
 import win32com.client
@@ -18,12 +19,8 @@ import rasterio
 import rasterio.mask
 import pystac
 from pyproj import CRS
-from consts import (
-    HDFGEOMETRIES,
-    PLOTTINGSTRUCTURES,
-    PLOTTINGREFERENCE,
-)
 from utils import decode, get_terrain_exe_path
+from rasmap import RASMAP_631, TERRAIN, PLAN
 from errors import ProjectionNotFoundError, NoDefaultEPSGError
 
 
@@ -35,7 +32,7 @@ class FlowChangeLocation:
     rs: float = None
     rs_str: str = None
 
-    flows: list = None
+    flows: list[float] = None
 
 
 @dataclass
@@ -55,11 +52,11 @@ class XS:
     description: str = None
     number_of_coords: int = None
     number_of_station_elevation_points: int = None
-    coords: list = None
-    station_elevation: list = None
+    coords: list[float] = None
+    station_elevation: list[float] = None
     thalweg: float = None
     max_depth: float = None
-    mannings: list = None
+    mannings: list[float] = None
     left_bank: float = None
     right_bank: float = None
 
@@ -327,10 +324,8 @@ class Ras:
         # create new flow
         flow = Flow(text_file)
 
-        xs = self.geom.cross_sections
-
         # create profile names
-        profile_names, flows, wses = flow.create_profile_names(reach_data, reach_data["flows"])
+        profile_names, flows, wses = flow.create_profile_names(reach_data, reach_data["us_flows"])
 
         flow.profile_names = profile_names
         flow.profile_count = len(flow.profile_names)
@@ -469,7 +464,7 @@ class Ras:
 
     def create_terrain(
         self,
-        src_terrain_filepaths: typing.List[str],
+        src_terrain_filepaths: list[str],
         terrain_dirname: str = "Terrain",
         hdf_filename: str = "Terrain.hdf",
         vertical_units: str = "Feet",
@@ -626,7 +621,7 @@ class Ras:
                     self.ras_project_file = prj
                     break
 
-    def get_ras_files(self, file_type: str) -> list:
+    def get_ras_files(self, file_type: str) -> list[str]:
         """
         Reads the RAS project file to determine what plan/flow/geom files are asociated with the RAS project.
         Only returns the associated file types specified by "file_type".
@@ -738,14 +733,13 @@ class Plan(BaseFile):
         """
         try:
             super().__init__(path, "Plan")
+            self.projection = projection
+            self.parse_attrs()
 
         except FileExistsError as e:
             print(f"The plan file provided does not exists: {path}")
 
         self.short_id = None
-        self.projection = projection
-
-        self.parse_attrs()
 
     def read_rating_curves(self) -> dict:
         """
@@ -1067,7 +1061,7 @@ class Geom(BaseFile):
         else:
             return None
 
-    def parse_description(self, lines: list, xs: XS):
+    def parse_description(self, lines: list[str], xs: XS):
         # TODO
         pass
 
@@ -1085,14 +1079,15 @@ class Geom(BaseFile):
 
         if "XS GIS Cut Line=" in line:
             xs.number_of_coords = int(line.lstrip("XS GIS Cut Line="))
+
             return xs
 
-    def parse_coords(self, lines: list, xs: XS):
+    def parse_coords(self, lines: list[str], xs: XS):
         """
         Parse the coordinates for this cross section from the geom content
 
         Args:
-            lines (list): lines form the geom content
+            lines (list[str]): lines form the geom content
             xs (XS): XS data class for this cross section
 
         Returns:
@@ -1128,12 +1123,12 @@ class Geom(BaseFile):
 
             return xs
 
-    def parse_station_elevation_points(self, lines: list, xs: XS):
+    def parse_station_elevation_points(self, lines: list[str], xs: XS):
         """
         Parse the station elevation points from the geom content
 
         Args:
-            lines (list): lines from the geom content
+            lines (list[str]): lines from the geom content
             xs (XS): XS dataclass for this cross section
 
         Returns:
@@ -1191,7 +1186,7 @@ class Geom(BaseFile):
             gpd.GeoDataFrame: concave hull geodataframe
         """
 
-        points = xs.boundary.explode().unstack()
+        points = xs.boundary.explode(index_parts=True).unstack()
         points_last_xs = [Point(coord) for coord in xs["coords"].iloc[-1].coords]
         points_first_xs = [Point(coord) for coord in xs["coords"].iloc[0].coords[::-1]]
 
@@ -1256,12 +1251,12 @@ class Flow(BaseFile):
             elif "Boundary for River Rch & Prof#=" in line:
                 pass
 
-    def parse_flows(self, lines: list):
+    def parse_flows(self, lines: list[str]):
         """
         Parse the flows from the flow content
 
         Args:
-            lines (list): lines from the flow content
+            lines (list[str]): lines from the flow content
 
         Returns:
             FlowChangeLocation: FlowChangeLocation object
@@ -1307,23 +1302,23 @@ class Flow(BaseFile):
 
             for flow in input_flows:
 
-                profile_names.append(f"{flow}_{depth}")
+                profile_names.append(f"{int(flow)}_z{str(depth).rjust(4,"0")}")
 
                 flows.append(flow)
                 wses.append(reach_data["ds_wses"][e])
 
         return (profile_names, flows, wses)
 
-    def write_headers(self, title: str, profile_names: list):
+    def write_headers(self, title: str, profile_names: list[str]):
         """
         Write headers for flow content
 
         Args:
             title (str): title of the flow
-            profile_names (list): profile names for the flow
+            profile_names (list[str]): profile names for the flow
 
         Returns:
-            list: lines of the flow content
+            list (list[str]): lines of the flow content
         """
         lines = []
         lines.append(f"Flow Title={title}")
@@ -1424,13 +1419,13 @@ class Flow(BaseFile):
 
         self.content += "\n" + "\n".join(lines)
 
-    def add_intermediate_known_wse(self, reach_data: pd.Series, wses: list):
+    def add_intermediate_known_wse(self, reach_data: pd.Series, wses: list[float]):
         """
         Write known water surface elevations for intermediate cross sections along the reach to the flow content.
 
         Args:
             reach_data (pd.Series): Reach data from NWM reaches
-            wses (list): known water surface elvations to apply
+            wses (list[float]): known water surface elvations to apply
         """
 
         lines = []
@@ -1533,14 +1528,14 @@ class RasMap:
 
         self.content = "\n".join(lines)
 
-    def add_result_layers(self, plan_short_id: str, profiles: list, variable: str):
+    def add_result_layers(self, plan_short_id: str, profiles: list[str], variable: str):
         """
         Add results layers to RasMap content. When the RAS plan is ran with "Floodplain Mapping" toggled on
         the result layer added here will output rasters.
 
         Args:
             plan_short_id (str): Plan short id for the output raster(s)
-            profiles (list): Profiles for the output raster(s)
+            profiles (list[str]): Profiles for the output raster(s)
             variable (str): Variable to create rasters for. Currently "Depth" is the only supported variable.
         """
 
@@ -1563,14 +1558,14 @@ class RasMap:
 
         self.content = "\n".join(lines)
 
-    def add_plan_layer(self, plan_short_id: str, plan_hdf: str, profiles: list):
+    def add_plan_layer(self, plan_short_id: str, plan_hdf: str, profiles: list[str]):
         """
         Add a plan layer to the results in the RASMap content
 
         Args:
             plan_short_id (str): plan_short_id of the plan
-            plan_hdf (str): _description_
-            profiles (list): _description_
+            plan_hdf (str): hdf file for the plan
+            profiles (list[str]): profiles for the plan
         """
         lines = []
         for line in self.content.splitlines():
@@ -1579,7 +1574,7 @@ class RasMap:
 
                 lines.append(
                     PLAN.replace("plan_hdf_placeholder", plan_hdf)
-                    .replace("plan_name_placeholder", plan_short_id)
+                    .replace("plan_name_placeholder", str(plan_short_id))
                     .replace("profile_placeholder", profiles[0])
                 )
                 continue
