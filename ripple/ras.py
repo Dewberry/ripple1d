@@ -287,7 +287,7 @@ class Ras:
         # create new flow
         flow = Flow(text_file)
 
-        flow.content = []
+        flow.content = ""
 
         flows = [int(i) for i in reach_data["flows_rc"]]
 
@@ -336,7 +336,7 @@ class Ras:
         flow.profile_count = len(flow.profile_names)
         flow.title = title
 
-        flow.content = []
+        flow.content = ""
 
         # write headers
         flow.write_headers(title, profile_names)
@@ -870,7 +870,7 @@ class Plan(BaseFile):
         lines.append(f"Geom File={self.geom.extension.lstrip('.')}")
         lines.append(f"Flow File={self.flow.extension.lstrip('.')}")
         lines.append(f"Run RASMapper=-1 ")
-        self.content = lines
+        self.content = "\n".join(lines)
 
 
 class Geom(BaseFile):
@@ -1347,7 +1347,7 @@ class Flow(BaseFile):
 
         for _, xs in us_cross_sections.iterrows():
 
-            lines.append(f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).ljust(8,' ')}")
+            lines.append(f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).rstrip("0").rstrip(".").ljust(8,' ')}")
 
             for i, flow in enumerate(flows):
 
@@ -1361,7 +1361,7 @@ class Flow(BaseFile):
             if (i + 1) % 10 != 0:
                 lines.append(line)
 
-        self.content += "\n".join(lines)
+        self.content += "\n" + "\n".join(lines)
 
     def write_ds_known_ws(self, reach_data: pd.Series, normal_depth: float, r: Ras):
         """
@@ -1375,7 +1375,7 @@ class Flow(BaseFile):
 
         ds_cross_sections = r.geom.us_ds_most_xs(us_ds="ds")
         count = 0
-        lines = []
+        
 
         for _, xs in ds_cross_sections.iterrows():
 
@@ -1383,19 +1383,21 @@ class Flow(BaseFile):
 
                 # get the downstream wses for this reach/xs
                 wses = reach_data["ds_wses"]
-
+                lines = []
                 for e, wse in enumerate(wses):
-
+                    
                     for i in range(len(reach_data["flows"])):
                         count += 1
                         lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
                         lines.append(f"Up Type= 0 ")
                         lines.append(f"Dn Type= 1 ")
                         lines.append(f"Dn Known WS={wse}")
-            else:
-                lines = self.write_ds_normal_depth(lines, reach_data, normal_depth, r)
 
-        self.content += "\n".join(lines)
+                    self.content += "\n" + "\n".join(lines)
+            else:
+                self.write_ds_normal_depth(reach_data, normal_depth, r)
+
+        
 
     def write_ds_normal_depth(self, reach_data: pd.Series, normal_depth: float, r: Ras):
         """
@@ -1419,7 +1421,7 @@ class Flow(BaseFile):
                 lines.append(f"Dn Type= 3 ")
                 lines.append(f"Dn Slope={normal_depth}")
 
-        self.content += "\n".join(lines)
+        self.content += "\n" + "\n".join(lines)
 
     def add_intermediate_known_wse(self, reach_data: pd.Series, wses: list):
         """
@@ -1439,7 +1441,7 @@ class Flow(BaseFile):
                 f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['ds_rs']}  , {e+1} , 3 ,{wse}"
             )
 
-        self.content += "\n".join(lines)
+        self.content += "\n" + "\n".join(lines)
 
 
 class RasMap:
