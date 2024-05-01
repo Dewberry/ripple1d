@@ -18,29 +18,18 @@ dewberrywrc_acct_session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"]
 client = dewberrywrc_acct_session.client("s3")
 
 
-def read_ras_nwm(nwm_reach_layer, stac_href, ras_directory, bucket):
-
-    # read in nwm reaches as a gdf
-    nwm_reach_gdf = gpd.read_file(nwm_reach_layer, layer="branches")
+def read_ras_nwm(stac_href, ras_directory, bucket):
 
     # read ras model and create cross section gdf
     r = Ras(ras_directory, stac_href, client, bucket, default_epsg=2277)
     r.plan.geom.scan_for_xs()
 
-    return r, nwm_reach_gdf
+    return r
 
 
-def pre_process_reaches(r, nwm_reach_gdf):
+def run_rating_curves(r):
 
-    nwm_reach_gdf, r, xs = get_us_ds_rs(nwm_reach_gdf, r)
-    nwm_reach_gdf = compile_flows(nwm_reach_gdf)
-
-    return nwm_reach_gdf
-
-
-def run_rating_curves(r, nwm_reach_gdf):
-
-    for i, row in nwm_reach_gdf.iterrows():
+    for i, row in r.nwm_df.iterrows():
 
         id = str(row["branch_id"]) + "_rc"
 
@@ -61,14 +50,16 @@ def run_rating_curves(r, nwm_reach_gdf):
         r.RunSIM(close_ras=True, show_ras=True)
 
 
-def determine_flow_increments(r, nwm_reach_gdf):
+def determine_flow_increments(r):
 
     xs = r.geom.cross_sections
 
     new_us_flows, new_us_depths, new_us_wses = [], [], []
     new_ds_flows, new_ds_depths, new_ds_wses = [], [], []
 
-    for i, row in nwm_reach_gdf.iterrows():
+    rivers, reaches = [], []
+
+    for i, row in r.nwm_df.iterrows():
 
         r.plan = r.plans[str(row["branch_id"]) + "_rc"]
 
@@ -77,13 +68,15 @@ def determine_flow_increments(r, nwm_reach_gdf):
         wses, flows = rc.values()
 
         # get the river_reach_rs for the cross section representing the upstream end of this reach
-        river_reach_rs = xs.loc[xs["rs"] == row["us_rs"], "river_reach_rs"]
+        river_reach_rs = xs.loc[xs["rs"] == float(row["nearest_xs_us"]), "river_reach_rs"]
+        rivers.append(xs.loc[xs["rs"] == float(row["nearest_xs_us"]), "river"].iloc[0])
+        reaches.append(xs.loc[xs["rs"] == float(row["nearest_xs_us"]), "reach"].iloc[0])
 
         wse = wses.loc[river_reach_rs, :].iloc[0]
         flow = flows.loc[river_reach_rs, :].iloc[0]
 
         # convert wse to depth
-        thalweg = xs.loc[xs["rs"] == row["us_rs"], "thalweg"].iloc[0]
+        thalweg = xs.loc[xs["rs"] == float(row["nearest_xs_us"]), "thalweg"].iloc[0]
         depth = [e - thalweg for e in wse]
 
         new_flow, new_depth = create_flow_depth_array(flow, depth, 2)
@@ -93,13 +86,13 @@ def determine_flow_increments(r, nwm_reach_gdf):
         new_us_wses.append([i + thalweg for i in new_depth])
 
         # get the river_reach_rs for the cross section representing the downstream end of this reach
-        river_reach_rs = xs.loc[xs["rs"] == row["ds_rs"], "river_reach_rs"]
+        river_reach_rs = xs.loc[xs["rs"] == float(row["nearest_xs_ds"]), "river_reach_rs"]
 
         wse = wses.loc[river_reach_rs, :].iloc[0]
         flow = flows.loc[river_reach_rs, :].iloc[0]
 
         # convert wse to depth
-        thalweg = xs.loc[xs["rs"] == row["ds_rs"], "thalweg"].iloc[0]
+        thalweg = xs.loc[xs["rs"] == float(row["nearest_xs_ds"]), "thalweg"].iloc[0]
         depth = [e - thalweg for e in wse]
 
         new_flow, new_depth = create_flow_depth_array(flow, depth, 2)
@@ -109,15 +102,16 @@ def determine_flow_increments(r, nwm_reach_gdf):
 
         new_ds_flows.append(new_flow)
 
-    nwm_reach_gdf["us_flows"] = new_us_flows
-    nwm_reach_gdf["us_depths"] = new_us_depths
-    nwm_reach_gdf["us_wses"] = new_us_wses
+    r.nwm_df["river"] = rivers
+    r.nwm_df["reach"] = reaches
 
-    nwm_reach_gdf["ds_flows"] = new_ds_flows
-    nwm_reach_gdf["ds_depths"] = new_ds_depths
-    nwm_reach_gdf["ds_wses"] = new_ds_wses
+    r.nwm_df["us_flows"] = new_us_flows
+    r.nwm_df["us_depths"] = new_us_depths
+    r.nwm_df["us_wses"] = new_us_wses
 
-    return nwm_reach_gdf
+    r.nwm_df["ds_flows"] = new_ds_flows
+    r.nwm_df["ds_depths"] = new_ds_depths
+    r.nwm_df["ds_wses"] = new_ds_wses
 
 
 def create_ras_terrain(r, src_dem):
@@ -127,9 +121,9 @@ def create_ras_terrain(r, src_dem):
     r.create_terrain([tif], TERRAIN_NAME, f"{TERRAIN_NAME}.hdf")
 
 
-def run_production_runs(r, nwm_reach_gdf):
+def run_production_runs(r):
 
-    for i, row in nwm_reach_gdf.iterrows():
+    for i, row in r.nwm_df.iterrows():
 
         id = row["branch_id"]
 
@@ -171,7 +165,7 @@ def run_production_runs(r, nwm_reach_gdf):
         r.RunSIM(close_ras=True, show_ras=True)
 
 
-def post_process_depth_grids(r, nwm_reach_gdf):
+def post_process_depth_grids(r):
 
     xs = r.geom.cross_sections
 
@@ -179,7 +173,7 @@ def post_process_depth_grids(r, nwm_reach_gdf):
     dest_directory = os.path.join(r.ras_folder, "output")
 
     # iterate thorugh the flow change locations
-    for i, nwm_reach_data in nwm_reach_gdf.iterrows():
+    for i, nwm_reach_data in r.nwm_df.iterrows():
 
         id = nwm_reach_data["branch_id"]
 
@@ -187,8 +181,8 @@ def post_process_depth_grids(r, nwm_reach_gdf):
         truncated_xs = xs[
             (xs["river"] == nwm_reach_data["river"])
             & (xs["reach"] == nwm_reach_data["reach"])
-            & (xs["rs"] <= nwm_reach_data["us_rs"])
-            & (xs["rs"] >= nwm_reach_data["ds_rs"])
+            & (xs["rs"] <= float(nwm_reach_data["nearest_xs_us"]))
+            & (xs["rs"] >= float(nwm_reach_data["nearest_xs_ds"]))
         ]
 
         # create concave hull for this nwm reach/cross sections
@@ -210,30 +204,27 @@ def post_process_depth_grids(r, nwm_reach_gdf):
             out_file = clip_depth_grid(
                 depth_file,
                 xs_hull,
-                nwm_reach_data["river"],
-                nwm_reach_data["reach"],
-                nwm_reach_data["us_rs"],
-                nwm_reach_data["ds_rs"],
+                id,
                 profile_name,
                 dest_directory,
             )
 
 
-def main(nwm_reach_layer, stac_href, ras_directory, bucket, src_dem):
+def main(stac_href, ras_directory, bucket, src_dem):
 
-    r, nwm_reach_gdf = read_ras_nwm(nwm_reach_layer, stac_href, ras_directory, bucket)
+    r = read_ras_nwm(stac_href, ras_directory, bucket)
 
-    nwm_reach_gdf = pre_process_reaches(r, nwm_reach_gdf)
+    compile_flows(r.nwm_df)
 
-    run_rating_curves(r, nwm_reach_gdf)
+    run_rating_curves(r)
 
-    nwm_reach_gdf = determine_flow_increments(r, nwm_reach_gdf)
+    determine_flow_increments(r)
 
     create_ras_terrain(r, src_dem)
 
-    run_production_runs(r, nwm_reach_gdf)
+    run_production_runs(r)
 
-    post_process_depth_grids(r, nwm_reach_gdf)
+    post_process_depth_grids(r)
 
 
 if __name__ == "__main__":
@@ -241,11 +232,10 @@ if __name__ == "__main__":
 
 bucket = "fim"
 
-ras_directory = r"C:\Users\mdeshotel\Downloads\test_stac6"
-stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42"
+ras_directory = r"C:\Users\mdeshotel\Downloads\test_stac7"
 
-nwm_reach_layer = r"C:\Users\mdeshotel\Downloads\nwm_subset2.gpkg"
+stac_href = "https://fim.s3.amazonaws.com/stac/ripple/WFSJ_Main-cd42.json"
 
 src_dem = "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
 
-main(nwm_reach_layer, stac_href, ras_directory, bucket, src_dem)
+main(stac_href, ras_directory, bucket, src_dem)

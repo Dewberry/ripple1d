@@ -161,7 +161,7 @@ class Ras:
 
     def download_model(self):
         """
-        Download HEC-RAS model form stac href
+        Download HEC-RAS model from stac href
         """
 
         # make RAS directory if it does not exists
@@ -170,6 +170,9 @@ class Ras:
 
         # create stac item
         self.stac_item = pystac.Item.from_file(self.stac_href)
+
+        #create nwm dataframe
+        self.nwm_df=pd.DataFrame(self.stac_item.properties['Ripple:NWM_Conflation'])
 
         # download HEC-RAS model files
         for name, asset in self.stac_item.assets.items():
@@ -1302,7 +1305,7 @@ class Flow(BaseFile):
 
             for flow in input_flows:
 
-                profile_names.append(f"{int(flow)}_z{str(depth).rjust(4,"0")}")
+                profile_names.append(f"f_{int(flow)}-z_{str(depth).replace(".","_")}")
 
                 flows.append(flow)
                 wses.append(reach_data["ds_wses"][e])
@@ -1375,7 +1378,7 @@ class Flow(BaseFile):
 
         for _, xs in ds_cross_sections.iterrows():
 
-            if reach_data["ds_rs"] == xs["rs"]:
+            if reach_data["nearest_xs_ds"] == xs["rs"]:
 
                 # get the downstream wses for this reach/xs
                 wses = reach_data["ds_wses"]
@@ -1430,11 +1433,11 @@ class Flow(BaseFile):
 
         lines = []
 
-        reach_data["ds_rs"]
+        reach_data["nearest_xs_ds"]
         for e, wse in enumerate(wses):
 
             lines.append(
-                f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['ds_rs']}  , {e+1} , 3 ,{wse}"
+                f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['nearest_xs_us']}  , {e+1} , 3 ,{wse}"
             )
 
         self.content += "\n" + "\n".join(lines)
