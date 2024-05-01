@@ -11,10 +11,10 @@ MAX_FLOW_FACTOR = 1.5
 root_dir = "/Users/slawler/repos/ripple/"
 
 # NWM Data
-nwm_gpkg = f"{root_dir}/nwm_branches.gpkg" # exported from QGIS to retain branch_id
+nwm_gpkg = f"{root_dir}/nwm_branches.gpkg"  # exported from QGIS to retain branch_id
 branches = gpd.read_file(nwm_gpkg, layer="branches")
 
-nwm_gpkg_no_ids = f"{root_dir}/branches.gpkg" # original
+nwm_gpkg_no_ids = f"{root_dir}/branches.gpkg"  # original
 nodes = gpd.read_file(nwm_gpkg_no_ids, layer="nodes")
 
 # Buffer nwm nodes to identify the main stem reaches
@@ -69,32 +69,48 @@ meta_data = []
 xs_multipoint = ras_xs.geometry.unary_union
 
 for reach in connected_reaches_gdf.itertuples():
+
+    # get start/end points of the reach
     end_point = reach.geometry.coords[-1]
-    
-    nearest_geometry = nearest_points(Point(end_point), xs_multipoint)
-    distances = ras_xs.distance(nearest_geometry[1])
+    start_point = reach.geometry.coords[0]
 
-    nearest_xs_index = distances.idxmin()
-    if nearest_xs_index not in nearest_xs.values():
-        xs_id = ras_xs.loc[nearest_xs_index].id
-        meta_data.append( {'branch_id': str(reach.branch_id), 'min_flow_cfs': round(reach.flow_2_yr * MIN_FLOW_FACTOR), 'max_flow_cfs': round(reach.flow_100_yr * MAX_FLOW_FACTOR),
-                         'control_by_node': str(int(reach.control_by_node)), 'nearest_xs': xs_id})
+    # compute the distance from each cross section to the reach start/end point
+    end_distances = ras_xs.distance(Point(end_point))
+    start_distances = ras_xs.distance(Point(start_point))
+
+    nearest_ds_xs_index = end_distances.idxmin()
+    nearest_us_xs_index = start_distances.idxmin()
+    if nearest_ds_xs_index not in nearest_xs.values():
+
+        ds_xs_id = ras_xs.loc[nearest_ds_xs_index].id
+        us_xs_id = ras_xs.loc[nearest_us_xs_index].id
+
+        meta_data.append(
+            {
+                "branch_id": str(reach.branch_id),
+                "min_flow_cfs": round(reach.flow_2_yr * MIN_FLOW_FACTOR),
+                "max_flow_cfs": round(reach.flow_100_yr * MAX_FLOW_FACTOR),
+                "control_by_node": str(int(reach.control_by_node)),
+                "nearest_xs_ds": ds_xs_id,
+                "nearest_xs_us": us_xs_id,
+            }
+        )
 
 
-for idx, item in enumerate(meta_data):    
-    xs_id = item['nearest_xs']
-    xs = ras_xs[ras_xs["id"]==xs_id]
+# get the min elevation and max elevation for each cross section that is nearest the reach end points
+for idx, item in enumerate(meta_data):
+    xs_id = item["nearest_xs_ds"]
+    xs = ras_xs[ras_xs["id"] == xs_id]
 
     multiline = xs.geometry.values[0]
     if isinstance(multiline, MultiLineString):
-        min_els, max_els = [],  []
+        min_els, max_els = [], []
         for linestring in multiline.geoms:
             # print(linestring)
             min_els.append(min([p[2] for p in linestring.coords]))
             max_els.append(max([p[2] for p in linestring.coords]))
             meta_data[idx]["min_elevation"] = min(min_els)
             meta_data[idx]["max_elevation"] = max(max_els)
-
 
 
 # Add metadata to STAC Item
@@ -107,9 +123,9 @@ item = pystac.Item.from_file(ras_item)
 item.properties["Ripple:NWM_Conflation"] = meta_data
 
 # Write to S3
-s3 = boto3.client('s3')
-bucket="fim"
-dev_key= f"stac/ripple/WFSJ_Main-cd42.json"
+s3 = boto3.client("s3")
+bucket = "fim"
+dev_key = f"stac/ripple/WFSJ_Main-cd42.json"
 
 item.set_self_href(f"https://fim.s3.amazonaws.com/{dev_key}")
 
