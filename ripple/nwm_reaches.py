@@ -1,20 +1,54 @@
+from __future__ import annotations
 import geopandas as gpd
 import pandas as pd
 import os
 import rasterio
+import numpy as np
+from ras import Ras
 
 
-def get_us_ds_rs(fcl, r):
-
-    # sort flow change locations based on rs
-    fcl.sort_values(by="rs", ascending=False, inplace=True)
-
-    # allocate columns for ds_rs and us_rs
-    fcl["ds_rs"] = fcl["rs"]
-    fcl["us_rs"] = None
+def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
 
     xs = r.geom.cross_sections
 
+    xs = xs.sjoin(nwm_reach_gdf.to_crs(xs.crs))
+
+    us, ds, rivers, reaches = [], [], [], []
+    for id in nwm_reach_gdf["branch_id"]:
+
+        us.append(xs.loc[xs["branch_id"] == id, "rs"].max())
+        ds.append(xs.loc[xs["branch_id"] == id, "rs"].min())
+
+        river = xs.loc[xs["rs"] == us[-1], "river"].iloc[0]
+        reach = xs.loc[xs["rs"] == us[-1], "reach"].iloc[0]
+
+        rivers.append(river)
+        reaches.append(reach)
+
+    nwm_reach_gdf["us_rs"] = us
+    nwm_reach_gdf["ds_rs"] = ds
+
+    nwm_reach_gdf["river"] = rivers
+    nwm_reach_gdf["reach"] = reaches
+
+    return nwm_reach_gdf, r, xs
+
+
+def compile_flows(
+    nwm_reach_gdf: gpd.GeoDataFrame, min_ratio: float = 0.8, max_ratio: float = 1.5, increments: int = 10
+) -> gpd.GeoDataFrame:
+    """
+    Determine flows to apply to the model for an initial rating curve by compiling the 2yr-100yr
+
+    Args:
+        nwm_reach_gdf (gpd.GeoDataFrame): National water model branches
+        min_ratio (float, optional): Ratio to multiply the 2yr event by to get the min flow. Defaults to .8.
+        max_ratio (float, optional): Ratio to multiply the 100yr event by to get the max flow. Defaults to 1.5.
+        increments (int,optional): Number of flow increments between 2yr flow * min_ration and 100yr flow * max_ratio
+
+    Returns:
+        gpd.GeoDataFrame: _description_
+    """
     flows = []
     for i, row in nwm_reach_gdf.iterrows():
 
