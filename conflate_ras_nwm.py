@@ -36,17 +36,14 @@ ras_xs.to_crs(nodes.crs, inplace=True)
 
 # Intersect the buffered nodes with the ras centerline
 intersected_nodes_ras_river = gpd.sjoin(buffered_nodes, ras_centerline, how="inner", op="intersects")
+
+# Get intersecting reaches. branch_id in the nodes later = the branch_id in the nwm reach layer corresponding
+# to the reach downstream of the node with the same branch_id.
 intersecting_reaches = [int(v) for v in intersected_nodes_ras_river.branch_id.values]
 
 # Filter NWM branches to only those that intersect the ras river
-reach_ids = []
-for row in branches.itertuples():
-    for bid in json.loads(row.reaches):
-        if bid in intersecting_reaches:
-            reach_ids.append(row.Index)
+candidate_reaches = branches[branches["branch_id"].isin(intersecting_reaches)]
 
-# Isolate the valid reaches in the NWM data to verify
-candidate_reaches=branches.loc[reach_ids]
 # candidate_reaches.to_file(f"{root_dir}/intersected_branches.gpkg", layer="nwm_reaches", driver="GPKG")
 
 # Search line segments (reaches) for connected segments and drop any dangling endpoints
