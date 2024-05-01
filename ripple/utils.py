@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -15,14 +16,14 @@ def decode(df: pd.DataFrame):
     return df
 
 
-def create_flow_depth_array(flow: list, depth: list):
+def create_flow_depth_array(flow: list[float], depth: list[float], increment: float = 0.5):
     min_depth = np.min(depth)
     max_depth = np.max(depth)
-    start_depth = np.ceil(min_depth * 2) / 2  # round down to nearest .0 or .5
-    new_depth = np.arange(start_depth, max_depth + 0.5, 0.5)
+    start_depth = np.floor(min_depth * 2) / 2  # round down to nearest .0 or .5
+    new_depth = np.arange(start_depth, max_depth + increment, increment)
     new_flow = np.interp(new_depth, np.sort(depth), np.sort(flow))
 
-    return new_flow, new_depth
+    return new_flow, new_depth.round()
 
 
 def get_terrain_exe_path(ras_ver: str) -> str:
@@ -71,9 +72,7 @@ def plot_xs_with_wse_increments(r):
         if new_line.geom_type in ["GeometryCollection", "MultiLineString"]:
             for l in new_line.geoms:
                 x, y = l.xy
-                fig.add_scatter(
-                    x=list(x), y=list(y), marker={"color": "grey", "size": 0.5}
-                )
+                fig.add_scatter(x=list(x), y=list(y), marker={"color": "grey", "size": 0.5})
         else:
             x, y = new_line.xy
             fig.add_scatter(x=list(x), y=list(y), marker={"color": "grey", "size": 0.5})
