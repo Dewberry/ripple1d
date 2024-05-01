@@ -50,9 +50,9 @@ def compile_flows(
         gpd.GeoDataFrame: _description_
     """
     flows = []
-    for i, row in nwm_reach_gdf.iterrows():
+    for row in nwm_reach_gdf.itertuples():
 
-        flow = np.linspace(row["flow_2_yr"] * min_ratio, row["flow_100_yr"] * max_ratio, increments)
+        flow = np.linspace(row.min_flow_cfs, row.max_flow_cfs, increments)
 
         flow.sort()
 
@@ -66,23 +66,26 @@ def compile_flows(
 def clip_depth_grid(
     src_path: str,
     xs_hull: gpd.GeoDataFrame,
-    river: str,
-    reach: str,
-    us_rs: str,
-    ds_rs: str,
+    id: str,
     profile_name: str,
     dest_directory: str,
 ):
 
+    flow, depth = profile_name.split("-")
+
+    dest_directory = os.path.join(dest_directory, id, depth)
+
     if not os.path.exists(dest_directory):
         os.makedirs(dest_directory)
 
-    dest_path = os.path.join(dest_directory, f"{river}_{reach}_{ds_rs}_{us_rs}_{profile_name}.tif")
+    dest_path = os.path.join(dest_directory, f"{flow}.tif")
 
     # open the src raster the cross section concave hull as a mask
     with rasterio.open(src_path) as src:
 
-        out_image, out_transform = rasterio.mask.mask(src, xs_hull.to_crs(src.crs)["geometry"], crop=True)
+        out_image, out_transform = rasterio.mask.mask(
+            src, xs_hull.to_crs(src.crs)["geometry"], crop=True, all_touched=True
+        )
         out_meta = src.meta
 
     # update metadata
