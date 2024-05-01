@@ -51,16 +51,16 @@ start_points = set(row.geometry.coords[0] for row in candidate_reaches.itertuple
 end_points = set(row.geometry.coords[-1] for row in candidate_reaches.itertuples())
 
 connected_reaches = []
-for row in candidate_reaches.itertuples():
+for _, row in candidate_reaches.iterrows():
     start_point = row.geometry.coords[0]
     end_point = row.geometry.coords[-1]
-    
+
     if end_point in start_points:
         connected_reaches.append(row)
 
-column_names = ['Index', 'branch_id', 'control_by_node', 'reaches', 'control_nodes', 'flow_100_yr', 'flow_2_yr', 'geometry']
+column_names = candidate_reaches.columns
 connected_reaches_gdf = gpd.GeoDataFrame(connected_reaches, columns=column_names)
-connected_reaches_gdf.set_geometry('geometry', inplace=True, crs=nodes.crs)
+connected_reaches_gdf.set_geometry("geometry", inplace=True, crs=nodes.crs)
 # connected_reaches_gdf.plot()
 # connected_reaches_gdf.to_file(f"{root_dir}/intersected_branches.gpkg", layer="flow_changes", driver="GPKG")
 
