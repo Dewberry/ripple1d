@@ -474,7 +474,7 @@ class Ras:
         hdf_filename: str = "Terrain.hdf",
         vertical_units: str = "Feet",
     ):
-        """
+        r"""
         Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
         Default location is {model_directory}\Terrain\Terrain.hdf
 
@@ -1529,7 +1529,7 @@ class RasMap:
             )
 
         lines = self.content.splitlines()
-        lines.insert(2, f'  <RASProjectionFilename Filename=".\{projection_base}" />')
+        lines.insert(2, rf'  <RASProjectionFilename Filename=".\{projection_base}" />')
 
         self.content = "\n".join(lines)
 
@@ -1552,10 +1552,10 @@ class RasMap:
             if line == "  </Results>":
                 for i, profile in enumerate(profiles):
                     lines.append(
-                        f'      <Layer Name="{variable}" Type="RASResultsMap" Checked="True" Filename=".\{plan_short_id}\{variable} ({profile}).vrt">'
+                        rf'      <Layer Name="{variable}" Type="RASResultsMap" Checked="True" Filename=".\{plan_short_id}\{variable} ({profile}).vrt">'
                     )
                     lines.append(
-                        f'        <MapParameters MapType="{variable.lower()}" OutputMode="Stored Current Terrain" StoredFilename=".\{plan_short_id}\{variable} ({profile}).vrt" ProfileIndex="{i}" ProfileName="{profile}" />'
+                        rf'        <MapParameters MapType="{variable.lower()}" OutputMode="Stored Current Terrain" StoredFilename=".\{plan_short_id}\{variable} ({profile}).vrt" ProfileIndex="{i}" ProfileName="{profile}" />'
                     )
                     lines.append("      </Layer>")
                 lines.append("    </Layer>")
