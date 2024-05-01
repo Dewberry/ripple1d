@@ -1008,14 +1008,15 @@ class Geom(BaseFile):
                     xs = self.parse_number_of_station_eleveation_points(line, xs)
                     xs = self.parse_station_elevation_points(lines[i + 1 :], xs)
 
-                    xs = None
                 if "Bank Sta=" in line:
 
                     # parse bank stations
                     xs = self.parse_bank_stations(line, xs)
 
-                # gather cross sections
-                cross_sections.append(xs)
+                    # gather cross sections
+                    cross_sections.append(xs)
+
+                    xs = None
 
         if cross_sections:
 
