@@ -6,6 +6,8 @@ import rasterio
 import numpy as np
 from ras import Ras
 
+# from osgeo import gdal
+
 
 def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
 
@@ -34,9 +36,7 @@ def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
     return nwm_reach_gdf, r, xs
 
 
-def compile_flows(
-    nwm_reach_gdf: gpd.GeoDataFrame, min_ratio: float = 0.8, max_ratio: float = 1.5, increments: int = 10
-) -> gpd.GeoDataFrame:
+def increment_rc_flows(nwm_reach_gdf: gpd.GeoDataFrame, increments: int = 10) -> gpd.GeoDataFrame:
     """
     Determine flows to apply to the model for an initial rating curve by compiling the 2yr-100yr
 
@@ -95,11 +95,20 @@ def clip_depth_grid(
             "height": out_image.shape[1],
             "width": out_image.shape[2],
             "transform": out_transform,
+            "compress": "LZW",
+            "predictor": 3,
+            "tiled": True,
         }
     )
-
     # write dest raster
     with rasterio.open(dest_path, "w", **out_meta) as dest:
         dest.write(out_image)
+
+    # handle overviews
+    # handle = gdal.Open('ImageName.tif', 0)  # 0 = read-only, 1 = read-write.
+    # gdal.SetConfigOption('COMPRESS_OVERVIEW', 'DEFLATE')
+    # gdal.SetConfigOption('PREDICTOR_OVERVIEW', '3')
+    # handle.BuildOverviews('NEAREST', [4, 8, 16], gdal.TermProgress_nocb)
+    # del handle  # close the dataset (Python object and pointers)
 
     return dest_path
