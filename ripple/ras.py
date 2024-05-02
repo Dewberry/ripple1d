@@ -1443,11 +1443,11 @@ class Flow(BaseFile):
 
         lines = []
 
-        reach_data["nearest_xs_ds"]
+        
         for e, wse in enumerate(wses):
 
             lines.append(
-                f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['nearest_xs_us']}  , {e+1} , 3 ,{wse}"
+                f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['nearest_xs_ds']}  , {e+1} , 3 ,{wse}"
             )
 
         self.content += "\n" + "\n".join(lines)
