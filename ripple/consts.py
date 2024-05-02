@@ -71,3 +71,5 @@ MAP_DEM_HDF_NAME = "MapTerrain.hdf"
 MAP_DEM_VERT_UNITS = "Feet"
 
 METERS_PER_FOOT = 1200.0 / 3937.0
+
+STAC_API_URL = "https://stac.dewberryanalytics.com"

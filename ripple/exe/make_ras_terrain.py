@@ -34,22 +34,10 @@ def regex_extract_group_assert_one_group(pattern: str, s: str) -> str:
     return groups[0]
 
 
-def main():
+def main(ras_model_stac_href: str):
     """Requires Windows with geospatial libs, so typically run using OSGeo4W shell.
     Example usage: python -um ripple.exe.make_ras_terrain --ras-model-stac-href "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42"
     """
-    init_log()
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--ras-model-stac-href",
-        required=True,
-        help="STAC item URL for the model, e.g. 'https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42'",
-    )
-    args = parser.parse_args()
-    if not args.ras_model_stac_href:
-        raise ValueError("CLI arg --ras-model-stac-href is empty or missing")
-
     s3_client = get_sessioned_s3_client()
     bucket = os.environ["AWS_BUCKET"]
     if not bucket:
@@ -58,7 +46,7 @@ def main():
     with tempfile.TemporaryDirectory(suffix="make-ras-terrain") as tmp_dir:
         ras = Ras(
             path=tmp_dir,
-            stac_href=args.ras_model_stac_href,
+            stac_href=ras_model_stac_href,
             s3_client=s3_client,
             s3_bucket=bucket,
             default_epsg=2277,  # TODO get from the model itself, or at least assert that this is valid after assigning it
@@ -141,4 +129,16 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    init_log()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--ras-model-stac-href",
+        required=True,
+        help="STAC item URL for the model, e.g. 'https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42'",
+    )
+    args = parser.parse_args()
+    if not args.ras_model_stac_href:
+        raise ValueError("CLI arg --ras-model-stac-href is empty or missing")
+
+    main(args.ras_model_stac_href)
