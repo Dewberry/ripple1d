@@ -111,13 +111,15 @@ class Ras:
         self.bucket = s3_bucket
 
         self.ras_folder = path
+        self.default_epsg=default_epsg
+        self.version = version
         self.stac_href = stac_href
         self.stac_item = pystac.Item.from_file(self.stac_href)
-        self.download_model()
+        # self.download_model()
 
         self.projection_file = None
         self.projection = ""
-        self.get_ras_project_file()
+        self.model_downloaded=False
 
         self.plans = {}
         self.geoms = {}
@@ -127,6 +129,13 @@ class Ras:
         self.flow = None
 
     def read_ras(self):
+        
+        if not self.model_downloaded:
+
+            raise ModelNotDownloadedError("The RAS model must be downloaded from STAC prior to reading. Try Ras.download_model() ")
+        
+        self.get_ras_project_file()
+        self.get_ras_projection()
 
         self.read_content()
 
@@ -137,7 +146,6 @@ class Ras:
         self.get_flows()
         self.get_active_plan()
 
-        self.version = version
         self.terrain_exe = get_terrain_exe_path(self.version)
 
     def download_model(self):
@@ -149,17 +157,18 @@ class Ras:
         if not os.path.exists(self.ras_folder):
             os.makedirs(self.ras_folder)
 
-        # create stac item
-        self.stac_item = pystac.Item.from_file(self.stac_href)
-
         #create nwm dataframe
         self.nwm_df=pd.DataFrame(self.stac_item.properties['Ripple:NWM_Conflation'])
 
         # download HEC-RAS model files
         for name, asset in self.stac_item.assets.items():
 
-            file = os.path.join(self.ras_folder, name)
-            self.client.download_file(self.bucket, asset.href.replace("https://fim.s3.amazonaws.com/", ""), file)
+            if asset.roles[0] in ["forcing-file","geometry-file","plan-file","projection","project-file"]:
+                
+                file = os.path.join(self.ras_folder, name)
+                self.client.download_file(self.bucket, asset.href.replace("https://fim.s3.amazonaws.com/", ""), file)
+        
+        self.model_downloaded=True
 
     def read_content(self):
         """
