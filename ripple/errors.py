@@ -4,3 +4,7 @@ class ProjectionNotFoundError(Exception):
 
 class NoDefaultEPSGError(Exception):
     pass
+
+
+class ModelNotDownloadedError(Exception):
+    pass

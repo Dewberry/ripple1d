@@ -21,7 +21,7 @@ import pystac
 from pyproj import CRS
 from utils import decode, get_terrain_exe_path
 from rasmap import RASMAP_631, TERRAIN, PLAN
-from errors import ProjectionNotFoundError, NoDefaultEPSGError
+from errors import ProjectionNotFoundError, NoDefaultEPSGError,ModelNotDownloadedError
 
 
 @dataclass
