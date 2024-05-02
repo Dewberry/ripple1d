@@ -126,26 +126,7 @@ class Ras:
         self.geom = None
         self.flow = None
 
-        try:
-            self.get_ras_projection()
-
-        except ProjectionNotFoundError as e:
-
-            print(e)
-
-            if default_epsg:
-
-                print(f"Attempting to use specified default projection: EPSG:{default_epsg}")
-
-                self.projection = default_epsg
-
-                self.projection_file = os.path.join(self.ras_folder, "projection.prj")
-
-                with open(self.projection_file, "w") as f:
-                    f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
-            else:
-
-                raise NoDefaultEPSGError(f"Could not identify projection from RAS Mapper and no default EPSG provided")
+    def read_ras(self):
 
         self.read_content()
 
@@ -577,40 +558,60 @@ class Ras:
             ValueError: If projection is not specified.
         """
         try:
-            # look for .rasmap files
             try:
+                # look for .rasmap files
+                try:
 
-                rm = glob.glob(self.ras_folder + "/*.rasmap")[0]
-            except IndexError as E:
-                raise FileNotFoundError(f"Could not find a '.rasmap' file for this project.")
+                    rm = glob.glob(self.ras_folder + "/*.rasmap")[0]
+                except IndexError as E:
+                    raise FileNotFoundError(f"Could not find a '.rasmap' file for this project.")
 
-            # read .rasmap file to retrieve projection file.
-            with open(rm) as f:
-                lines = f.readlines()
-                for line in lines:
-                    if "RASProjectionFilename Filename=" in line:
-                        relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
-                        self.projection_file = self.ras_folder + relative_path
+                # read .rasmap file to retrieve projection file.
+                with open(rm) as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        if "RASProjectionFilename Filename=" in line:
+                            relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
+                            self.projection_file = self.ras_folder + relative_path
 
-            # check if the projection file exists
-            if self.projection_file:
-                if os.path.exists(self.projection_file):
-                    if self.projection_file.endswith(".prj"):
+                # check if the projection file exists
+                if self.projection_file:
+                    if os.path.exists(self.projection_file):
+                        if self.projection_file.endswith(".prj"):
 
-                        with open(self.projection_file) as src:
-                            self.projection = src.read()
+                            with open(self.projection_file) as src:
+                                self.projection = src.read()
+                        else:
+                            raise ValueError(f"Expected a projection file but got {self.projection_file}")
                     else:
-                        raise ValueError(f"Expected a projection file but got {self.projection_file}")
+                        raise FileNotFoundError(f"Could not find projection file for this project")
                 else:
-                    raise FileNotFoundError(f"Could not find projection file for this project")
+                    raise ValueError(f"No projection specified in .rasmap file.")
+
+            except (FileNotFoundError, ValueError) as e:
+
+                raise ProjectionNotFoundError(
+                    f"Could not determine the projection for this HEC-RAS model: {self.ras_folder}."
+                )
+            
+        except ProjectionNotFoundError as e:
+
+            print(e)
+
+            if self.default_epsg:
+
+                print(f"Attempting to use specified default projection: EPSG:{self.default_epsg}")
+
+                self.projection = self.default_epsg
+
+                self.projection_file = os.path.join(self.ras_folder, "projection.prj")
+
+                with open(self.projection_file, "w") as f:
+                    f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
             else:
-                raise ValueError(f"No projection specified in .rasmap file.")
 
-        except (FileNotFoundError, ValueError) as e:
+                raise NoDefaultEPSGError(f"Could not identify projection from RAS Mapper and no default EPSG provided")
 
-            raise ProjectionNotFoundError(
-                f"Could not determine the projection for this HEC-RAS model: {self.ras_folder}."
-            )
 
     def get_ras_project_file(self):
         """
