@@ -104,13 +104,9 @@ for idx, item in enumerate(meta_data):
 
     multiline = xs.geometry.values[0]
     if isinstance(multiline, MultiLineString):
-        min_els, max_els = [], []
         for linestring in multiline.geoms:
-            # print(linestring)
-            min_els.append(min([p[2] for p in linestring.coords]))
-            max_els.append(max([p[2] for p in linestring.coords]))
-            meta_data[idx]["min_elevation"] = min(min_els)
-            meta_data[idx]["max_elevation"] = max(max_els)
+            meta_data[idx]["min_elevation"] = min([p[2] for p in linestring.coords])
+            meta_data[idx]["max_elevation"] = max([p[2] for p in linestring.coords])
 
 
 # Add metadata to STAC Item
