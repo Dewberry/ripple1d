@@ -4,7 +4,7 @@ import boto3
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Point, LineString, Polygon
 from shapely.validation import make_valid
 import pandas as pd
 import plotly.graph_objects as go
@@ -151,3 +151,15 @@ def plot_xs_with_wse_increments(r):
     fig.update_layout({"showlegend": False})
 
     return fig
+
+
+def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
+
+    points = xs.boundary.explode().unstack()
+    points_last_xs = [Point(coord) for coord in xs["geometry"].iloc[-1].coords]
+    points_first_xs = [Point(coord) for coord in xs["geometry"].iloc[0].coords[::-1]]
+
+    polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
+
+    return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=xs.crs)

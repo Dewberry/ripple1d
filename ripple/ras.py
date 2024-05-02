@@ -117,11 +117,9 @@ class Ras:
         self.ras_folder = path
         self.stac_href = stac_href
         self.stac_item = pystac.Item.from_file(self.stac_href)
-        self.download_model()
 
         self.projection_file = None
         self.projection = ""
-        self.get_ras_project_file()
 
         self.plans = {}
         self.geoms = {}
@@ -130,33 +128,27 @@ class Ras:
         self.geom = None
         self.flow = None
 
+        self.version = version
+        self.default_epsg = default_epsg
+
+    def inspect_projection__if_not_exists_write_default(self):
         try:
             self.get_ras_projection()
-
         except (FileNotFoundError, ValueError) as e:
             print(e)
-            if default_epsg:
+            if self.default_epsg:
+                print(f"Attempting to use specified default projection: EPSG:{self.default_epsg}")
+                self.write_projection()
+            else:
+                raise e
 
-                print(f"Attempting to use specified default projection: EPSG:{default_epsg}")
-
-                self.projection = default_epsg
-
-                self.projection_file = os.path.join(self.ras_folder, "projection.prj")
-
-                with open(self.projection_file, "w") as f:
-                    f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
-
-        self.read_content()
-
-        self.title = self.content.splitlines()[0].split("=")[1]
-        self.ras_project_basename = os.path.splitext(os.path.basename(self.ras_project_file))[0]
-        self.get_plans()
-        self.get_geoms()
-        self.get_flows()
-        self.get_active_plan()
-
-        self.version = version
-        self.terrain_exe = get_terrain_exe_path(self.version)
+    def write_projection(self):
+        self.projection = self.default_epsg
+        self.projection_file = os.path.join(self.ras_folder, "projection.prj")
+        logging.info(f"Writing: {self.projection_file}")
+        os.makedirs(os.path.dirname(self.projection_file), exist_ok=True)
+        with open(self.projection_file, "w") as f:
+            f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
 
     def download_model(self):
         """
@@ -167,14 +159,25 @@ class Ras:
         if not os.path.exists(self.ras_folder):
             os.makedirs(self.ras_folder)
 
-        # create stac item
-        self.stac_item = pystac.Item.from_file(self.stac_href)
-
         # download HEC-RAS model files
         for name, asset in self.stac_item.assets.items():
 
             file = os.path.join(self.ras_folder, name)
-            self.client.download_file(self.bucket, asset.href.replace("https://fim.s3.amazonaws.com/", ""), file)
+            key = asset.href.replace("https://fim.s3.amazonaws.com/", "")
+            logging.info(f"Downloading: s3://{self.bucket}/{key} -> {file}")
+            self.client.download_file(self.bucket, key, file)
+
+    def inspect_model(self):
+        """Call after self.download_model"""
+        self.get_ras_project_file()
+        self.read_content()
+
+        self.title = self.content.splitlines()[0].split("=")[1]
+        self.ras_project_basename = os.path.splitext(os.path.basename(self.ras_project_file))[0]
+        self.get_plans()
+        self.get_geoms()
+        self.get_flows()
+        self.get_active_plan()
 
     def read_content(self):
         """
@@ -495,10 +498,14 @@ class Ras:
         if missing_files:
             raise FileNotFoundError(str(missing_files))
 
-        exe_parent_dir = os.path.split(self.terrain_exe)[0]
+        terrain_exe = get_terrain_exe_path(self.version)
+        if not os.path.isfile(terrain_exe):
+            raise FileNotFoundError(terrain_exe)
+
+        exe_parent_dir = os.path.split(terrain_exe)[0]
         terrain_dir_fp = os.path.join(self.ras_folder, terrain_dirname)
         subproc_args = [
-            self.terrain_exe,
+            terrain_exe,
             "CreateTerrain",
             f"units={vertical_units}",  # vertical units
             "stitch=true",
