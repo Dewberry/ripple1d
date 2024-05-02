@@ -50,7 +50,7 @@ def run_rating_curves(r):
         r.RunSIM(close_ras=True, show_ras=True)
 
 
-def determine_flow_increments(r):
+def determine_flow_increments(r: Ras, depth_increment: float):
 
     xs = r.geom.cross_sections
 
@@ -79,7 +79,7 @@ def determine_flow_increments(r):
         thalweg = xs.loc[xs["rs"] == float(row["nearest_xs_us"]), "thalweg"].iloc[0]
         depth = [e - thalweg for e in wse]
 
-        new_flow, new_depth = create_flow_depth_array(flow, depth, 2)
+        new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
         new_us_flows.append(new_flow)
 
         new_us_depths.append(new_depth)
@@ -95,7 +95,7 @@ def determine_flow_increments(r):
         thalweg = xs.loc[xs["rs"] == float(row["nearest_xs_ds"]), "thalweg"].iloc[0]
         depth = [e - thalweg for e in wse]
 
-        new_flow, new_depth = create_flow_depth_array(flow, depth, 2)
+        new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
 
         new_ds_depths.append(new_depth)
         new_ds_wses.append([i + thalweg for i in new_depth])
@@ -218,7 +218,7 @@ def main(stac_href, ras_directory, bucket, src_dem):
 
     run_rating_curves(r)
 
-    determine_flow_increments(r)
+    determine_flow_increments(r, depth_increment)
 
     create_ras_terrain(r, src_dem)
 
@@ -232,10 +232,12 @@ if __name__ == "__main__":
 
 bucket = "fim"
 
-ras_directory = r"C:\Users\mdeshotel\Downloads\test_stac7"
+ras_directory = r"C:\Users\mdeshotel\Downloads\test_stac9"
 
 stac_href = "https://fim.s3.amazonaws.com/stac/ripple/WFSJ_Main-cd42.json"
 
 src_dem = "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
 
-main(stac_href, ras_directory, bucket, src_dem)
+depth_increment = 0.5
+
+main(stac_href, ras_directory, bucket, client, src_dem, depth_increment)
