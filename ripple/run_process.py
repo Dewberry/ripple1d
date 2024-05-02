@@ -2,14 +2,13 @@ from ras import Ras
 from utils import create_flow_depth_array
 import boto3
 import os
-import pandas as pd
 from dotenv import load_dotenv, find_dotenv
-import geopandas as gpd
-from nwm_reaches import compile_flows, get_us_ds_rs
-from ras import RasMap
+from nwm_reaches import increment_rc_flows
+from ras import RasMap, Ras
 from consts import TERRAIN_NAME
 from nwm_reaches import clip_depth_grid
 import warnings
+
 
 # load s3 credentials
 load_dotenv(find_dotenv())
@@ -18,18 +17,20 @@ dewberrywrc_acct_session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"]
 client = dewberrywrc_acct_session.client("s3")
 
 
-def read_ras_nwm(stac_href, ras_directory, bucket):
+def read_ras_nwm(stac_href: str, ras_directory: str, bucket: str, client):
 
     # read ras model and create cross section gdf
     r = Ras(ras_directory, stac_href, client, bucket, default_epsg=2277)
+    r.download_model()
+    r.read_ras()
     r.plan.geom.scan_for_xs()
 
     return r
 
 
-def run_rating_curves(r):
+def run_rating_curves(r: Ras):
 
-    for i, row in r.nwm_df.iterrows():
+    for _, row in r.nwm_df.iterrows():
 
         id = str(row["branch_id"]) + "_rc"
 
@@ -114,16 +115,16 @@ def determine_flow_increments(r: Ras, depth_increment: float):
     r.nwm_df["ds_wses"] = new_ds_wses
 
 
-def create_ras_terrain(r, src_dem):
+def create_ras_terrain(r: Ras, src_dem: str):
 
     # create terrain
     tif = r.clip_dem(src_dem)
     r.create_terrain([tif], TERRAIN_NAME, f"{TERRAIN_NAME}.hdf")
 
 
-def run_production_runs(r):
+def run_production_runs(r: Ras):
 
-    for i, row in r.nwm_df.iterrows():
+    for _, row in r.nwm_df.iterrows():
 
         id = row["branch_id"]
 
@@ -165,7 +166,7 @@ def run_production_runs(r):
         r.RunSIM(close_ras=True, show_ras=True)
 
 
-def post_process_depth_grids(r):
+def post_process_depth_grids(r: Ras):
 
     xs = r.geom.cross_sections
 
@@ -210,11 +211,11 @@ def post_process_depth_grids(r):
             )
 
 
-def main(stac_href, ras_directory, bucket, src_dem):
+def main(stac_href: str, ras_directory: str, bucket: str, client, src_dem: str, depth_increment: float):
 
-    r = read_ras_nwm(stac_href, ras_directory, bucket)
+    r = read_ras_nwm(stac_href, ras_directory, bucket, client)
 
-    compile_flows(r.nwm_df)
+    increment_rc_flows(r.nwm_df, 10)
 
     run_rating_curves(r)
 
