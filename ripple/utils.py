@@ -23,7 +23,7 @@ def create_flow_depth_array(flow: list[float], depth: list[float], increment: fl
     new_depth = np.arange(start_depth, max_depth + increment, increment)
     new_flow = np.interp(new_depth, np.sort(depth), np.sort(flow))
 
-    return new_flow, new_depth.round()
+    return new_flow, new_depth
 
 
 def get_terrain_exe_path(ras_ver: str) -> str:
