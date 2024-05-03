@@ -115,7 +115,6 @@ class Ras:
         self.version = version
         self.stac_href = stac_href
         self.stac_item = pystac.Item.from_file(self.stac_href)
-        # self.download_model()
 
         self.projection_file = None
         self.projection = ""
@@ -148,6 +147,11 @@ class Ras:
 
         self.terrain_exe = get_terrain_exe_path(self.version)
 
+    def create_nwm_df(self):
+
+        #create nwm dataframe
+        self.nwm_df=pd.DataFrame(self.stac_item.properties['Ripple:NWM_Conflation'])
+
     def download_model(self):
         """
         Download HEC-RAS model from stac href
@@ -157,8 +161,7 @@ class Ras:
         if not os.path.exists(self.ras_folder):
             os.makedirs(self.ras_folder)
 
-        #create nwm dataframe
-        self.nwm_df=pd.DataFrame(self.stac_item.properties['Ripple:NWM_Conflation'])
+        self.create_nwm_df()
 
         # download HEC-RAS model files
         for name, asset in self.stac_item.assets.items():
