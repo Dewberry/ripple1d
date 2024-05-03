@@ -996,7 +996,7 @@ class Geom(BaseFile):
 
             # parse river and reach
             if "River Reach=" in line:
-                river, reach = line.lstrip("River Reach=").split(",")
+                river, reach = line.split("River Reach=")[1].split(",")
 
             # parse river station and reach lengths for the left, channel, and right flowpaths
             if "Type RM Length L Ch R =" in line:
@@ -1050,9 +1050,9 @@ class Geom(BaseFile):
         """
 
         # parse the Type, rs, left_reach_length, channel_reach_length, and right_reach_length
-        Type, rs, left_reach_length, channel_reach_length, right_reach_length = line.lstrip(
+        Type, rs, left_reach_length, channel_reach_length, right_reach_length = line.split(
             "Type RM Length L Ch R ="
-        ).split(",")
+        )[1].split(",")
 
         # type 1 indicates a cross section
         if Type == "1 ":
@@ -1094,7 +1094,7 @@ class Geom(BaseFile):
         """
 
         if "XS GIS Cut Line=" in line:
-            xs.number_of_coords = int(line.lstrip("XS GIS Cut Line="))
+            xs.number_of_coords = int(line.split("XS GIS Cut Line=")[1])
 
             return xs
 
@@ -1255,10 +1255,10 @@ class Flow(BaseFile):
         for i, line in enumerate(lines):
 
             if "Number of Profiles=" in line:
-                self.profile_count = int(line.lstrip("Number of Profiles="))
+                self.profile_count = int(line.split("Number of Profiles=")[1])
 
             elif "Profile Names=" in line:
-                self.profile_names = line.lstrip("Profile Names=").split(",")
+                self.profile_names = line.split("Profile Names=")[1].split(",")
 
             elif "River Rch & RM=" in line:
                 flow = self.parse_flows(lines[i:])
@@ -1279,7 +1279,7 @@ class Flow(BaseFile):
         """
 
         # parse river, reach, and river station for the flow change location
-        river, reach, rs = lines[0].lstrip("River Rch & RM=").split(",")
+        river, reach, rs = lines[0].split("River Rch & RM=")[1].split(",")
 
         flows = []
         for line in lines[1:]:
@@ -1629,3 +1629,5 @@ class RasMap:
         # write backup
         with open(self.text_file + ".backup", "w") as f:
             f.write(self.content)
+
+
