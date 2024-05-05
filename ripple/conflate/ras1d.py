@@ -357,6 +357,12 @@ def walk_branches(
     """
     Walk the branches from the upstream most branch to the downstream most branch
 
+    The `if next_branch not in rfc.nwm_branches["branch_id"]` conditon
+       seeks to adress cases where there are 2 downsteam most branches
+       instead of one. This case occurs on a tributarty that ends at 
+       a confluence and the main stem downstream and upstream branches
+       are included in the  `candidate` branches.
+    
     Args:
 
         rfc (RasFimConflater): RasFimConflater object
@@ -373,14 +379,17 @@ def walk_branches(
     )
     i = 0
     ras_fim_branches = {i: fbranch.to_dict()}
-
     while fbranch.branch_id != ds_most_branch_id:
         i += 1
         next_branch = fbranch.control_by_node
-        fbranch = FimBranch(
-            rfc.nwm_branches[rfc.nwm_branches["branch_id"] == next_branch]
-        )
-        ras_fim_branches[i] = fbranch.to_dict()
+        if next_branch not in rfc.nwm_branches["branch_id"]:
+            break
+        else:
+            fbranch = FimBranch(
+                rfc.nwm_branches[rfc.nwm_branches["branch_id"] == next_branch]
+            )
+            ras_fim_branches[i] = fbranch.to_dict()
+ 
     return ras_fim_branches
 
 
