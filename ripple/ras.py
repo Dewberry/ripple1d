@@ -147,10 +147,14 @@ class Ras:
 
         self.terrain_exe = get_terrain_exe_path(self.version)
 
-    def create_nwm_df(self):
+    def create_nwm_dict(self):
 
         #create nwm dataframe
-        self.nwm_df=pd.DataFrame(self.stac_item.properties['Ripple:NWM_Conflation'])
+        for _, asset in self.stac_item.get_assets(role="ripple-params").items():
+
+            response = self.client.get_object(Bucket=self.bucket, Key=asset.href.replace(f"https://{self.bucket}.s3.amazonaws.com/", ""))
+            json_data = response["Body"].read()
+            self.nwm_dict=json.loads(json_data)
 
     def download_model(self):
         """
@@ -263,13 +267,13 @@ class Ras:
 
             self.client.put_object(Body=self.content, Bucket=self.bucket, Key=ras_project_file)
 
-    def write_new_flow_rating_curves(self, title: str, reach_data: pd.DataFrame, normal_depth: float):
+    def write_new_flow_rating_curves(self, title: str, branch_data: pd.DataFrame, normal_depth: float):
         """
-        Write a new flow file contaning the specified title, reach_data, and normal depth.
+        Write a new flow file contaning the specified title, branch_data, and normal depth.
 
         Args:
             title (str): Title of the flow file
-            reach_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
+            branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
             normal_depth (float): normal_depth to apply
         """
 
@@ -282,7 +286,7 @@ class Ras:
 
         flow.content = ""
 
-        flows = [int(i) for i in reach_data["flows_rc"]]
+        flows = [int(i) for i in branch_data["flows_rc"]]
 
         # write headers
         flow.write_headers(title, flows)
@@ -295,7 +299,7 @@ class Ras:
         flow.write_discharges(flows, self)
 
         # write normal depth
-        flow.write_ds_normal_depth(reach_data, normal_depth, self)
+        flow.write_ds_normal_depth(branch_data, normal_depth, self)
 
         # write flow file content
         flow.write()
@@ -303,13 +307,13 @@ class Ras:
         # add new flow to the ras class
         self.flows[title] = flow
 
-    def write_new_flow_production_runs(self, title: str, reach_data: pd.Series, normal_depth: float):
+    def write_new_flow_production_runs(self, title: str, branch_data: pd.Series, normal_depth: float):
         """
-        Write a new flow file contaning the specified title, reach_data, and normal depth.
+        Write a new flow file contaning the specified title, branch_data, and normal depth.
 
         Args:
             title (str): Title of the flow file
-            reach_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
+            branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
             normal_depth (np.array): normal depth to apply at the downstream terminus of the reach.
         """
 
@@ -321,7 +325,7 @@ class Ras:
         flow = Flow(text_file)
 
         # create profile names
-        profile_names, flows, wses = flow.create_profile_names(reach_data, reach_data["us_flows"])
+        profile_names, flows, wses = flow.create_profile_names(branch_data, branch_data["us_flows"])
 
         flow.profile_names = profile_names
         flow.profile_count = len(flow.profile_names)
@@ -336,10 +340,10 @@ class Ras:
         flow.write_discharges(flows, self)
 
         # write DS boundary conditions
-        flow.write_ds_known_ws(reach_data, normal_depth, self)
+        flow.write_ds_known_ws(branch_data, normal_depth, self)
 
         # add intermediate known wses
-        flow.add_intermediate_known_wse(reach_data, wses)
+        flow.add_intermediate_known_wse(branch_data, wses)
 
         # write flow file content
         flow.write()
@@ -1299,12 +1303,12 @@ class Flow(BaseFile):
 
         self.max_flow_applied = max([max(flow.flows) for flow in self.flow_change_locations])
 
-    def create_profile_names(self, reach_data: pd.Series, input_flows: np.array) -> tuple:
+    def create_profile_names(self, branch_data: dict, input_flows: np.array) -> tuple:
         """
-        Create profile names from flows and ds_depths specified in the reach_data
+        Create profile names from flows and ds_depths specified in the branch_data
 
         Args:
-            reach_data (pd.Series): NWM reach data
+            branch_data (dict): NWM reach data
             input_flows (np.array): Flows to create profiles names from. Combine with incremental depths
             of the downstream cross section of the reach
 
@@ -1314,14 +1318,14 @@ class Flow(BaseFile):
 
         profile_names, flows, wses = [], [], []
 
-        for e, depth in enumerate(reach_data["ds_depths"]):
+        for e, depth in enumerate(branch_data["ds_depths"]):
 
             for flow in input_flows:
 
                 profile_names.append(f"f_{int(flow)}-z_{str(depth).replace(".","_")}")
 
                 flows.append(flow)
-                wses.append(reach_data["ds_wses"][e])
+                wses.append(branch_data["ds_wses"][e])
 
         return (profile_names, flows, wses)
 
@@ -1375,13 +1379,13 @@ class Flow(BaseFile):
 
         self.content += "\n" + "\n".join(lines)
 
-    def write_ds_known_ws(self, reach_data: pd.Series, normal_depth: float, r: Ras):
+    def write_ds_known_ws(self, branch_data: dict, normal_depth: float, r: Ras):
         """
         Write downstream known water surface elevations to flow content
 
         Args:
-            reach_data (pd.Series): Reach data from NWM reaches
-            normal_depth (float): Normal depth to apply if reach_data does not contain a downstream river station (ds_rs)
+            branch_data (dict): Reach data from NWM reaches
+            normal_depth (float): Normal depth to apply if branch_data does not contain a downstream river station (ds_rs)
             r (Ras): Ras object representing the HEC-RAS project
         """
 
@@ -1391,14 +1395,14 @@ class Flow(BaseFile):
 
         for _, xs in ds_cross_sections.iterrows():
 
-            if reach_data["nearest_xs_ds"] == xs["rs"]:
+            if branch_data["downstream_data"]["xs_id"] == xs["rs"]:
 
                 # get the downstream wses for this reach/xs
-                wses = reach_data["ds_wses"]
+                wses = branch_data["ds_wses"]
                 lines = []
                 for e, wse in enumerate(wses):
                     
-                    for i in range(len(reach_data["flows"])):
+                    for i in range(len(branch_data["us_flows"])):
                         count += 1
                         lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
                         lines.append(f"Up Type= 0 ")
@@ -1407,16 +1411,16 @@ class Flow(BaseFile):
 
                     self.content += "\n" + "\n".join(lines)
             else:
-                self.write_ds_normal_depth(reach_data, normal_depth, r)
+                self.write_ds_normal_depth(branch_data, normal_depth, r)
 
         
 
-    def write_ds_normal_depth(self, reach_data: pd.Series, normal_depth: float, r: Ras):
+    def write_ds_normal_depth(self, branch_data: dict, normal_depth: float, r: Ras):
         """
         Write the downstream normal depth boundary condition
 
         Args:
-            reach_data (pd.Series): Reach data from NWM reaches
+            branch_data (dict): Reach data from NWM reaches
             normal_depth (float): Normal depth slope to apply to all profiles
             r (Ras): Ras object representing the HEC-RAS project
         """
@@ -1426,7 +1430,7 @@ class Flow(BaseFile):
 
         for _, xs in ds_cross_sections.iterrows():
 
-            for i in range(len(reach_data["flows_rc"])):
+            for i in range(len(branch_data["flows_rc"])):
                 count += 1
                 lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
                 lines.append(f"Up Type= 0 ")
@@ -1435,12 +1439,12 @@ class Flow(BaseFile):
 
         self.content += "\n" + "\n".join(lines)
 
-    def add_intermediate_known_wse(self, reach_data: pd.Series, wses: list[float]):
+    def add_intermediate_known_wse(self, branch_data: dict, wses: list[float]):
         """
         Write known water surface elevations for intermediate cross sections along the reach to the flow content.
 
         Args:
-            reach_data (pd.Series): Reach data from NWM reaches
+            branch_data (dic): Reach data from NWM reaches
             wses (list[float]): known water surface elvations to apply
         """
 
@@ -1450,7 +1454,7 @@ class Flow(BaseFile):
         for e, wse in enumerate(wses):
 
             lines.append(
-                f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['nearest_xs_ds']}  , {e+1} , 3 ,{wse}"
+                f"Set Internal Change={branch_data["downstream_data"]['river']}       ,{branch_data["downstream_data"]['reach']}         ,{branch_data["downstream_data"]['xs_id']}  , {e+1} , 3 ,{wse}"
             )
 
         self.content += "\n" + "\n".join(lines)

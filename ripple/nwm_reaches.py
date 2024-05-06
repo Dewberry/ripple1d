@@ -36,31 +36,29 @@ def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
     return nwm_reach_gdf, r, xs
 
 
-def increment_rc_flows(nwm_reach_gdf: gpd.GeoDataFrame, increments: int = 10) -> gpd.GeoDataFrame:
+def increment_rc_flows(nwm_dict: dict, increments: int = 10) -> dict:
     """
     Determine flows to apply to the model for an initial rating curve by compiling the 2yr-100yr
 
     Args:
-        nwm_reach_gdf (gpd.GeoDataFrame): National water model branches
-        min_ratio (float, optional): Ratio to multiply the 2yr event by to get the min flow. Defaults to .8.
-        max_ratio (float, optional): Ratio to multiply the 100yr event by to get the max flow. Defaults to 1.5.
+        nwm_dict (dict): National water model branches
         increments (int,optional): Number of flow increments between 2yr flow * min_ration and 100yr flow * max_ratio
 
     Returns:
-        gpd.GeoDataFrame: _description_
+        dict: _description_
     """
-    flows = []
-    for row in nwm_reach_gdf.itertuples():
 
-        flow = np.linspace(row.min_flow_cfs, row.max_flow_cfs, increments)
+    for branch_id, branch_data in nwm_dict.items():
+
+        flow = np.linspace(
+            branch_data["flows"]["flow_2_yr_minus"], branch_data["flows"]["flow_100_yr_plus"], increments
+        )
 
         flow.sort()
 
-        flows.append(list(flow.round()))
+        nwm_dict[branch_id]["flows_rc"] = flow
 
-    nwm_reach_gdf["flows_rc"] = flows
-
-    return nwm_reach_gdf
+    return nwm_dict
 
 
 def clip_depth_grid(
