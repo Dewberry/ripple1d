@@ -76,7 +76,7 @@ RASMAP_631 = """<RASMapper>
 </RASMapper>"""
 
 TERRAIN = f"""  <Terrains Checked="True" Expanded="True">
-    <Layer Name="{TERRAIN_NAME}" Type="TerrainLayer" Checked="True" Filename=".\{TERRAIN_NAME}\{TERRAIN_NAME}.hdf">
+    <Layer Name="{TERRAIN_NAME}" Type="TerrainLayer" Checked="True" Filename=".\{TERRAIN_NAME}.hdf">
       <Symbology>
         <SurfaceFill Colors="-10039894,-256,-16744448,-23296,-7667712,-5952982,-8355712,-1286" Values="-0.625,50.4063185155618,70.7601808393692,101.843506660136,135.379737550828,199.971461686389,225.529762277054,366.78125" Stretched="True" AlphaTag="255" UseDatasetMinMax="False" RegenerateForScreen="False" />
       </Symbology>

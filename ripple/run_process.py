@@ -145,13 +145,14 @@ def run_production_runs(r: Ras):
 
         rm.update_projection(r.projection_file)
 
-        rm.add_terrain()
+        rm.add_terrain(r.terrain_name)
         rm.add_plan_layer(plan_name, plan_hdf, profiles)
         rm.add_result_layers(plan_name, profiles, "Depth")
         rm.write()
 
         # run the RAS plan
         r.RunSIM(close_ras=True, show_ras=True)
+    return r
 
 
 def post_process_depth_grids(r: Ras):

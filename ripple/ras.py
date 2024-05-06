@@ -22,7 +22,9 @@ from pyproj import CRS
 from utils import decode, get_terrain_exe_path
 from rasmap import RASMAP_631, TERRAIN, PLAN
 from errors import ProjectionNotFoundError, NoDefaultEPSGError,ModelNotDownloadedError
-
+from consts import TERRAIN_NAME
+import json
+from pathlib import Path
 
 @dataclass
 class FlowChangeLocation:
@@ -126,6 +128,7 @@ class Ras:
         self.plan = None
         self.geom = None
         self.flow = None
+        self.terrain_name=None
 
     def read_ras(self):
         
@@ -163,18 +166,27 @@ class Ras:
 
         # make RAS directory if it does not exists
         if not os.path.exists(self.ras_folder):
-            os.makedirs(self.ras_folder)
-
-        self.create_nwm_df()
+            os.makedirs(os.path.join(self.ras_folder))
 
         # download HEC-RAS model files
-        for name, asset in self.stac_item.assets.items():
+        for _, asset in self.stac_item.get_assets(role="ras-file").items():
 
-            if asset.roles[0] in ["forcing-file","geometry-file","plan-file","projection","project-file"]:
-                
-                file = os.path.join(self.ras_folder, name)
-                self.client.download_file(self.bucket, asset.href.replace("https://fim.s3.amazonaws.com/", ""), file)
+            s3_key=asset.extra_fields["s3_key"]
+            
+            file = os.path.join(self.ras_folder, Path(s3_key).name)
+            self.client.download_file(self.bucket, s3_key, file)
         
+        # download HEC-RAS topo files
+        for _, asset in self.stac_item.get_assets(role="ras-topo").items():
+
+            s3_key=asset.extra_fields["s3_key"]
+
+            file = os.path.join(self.ras_folder, Path(s3_key).name)
+            self.client.download_file(self.bucket, s3_key, file)
+
+            if ".hdf" in Path(s3_key).name:
+                self.terrain_name=Path(s3_key).name.rstrip(".hdf")
+
         self.model_downloaded=True
 
     def read_content(self):
@@ -1612,8 +1624,8 @@ class RasMap:
         for line in self.content.splitlines():
 
             if line == "  <Terrains />":
-
-                lines.append(TERRAIN)
+                
+                lines.append(TERRAIN.replace(TERRAIN_NAME,terrain_name))
                 continue
 
             lines.append(line)
