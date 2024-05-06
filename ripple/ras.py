@@ -1066,9 +1066,9 @@ class Geom(BaseFile):
         """
 
         # parse the Type, rs, left_reach_length, channel_reach_length, and right_reach_length
-        Type, rs, left_reach_length, channel_reach_length, right_reach_length = line.split(
+        Type, rs, left_reach_length, channel_reach_length, right_reach_length = line.lstrip(
             "Type RM Length L Ch R ="
-        )[1].split(",")
+        ).split(",")
 
         # type 1 indicates a cross section
         if Type == "1 ":
@@ -1088,7 +1088,6 @@ class Geom(BaseFile):
                 rs.rstrip(" "),
                 river_reach_rs,
             )
-
             return xs
         else:
             return None
@@ -1615,7 +1614,7 @@ class RasMap:
 
         self.content = "\n".join(lines)
 
-    def add_terrain(self):
+    def add_terrain(self,terrain_name:str):
         """
         Add Terrain to RasMap content
         """
