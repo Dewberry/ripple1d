@@ -8,8 +8,7 @@ from ras import RasMap, Ras
 from consts import TERRAIN_NAME
 from nwm_reaches import clip_depth_grid
 import warnings
-import sqlite3
-import pandas as pd
+from sqlite_utils import rating_curves_to_sqlite
 
 # load s3 credentials
 load_dotenv(find_dotenv())
@@ -18,22 +17,11 @@ dewberrywrc_acct_session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"]
 client = dewberrywrc_acct_session.client("s3")
 
 
-def parse_stage_flow(wses: pd.DataFrame):
-    wses_t = wses.T
-    wses_t.reset_index(inplace=True)
-    wses_t[["flow", "control_by_node_stage"]] = wses_t["index"].str.split("-", expand=True)
-    wses_t.drop(columns="index", inplace=True)
-    wses_t["flow"] = wses_t["flow"].str.lstrip("f_").astype(float)
-    wses_t["control_by_node_stage"] = wses_t["control_by_node_stage"].str.lstrip("z_")
-    wses_t["control_by_node_stage"] = wses_t["control_by_node_stage"].str.replace("_", ".").astype(float)
-
-    return wses_t
-
-
 def read_ras_nwm(stac_href: str, ras_directory: str, bucket: str, client):
 
     # read ras model and create cross section gdf
     r = Ras(ras_directory, stac_href, client, bucket, default_epsg=2277)
+    # r.model_downloaded = True
     r.download_model()
     r.read_ras()
     r.plan.geom.scan_for_xs()
@@ -213,58 +201,6 @@ def post_process_depth_grids(r: Ras):
             )
 
 
-def rating_curves_to_sqlite(r: Ras):
-
-    df_list = []
-    for branch_id, branch_data in r.nwm_dict.items():
-
-        # set the plan
-        r.plan = r.plans[str(branch_id)]
-
-        # read in flow/wse
-        rc = r.plan.read_rating_curves()
-        wses, flows = rc.values()
-
-        # parse applied stage and flow from profile names
-        wses = parse_stage_flow(wses)
-
-        # create rating curve for each intermediate node
-        for ind in branch_data["intermediate_data"]:
-
-            # get river-reach-rs id for the intermediate node
-            river = ind["river"]
-            reach = ind["reach"]
-            rs = ind["xs_id"]
-            river_reach_rs = f"{river} {reach} {rs}"
-
-            # get subset of results for this cross section
-            df = wses[["flow", "control_by_node_stage", river_reach_rs]].copy()
-
-            # rename columns
-            df.rename(columns={river_reach_rs: "stage"}, inplace=True)
-
-            # add control id
-            df["node_id"] = [ind["node_id"]] * len(df)
-
-            # convert elevation to stage
-            thalweg = branch_data["downstream_data"]["min_elevation"]
-            df.loc[:, "stage"] = df["stage"] - thalweg
-
-            df_list.append(df)
-    if df_list:
-        # combine dataframes into one
-        if len(df_list) > 1:
-            combined_df = pd.concat(df_list)
-        else:
-            combined_df = df_list[0]
-
-        # write to sqlite db
-        database_path = os.path.join(r.ras_folder, "output", r.ras_project_basename + ".db")
-        print(database_path)
-        connection = sqlite3.connect(database_path)
-        combined_df.to_sql(name=r.ras_project_basename, con=connection, index=False, if_exists="replace")
-
-
 def main(
     stac_href: str,
     ras_directory: str,
@@ -293,9 +229,9 @@ if __name__ == "__main__":
 
 bucket = "fim"
 
-ras_directory = r"C:\Users\mdeshotel\Downloads\WFSJR_097"
+ras_directory = r"C:\Users\mdeshotel\Downloads\WFSJR_055"
 
-stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJR_097-448d"
+stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJR_055-3e8e"
 
 depth_increment = 0.5
 
