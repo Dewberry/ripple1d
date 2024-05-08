@@ -10,12 +10,13 @@ from dotenv import load_dotenv, find_dotenv
 from nwm_reaches import increment_rc_flows
 import pystac_client
 from ras import RasMap, Ras
-from consts import TERRAIN_NAME, STAC_API_URL
+from consts import TERRAIN_NAME, STAC_API_URL, MINDEPTH
 import tempfile
 import utils
 from nwm_reaches import clip_depth_grid
 import warnings
 from sqlite_utils import rating_curves_to_sqlite
+from errors import DepthGridNotFoundError
 
 # load s3 credentials
 load_dotenv(find_dotenv())
@@ -79,11 +80,16 @@ def determine_flow_increments(r: Ras, depth_increment: float):
 
         wse = wses.loc[river_reach_rs, :]
         flow = flows.loc[river_reach_rs, :]
+
         # convert wse to depth
         thalweg = branch_data["upstream_data"]["min_elevation"]
         depth = [e - thalweg for e in wse]
 
+        # get new flow/depth incremented every x ft
         new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
+
+        # enforce min depth
+        new_depth[new_depth < MINDEPTH] = MINDEPTH
 
         r.nwm_dict[branch_id]["us_flows"] = new_flow
         r.nwm_dict[branch_id]["us_depths"] = new_depth
@@ -102,7 +108,11 @@ def determine_flow_increments(r: Ras, depth_increment: float):
         thalweg = branch_data["downstream_data"]["min_elevation"]
         depth = [e - thalweg for e in wse]
 
+        # get new flow/depth incremented every x ft
         new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
+
+        # enforce min depth
+        new_depth[new_depth < MINDEPTH] = MINDEPTH
 
         r.nwm_dict[branch_id]["ds_flows"] = new_flow
         r.nwm_dict[branch_id]["ds_depths"] = new_depth
@@ -164,7 +174,7 @@ def run_production_runs(r: Ras):
     return r
 
 
-def post_process_depth_grids(r: Ras):
+def post_process_depth_grids(r: Ras, except_missing_grid: bool = False):
 
     xs = r.geom.cross_sections
 
@@ -197,11 +207,13 @@ def post_process_depth_grids(r: Ras):
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(depth_file):
+                if except_missing_grid:
+                    warnings.warn(f"depth raster does not exists: {depth_file}")
+                    continue
+                else:
+                    raise DepthGridNotFoundError(f"depth raster does not exists: {depth_file}")
 
-                warnings.warn(f"depth raster does not exists: {depth_file}")
-                continue
-
-            # clip the depth grid naming it with with river_reach_ds_rs_us_rs_flow_depth
+            # clip the depth grid naming it with with branch_id, downstream depth, and flow
             out_file = clip_depth_grid(
                 depth_file,
                 xs_hull,
@@ -293,11 +305,12 @@ if __name__ == "__main__":
             # ras_directory = os.path.join(os.getcwd(), tmp_dir_suffix)
             # if True:
             with tempfile.TemporaryDirectory(suffix=tmp_dir_suffix) as ras_directory:
-                ras_directory = os.path.realpath(
-                    ras_directory
-                )  # e.g. to replace shorthand tildes, elipses etc with full absolute paths
+
+                ras_directory = os.path.realpath(ras_directory)
+
                 print(f"Processing {repr(ras_model_stac_href)}, writing to folder {repr(ras_directory)}")
                 main(ras_model_stac_href, ras_directory, bucket, s3_resource, s3_client, depth_increment)
+
         except Exception as e:
             utils.s3_upload_status_file(ras_model_stac_href, bucket, s3_client, e)
             print(f"HREF FAILED {ras_model_stac_href}")
