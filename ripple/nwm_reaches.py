@@ -104,7 +104,7 @@ def clip_depth_grid(
     print(f"Writing: {dest_path}")
     with rasterio.open(dest_path, "w", **out_meta) as dest:
         dest.write(out_image)
-    print(f"Building overviews for: {dest_path}")
+    # print(f"Building overviews for: {dest_path}")
     with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
         with rasterio.open(dest_path, "r+") as dst:
             dst.build_overviews([4, 8, 16], Resampling.nearest)
