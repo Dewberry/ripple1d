@@ -3,7 +3,9 @@ import geopandas as gpd
 import pandas as pd
 import os
 import rasterio
+from rasterio.enums import Resampling
 import numpy as np
+
 from ras import Ras
 
 # from osgeo import gdal
@@ -99,14 +101,13 @@ def clip_depth_grid(
         }
     )
     # write dest raster
+    print(f"Writing: {dest_path}")
     with rasterio.open(dest_path, "w", **out_meta) as dest:
         dest.write(out_image)
-
-    # handle overviews
-    # handle = gdal.Open('ImageName.tif', 0)  # 0 = read-only, 1 = read-write.
-    # gdal.SetConfigOption('COMPRESS_OVERVIEW', 'DEFLATE')
-    # gdal.SetConfigOption('PREDICTOR_OVERVIEW', '3')
-    # handle.BuildOverviews('NEAREST', [4, 8, 16], gdal.TermProgress_nocb)
-    # del handle  # close the dataset (Python object and pointers)
+    print(f"Building overviews for: {dest_path}")
+    with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
+        with rasterio.open(dest_path, "r+") as dst:
+            dst.build_overviews([4, 8, 16], Resampling.nearest)
+            dst.update_tags(ns="rio_overview", resampling="nearest")
 
     return dest_path

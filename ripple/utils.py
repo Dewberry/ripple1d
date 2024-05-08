@@ -7,7 +7,10 @@ from shapely.validation import make_valid
 import pandas as pd
 import plotly.graph_objects as go
 import os
+import pathlib
+import posixpath
 import rasterio
+import shutil
 
 
 def decode(df: pd.DataFrame):
@@ -81,3 +84,52 @@ def plot_xs_with_wse_increments(r):
     fig.update_layout({"showlegend": False})
 
     return fig
+
+
+def s3_upload_dir_recursively(local_src_dir: str, tgt_dir: str, s3_client: botocore.client.BaseClient):
+    """Copies all files from a local directory. tgt_dir can be local or a s3:// prefix"""
+    assert tgt_dir.startswith("s3://")
+    pathmod = posixpath
+    if not os.path.isdir(local_src_dir):
+        raise NotADirectoryError(local_src_dir)
+    for root, _, files in os.walk(local_src_dir):
+        rel_root = os.path.relpath(root, start=local_src_dir)
+        if os.path is not posixpath:
+            # copying to s3 (posix system), but running in Windows
+            rel_root = pathlib.PurePath(rel_root).as_posix()
+        if rel_root == ".":
+            rel_root = ""
+        for fn in files:
+            src_file = os.path.join(root, fn)
+            tgt_file = pathmod.join(tgt_dir, rel_root, fn)
+            print(f"Uploading: {src_file} -> {tgt_file}")
+            bucket_name, key = extract_bucketname_and_keyname(s3path=tgt_file)
+            s3_client.upload_file(
+                Filename=src_file,
+                Bucket=bucket_name,
+                Key=key,
+            )
+
+
+def s3_delete_dir_recursively(s3_dir: str, s3_resource: boto3.resources.factory.ServiceResource) -> None:
+    """Delete a s3:// directory and its contents recursively. OK if dir does not exist."""
+    print(f"Deleting directory if exists: {s3_dir}")
+    if not s3_dir.startswith("s3://"):
+        raise ValueError(f"Expected s3_dir to start with s3://, but got: {s3_dir}")
+    bucket, key = extract_bucketname_and_keyname(s3path=s3_dir)
+    if not key.strip():
+        raise ValueError(f"s3 path too short: {s3_dir}")
+    if len(key.split("/")) < 3:
+        raise ValueError(f"s3 path too short: {s3_dir}")
+    if not key.endswith("/"):
+        key += "/"
+    bucket_handle = s3_resource.Bucket(bucket)
+    bucket_handle.objects.filter(Prefix=key).delete()
+
+
+def extract_bucketname_and_keyname(s3path: str) -> tuple[str, str]:
+    """Parse the provided s3:// object path and return its bucket name and key."""
+    if not s3path.startswith("s3://"):
+        raise ValueError(f"s3path does not start with s3://: {s3path}")
+    bucket, _, key = s3path[5:].partition("/")
+    return bucket, key

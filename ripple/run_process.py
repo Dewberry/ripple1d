@@ -1,11 +1,18 @@
 from ras import Ras
 from utils import create_flow_depth_array
 import boto3
+import botocore
 import os
+import pprint
+import sys
+from urllib.parse import urlparse
 from dotenv import load_dotenv, find_dotenv
 from nwm_reaches import increment_rc_flows
+import pystac_client
 from ras import RasMap, Ras
-from consts import TERRAIN_NAME
+from consts import TERRAIN_NAME, STAC_API_URL
+import tempfile
+import utils
 from nwm_reaches import clip_depth_grid
 import warnings
 from sqlite_utils import rating_curves_to_sqlite
@@ -50,7 +57,7 @@ def run_rating_curves(r: Ras):
         r.write()
 
         # run the RAS plan
-        r.RunSIM(close_ras=True, show_ras=True)
+        r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=True)
     return r
 
 
@@ -116,6 +123,7 @@ def create_ras_terrain(r: Ras, src_dem: str):
 def run_production_runs(r: Ras):
 
     for branch_id, branch_data in r.nwm_dict.items():
+        print(f"Handling branch_id={branch_id}, branch_data={branch_data}")
 
         # write the new flow file
         r.write_new_flow_production_runs(branch_id, branch_data, 0.001)
@@ -152,7 +160,7 @@ def run_production_runs(r: Ras):
         rm.write()
 
         # run the RAS plan
-        r.RunSIM(close_ras=True, show_ras=True)
+        r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=False)
     return r
 
 
@@ -161,7 +169,9 @@ def post_process_depth_grids(r: Ras):
     xs = r.geom.cross_sections
 
     # contruct the dest directory for the clipped depth grid
-    dest_directory = os.path.join(r.ras_folder, "output")
+    dest_directory = r.postprocessed_output_folder
+    if os.path.exists(dest_directory):
+        raise FileExistsError(dest_directory)
 
     # iterate thorugh the flow change locations
     for branch_id, branch_data in r.nwm_dict.items():
@@ -205,11 +215,11 @@ def main(
     stac_href: str,
     ras_directory: str,
     bucket: str,
-    client,
+    s3_resource: boto3.resources.factory.ServiceResource,
+    s3_client: botocore.client.BaseClient,
     depth_increment: float,
 ):
-
-    r = read_ras_nwm(stac_href, ras_directory, bucket, client)
+    r = read_ras_nwm(stac_href, ras_directory, bucket, s3_client)
 
     r.nwm_dict = increment_rc_flows(r.nwm_dict, 10)
 
@@ -223,16 +233,73 @@ def main(
 
     rating_curves_to_sqlite(r)
 
+    utils.s3_delete_dir_recursively(s3_dir=r.postprocessed_output_s3_path, s3_resource=s3_resource)
+    utils.s3_upload_dir_recursively(
+        local_src_dir=r.postprocessed_output_folder,
+        tgt_dir=r.postprocessed_output_s3_path,
+        s3_client=s3_client,
+    )
+
 
 if __name__ == "__main__":
-    pass
+    # skip_stac_hrefs = ["https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42"]
+    skip_stac_hrefs = []
 
-bucket = "fim"
+    collection_id = "huc-12040101"
+    bucket = "fim"
+    # ras_directory = r"C:\Users\mdeshotel\Downloads\WFSJR_055"
+    # stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJR_055-3e8e"
+    depth_increment = 0.5
 
-ras_directory = r"C:\Users\mdeshotel\Downloads\WFSJR_055"
+    load_dotenv(find_dotenv())
 
-stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJR_055-3e8e"
+    session = boto3.Session(
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+        region_name=os.environ["AWS_DEFAULT_REGION"],
+    )
+    s3_resource = session.resource("s3")
+    s3_client = session.client("s3")
+    stac_client = pystac_client.Client.open(STAC_API_URL)
 
-depth_increment = 0.5
+    collection = stac_client.get_collection(collection_id)
+    items = sorted(collection.get_all_items(), key=lambda x: x.id)
 
-main(stac_href, ras_directory, bucket, client, depth_increment)
+    hrefs_failed = []
+    hrefs_succeeded = []
+
+    for i, item in enumerate(items):
+        pct_s = "{:.0%}".format((i + 1) / len(items))
+        print(f"{pct_s} ({i+1} / {len(items)}) {item.id}")
+
+        hrefs = [link.target for link in item.links if link.rel == "self"]
+        if len(hrefs) != 1:
+            raise ValueError(f"Expected 1 STAC href, but got {len(hrefs)} for item ID {item.id}: {hrefs}")
+        ras_model_stac_href = hrefs[0]
+
+        if ras_model_stac_href in skip_stac_hrefs:
+            print(f"SKIPPING HREF: {ras_model_stac_href}")
+            continue
+
+        url_parsed = urlparse(ras_model_stac_href)
+
+        tmp_dir_suffix = f"ras-{url_parsed.path.replace('/', '-').replace(':', '-')}"
+        try:
+            # ras_directory = os.path.join(os.getcwd(), tmp_dir_suffix)
+            # if True:
+            with tempfile.TemporaryDirectory(suffix=tmp_dir_suffix) as ras_directory:
+                print(f"Processing {repr(ras_model_stac_href)}, writing to folder {repr(ras_directory)}")
+                main(ras_model_stac_href, ras_directory, bucket, s3_resource, s3_client, depth_increment)
+        except Exception as e:
+            print(f"HREF FAILED {ras_model_stac_href}")
+            hrefs_failed.append(f"{ras_model_stac_href}: ERROR: {e}")
+        else:
+            print(f"HREF SUCCEEDED {ras_model_stac_href}")
+            hrefs_succeeded.append(ras_model_stac_href)
+
+    print(
+        f"\n\nvvv {len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED: vvv\n{'\n'.join(hrefs_succeeded)}\n^^^ {len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED ^^^"
+    )
+    print(
+        f"\n\nvvv {len(hrefs_failed)} TOTAL HREFS FAILED: vvv\n{'\n'.join(hrefs_failed)}\n^^^ {len(hrefs_failed)} TOTAL HREFS FAILED ^^^"
+    )

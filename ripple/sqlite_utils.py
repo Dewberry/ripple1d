@@ -58,7 +58,7 @@ def parse_stage_flow(wses: pd.DataFrame):
 def rating_curves_to_sqlite(r: Ras):
 
     # create dabase and table
-    database_path = os.path.join(r.ras_folder, "output", r.ras_project_basename + ".db")
+    database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
     table = r.ras_project_basename
 
     create_db_and_table(database_path, table)
