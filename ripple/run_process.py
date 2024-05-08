@@ -10,7 +10,7 @@ from dotenv import load_dotenv, find_dotenv
 from nwm_reaches import increment_rc_flows
 import pystac_client
 from ras import RasMap, Ras
-from consts import TERRAIN_NAME, STAC_API_URL
+from consts import TERRAIN_NAME, STAC_API_URL, MINDEPTH
 import tempfile
 import utils
 from nwm_reaches import clip_depth_grid
@@ -79,11 +79,16 @@ def determine_flow_increments(r: Ras, depth_increment: float):
 
         wse = wses.loc[river_reach_rs, :]
         flow = flows.loc[river_reach_rs, :]
+
         # convert wse to depth
         thalweg = branch_data["upstream_data"]["min_elevation"]
         depth = [e - thalweg for e in wse]
 
+        # get new flow/depth incremented every x ft
         new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
+
+        # enforce min depth
+        new_depth[new_depth < MINDEPTH] = MINDEPTH
 
         r.nwm_dict[branch_id]["us_flows"] = new_flow
         r.nwm_dict[branch_id]["us_depths"] = new_depth
@@ -102,7 +107,11 @@ def determine_flow_increments(r: Ras, depth_increment: float):
         thalweg = branch_data["downstream_data"]["min_elevation"]
         depth = [e - thalweg for e in wse]
 
+        # get new flow/depth incremented every x ft
         new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
+
+        # enforce min depth
+        new_depth[new_depth < MINDEPTH] = MINDEPTH
 
         r.nwm_dict[branch_id]["ds_flows"] = new_flow
         r.nwm_dict[branch_id]["ds_depths"] = new_depth
