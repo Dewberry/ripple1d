@@ -28,3 +28,7 @@ class RASGeometryError(Exception):
 
 class RASStoreAllMapsError(Exception):
     """Raised when *.pNN.computeMsgs.txt indicates StoreAllMaps error (related to RAS Mapper postprocessing)"""
+
+
+class DepthGridNotFoundError(Exception):
+    """Raised when a depth grid is not found when clipping raw RAS output"""

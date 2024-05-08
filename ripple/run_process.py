@@ -16,6 +16,7 @@ import utils
 from nwm_reaches import clip_depth_grid
 import warnings
 from sqlite_utils import rating_curves_to_sqlite
+from errors import DepthGridNotFoundError
 
 # load s3 credentials
 load_dotenv(find_dotenv())
@@ -173,7 +174,7 @@ def run_production_runs(r: Ras):
     return r
 
 
-def post_process_depth_grids(r: Ras):
+def post_process_depth_grids(r: Ras, except_missing_grid: bool = False):
 
     xs = r.geom.cross_sections
 
@@ -206,11 +207,13 @@ def post_process_depth_grids(r: Ras):
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(depth_file):
+                if except_missing_grid:
+                    warnings.warn(f"depth raster does not exists: {depth_file}")
+                    continue
+                else:
+                    raise DepthGridNotFoundError(f"depth raster does not exists: {depth_file}")
 
-                warnings.warn(f"depth raster does not exists: {depth_file}")
-                continue
-
-            # clip the depth grid naming it with with river_reach_ds_rs_us_rs_flow_depth
+            # clip the depth grid naming it with with branch_id, downstream depth, and flow
             out_file = clip_depth_grid(
                 depth_file,
                 xs_hull,
