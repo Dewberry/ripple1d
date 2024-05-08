@@ -133,7 +133,7 @@ def create_ras_terrain(r: Ras, src_dem: str):
 def run_production_runs(r: Ras):
 
     for branch_id, branch_data in r.nwm_dict.items():
-        print(f"Handling branch_id={branch_id}, branch_data={branch_data}")
+        print(f"Handling branch_id={branch_id}")
 
         # write the new flow file
         r.write_new_flow_production_runs(branch_id, branch_data, 0.001)
@@ -277,6 +277,7 @@ if __name__ == "__main__":
     collection = stac_client.get_collection(collection_id)
     items = sorted(collection.get_all_items(), key=lambda x: x.id)
 
+    hrefs_skipped = []
     hrefs_failed = []
     hrefs_succeeded = []
 
@@ -290,11 +291,15 @@ if __name__ == "__main__":
         ras_model_stac_href = hrefs[0]
 
         if ras_model_stac_href in skip_stac_hrefs:
-            print(f"SKIPPING HREF: {ras_model_stac_href}")
+            print(f"SKIPPING HREF SINCE IN skip_stac_hrefs: {ras_model_stac_href}")
+            hrefs_skipped.append(f"{ras_model_stac_href}: REASON: in skip_stac_hrefs")
+            continue
+        if utils.s3_ripple_status_succeed_file_exists(ras_model_stac_href, bucket, s3_client):
+            print(f"SKIPPING HREF SINCE SUCCEED FILE EXISTS: {ras_model_stac_href}")
+            hrefs_skipped.append(f"{ras_model_stac_href}: REASON: ripple succeed file exists")
             continue
 
         url_parsed = urlparse(ras_model_stac_href)
-
         tmp_dir_suffix = f"ras-{url_parsed.path.replace('/', '-').replace(':', '-')}"
         try:
             # ras_directory = os.path.join(os.getcwd(), tmp_dir_suffix)
@@ -307,12 +312,17 @@ if __name__ == "__main__":
                 main(ras_model_stac_href, ras_directory, bucket, s3_resource, s3_client, depth_increment)
 
         except Exception as e:
+            utils.s3_upload_status_file(ras_model_stac_href, bucket, s3_client, e)
             print(f"HREF FAILED {ras_model_stac_href}")
             hrefs_failed.append(f"{ras_model_stac_href}: ERROR: {e}")
         else:
+            utils.s3_upload_status_file(ras_model_stac_href, bucket, s3_client, None)
             print(f"HREF SUCCEEDED {ras_model_stac_href}")
             hrefs_succeeded.append(ras_model_stac_href)
 
+    print(
+        f"\n\nvvv {len(hrefs_skipped)} TOTAL HREFS SKIPPED: vvv\n{'\n'.join(hrefs_skipped)}\n^^^ {len(hrefs_skipped)} TOTAL HREFS SKIPPED ^^^"
+    )
     print(
         f"\n\nvvv {len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED: vvv\n{'\n'.join(hrefs_succeeded)}\n^^^ {len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED ^^^"
     )

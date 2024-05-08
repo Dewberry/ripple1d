@@ -1,4 +1,9 @@
 from __future__ import annotations
+
+import boto3
+import botocore
+from datetime import datetime, timezone
+import json
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -11,6 +16,8 @@ import pathlib
 import posixpath
 import rasterio
 import shutil
+from urllib.parse import urlparse
+import traceback
 
 
 def decode(df: pd.DataFrame):
@@ -133,3 +140,61 @@ def extract_bucketname_and_keyname(s3path: str) -> tuple[str, str]:
         raise ValueError(f"s3path does not start with s3://: {s3path}")
     bucket, _, key = s3path[5:].partition("/")
     return bucket, key
+
+
+def s3_upload_status_file(stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient, e: Exception | None):
+    """If e is a Python exception, then upload a 'fail' json file to the href's standard
+    output location on s3.  If e is None, then upload a 'succeed' json file.  Either file
+    will have key "time" indicating the time that the file was uploaded.  A 'fail' file will
+    also have keys "err" and "traceback" containing the exception as a string and the Python
+    traceback of the exception, respectively."""
+
+    s3_output_key_succeed, s3_output_key_fail = s3_get_ripple_status_file_key_names(stac_href, s3_bucket, s3_client)
+
+    time_now_str = datetime.now(tz=timezone.utc).isoformat()
+    if e is None:
+        s3_output_key = s3_output_key_succeed
+        body = {"time": time_now_str}
+    elif isinstance(e, Exception):
+        s3_output_key = s3_output_key_fail
+        body = {"time": time_now_str, "err": str(e), "traceback": "".join(traceback.format_tb(e.__traceback__))}
+    else:
+        raise TypeError(f"For e, expected None or type Exception, but got type: {type(e)}")
+
+    print(f"Deleting if exists: {s3_output_key_succeed}")
+    s3_client.delete_object(Bucket=s3_bucket, Key=s3_output_key_succeed)
+    print(f"Deleting if exists: {s3_output_key_fail}")
+    s3_client.delete_object(Bucket=s3_bucket, Key=s3_output_key_fail)
+
+    body_str = json.dumps(body, indent=2)
+    print(f"Writing: {s3_output_key} with body: {body_str}")
+    s3_client.put_object(Body=body_str, Bucket=s3_bucket, Key=s3_output_key, ContentType="application/json")
+
+
+def s3_ripple_status_succeed_file_exists(stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient) -> bool:
+    """Check if the standard ripple succeed sentinel file exists.  If it does, return True, otherwise return False."""
+    s3_output_key_succeed, _ = s3_get_ripple_status_file_key_names(stac_href, s3_bucket, s3_client)
+    print(f"Checking if s3 file exists: s3://{s3_bucket}/{s3_output_key_succeed}")
+    try:
+        s3_client.head_object(Bucket=s3_bucket, Key=s3_output_key_succeed)
+    except botocore.exceptions.ClientError as e:
+        if "Not Found" in str(e):
+            return False  # typical ClientError when the object does not exist
+        else:
+            raise  # unexpected ClientError
+    return True
+
+
+def s3_get_ripple_status_file_key_names(
+    stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient
+) -> tuple[str, str]:
+    """Return two S3 key paths, the first to a succeed sentinel file, the second t oa failure sentinel file.
+    This function does not check if the keys exist."""
+    _, s3_output_dir_key = extract_bucketname_and_keyname(s3_get_output_s3path(s3_bucket, stac_href))
+    s3_output_key_succeed = posixpath.join(s3_output_dir_key, "ripple-succeed.json")
+    s3_output_key_fail = posixpath.join(s3_output_dir_key, "ripple-fail.json")
+    return s3_output_key_succeed, s3_output_key_fail
+
+
+def s3_get_output_s3path(s3_bucket: str, stac_href: str) -> str:
+    return f"s3://{s3_bucket}/mip/dev/ripple/output{urlparse(stac_href).path}/"
