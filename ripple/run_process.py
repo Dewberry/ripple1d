@@ -300,8 +300,12 @@ if __name__ == "__main__":
             # ras_directory = os.path.join(os.getcwd(), tmp_dir_suffix)
             # if True:
             with tempfile.TemporaryDirectory(suffix=tmp_dir_suffix) as ras_directory:
+
+                ras_directory = os.path.realpath(ras_directory)
+
                 print(f"Processing {repr(ras_model_stac_href)}, writing to folder {repr(ras_directory)}")
                 main(ras_model_stac_href, ras_directory, bucket, s3_resource, s3_client, depth_increment)
+
         except Exception as e:
             print(f"HREF FAILED {ras_model_stac_href}")
             hrefs_failed.append(f"{ras_model_stac_href}: ERROR: {e}")
