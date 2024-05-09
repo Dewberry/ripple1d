@@ -34,7 +34,10 @@ def main(item, nwm_gpkg, client, bucket, collection_id):
         ras_gpkg =href_to_vsis(item.assets[asset].href, bucket="fim")
 
     rfc = RasFimConflater(nwm_gpkg, ras_gpkg)
-    summary = run.main(rfc)
+    us_most_branch_id, ds_most_branch_id, summary = run.main(rfc)
+
+    item.properties["NWM_FIM:Upstream_Branch_ID"] = us_most_branch_id
+    item.properties["NWM_FIM:Downstream_Branch_ID"] = ds_most_branch_id
 
     fim_stream = nwm_conflated_reaches(rfc, summary)
 
@@ -58,6 +61,8 @@ def main(item, nwm_gpkg, client, bucket, collection_id):
         ),
     )
 
+    for asset in item.get_assets():
+        item.assets[asset].href = item.assets[asset].href.replace("https:/fim","https://fim")
 
     conflation_thumbnail_key = f"stac/{collection_id}/thumbnails/{item.id}-conflation.png"
     conflation_thumbnail_href = f"https://{bucket}.s3.amazonaws.com/{conflation_thumbnail_key}"
@@ -87,7 +92,7 @@ def main(item, nwm_gpkg, client, bucket, collection_id):
 if __name__=="__main__":
 
     logging.basicConfig(level=logging.ERROR,
-                        filename="conflate_with_stac-v2.log")
+                        filename="conflate_with_stac-v3.log")
 
     STAC_API_URL = "https://stac.dewberryanalytics.com"
     collection_id = "huc-12040101"
@@ -111,8 +116,8 @@ if __name__=="__main__":
 
     # Get all items in the collection
     items = collection.get_all_items()
-    i=0
     for item in items:
+        print(item.id)
         if item.id == branch_item.id:
             continue
 

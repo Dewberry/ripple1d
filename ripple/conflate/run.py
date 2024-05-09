@@ -35,7 +35,7 @@ def main(rfc: RasFimConflater) -> dict:
 
     summary = conflation_summary(rfc, branch_info_with_ras_xs, flow_changes)
 
-    return summary
+    return us_most_branch_id, ds_most_branch_id, summary
 
 
 if __name__ == "__main__":
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     ripple_parameters = Path(ras_gpkg).parent / "ripple_parameters.json"
 
     rfc = RasFimConflater(nwm_gpkg, ras_gpkg)
-    summary = main(rfc)
+    us_most_branch_id, ds_most_branch_id, summary = main(rfc)
 
     fim_stream = nwm_conflated_reaches(rfc, summary)
 

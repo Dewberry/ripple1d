@@ -361,6 +361,20 @@ def walk_branches(
        instead of one. This case occurs on a tributarty that ends at 
        a confluence and the main stem downstream and upstream branches
        are included in the  `candidate` branches.
+
+    The ds branch is identified by checking the ras end point with the stream
+    network using a near point search. The near point search returns the nearest
+    branch which can be us or downstream. We want the downstream branch. The
+    upstream branch can sometimes be picked up instead. The following conditions
+    checks for that and corrects it.
+
+        us main branch     \\    /  trib
+                            \\  /
+        rasriver endpoint  . \\/
+                              \\
+                               \\
+        ds main branch          \\
+        
     
     Args:
 
@@ -374,44 +388,35 @@ def walk_branches(
 
     """
     start_branch = FimBranch(
-        rfc.nwm_branches[rfc.nwm_branches["branch_id"] == us_most_branch_id]
+    rfc.nwm_branches[rfc.nwm_branches["branch_id"] == us_most_branch_id]
     )
 
     end_branch = FimBranch(
         rfc.nwm_branches[rfc.nwm_branches["branch_id"] == ds_most_branch_id]
     )
 
-    """
-    The ds branch is identified by checking the ras end point with the stream
-    network using a near point search. The near point search returns the nearest
-    branch which can be us or downstream. We want the downstream branch. The
-    upstream branch can sometimes be picked up instead. The following conditions
-    checks for that and corrects it.
-
-     us main branch     \\    /  trib
-                         \\  /
-     rasriver endpoint  . \\/
-                           \\
-                            \\
-     ds main branch          \\
-
-    """
     i = 0
     ras_fim_branches = {i: start_branch.to_dict()}
-    # print(f"End info: branch={end_branch.branch_id}, control_by_node={end_branch.control_by_node}")
+
+    if start_branch.control_by_node == end_branch.control_by_node:
+        return ras_fim_branches
+
     fbranch = start_branch
     while fbranch.branch_id != ds_most_branch_id:
         i += 1
         next_branch = fbranch.control_by_node
-        fbranch = FimBranch(
-                rfc.nwm_branches[rfc.nwm_branches["branch_id"] == next_branch]
-            )
-        # print(f"Next info: branch={fbranch.branch_id}, control_by_node={fbranch.control_by_node}")
+        # print(next_branch)
+        try:
+            fbranch = FimBranch(
+                    rfc.nwm_branches[rfc.nwm_branches["branch_id"] == next_branch]
+                )
+        except IndexError:
+            return ras_fim_branches
+
         if fbranch.control_by_node == end_branch.control_by_node:
             ras_fim_branches[i] = fbranch.to_dict()
             return ras_fim_branches
-        elif next_branch not in rfc.nwm_branches["branch_id"]:
-            return ras_fim_branches
+
         else:
             ras_fim_branches[i] = fbranch.to_dict()
 
