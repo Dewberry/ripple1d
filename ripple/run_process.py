@@ -133,6 +133,7 @@ def create_ras_terrain(r: Ras, src_dem: str):
 def run_production_runs(r: Ras):
 
     for branch_id, branch_data in r.nwm_dict.items():
+
         print(f"Handling branch_id={branch_id}, branch_data={branch_data}")
 
         # write the new flow file
@@ -171,15 +172,18 @@ def run_production_runs(r: Ras):
 
         # run the RAS plan
         r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=False)
+
     return r
 
 
-def post_process_depth_grids(r: Ras, except_missing_grid: bool = False):
+def post_process_depth_grids(r: Ras, except_missing_grid: bool = False, dest_directory=None):
 
     xs = r.geom.cross_sections
 
     # contruct the dest directory for the clipped depth grid
-    dest_directory = r.postprocessed_output_folder
+    if not dest_directory:
+        dest_directory = r.postprocessed_output_folder
+
     if os.path.exists(dest_directory):
         raise FileExistsError(dest_directory)
 
@@ -241,7 +245,8 @@ def main(
 
     r = run_production_runs(r)
 
-    post_process_depth_grids(r)
+    # post_process_depth_grids(r,dest_directory)
+    post_process_depth_grids(r, dest_directory=r"C:\Users\mdeshotel\Downloads\WFSJR_055\output")
 
     rating_curves_to_sqlite(r)
 
@@ -259,8 +264,8 @@ if __name__ == "__main__":
 
     collection_id = "huc-12040101"
     bucket = "fim"
-    # ras_directory = r"C:\Users\mdeshotel\Downloads\WFSJR_055"
-    # stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJR_055-3e8e"
+    # ras_directory = r"C:\Users\mdeshotel\Downloads\WFSJ_Main"
+    # stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42"
     depth_increment = 0.5
 
     load_dotenv(find_dotenv())
