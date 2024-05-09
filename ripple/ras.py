@@ -19,7 +19,7 @@ import rasterio
 import rasterio.mask
 import pystac
 from pyproj import CRS
-from utils import decode, get_terrain_exe_path
+from utils import decode, get_terrain_exe_path, s3_get_output_s3path
 from rasmap import RASMAP_631, TERRAIN, PLAN
 from errors import (
     ProjectionNotFoundError,
@@ -124,7 +124,7 @@ class Ras:
 
         self.ras_folder = path
         self.postprocessed_output_folder = os.path.join(self.ras_folder, "output")
-        self.postprocessed_output_s3_path = f"s3://{s3_bucket}/mip/dev/ripple/output{urlparse(stac_href).path}/"
+        self.postprocessed_output_s3_path = s3_get_output_s3path(s3_bucket, stac_href)
         self.default_epsg = default_epsg
         self.version = version
         self.stac_href = stac_href
