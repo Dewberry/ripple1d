@@ -424,7 +424,14 @@ class Ras:
 
         return f"{(max(extension_number)+1):02d}"
 
-    def RunSIM(self, pid_running=None, close_ras=True, show_ras=False, ignore_store_all_maps_error: bool = False):
+    def RunSIM(
+        self,
+        pid_running=None,
+        close_ras=True,
+        show_ras=False,
+        ignore_store_all_maps_error: bool = False,
+        timeout_seconds=None,
+    ):
         """
         Run the current plan.
 
@@ -433,7 +440,6 @@ class Ras:
             close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
             show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
         """
-        timeout_seconds = 60 * 30
 
         with open(self.ras_project_file) as f:
             for line in f.read().splitlines():
