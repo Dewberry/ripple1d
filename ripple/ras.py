@@ -327,7 +327,7 @@ class Ras:
         flow.write_discharges(flows, self)
 
         # write normal depth
-        flow.write_ds_normal_depth(branch_data, normal_depth, self)
+        flow.write_ds_normal_depth(len(flows), normal_depth, self)
 
         # write flow file content
         flow.write()
@@ -1450,14 +1450,18 @@ class Flow(BaseFile):
 
         for _, xs in ds_cross_sections.iterrows():
 
+            # get the downstream wses for this reach/xs
+            wses = branch_data["ds_wses"]
+
+            # get number of flows to apply
+            number_of_flows = len(branch_data["us_flows"])
+
             if branch_data["downstream_data"]["xs_id"] == xs["rs"]:
 
-                # get the downstream wses for this reach/xs
-                wses = branch_data["ds_wses"]
                 lines = []
                 for e, wse in enumerate(wses):
 
-                    for i in range(len(branch_data["us_flows"])):
+                    for i in range(number_of_flows):
                         count += 1
                         lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
                         lines.append(f"Up Type= 0 ")
@@ -1466,14 +1470,14 @@ class Flow(BaseFile):
 
                     self.content += "\n" + "\n".join(lines)
             else:
-                self.write_ds_normal_depth(branch_data, normal_depth, r)
+                self.write_ds_normal_depth(number_of_flows * len(wses), normal_depth, r)
 
-    def write_ds_normal_depth(self, branch_data: dict, normal_depth: float, r: Ras):
+    def write_ds_normal_depth(self, number_of_profiles: int, normal_depth: float, r: Ras):
         """
         Write the downstream normal depth boundary condition
 
         Args:
-            branch_data (dict): Reach data from NWM reaches
+            number_of_profiles (int): Number of profiles
             normal_depth (float): Normal depth slope to apply to all profiles
             r (Ras): Ras object representing the HEC-RAS project
         """
@@ -1483,7 +1487,7 @@ class Flow(BaseFile):
 
         for _, xs in ds_cross_sections.iterrows():
 
-            for i in range(len(branch_data["flows_rc"])):
+            for i in range(number_of_profiles):
                 count += 1
                 lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
                 lines.append(f"Up Type= 0 ")
