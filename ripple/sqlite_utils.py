@@ -66,9 +66,6 @@ def rating_curves_to_sqlite(r: Ras):
     df_list = []
     for branch_id, branch_data in r.nwm_dict.items():
 
-        if branch_id == "1465710":
-            continue
-
         # set the plan
         r.plan = r.plans[str(branch_id)]
 
@@ -80,7 +77,7 @@ def rating_curves_to_sqlite(r: Ras):
         wses = parse_stage_flow(wses)
 
         # create rating curve for each  node:
-        node_data = branch_data["intermediate_data"] + [branch_data["upstream_data"]] + [branch_data["downstream_data"]]
+        node_data = branch_data["intermediate_data"] + [branch_data["upstream_data"]]
 
         for nd in node_data:
 
