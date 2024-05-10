@@ -62,61 +62,73 @@ def run_rating_curves(r: Ras):
     return r
 
 
+def get_new_flow_depth_arrays(r: Ras, branch_data: dict, upstream_downstream: str) -> tuple:
+
+    # read in flow/wse
+    rc = r.plan.read_rating_curves()
+    wses, flows = rc.values()
+
+    # get the river_reach_rs for the cross section representing the upstream end of this reach
+    river = branch_data[f"{upstream_downstream}_data"]["river"]
+    reach = branch_data[f"{upstream_downstream}_data"]["reach"]
+    rs = branch_data[f"{upstream_downstream}_data"]["xs_id"]
+    river_reach_rs = f"{river} {reach} {rs}"
+
+    wse = wses.loc[river_reach_rs, :]
+    flow = flows.loc[river_reach_rs, :]
+
+    # convert wse to depth
+    thalweg = branch_data[f"{upstream_downstream}_data"]["min_elevation"]
+    depth = [e - thalweg for e in wse]
+
+    # get new flow/depth incremented every x ft
+    new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
+
+    # enforce min depth
+    new_depth[new_depth < MINDEPTH] = MINDEPTH
+
+    return new_depth, new_flow
+
+
+# TODO
 def determine_flow_increments(r: Ras, depth_increment: float):
 
     for branch_id, branch_data in r.nwm_dict.items():
 
         r.plan = r.plans[str(branch_id) + "_rc"]
 
-        # read in flow/wse
-        rc = r.plan.read_rating_curves()
-        wses, flows = rc.values()
+        # get new flow/depth for current branch
+        new_depth_us, new_flow_us = get_new_flow_depth_arrays(r, branch_data, "upstream")
+        new_depth_ds, new_flow_ds = get_new_flow_depth_arrays(r, branch_data, "downstream")
 
-        # get the river_reach_rs for the cross section representing the upstream end of this reach
-        river = branch_data["upstream_data"]["river"]
-        reach = branch_data["upstream_data"]["reach"]
-        rs = branch_data["upstream_data"]["xs_id"]
-        river_reach_rs = f"{river} {reach} {rs}"
+        # get new depth for downstream branch
+        ds_node = branch_data["downstream_data"]["node_id"]
 
-        wse = wses.loc[river_reach_rs, :]
-        flow = flows.loc[river_reach_rs, :]
+        if ds_node in r.nwm_dict.keys():
+            r.plan = r.plans[str(ds_node) + "_rc"]
+            new_depth_from_ds_branch, _ = get_new_flow_depth_arrays(r, r.nwm_dict[ds_node], "upstream")
 
-        # convert wse to depth
-        thalweg = branch_data["upstream_data"]["min_elevation"]
-        depth = [e - thalweg for e in wse]
+            # combine depths for downstream cross section and for the same cross section but for the
+            # downstream branch (for which this cross section is the upstream cross section)
+            new_depth_ds = np.unique(np.concatenate([new_depth_ds, new_depth_from_ds_branch]))
 
-        # get new flow/depth incremented every x ft
-        new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
+        # get new flows for upstream branch
+        us_node = branch_data["upstream_data"]["node_id"]
 
-        # enforce min depth
-        new_depth[new_depth < MINDEPTH] = MINDEPTH
+        if us_node in r.nwm_dict.keys():
+            r.plan = r.plans[str(us_node) + "_rc"]
+            _, new_flow_from_us_branch = get_new_flow_depth_arrays(r, r.nwm_dict[us_node], "downstream")
 
-        r.nwm_dict[branch_id]["us_flows"] = new_flow
-        r.nwm_dict[branch_id]["us_depths"] = new_depth
-        r.nwm_dict[branch_id]["us_wses"] = [i + thalweg for i in new_depth]
+            # combine flows for upstream cross section and for the same cross section but for the
+            # upstream branch (for which this cross section is the downstream cross section)
+            new_flow_us = np.unique(np.concatenate([new_flow_us, new_flow_from_us_branch]))
 
-        # get the river_reach_rs for the cross section representing the downstream end of this reach
-        river = branch_data["downstream_data"]["river"]
-        reach = branch_data["downstream_data"]["reach"]
-        rs = branch_data["downstream_data"]["xs_id"]
-        river_reach_rs = f"{river} {reach} {rs}"
+        # get thalweg for the downstream cross section
+        thalweg = branch_data[f"downstream_data"]["min_elevation"]
 
-        wse = wses.loc[river_reach_rs, :]
-        flow = flows.loc[river_reach_rs, :]
-
-        # convert wse to depth
-        thalweg = branch_data["downstream_data"]["min_elevation"]
-        depth = [e - thalweg for e in wse]
-
-        # get new flow/depth incremented every x ft
-        new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
-
-        # enforce min depth
-        new_depth[new_depth < MINDEPTH] = MINDEPTH
-
-        r.nwm_dict[branch_id]["ds_flows"] = new_flow
-        r.nwm_dict[branch_id]["ds_depths"] = new_depth
-        r.nwm_dict[branch_id]["ds_wses"] = [i + thalweg for i in new_depth]
+        r.nwm_dict[branch_id]["us_flows"] = new_flow_us
+        r.nwm_dict[branch_id]["ds_depths"] = new_depth_ds
+        r.nwm_dict[branch_id]["ds_wses"] = [i + thalweg for i in new_depth_ds]
 
     return r
 
@@ -180,6 +192,7 @@ def post_process_depth_grids(r: Ras, except_missing_grid: bool = False, dest_dir
     xs = r.geom.cross_sections
 
     # contruct the dest directory for the clipped depth grid
+
     if not dest_directory:
         dest_directory = r.postprocessed_output_folder
 
@@ -234,6 +247,7 @@ def main(
     s3_client: botocore.client.BaseClient,
     depth_increment: float,
 ):
+
     r = read_ras_nwm(stac_href, ras_directory, bucket, s3_client)
 
     r.nwm_dict = increment_rc_flows(r.nwm_dict, 10)
@@ -245,7 +259,7 @@ def main(
     r = run_production_runs(r)
 
     # post_process_depth_grids(r,dest_directory)
-    post_process_depth_grids(r, dest_directory=r"C:\Users\mdeshotel\Downloads\WFSJR_055\output")
+    post_process_depth_grids(r, dest_directory=r"C:\Users\mdeshotel\Downloads\STEWARTS_CREEK\output")
 
     rating_curves_to_sqlite(r)
 
@@ -263,8 +277,8 @@ if __name__ == "__main__":
 
     collection_id = "huc-12040101"
     bucket = "fim"
-    # ras_directory = r"C:\Users\mdeshotel\Downloads\WFSJ_Main"
-    # stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42"
+    ras_directory = r"C:\Users\mdeshotel\Downloads\STEWARTS_CREEK"
+    stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/STEWARTS_CREEK-958e"
     depth_increment = 0.5
 
     load_dotenv(find_dotenv())
