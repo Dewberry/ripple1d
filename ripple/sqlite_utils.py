@@ -66,6 +66,9 @@ def rating_curves_to_sqlite(r: Ras):
     df_list = []
     for branch_id, branch_data in r.nwm_dict.items():
 
+        if branch_id in ["1468436"]:
+            continue
+
         # set the plan
         r.plan = r.plans[str(branch_id)]
 
@@ -97,7 +100,7 @@ def rating_curves_to_sqlite(r: Ras):
             df["node_id"] = [nd["node_id"]] * len(df)
 
             # convert elevation to stage
-            thalweg = branch_data["downstream_data"]["min_elevation"]
+            thalweg = nd["min_elevation"]
             df.loc[:, "stage"] = df["stage"] - thalweg
 
             df_list.append(df)
