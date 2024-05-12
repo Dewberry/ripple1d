@@ -1,4 +1,4 @@
-from fim_collection import FIMCollectionItem, FIMCollection
+from fim_collection import FIMCollectionRasItem, FIMCollection
 from s3_utils import read_json_from_s3
 
 
@@ -11,7 +11,7 @@ if __name__ == "__main__":
     for item in fc.collection.get_all_items():
         print(item.id)
 
-        fci = FIMCollectionItem(API_URL, collection_id, item.id)
+        fci = FIMCollectionRasItem(API_URL, collection_id, item.id)
 
         fci.sanitize_ras_stac_props()
 

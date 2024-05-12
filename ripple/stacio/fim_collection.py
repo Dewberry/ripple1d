@@ -62,7 +62,7 @@ class FIMCollection:
     #     self.item = item
 
 
-class FIMCollectionItem(FIMCollection):
+class FIMCollectionRasItem(FIMCollection):
     """
     Class for interacting with a FIM collection item in a STAC API.
     """
@@ -80,7 +80,7 @@ class FIMCollectionItem(FIMCollection):
             )
 
     def __repr__(self) -> str:
-        return f"FIMCollectionItem: {self._collection_id}-{self._item_id}"
+        return f"FIMCollectionRasItem: {self._collection_id}-{self._item_id}"
 
     def load_item(self):
         try:
