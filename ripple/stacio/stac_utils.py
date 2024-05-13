@@ -1,5 +1,6 @@
 import pystac
 import requests
+from typing import List
 
 
 def key_to_uri(key: str, bucket: str) -> str:
@@ -8,6 +9,18 @@ def key_to_uri(key: str, bucket: str) -> str:
 
 def uri_to_key(href: str, bucket: str) -> str:
     return href.replace(f"https://{bucket}.s3.amazonaws.com/", "")
+
+
+def create_collection(
+    models: List[pystac.Item], id: str, description: str = None, title: str = None
+) -> pystac.Collection:
+    extent = pystac.Extent.from_items(models)
+    return pystac.Collection(
+        id=id,
+        description=description,
+        title=title,
+        extent=extent,
+    )
 
 
 def upsert_collection(endpoint: str, collection: pystac.Collection):

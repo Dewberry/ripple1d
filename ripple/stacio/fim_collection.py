@@ -64,7 +64,7 @@ class FIMCollection:
 
 class FIMCollectionRasItem(FIMCollection):
     """
-    Class for interacting with a FIM collection item in a STAC API.
+    Class for interacting with a FIM collection RAS item in a STAC API.
     """
 
     def __init__(
@@ -268,3 +268,34 @@ class FIMCollectionRasItem(FIMCollection):
             return True
         else:
             return False
+
+
+class FIMCollectionRasDGItem(FIMCollection):
+    """
+    Class for interacting with a FIM collection RAS Depth Grid item in a STAC API.
+    Not Implemented
+    """
+
+    def __init__(
+        self, stac_api: str, collection_id: str, item_id: str, load: bool = True
+    ):
+        super().__init__(stac_api, collection_id, load)
+        raise NotImplementedError("FIMCollectionRasDGItem is not implemented.")
+        self._item_id = item_id
+        if load:
+            self.item = self.load_item()
+        else:
+            raise KeyError(
+                f"Item `{self._item_id}` does not exist. Use new_item() to create."
+            )
+
+    def __repr__(self) -> str:
+        return f"FIMCollectionDGItem: {self._collection_id}-{self._item_id}"
+
+    def load_item(self):
+        try:
+            return self.collection.get_item(self._item_id)
+        except Exception as e:
+            raise KeyError(
+                f"Item `{self._item_id}` does not exist. Use new_item() to create."
+            )
