@@ -433,7 +433,7 @@ class Ras:
             close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
             show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
         """
-        timeout_seconds = 60 * 30
+        timeout_seconds = 60 * 60
 
         with open(self.ras_project_file) as f:
             for line in f.read().splitlines():
@@ -452,7 +452,7 @@ class Ras:
             while not RC.Compute_Complete():
                 if time.time() > deadline:
                     raise RASComputeTimeoutError(
-                        f"timed out computing current plan for RAS project: {self.ras_project_file}"
+                        f"timed out (>= {timeout_seconds} seconds) computing current plan for RAS project: {self.ras_project_file}"
                     )
                 # must keep checking for mesh errors while RAS is running because mesh error will cause blocking popup message
                 assert_no_mesh_error(compute_message_file, require_exists=False)  # file might not exist immediately
