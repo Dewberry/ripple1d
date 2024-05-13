@@ -254,7 +254,10 @@ def main(
 
 
 if __name__ == "__main__":
-    # skip_stac_hrefs = ["https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42"]
+    # skip_stac_hrefs = [
+    #     "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main-cd42",
+    #     "https://stac.dewberryanalytics.com/collections/huc-12040101/items/WFSJ_Main",
+    # ]
     skip_stac_hrefs = []
 
     collection_id = "huc-12040101"
@@ -275,7 +278,7 @@ if __name__ == "__main__":
     stac_client = pystac_client.Client.open(STAC_API_URL)
 
     collection = stac_client.get_collection(collection_id)
-    items = sorted(collection.get_all_items(), key=lambda x: x.id)
+    items = sorted(collection.get_all_items(), key=lambda x: x.id, reverse=False)
 
     hrefs_skipped = []
     hrefs_failed = []
