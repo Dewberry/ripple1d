@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import subprocess
 import rasterio
 import rasterio.mask
+from requests.utils import requote_uri
 import pystac
 from pyproj import CRS
 from utils import decode, get_terrain_exe_path, s3_get_output_s3path
@@ -128,7 +129,7 @@ class Ras:
         self.default_epsg = default_epsg
         self.version = version
         self.stac_href = stac_href
-        self.stac_item = pystac.Item.from_file(self.stac_href)
+        self.stac_item = pystac.Item.from_file(requote_uri(self.stac_href))
 
         self.projection_file = None
         self.projection = ""
