@@ -146,6 +146,11 @@ class FIMCollectionRasItem(FIMCollection):
             asset = self.item.assets[asset_name]
             asset.extra_fields["s3_key"] = uri_to_key(asset.href, bucket)
 
+    def ensure_asset_roles_unique(self, bucket: str = "fim"):
+        for asset_name in self.item.assets:
+            asset = self.item.assets[asset_name]
+            asset.roles = list(set(asset.roles))
+
     def map_topo_assets(
         self,
         date_aquired: str = datetime.now().isoformat(),

@@ -21,6 +21,8 @@ if __name__ == "__main__":
 
         fci.add_s3_key_to_assets()
 
+        fci.ensure_asset_roles_unique()
+
         if conflated:
             # print(f"Added ripple params for {fci.item.id}")
             params_json = fci.item.assets["ripple_parameters.json"].extra_fields[

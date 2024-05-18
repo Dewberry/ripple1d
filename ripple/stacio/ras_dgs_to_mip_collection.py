@@ -14,7 +14,7 @@ from ras_stac.utils.dg_utils import create_depth_grid_item
 
 
 from s3_utils import init_s3_resources, list_keys, check_s3_key_exists
-from stac_utils import create_collection, upsert_collection, upsert_item
+from stac_utils import create_collection, upsert_collection, upsert_item, uri_to_key
 
 
 def fim_dg_item(
@@ -142,7 +142,9 @@ if __name__ == "__main__":
         except KeyError:
             print(f"FIM:Branch Metadata does not exist for {item.id}")
 
-        prefix = f'mip/dev/ripple/output/collections/{ras_collection_id}/items/{item.id.replace(" ","_")}'
+        prefix = (
+            f"mip/dev/ripple/output/collections/{ras_collection_id}/items/{item.id}"
+        )
         model_db = f"{prefix}/{item.id}.db"
         ripple_succeed = f"{prefix}/ripple-succeed.json"
 
@@ -164,6 +166,16 @@ if __name__ == "__main__":
                     )
                 dg_item = fim_dg_item(dg_id, dgs, assets)
                 dg_item.add_derived_from(item)
+
+                for asset_name in dg_item.assets:
+                    asset = dg_item.assets[asset_name]
+                    asset.extra_fields["s3_key"] = uri_to_key(asset.href, bucket_name)
+                dg_item.properties["FIM:Branch Metadata"] = item.properties[
+                    "FIM:Branch Metadata"
+                ][branch_id]
+
+                dg_item.properties["software"] = "ripple v0.1.0-alpha.1"
+
                 new_dg_items.append(dg_item)
 
                 # dg_item_link = pystac.Link(
