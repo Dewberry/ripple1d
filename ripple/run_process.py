@@ -133,15 +133,6 @@ def determine_flow_increments(r: Ras, depth_increment: float):
     return r
 
 
-def create_ras_terrain(r: Ras, src_dem: str):
-
-    # create terrain
-    tif = r.clip_dem(src_dem)
-    r.create_terrain([tif], TERRAIN_NAME, f"{TERRAIN_NAME}.hdf")
-
-    return r
-
-
 def run_production_runs(r: Ras):
 
     for branch_id, branch_data in r.nwm_dict.items():
