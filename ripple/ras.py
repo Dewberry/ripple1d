@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import subprocess
 import rasterio
 import rasterio.mask
+from requests.utils import requote_uri
 import pystac
 from pyproj import CRS
 from utils import decode, get_terrain_exe_path, s3_get_output_s3path
@@ -458,7 +459,7 @@ class Ras:
             while not RC.Compute_Complete():
                 if time.time() > deadline:
                     raise RASComputeTimeoutError(
-                        f"timed out computing current plan for RAS project: {self.ras_project_file}"
+                        f"timed out (>= {timeout_seconds} seconds) computing current plan for RAS project: {self.ras_project_file}"
                     )
                 # must keep checking for mesh errors while RAS is running because mesh error will cause blocking popup message
                 assert_no_mesh_error(compute_message_file, require_exists=False)  # file might not exist immediately

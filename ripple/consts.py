@@ -64,5 +64,5 @@ STRUCTURGROUPS = {
 }
 
 TERRAIN_NAME = "MappingTerrain"
-STAC_API_URL = "https://stac.dewberryanalytics.com"
+STAC_API_URL = "https://stac2.dewberryanalytics.com"
 MINDEPTH = 0.1
