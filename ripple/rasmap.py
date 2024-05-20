@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from consts import TERRAIN_NAME
 
 RASMAP_631 = """<RASMapper>

@@ -1,13 +1,13 @@
-from .rasfim import RasFimConflater
 from .rasfim import (
-    convert_linestring_to_points,
+    RasFimConflater,
     calculate_conflation_metrics,
-    nearest_line_to_point,
     conflation_summary,
+    convert_linestring_to_points,
     find_ds_most_branch,
-    walk_branches,
-    map_control_nodes_to_xs,
     find_flow_change_locations,
+    map_control_nodes_to_xs,
+    nearest_line_to_point,
+    walk_branches,
 )
 
 
@@ -20,20 +20,14 @@ def point_method_conflation(rfc: RasFimConflater, river_reach_name: str) -> dict
     xs_group = rfc.xs_by_river_reach_name(river_reach_name)
 
     # Buffer the ras centerline points to improve intersection with nwm branches
-    ras_centerline_to_densified_points = rfc.ras_centerline_densified_points(
-        river_reach_name
-    )
+    ras_centerline_to_densified_points = rfc.ras_centerline_densified_points(river_reach_name)
 
     # Subset the branches to only those that are within 10 meters of the ras centerline points
     # This could use nearest instead of the buffer/interesct approach,
-    candidate_branches = rfc.candidate_nwm_branches_via_point_buffer(
-        ras_centerline_to_densified_points, 10
-    )
+    candidate_branches = rfc.candidate_nwm_branches_via_point_buffer(ras_centerline_to_densified_points, 10)
 
     # Convert the ras centerline to points
-    ras_points = convert_linestring_to_points(
-        rfc.ras_centerlines.loc[0].geometry, crs=rfc.common_crs, point_spacing=10
-    )
+    ras_points = convert_linestring_to_points(rfc.ras_centerlines.loc[0].geometry, crs=rfc.common_crs, point_spacing=10)
 
     # fim_stream = rfc.nwm_branches[rfc.nwm_branches["branch_id"].isin(candidate_branches)]
     # plot_conflation_results(rfc, candidate_branches, "test.png")

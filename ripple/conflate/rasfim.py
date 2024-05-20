@@ -1,12 +1,13 @@
 import json
-from typing import Tuple, List
-import pyproj
+from typing import List, Tuple
+
 import geopandas as gpd
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pyproj
 from fiona.errors import DriverError
-from shapely.geometry import Point, MultiLineString, LineString
-from shapely.ops import nearest_points, linemerge
+from shapely.geometry import LineString, MultiLineString, Point
+from shapely.ops import linemerge, nearest_points
 
 # Conflation constants
 MIN_FLOW_FACTOR = 0.85
@@ -36,25 +37,20 @@ def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "i
     return gdf[~gdf[column_name].isin(column_values)]
 
 
-def densify_points(
-    gdf: gpd.GeoDataFrame, densify_spacing: int = 5, crs: pyproj.crs.crs.CRS = None
-) -> gpd.GeoDataFrame:
+def densify_points(gdf: gpd.GeoDataFrame, densify_spacing: int = 5, crs: pyproj.crs.crs.CRS = None) -> gpd.GeoDataFrame:
     """
     Converts linestring from gdf to points at densify_spacing=densify_spacing
     default units reflect the units of the ras_centerlines
     """
 
-    assert (
-        gdf.shape[0] == 1
-    ), f"Multiple centerlines found in gdf, this method expects a single LineString."
+    assert gdf.shape[0] == 1, f"Multiple centerlines found in gdf, this method expects a single LineString."
     num_points = int(round(gdf.geometry.length.iloc[0] / densify_spacing))
 
     if num_points == 0:
         num_points = 1
 
     densified_points = [
-        gdf.geometry.interpolate(distance)
-        for distance in np.linspace(0, gdf.geometry.length, num_points)
+        gdf.geometry.interpolate(distance) for distance in np.linspace(0, gdf.geometry.length, num_points)
     ]
 
     return gpd.GeoDataFrame(
@@ -88,10 +84,7 @@ def convert_linestring_to_points(
     if num_points == 0:
         num_points = 1
 
-    points = [
-        linestring.interpolate(distance)
-        for distance in np.linspace(0, linestring.length, num_points)
-    ]
+    points = [linestring.interpolate(distance) for distance in np.linspace(0, linestring.length, num_points)]
 
     return gpd.GeoDataFrame(
         geometry=points,
@@ -107,9 +100,7 @@ def cacl_avg_nearest_points(reference_gdf, compare_points_gdf) -> float:
     return reference_gdf["nearest_distance"].mean()
 
 
-def count_intersecting_lines(
-    ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataFrame
-) -> int:
+def count_intersecting_lines(ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataFrame) -> int:
     if ras_xs.crs != nwm_reaches.crs:
         ras_xs = ras_xs.to_crs(nwm_reaches.crs)
     join_gdf = gpd.sjoin(ras_xs, nwm_reaches, predicate="intersects")
@@ -208,9 +199,7 @@ class RasFimConflater:
         DriverError: Unable to read the GeoPackage
     """
 
-    def __init__(
-        self, nwm_gpkg: str, ras_gpkg: str, load_data: bool = True, bucket="fim"
-    ):
+    def __init__(self, nwm_gpkg: str, ras_gpkg: str, load_data: bool = True, bucket="fim"):
         self.nwm_gpkg = nwm_gpkg
         self.ras_gpkg = ras_gpkg
         self.bucket = bucket
@@ -253,9 +242,7 @@ class RasFimConflater:
         if self._nwm_branches.crs:
             return self._ras_centerlines.to_crs(self.common_crs)
         else:
-            raise AttributeError(
-                "nwm_branches required to convert crs for ras_centerlines"
-            )
+            raise AttributeError("nwm_branches required to convert crs for ras_centerlines")
 
     @property
     def common_crs(self):
@@ -298,35 +285,27 @@ class RasFimConflater:
 
             river_reach_name = kwargs.get("river_reach_name", None)
             if river_reach_name:
-                print(
-                    "No river_reach_name specified, using first and only centerline found."
-                )
+                print("No river_reach_name specified, using first and only centerline found.")
                 centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
             else:
                 if self.ras_centerlines.shape[0] == 1:
                     centerline = self.ras_centerlines.geometry.iloc[0]
                 else:
-                    raise ValueError(
-                        "Multiple centerlines found, please specify river_reach_name"
-                    )
+                    raise ValueError("Multiple centerlines found, please specify river_reach_name")
             kwargs["centerline"] = centerline
             return func(self, *args, **kwargs)
 
         return wrapper
 
     @check_centerline
-    def ras_start_end_points(
-        self, river_reach_name: str = None, centerline=None
-    ) -> Tuple[Point, Point]:
+    def ras_start_end_points(self, river_reach_name: str = None, centerline=None) -> Tuple[Point, Point]:
         """
         river_reach_name used by the decorator to get the centerline
         """
         return endpoints_from_multiline(centerline)
 
     @check_centerline
-    def ras_centerline_by_river_reach_name(
-        self, river_reach_name: str, centerline=None
-    ) -> gpd.GeoDataFrame:
+    def ras_centerline_by_river_reach_name(self, river_reach_name: str, centerline=None) -> gpd.GeoDataFrame:
         return self.ras_centerlines[self.ras_centerlines["id"] == river_reach_name]
 
     def ras_centerline_densified_points(
@@ -359,9 +338,7 @@ class RasFimConflater:
             if fields["RiverReachName"] == river_reach_name:
                 matching_rows.append(row)
 
-        return gpd.GeoDataFrame(
-            matching_rows, columns=self.ras_centerlines.columns, crs=self.common_crs
-        )
+        return gpd.GeoDataFrame(matching_rows, columns=self.ras_centerlines.columns, crs=self.common_crs)
 
     def candidate_nwm_branches_via_point_buffer(
         self, ras_centerline_points: gpd.GeoDataFrame, buffer_distance: int = 10
@@ -370,13 +347,9 @@ class RasFimConflater:
         Find candidate NWM branches that intersect the buffered ras centerline points
         buffer_distance uses nwm crs units
         """
-        results = buffer_points_and_intersect_line(
-            ras_centerline_points, self.nwm_branches, buffer_distance
-        )
+        results = buffer_points_and_intersect_line(ras_centerline_points, self.nwm_branches, buffer_distance)
 
-        return self.nwm_branches.loc[
-            self.nwm_branches.branch_id.isin(results["branch_id"].values)
-        ]
+        return self.nwm_branches.loc[self.nwm_branches.branch_id.isin(results["branch_id"].values)]
 
     def buffered_nodes(self, buffer_distance: int = 100) -> gpd.GeoDataFrame:
         """
@@ -422,12 +395,8 @@ class RasFimConflater:
             how="inner",
             predicate="intersects",
         )
-        intersecting_branches = [
-            int(v) for v in intersected_nodes_ras_river.branch_id.values
-        ]
-        return self.nwm_branches[
-            self.nwm_branches["branch_id"].isin(intersecting_branches)
-        ]
+        intersecting_branches = [int(v) for v in intersected_nodes_ras_river.branch_id.values]
+        return self.nwm_branches[self.nwm_branches["branch_id"].isin(intersecting_branches)]
 
     @check_centerline
     def intersected_ras_river_nwm_branches(
@@ -442,21 +411,15 @@ class RasFimConflater:
         """
         intersected_ras_river_nwm_branches = gpd.sjoin(
             gpd.GeoDataFrame(
-                geometry=[
-                    self.buffered_ras_centerline(buffer_distance=buffer_distance)
-                ],
+                geometry=[self.buffered_ras_centerline(buffer_distance=buffer_distance)],
                 crs=self.common_crs,
             ),
             self.nwm_branches,
             how="inner",
             predicate="intersects",
         )
-        intersecting_branches = [
-            int(v) for v in intersected_ras_river_nwm_branches.branch_id.values
-        ]
-        return self.nwm_branches[
-            self.nwm_branches["branch_id"].isin(intersecting_branches)
-        ]
+        intersecting_branches = [int(v) for v in intersected_ras_river_nwm_branches.branch_id.values]
+        return self.nwm_branches[self.nwm_branches["branch_id"].isin(intersecting_branches)]
 
 
 def conflation_summary(rfc: RasFimConflater, branch_info_with_ras_xs, flow_changes):
@@ -478,9 +441,7 @@ def conflation_summary(rfc: RasFimConflater, branch_info_with_ras_xs, flow_chang
             **map_xs_data(rfc, nwm_node_ras_xs_mapping(rfc, data["branch_id"]))
         )
 
-        model_data[data["branch_id"]]["downstream_data"] = {
-            "node_id": data["control_by_node"]
-        }
+        model_data[data["branch_id"]]["downstream_data"] = {"node_id": data["control_by_node"]}
         model_data[data["branch_id"]]["downstream_data"].update(
             **map_xs_data(
                 rfc,
@@ -547,9 +508,7 @@ def nwm_conflated_reaches(rfc: RasFimConflater, model_data: dict):
     return rfc.nwm_branches[rfc.nwm_branches["branch_id"].isin(branches)].copy()
 
 
-def find_ds_most_branch(
-    rfc: RasFimConflater, control_nodes: gpd.GeoDataFrame, ras_stop_point: Point
-):
+def find_ds_most_branch(rfc: RasFimConflater, control_nodes: gpd.GeoDataFrame, ras_stop_point: Point):
     """
     Find the downstream most branch from a point
 
@@ -563,17 +522,11 @@ def find_ds_most_branch(
     """
     nearest_geom = nearest_points(ras_stop_point, control_nodes.unary_union)[1]
     nearest_row = control_nodes[control_nodes.geometry == nearest_geom]
-    fb = FimBranch(
-        rfc.nwm_branches.loc[
-            rfc.nwm_branches["control_by_node"] == nearest_row.id.values[0]
-        ]
-    )
+    fb = FimBranch(rfc.nwm_branches.loc[rfc.nwm_branches["control_by_node"] == nearest_row.id.values[0]])
     return fb.branch_id
 
 
-def walk_branches(
-    rfc: RasFimConflater, us_most_branch_id: int, ds_most_branch_id: int
-) -> dict:
+def walk_branches(rfc: RasFimConflater, us_most_branch_id: int, ds_most_branch_id: int) -> dict:
     """
     Walk the branches from the upstream most branch to the downstream most branch
 
@@ -608,13 +561,9 @@ def walk_branches(
         dict: Dictionary of branch information
 
     """
-    start_branch = FimBranch(
-        rfc.nwm_branches[rfc.nwm_branches["branch_id"] == us_most_branch_id]
-    )
+    start_branch = FimBranch(rfc.nwm_branches[rfc.nwm_branches["branch_id"] == us_most_branch_id])
 
-    end_branch = FimBranch(
-        rfc.nwm_branches[rfc.nwm_branches["branch_id"] == ds_most_branch_id]
-    )
+    end_branch = FimBranch(rfc.nwm_branches[rfc.nwm_branches["branch_id"] == ds_most_branch_id])
 
     i = 0
     ras_fim_branches = {i: start_branch.to_dict()}
@@ -628,9 +577,7 @@ def walk_branches(
         next_branch = fbranch.control_by_node
         # print(next_branch)
         try:
-            fbranch = FimBranch(
-                rfc.nwm_branches[rfc.nwm_branches["branch_id"] == next_branch]
-            )
+            fbranch = FimBranch(rfc.nwm_branches[rfc.nwm_branches["branch_id"] == next_branch])
         except IndexError:
             return ras_fim_branches
 
@@ -756,14 +703,10 @@ def calculate_conflation_metrics(
     xs_hits_ids = []
     total_hits = 0
     for i in candidate_branches.index:
-        candidate_branch_points = convert_linestring_to_points(
-            candidate_branches.loc[i].geometry, crs=rfc.common_crs
-        )
+        candidate_branch_points = convert_linestring_to_points(candidate_branches.loc[i].geometry, crs=rfc.common_crs)
         if cacl_avg_nearest_points(candidate_branch_points, ras_points) < 2000:
             next_round_candidates.append(candidate_branches.loc[i]["branch_id"])
-            gdftmp = gpd.GeoDataFrame(
-                geometry=[candidate_branches.loc[i].geometry], crs=rfc.nwm_branches.crs
-            )
+            gdftmp = gpd.GeoDataFrame(geometry=[candidate_branches.loc[i].geometry], crs=rfc.nwm_branches.crs)
             xs_hits = count_intersecting_lines(xs_group, gdftmp)
 
             total_hits += xs_hits.shape[0]
@@ -773,9 +716,7 @@ def calculate_conflation_metrics(
 
     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
 
-    dangling_xs_interesects = gpd.sjoin(
-        dangling_xs, rfc.nwm_branches, predicate="intersects"
-    )
+    dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_branches, predicate="intersects")
 
     conflation_score = round(total_hits / xs_group.shape[0], 2)
 

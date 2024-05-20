@@ -1,28 +1,24 @@
 from __future__ import annotations
 
-import boto3
-import botocore
-from datetime import datetime, timezone
 import json
-import pandas as pd
-import geopandas as gpd
-import numpy as np
-from shapely.geometry import Point, LineString, Polygon
-from shapely.validation import make_valid
-import pandas as pd
-import plotly.graph_objects as go
 import os
 import pathlib
 import posixpath
-import rasterio
 import shutil
-from urllib.parse import urlparse
 import traceback
-import shutil
+from datetime import datetime, timezone
 from urllib.parse import urlparse
-import traceback
 
-from dotenv import load_dotenv, find_dotenv
+import boto3
+import botocore
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import rasterio
+from dotenv import find_dotenv, load_dotenv
+from shapely.geometry import LineString, Point, Polygon
+from shapely.validation import make_valid
 
 load_dotenv(find_dotenv())
 
@@ -91,7 +87,7 @@ def clip_raster(src_path: str, dst_path: str, mask: Polygon):
         dest.write(out_image)
 
 
-from dotenv import load_dotenv, find_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 

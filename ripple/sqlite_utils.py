@@ -1,7 +1,8 @@
+import os
 import sqlite3
+
 import pandas as pd
 from ras import Ras
-import os
 
 
 def create_db_and_table(db_name, table_name):

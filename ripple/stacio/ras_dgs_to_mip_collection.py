@@ -3,17 +3,15 @@ This script is a prototype for creating a STAC collection for the FIM depth grid
 TODO: Refactor, this script was written in one setting and needs to be revised significantly.     
 """
 
-import pystac
 from typing import List
+
+import pystac
 from fim_collection import FIMCollection, FIMCollectionRasItem
-
-from ras_stac.utils.s3_utils import *
 from ras_stac.utils.dg_utils import *
-from ras_stac.utils.ras_stac import *
 from ras_stac.utils.dg_utils import create_depth_grid_item
-
-
-from s3_utils import init_s3_resources, list_keys, check_s3_key_exists
+from ras_stac.utils.ras_stac import *
+from ras_stac.utils.s3_utils import *
+from s3_utils import check_s3_key_exists, init_s3_resources, list_keys
 from stac_utils import create_collection, upsert_collection, upsert_item, uri_to_key
 
 
@@ -59,9 +57,7 @@ def fim_dg_item(
             roles=["fim-dg", pystac.MediaType.COG],
             description="(Prototype) RAS1D Fim Depth Grids",
         )
-        dg_item.add_asset(
-            f"{Path(asset_key).parent.name}-{Path(asset_key).name}", asset
-        )
+        dg_item.add_asset(f"{Path(asset_key).parent.name}-{Path(asset_key).name}", asset)
 
     return dg_item
 
@@ -100,9 +96,7 @@ def main(
     Given a list of items created using ras-stac library prior to publishing. This function
     creates a new collection in the STAC_API and adds the items to the collection.
     """
-    collection = create_collection(
-        new_collection_items, collection_id, description, title
-    )
+    collection = create_collection(new_collection_items, collection_id, description, title)
     r = upsert_collection(API_URL, collection)
     print(r)
 
@@ -122,9 +116,7 @@ if __name__ == "__main__":
     bucket_name = "fim"
     bucket_prefix = "stac/12040101"
 
-    description = (
-        f"""Prototype catalog for FIMS from the huc-{huc_id} RAS model collection"""
-    )
+    description = f"""Prototype catalog for FIMS from the huc-{huc_id} RAS model collection"""
     title = f"FIMS for HUC-{huc_id}"
 
     # STAC API URL
@@ -142,9 +134,7 @@ if __name__ == "__main__":
         except KeyError:
             print(f"FIM:Branch Metadata does not exist for {item.id}")
 
-        prefix = (
-            f"mip/dev/ripple/output/collections/{ras_collection_id}/items/{item.id}"
-        )
+        prefix = f"mip/dev/ripple/output/collections/{ras_collection_id}/items/{item.id}"
         model_db = f"{prefix}/{item.id}.db"
         ripple_succeed = f"{prefix}/ripple-succeed.json"
 
@@ -158,21 +148,14 @@ if __name__ == "__main__":
                 assets = [model_db]
                 dgs = []
                 for z_key in stage_values.keys():
-                    dgs.extend(
-                        [
-                            f"{prefix}/{branch_id}/{z_key}/{v}"
-                            for v in fim_dict[branch_id][z_key]
-                        ]
-                    )
+                    dgs.extend([f"{prefix}/{branch_id}/{z_key}/{v}" for v in fim_dict[branch_id][z_key]])
                 dg_item = fim_dg_item(dg_id, dgs, assets)
                 dg_item.add_derived_from(item)
 
                 for asset_name in dg_item.assets:
                     asset = dg_item.assets[asset_name]
                     asset.extra_fields["s3_key"] = uri_to_key(asset.href, bucket_name)
-                dg_item.properties["FIM:Branch Metadata"] = item.properties[
-                    "FIM:Branch Metadata"
-                ][branch_id]
+                dg_item.properties["FIM:Branch Metadata"] = item.properties["FIM:Branch Metadata"][branch_id]
 
                 dg_item.properties["software"] = "ripple v0.1.0-alpha.1"
 

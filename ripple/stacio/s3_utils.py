@@ -1,8 +1,8 @@
-import boto3
+import json
 import os
 import re
 
-import json
+import boto3
 import boto3.session
 
 
@@ -19,18 +19,14 @@ def list_keys(s3_client: boto3.Session.client, bucket: str, prefix: str, suffix=
     return keys
 
 
-def list_keys_regex(
-    s3_client: boto3.Session.client, bucket: str, prefix_includes: str, suffix=""
-):
+def list_keys_regex(s3_client: boto3.Session.client, bucket: str, prefix_includes: str, suffix=""):
     keys = []
     kwargs = {"Bucket": bucket, "Prefix": prefix_includes}
     prefix_pattern = re.compile(prefix_includes.replace("*", ".*"))
     while True:
         resp = s3_client.list_objects_v2(**kwargs)
         keys += [
-            obj["Key"]
-            for obj in resp["Contents"]
-            if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
+            obj["Key"] for obj in resp["Contents"] if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
         ]
         try:
             kwargs["ContinuationToken"] = resp["NextContinuationToken"]

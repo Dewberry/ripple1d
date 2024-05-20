@@ -12,17 +12,17 @@ import geopandas as gpd
 import shapely
 from shapely.geometry import Polygon, box
 
-from ripple.ras import Ras
-from ripple.utils import init_log, get_sessioned_s3_client, clip_raster, xs_concave_hull
 from ripple.consts import (
-    MAP_DEM_UNCLIPPED_SRC_URL,
-    MAP_DEM_CLIPPED_BASENAME,
     MAP_DEM_BUFFER_DIST_FT,
+    MAP_DEM_CLIPPED_BASENAME,
     MAP_DEM_DIRNAME,
     MAP_DEM_HDF_NAME,
+    MAP_DEM_UNCLIPPED_SRC_URL,
     MAP_DEM_VERT_UNITS,
     METERS_PER_FOOT,
 )
+from ripple.ras import Ras
+from ripple.utils import clip_raster, get_sessioned_s3_client, init_log, xs_concave_hull
 
 
 def regex_extract_group_assert_one_group(pattern: str, s: str) -> str:
