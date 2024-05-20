@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import glob
+
 import win32com.client
 import datetime
 import numpy as np
@@ -34,6 +35,7 @@ from errors import (
 from consts import TERRAIN_NAME
 import json
 from pathlib import Path
+from requests.utils import requote_uri
 
 
 @dataclass
@@ -128,7 +130,7 @@ class Ras:
         self.default_epsg = default_epsg
         self.version = version
         self.stac_href = stac_href
-        self.stac_item = pystac.Item.from_file(self.stac_href)
+        self.stac_item = pystac.Item.from_file(requote_uri(self.stac_href))
 
         self.projection_file = None
         self.projection = ""
@@ -182,7 +184,7 @@ class Ras:
 
         # make RAS directory if it does not exists
         if not os.path.exists(self.ras_folder):
-            os.makedirs(os.path.join(self.ras_folder))
+            os.makedirs(self.ras_folder)
 
         # download HEC-RAS model files
         for _, asset in self.stac_item.get_assets(role="ras-file").items():
@@ -525,10 +527,12 @@ class Ras:
         terrain_dirname: str = "Terrain",
         hdf_filename: str = "Terrain.hdf",
         vertical_units: str = "Feet",
-    ):
+    ) -> str:
         r"""
         Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
-        Default location is {model_directory}\Terrain\Terrain.hdf
+        Default location is {model_directory}\Terrain\Terrain.hdf.
+
+        Returns the full path to the local directory containing the output files.
 
         Parameters
         ----------
@@ -549,10 +553,14 @@ class Ras:
         if missing_files:
             raise FileNotFoundError(str(missing_files))
 
-        exe_parent_dir = os.path.split(self.terrain_exe)[0]
+        terrain_exe = get_terrain_exe_path(self.version)
+        if not os.path.isfile(terrain_exe):
+            raise FileNotFoundError(terrain_exe)
+
+        exe_parent_dir = os.path.split(terrain_exe)[0]
         terrain_dir_fp = os.path.join(self.ras_folder, terrain_dirname)
         subproc_args = [
-            self.terrain_exe,
+            terrain_exe,
             "CreateTerrain",
             f"units={vertical_units}",  # vertical units
             "stitch=true",
@@ -574,6 +582,8 @@ class Ras:
         # for tif in output_tifs:
         #     utils.recompress_tif(tif)
         #     utils.build_tif_overviews(tif)
+
+        return terrain_dir_fp
 
     def get_active_plan(self):
         """

@@ -7,7 +7,7 @@ import json
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Point, LineString, Polygon
 from shapely.validation import make_valid
 import pandas as pd
 import plotly.graph_objects as go
@@ -18,6 +18,146 @@ import rasterio
 import shutil
 from urllib.parse import urlparse
 import traceback
+import shutil
+from urllib.parse import urlparse
+import traceback
+
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+
+LOGGER = None  # modified by function init_log() the first time it is called.
+
+
+def init_log():
+    """Should be called only once by executable script, calling subsequent times has no effect."""
+    global LOGGER
+    if LOGGER is not None:
+        return
+
+    logging.getLogger("boto3").setLevel(logging.WARNING)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    assert LOGGER is None
+    LOGGER = logger
+    assert LOGGER is not None
+
+
+def get_sessioned_s3_client():
+    """Use env variables to establish a boto3 (AWS) session and return that session's S3 client handle."""
+    session = boto3.Session(
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+        region_name=os.environ["AWS_DEFAULT_REGION"],
+    )
+    s3_client = session.client("s3")
+    return s3_client
+
+
+def clip_raster(src_path: str, dst_path: str, mask: Polygon):
+    if os.path.exists(dst_path):
+        raise FileExistsError(dst_path)
+    if not isinstance(mask, Polygon):
+        raise TypeError(mask)
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+
+    logging.info(f"Reading: {src_path}")
+    with rasterio.open(src_path) as src:
+        out_meta = src.meta
+        out_image, out_transform = rasterio.mask.mask(src, [mask], all_touched=True, crop=True)
+
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform,
+            "compress": "LZW",
+            "predictor": 3,
+            "tiled": True,
+        }
+    )
+
+    logging.info(f"Writing as masked: {dst_path}")
+    with rasterio.open(dst_path, "w", **out_meta) as dest:
+        dest.write(out_image)
+
+
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+
+LOGGER = None  # modified by function init_log() the first time it is called.
+
+
+def init_log():
+    """Should be called only once by executable script, calling subsequent times has no effect."""
+    global LOGGER
+    if LOGGER is not None:
+        return
+
+    logging.getLogger("boto3").setLevel(logging.WARNING)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    assert LOGGER is None
+    LOGGER = logger
+    assert LOGGER is not None
+
+
+def get_sessioned_s3_client():
+    """Use env variables to establish a boto3 (AWS) session and return that session's S3 client handle."""
+    session = boto3.Session(
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+        region_name=os.environ["AWS_DEFAULT_REGION"],
+    )
+    s3_client = session.client("s3")
+    return s3_client
+
+
+def clip_raster(src_path: str, dst_path: str, mask: Polygon):
+    if os.path.exists(dst_path):
+        raise FileExistsError(dst_path)
+    if not isinstance(mask, Polygon):
+        raise TypeError(mask)
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+
+    logging.info(f"Reading: {src_path}")
+    with rasterio.open(src_path) as src:
+        out_meta = src.meta
+        out_image, out_transform = rasterio.mask.mask(src, [mask], all_touched=True, crop=True)
+
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform,
+            "compress": "LZW",
+            "predictor": 3,
+            "tiled": True,
+        }
+    )
+
+    logging.info(f"Writing as masked: {dst_path}")
+    with rasterio.open(dst_path, "w", **out_meta) as dest:
+        dest.write(out_image)
 
 
 def decode(df: pd.DataFrame):
@@ -198,3 +338,15 @@ def s3_get_ripple_status_file_key_names(
 
 def s3_get_output_s3path(s3_bucket: str, stac_href: str) -> str:
     return f"s3://{s3_bucket}/mip/dev/ripple/output{urlparse(stac_href).path}/"
+
+
+def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
+
+    points = xs.boundary.explode().unstack()
+    points_last_xs = [Point(coord) for coord in xs["geometry"].iloc[-1].coords]
+    points_first_xs = [Point(coord) for coord in xs["geometry"].iloc[0].coords[::-1]]
+
+    polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
+
+    return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=xs.crs)

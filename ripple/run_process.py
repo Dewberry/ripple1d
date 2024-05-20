@@ -18,6 +18,7 @@ import warnings
 from sqlite_utils import rating_curves_to_sqlite
 from errors import DepthGridNotFoundError
 
+
 # load s3 credentials
 load_dotenv(find_dotenv())
 
@@ -29,7 +30,6 @@ def read_ras_nwm(stac_href: str, ras_directory: str, bucket: str, client):
 
     # read ras model and create cross section gdf
     r = Ras(ras_directory, stac_href, client, bucket, default_epsg=2277)
-    # r.model_downloaded = True
     r.download_model()
     r.read_ras()
     r.plan.geom.scan_for_xs()
@@ -54,7 +54,7 @@ def run_rating_curves(r: Ras):
         r.update_content()
         r.set_current_plan(r.plans[str(id)])
 
-        # write the update RAS project file content back to disk
+        # write the update RAS project file content
         r.write()
 
         # run the RAS plan
@@ -90,7 +90,6 @@ def get_new_flow_depth_arrays(r: Ras, branch_data: dict, upstream_downstream: st
     return new_depth, new_flow
 
 
-# TODO
 def determine_flow_increments(r: Ras, depth_increment: float):
 
     for branch_id, branch_data in r.nwm_dict.items():
@@ -129,15 +128,6 @@ def determine_flow_increments(r: Ras, depth_increment: float):
         r.nwm_dict[branch_id]["us_flows"] = new_flow_us
         r.nwm_dict[branch_id]["ds_depths"] = new_depth_ds
         r.nwm_dict[branch_id]["ds_wses"] = [i + thalweg for i in new_depth_ds]
-
-    return r
-
-
-def create_ras_terrain(r: Ras, src_dem: str):
-
-    # create terrain
-    tif = r.clip_dem(src_dem)
-    r.create_terrain([tif], TERRAIN_NAME, f"{TERRAIN_NAME}.hdf")
 
     return r
 
@@ -258,8 +248,7 @@ def main(
 
     r = run_production_runs(r)
 
-    # post_process_depth_grids(r,dest_directory)
-    post_process_depth_grids(r, dest_directory=r"C:\Users\mdeshotel\Downloads\STEWARTS_CREEK\output")
+    post_process_depth_grids(r)
 
     rating_curves_to_sqlite(r)
 
@@ -277,8 +266,6 @@ if __name__ == "__main__":
 
     collection_id = "huc-12040101"
     bucket = "fim"
-    ras_directory = r"C:\Users\mdeshotel\Downloads\STEWARTS_CREEK"
-    stac_href = "https://stac.dewberryanalytics.com/collections/huc-12040101/items/STEWARTS_CREEK-958e"
     depth_increment = 0.5
 
     load_dotenv(find_dotenv())

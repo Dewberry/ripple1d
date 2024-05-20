@@ -85,7 +85,7 @@ TERRAIN = f"""  <Terrains Checked="True" Expanded="True">
     </Layer>
   </Terrains>"""
 
-PLAN = """  <Results Expanded="True">
+PLAN = r"""  <Results Expanded="True">
     <Layer Name="plan_name_placeholder" Type="RASResults" Expanded="True" Filename=".\plan_hdf_placeholder">
       <Layer Name="Event Conditions" Type="RASEventConditions" Filename=".\plan_hdf_placeholder">
         <Layer Name="Wind Layer" Type="ResultWindLayer" Filename=".\plan_hdf_placeholder">
