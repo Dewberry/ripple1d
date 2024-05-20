@@ -160,3 +160,8 @@ cython_debug/
 #.idea/
 
 test.py
+*sqlite.py
+*process.ipynb
+*.db
+
+/ripple/models/

@@ -3,8 +3,12 @@ import geopandas as gpd
 import pandas as pd
 import os
 import rasterio
+from rasterio.enums import Resampling
 import numpy as np
+
 from ras import Ras
+
+# from osgeo import gdal
 
 
 def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
@@ -34,55 +38,54 @@ def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
     return nwm_reach_gdf, r, xs
 
 
-def compile_flows(
-    nwm_reach_gdf: gpd.GeoDataFrame, min_ratio: float = 0.8, max_ratio: float = 1.5, increments: int = 10
-) -> gpd.GeoDataFrame:
+def increment_rc_flows(nwm_dict: dict, increments: int = 10) -> dict:
     """
     Determine flows to apply to the model for an initial rating curve by compiling the 2yr-100yr
 
     Args:
-        nwm_reach_gdf (gpd.GeoDataFrame): National water model branches
-        min_ratio (float, optional): Ratio to multiply the 2yr event by to get the min flow. Defaults to .8.
-        max_ratio (float, optional): Ratio to multiply the 100yr event by to get the max flow. Defaults to 1.5.
+        nwm_dict (dict): National water model branches
         increments (int,optional): Number of flow increments between 2yr flow * min_ration and 100yr flow * max_ratio
 
     Returns:
-        gpd.GeoDataFrame: _description_
+        dict: _description_
     """
-    flows = []
-    for i, row in nwm_reach_gdf.iterrows():
 
-        flow = np.linspace(row["flow_2_yr"] * min_ratio, row["flow_100_yr"] * max_ratio, increments)
+    for branch_id, branch_data in nwm_dict.items():
+
+        flow = np.linspace(
+            branch_data["flows"]["flow_2_yr_minus"], branch_data["flows"]["flow_100_yr_plus"], increments
+        )
 
         flow.sort()
 
-        flows.append(list(flow.round()))
+        nwm_dict[branch_id]["flows_rc"] = flow
 
-    nwm_reach_gdf["flows_rc"] = flows
-
-    return nwm_reach_gdf
+    return nwm_dict
 
 
 def clip_depth_grid(
     src_path: str,
     xs_hull: gpd.GeoDataFrame,
-    river: str,
-    reach: str,
-    us_rs: str,
-    ds_rs: str,
+    id: str,
     profile_name: str,
     dest_directory: str,
 ):
 
+    flow, depth = profile_name.split("-")
+
+    dest_directory = os.path.join(dest_directory, id, depth)
+
     if not os.path.exists(dest_directory):
         os.makedirs(dest_directory)
 
-    dest_path = os.path.join(dest_directory, f"{river}_{reach}_{ds_rs}_{us_rs}_{profile_name}.tif")
+    dest_path = os.path.join(dest_directory, f"{flow}.tif")
 
     # open the src raster the cross section concave hull as a mask
     with rasterio.open(src_path) as src:
 
-        out_image, out_transform = rasterio.mask.mask(src, xs_hull.to_crs(src.crs)["geometry"], crop=True)
+        out_image, out_transform = rasterio.mask.mask(
+            src, xs_hull.to_crs(src.crs)["geometry"], crop=True, all_touched=True
+        )
         out_meta = src.meta
 
     # update metadata
@@ -92,11 +95,19 @@ def clip_depth_grid(
             "height": out_image.shape[1],
             "width": out_image.shape[2],
             "transform": out_transform,
+            "compress": "LZW",
+            "predictor": 3,
+            "tiled": True,
         }
     )
-
     # write dest raster
+    print(f"Writing: {dest_path}")
     with rasterio.open(dest_path, "w", **out_meta) as dest:
         dest.write(out_image)
+    # print(f"Building overviews for: {dest_path}")
+    with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
+        with rasterio.open(dest_path, "r+") as dst:
+            dst.build_overviews([4, 8, 16], Resampling.nearest)
+            dst.update_tags(ns="rio_overview", resampling="nearest")
 
     return dest_path

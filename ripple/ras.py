@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import glob
+
 import win32com.client
 import datetime
 import numpy as np
@@ -13,15 +14,28 @@ import boto3
 import time
 import re
 import typing
-import logging
+from urllib.parse import urlparse
 import subprocess
 import rasterio
 import rasterio.mask
 import pystac
 from pyproj import CRS
-from utils import decode, get_terrain_exe_path
+from utils import decode, get_terrain_exe_path, s3_get_output_s3path
 from rasmap import RASMAP_631, TERRAIN, PLAN
-from errors import ProjectionNotFoundError, NoDefaultEPSGError
+from errors import (
+    ProjectionNotFoundError,
+    NoDefaultEPSGError,
+    ModelNotDownloadedError,
+    RASComputeTimeoutError,
+    RASComputeError,
+    RASComputeMeshError,
+    RASGeometryError,
+    RASStoreAllMapsError,
+)
+from consts import TERRAIN_NAME
+import json
+from pathlib import Path
+from requests.utils import requote_uri
 
 
 @dataclass
@@ -111,13 +125,16 @@ class Ras:
         self.bucket = s3_bucket
 
         self.ras_folder = path
+        self.postprocessed_output_folder = os.path.join(self.ras_folder, "output")
+        self.postprocessed_output_s3_path = s3_get_output_s3path(s3_bucket, stac_href)
+        self.default_epsg = default_epsg
+        self.version = version
         self.stac_href = stac_href
-        self.stac_item = pystac.Item.from_file(self.stac_href)
-        self.download_model()
+        self.stac_item = pystac.Item.from_file(requote_uri(self.stac_href))
 
         self.projection_file = None
         self.projection = ""
-        self.get_ras_project_file()
+        self.model_downloaded = False
 
         self.plans = {}
         self.geoms = {}
@@ -125,27 +142,18 @@ class Ras:
         self.plan = None
         self.geom = None
         self.flow = None
+        self.terrain_name = None
 
-        try:
-            self.get_ras_projection()
+    def read_ras(self):
 
-        except ProjectionNotFoundError as e:
+        if not self.model_downloaded:
 
-            print(e)
+            raise ModelNotDownloadedError(
+                "The RAS model must be downloaded from STAC prior to reading. Try Ras.download_model() "
+            )
 
-            if default_epsg:
-
-                print(f"Attempting to use specified default projection: EPSG:{default_epsg}")
-
-                self.projection = default_epsg
-
-                self.projection_file = os.path.join(self.ras_folder, "projection.prj")
-
-                with open(self.projection_file, "w") as f:
-                    f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
-            else:
-
-                raise NoDefaultEPSGError(f"Could not identify projection from RAS Mapper and no default EPSG provided")
+        self.get_ras_project_file()
+        self.get_ras_projection()
 
         self.read_content()
 
@@ -156,26 +164,48 @@ class Ras:
         self.get_flows()
         self.get_active_plan()
 
-        self.version = version
         self.terrain_exe = get_terrain_exe_path(self.version)
+
+    def create_nwm_dict(self):
+
+        # create nwm dataframe
+        for _, asset in self.stac_item.get_assets(role="ripple-params").items():
+
+            response = self.client.get_object(
+                Bucket=self.bucket, Key=asset.href.replace(f"https://{self.bucket}.s3.amazonaws.com/", "")
+            )
+            json_data = response["Body"].read()
+            self.nwm_dict = json.loads(json_data)
 
     def download_model(self):
         """
-        Download HEC-RAS model form stac href
+        Download HEC-RAS model from stac href
         """
 
         # make RAS directory if it does not exists
         if not os.path.exists(self.ras_folder):
             os.makedirs(self.ras_folder)
 
-        # create stac item
-        self.stac_item = pystac.Item.from_file(self.stac_href)
-
         # download HEC-RAS model files
-        for name, asset in self.stac_item.assets.items():
+        for _, asset in self.stac_item.get_assets(role="ras-file").items():
 
-            file = os.path.join(self.ras_folder, name)
-            self.client.download_file(self.bucket, asset.href.replace("https://fim.s3.amazonaws.com/", ""), file)
+            s3_key = asset.extra_fields["s3_key"]
+
+            file = os.path.join(self.ras_folder, Path(s3_key).name)
+            self.client.download_file(self.bucket, s3_key, file)
+
+        # download HEC-RAS topo files
+        for _, asset in self.stac_item.get_assets(role="ras-topo").items():
+
+            s3_key = asset.extra_fields["s3_key"]
+
+            file = os.path.join(self.ras_folder, Path(s3_key).name)
+            self.client.download_file(self.bucket, s3_key, file)
+
+            if ".hdf" in Path(s3_key).name:
+                self.terrain_name = Path(s3_key).name.rstrip(".hdf")
+
+        self.model_downloaded = True
 
     def read_content(self):
         """
@@ -267,13 +297,13 @@ class Ras:
 
             self.client.put_object(Body=self.content, Bucket=self.bucket, Key=ras_project_file)
 
-    def write_new_flow_rating_curves(self, title: str, reach_data: pd.DataFrame, normal_depth: float):
+    def write_new_flow_rating_curves(self, title: str, branch_data: pd.DataFrame, normal_depth: float):
         """
-        Write a new flow file contaning the specified title, reach_data, and normal depth.
+        Write a new flow file contaning the specified title, branch_data, and normal depth.
 
         Args:
             title (str): Title of the flow file
-            reach_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
+            branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
             normal_depth (float): normal_depth to apply
         """
 
@@ -286,7 +316,7 @@ class Ras:
 
         flow.content = ""
 
-        flows = [int(i) for i in reach_data["flows_rc"]]
+        flows = [int(i) for i in branch_data["flows_rc"]]
 
         # write headers
         flow.write_headers(title, flows)
@@ -299,7 +329,7 @@ class Ras:
         flow.write_discharges(flows, self)
 
         # write normal depth
-        flow.write_ds_normal_depth(reach_data, normal_depth, self)
+        flow.write_ds_normal_depth(len(flows), normal_depth, self)
 
         # write flow file content
         flow.write()
@@ -307,13 +337,13 @@ class Ras:
         # add new flow to the ras class
         self.flows[title] = flow
 
-    def write_new_flow_production_runs(self, title: str, reach_data: pd.Series, normal_depth: float):
+    def write_new_flow_production_runs(self, title: str, branch_data: pd.Series, normal_depth: float):
         """
-        Write a new flow file contaning the specified title, reach_data, and normal depth.
+        Write a new flow file contaning the specified title, branch_data, and normal depth.
 
         Args:
             title (str): Title of the flow file
-            reach_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
+            branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
             normal_depth (np.array): normal depth to apply at the downstream terminus of the reach.
         """
 
@@ -325,7 +355,7 @@ class Ras:
         flow = Flow(text_file)
 
         # create profile names
-        profile_names, flows, wses = flow.create_profile_names(reach_data, reach_data["us_flows"])
+        profile_names, flows, wses = flow.create_profile_names(branch_data, branch_data["us_flows"])
 
         flow.profile_names = profile_names
         flow.profile_count = len(flow.profile_names)
@@ -340,10 +370,10 @@ class Ras:
         flow.write_discharges(flows, self)
 
         # write DS boundary conditions
-        flow.write_ds_known_ws(reach_data, normal_depth, self)
+        flow.write_ds_known_ws(branch_data, normal_depth, self)
 
         # add intermediate known wses
-        flow.add_intermediate_known_wse(reach_data, wses)
+        flow.add_intermediate_known_wse(branch_data, wses)
 
         # write flow file content
         flow.write()
@@ -396,7 +426,14 @@ class Ras:
 
         return f"{(max(extension_number)+1):02d}"
 
-    def RunSIM(self, pid_running=None, close_ras=True, show_ras=False):
+    def RunSIM(
+        self,
+        pid_running=None,
+        close_ras=True,
+        show_ras=False,
+        ignore_store_all_maps_error: bool = False,
+        timeout_seconds=None,
+    ):
         """
         Run the current plan.
 
@@ -406,19 +443,41 @@ class Ras:
             show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
         """
 
+        with open(self.ras_project_file) as f:
+            for line in f.read().splitlines():
+                if line.startswith("Current Plan="):
+                    current_plan_code = line[len("Current Plan=") :].strip()
+        compute_message_file = os.path.splitext(self.ras_project_file)[0] + f".{current_plan_code}.computeMsgs.txt"
+
         RC = win32com.client.Dispatch("RAS631.HECRASCONTROLLER")
+        try:
+            RC.Project_Open(self.ras_project_file)
+            if show_ras:
+                RC.ShowRas()
 
-        RC.Project_Open(self.ras_project_file)
+            RC.Compute_CurrentPlan()
+            deadline = (timeout_seconds + time.time()) if timeout_seconds else float("inf")
+            while not RC.Compute_Complete():
+                if time.time() > deadline:
+                    raise RASComputeTimeoutError(
+                        f"timed out computing current plan for RAS project: {self.ras_project_file}"
+                    )
+                # must keep checking for mesh errors while RAS is running because mesh error will cause blocking popup message
+                assert_no_mesh_error(compute_message_file, require_exists=False)  # file might not exist immediately
+                time.sleep(0.2)
+            time.sleep(
+                3
+            )  # ample sleep to account for race condition of RAS flushing final lines to compute_message_file
 
-        RC.Compute_CurrentPlan()
-        while not RC.Compute_Complete():
-            time.sleep(0.2)
-
-        if show_ras:
-            RC.ShowRas()
-
-        if close_ras:
-            RC.QuitRas()
+            assert_no_mesh_error(compute_message_file, require_exists=True)
+            assert_no_ras_geometry_error(compute_message_file)
+            assert_no_ras_compute_error_message(compute_message_file)
+            if not ignore_store_all_maps_error:
+                assert_no_store_all_maps_error_message(compute_message_file)
+        finally:
+            if close_ras:
+                RC.Project_Close()
+                RC.QuitRas()
 
     def clip_dem(self, src_path: str, dest_path: str = ""):
         """Clip the provided DEM raster to the concave hull of the cross sections
@@ -468,10 +527,12 @@ class Ras:
         terrain_dirname: str = "Terrain",
         hdf_filename: str = "Terrain.hdf",
         vertical_units: str = "Feet",
-    ):
+    ) -> str:
         r"""
         Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
-        Default location is {model_directory}\Terrain\Terrain.hdf
+        Default location is {model_directory}\Terrain\Terrain.hdf.
+
+        Returns the full path to the local directory containing the output files.
 
         Parameters
         ----------
@@ -492,10 +553,14 @@ class Ras:
         if missing_files:
             raise FileNotFoundError(str(missing_files))
 
-        exe_parent_dir = os.path.split(self.terrain_exe)[0]
+        terrain_exe = get_terrain_exe_path(self.version)
+        if not os.path.isfile(terrain_exe):
+            raise FileNotFoundError(terrain_exe)
+
+        exe_parent_dir = os.path.split(terrain_exe)[0]
         terrain_dir_fp = os.path.join(self.ras_folder, terrain_dirname)
         subproc_args = [
-            self.terrain_exe,
+            terrain_exe,
             "CreateTerrain",
             f"units={vertical_units}",  # vertical units
             "stitch=true",
@@ -504,8 +569,7 @@ class Ras:
         ]
         # add list of input rasters from which to build the Terrain
         subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
-        print(subproc_args)
-        logging.info(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
+        print(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
         subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
 
         # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
@@ -518,6 +582,8 @@ class Ras:
         # for tif in output_tifs:
         #     utils.recompress_tif(tif)
         #     utils.build_tif_overviews(tif)
+
+        return terrain_dir_fp
 
     def get_active_plan(self):
         """
@@ -574,40 +640,59 @@ class Ras:
             ValueError: If projection is not specified.
         """
         try:
-            # look for .rasmap files
             try:
+                # look for .rasmap files
+                try:
 
-                rm = glob.glob(self.ras_folder + "/*.rasmap")[0]
-            except IndexError as E:
-                raise FileNotFoundError(f"Could not find a '.rasmap' file for this project.")
+                    rm = glob.glob(self.ras_folder + "/*.rasmap")[0]
+                except IndexError as E:
+                    raise FileNotFoundError(f"Could not find a '.rasmap' file for this project.")
 
-            # read .rasmap file to retrieve projection file.
-            with open(rm) as f:
-                lines = f.readlines()
-                for line in lines:
-                    if "RASProjectionFilename Filename=" in line:
-                        relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
-                        self.projection_file = self.ras_folder + relative_path
+                # read .rasmap file to retrieve projection file.
+                with open(rm) as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        if "RASProjectionFilename Filename=" in line:
+                            relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
+                            self.projection_file = self.ras_folder + relative_path
 
-            # check if the projection file exists
-            if self.projection_file:
-                if os.path.exists(self.projection_file):
-                    if self.projection_file.endswith(".prj"):
+                # check if the projection file exists
+                if self.projection_file:
+                    if os.path.exists(self.projection_file):
+                        if self.projection_file.endswith(".prj"):
 
-                        with open(self.projection_file) as src:
-                            self.projection = src.read()
+                            with open(self.projection_file) as src:
+                                self.projection = src.read()
+                        else:
+                            raise ValueError(f"Expected a projection file but got {self.projection_file}")
                     else:
-                        raise ValueError(f"Expected a projection file but got {self.projection_file}")
+                        raise FileNotFoundError(f"Could not find projection file for this project")
                 else:
-                    raise FileNotFoundError(f"Could not find projection file for this project")
+                    raise ValueError(f"No projection specified in .rasmap file.")
+
+            except (FileNotFoundError, ValueError) as e:
+
+                raise ProjectionNotFoundError(
+                    f"Could not determine the projection for this HEC-RAS model: {self.ras_folder}."
+                )
+
+        except ProjectionNotFoundError as e:
+
+            print(e)
+
+            if self.default_epsg:
+
+                print(f"Attempting to use specified default projection: EPSG:{self.default_epsg}")
+
+                self.projection = self.default_epsg
+
+                self.projection_file = os.path.join(self.ras_folder, "projection.prj")
+
+                with open(self.projection_file, "w") as f:
+                    f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
             else:
-                raise ValueError(f"No projection specified in .rasmap file.")
 
-        except (FileNotFoundError, ValueError) as e:
-
-            raise ProjectionNotFoundError(
-                f"Could not determine the projection for this HEC-RAS model: {self.ras_folder}."
-            )
+                raise NoDefaultEPSGError(f"Could not identify projection from RAS Mapper and no default EPSG provided")
 
     def get_ras_project_file(self):
         """
@@ -980,7 +1065,7 @@ class Geom(BaseFile):
 
             # parse river and reach
             if "River Reach=" in line:
-                river, reach = line.lstrip("River Reach=").split(",")
+                river, reach = line.split("River Reach=")[1].split(",")
 
             # parse river station and reach lengths for the left, channel, and right flowpaths
             if "Type RM Length L Ch R =" in line:
@@ -1056,7 +1141,6 @@ class Geom(BaseFile):
                 rs.rstrip(" "),
                 river_reach_rs,
             )
-
             return xs
         else:
             return None
@@ -1078,7 +1162,7 @@ class Geom(BaseFile):
         """
 
         if "XS GIS Cut Line=" in line:
-            xs.number_of_coords = int(line.lstrip("XS GIS Cut Line="))
+            xs.number_of_coords = int(line.split("XS GIS Cut Line=")[1])
 
             return xs
 
@@ -1239,10 +1323,10 @@ class Flow(BaseFile):
         for i, line in enumerate(lines):
 
             if "Number of Profiles=" in line:
-                self.profile_count = int(line.lstrip("Number of Profiles="))
+                self.profile_count = int(line.split("Number of Profiles=")[1])
 
             elif "Profile Names=" in line:
-                self.profile_names = line.lstrip("Profile Names=").split(",")
+                self.profile_names = line.split("Profile Names=")[1].split(",")
 
             elif "River Rch & RM=" in line:
                 flow = self.parse_flows(lines[i:])
@@ -1263,7 +1347,7 @@ class Flow(BaseFile):
         """
 
         # parse river, reach, and river station for the flow change location
-        river, reach, rs = lines[0].lstrip("River Rch & RM=").split(",")
+        river, reach, rs = lines[0].split("River Rch & RM=")[1].split(",")
 
         flows = []
         for line in lines[1:]:
@@ -1283,12 +1367,12 @@ class Flow(BaseFile):
 
         self.max_flow_applied = max([max(flow.flows) for flow in self.flow_change_locations])
 
-    def create_profile_names(self, reach_data: pd.Series, input_flows: np.array) -> tuple:
+    def create_profile_names(self, branch_data: dict, input_flows: np.array) -> tuple:
         """
-        Create profile names from flows and ds_depths specified in the reach_data
+        Create profile names from flows and ds_depths specified in the branch_data
 
         Args:
-            reach_data (pd.Series): NWM reach data
+            branch_data (dict): NWM reach data
             input_flows (np.array): Flows to create profiles names from. Combine with incremental depths
             of the downstream cross section of the reach
 
@@ -1298,14 +1382,14 @@ class Flow(BaseFile):
 
         profile_names, flows, wses = [], [], []
 
-        for e, depth in enumerate(reach_data["ds_depths"]):
+        for e, depth in enumerate(branch_data["ds_depths"]):
 
             for flow in input_flows:
 
-                profile_names.append(f"{int(flow)}_z{str(depth).rjust(4,"0")}")
+                profile_names.append(f"f_{int(flow)}-z_{str(depth).replace('.','_')}")
 
                 flows.append(flow)
-                wses.append(reach_data["ds_wses"][e])
+                wses.append(branch_data["ds_wses"][e])
 
         return (profile_names, flows, wses)
 
@@ -1343,7 +1427,9 @@ class Flow(BaseFile):
 
         for _, xs in us_cross_sections.iterrows():
 
-            lines.append(f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).rstrip("0").rstrip(".").ljust(8,' ')}")
+            lines.append(
+                f"River Rch & RM={xs.river},{xs.reach.ljust(16,' ')},{str(xs.rs).rstrip('0').rstrip('.').ljust(8,' ')}"
+            )
 
             for i, flow in enumerate(flows):
 
@@ -1359,30 +1445,33 @@ class Flow(BaseFile):
 
         self.content += "\n" + "\n".join(lines)
 
-    def write_ds_known_ws(self, reach_data: pd.Series, normal_depth: float, r: Ras):
+    def write_ds_known_ws(self, branch_data: dict, normal_depth: float, r: Ras):
         """
         Write downstream known water surface elevations to flow content
 
         Args:
-            reach_data (pd.Series): Reach data from NWM reaches
-            normal_depth (float): Normal depth to apply if reach_data does not contain a downstream river station (ds_rs)
+            branch_data (dict): Reach data from NWM reaches
+            normal_depth (float): Normal depth to apply if branch_data does not contain a downstream river station (ds_rs)
             r (Ras): Ras object representing the HEC-RAS project
         """
 
         ds_cross_sections = r.geom.us_ds_most_xs(us_ds="ds")
         count = 0
-        
 
         for _, xs in ds_cross_sections.iterrows():
 
-            if reach_data["ds_rs"] == xs["rs"]:
+            # get the downstream wses for this reach/xs
+            wses = branch_data["ds_wses"]
 
-                # get the downstream wses for this reach/xs
-                wses = reach_data["ds_wses"]
+            # get number of flows to apply
+            number_of_flows = len(branch_data["us_flows"])
+
+            if branch_data["downstream_data"]["xs_id"] == xs["rs"]:
+
                 lines = []
                 for e, wse in enumerate(wses):
-                    
-                    for i in range(len(reach_data["flows"])):
+
+                    for i in range(number_of_flows):
                         count += 1
                         lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
                         lines.append(f"Up Type= 0 ")
@@ -1391,16 +1480,14 @@ class Flow(BaseFile):
 
                     self.content += "\n" + "\n".join(lines)
             else:
-                self.write_ds_normal_depth(reach_data, normal_depth, r)
+                self.write_ds_normal_depth(number_of_flows * len(wses), normal_depth, r)
 
-        
-
-    def write_ds_normal_depth(self, reach_data: pd.Series, normal_depth: float, r: Ras):
+    def write_ds_normal_depth(self, number_of_profiles: int, normal_depth: float, r: Ras):
         """
         Write the downstream normal depth boundary condition
 
         Args:
-            reach_data (pd.Series): Reach data from NWM reaches
+            number_of_profiles (int): Number of profiles
             normal_depth (float): Normal depth slope to apply to all profiles
             r (Ras): Ras object representing the HEC-RAS project
         """
@@ -1410,7 +1497,7 @@ class Flow(BaseFile):
 
         for _, xs in ds_cross_sections.iterrows():
 
-            for i in range(len(reach_data["flows_rc"])):
+            for i in range(number_of_profiles):
                 count += 1
                 lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
                 lines.append(f"Up Type= 0 ")
@@ -1419,22 +1506,21 @@ class Flow(BaseFile):
 
         self.content += "\n" + "\n".join(lines)
 
-    def add_intermediate_known_wse(self, reach_data: pd.Series, wses: list[float]):
+    def add_intermediate_known_wse(self, branch_data: dict, wses: list[float]):
         """
         Write known water surface elevations for intermediate cross sections along the reach to the flow content.
 
         Args:
-            reach_data (pd.Series): Reach data from NWM reaches
+            branch_data (dic): Reach data from NWM reaches
             wses (list[float]): known water surface elvations to apply
         """
 
         lines = []
 
-        reach_data["ds_rs"]
         for e, wse in enumerate(wses):
 
             lines.append(
-                f"Set Internal Change={reach_data['river']}       ,{reach_data['reach']}         ,{reach_data['ds_rs']}  , {e+1} , 3 ,{wse}"
+                f"Set Internal Change={branch_data['downstream_data']['river']}       ,{branch_data['downstream_data']['reach']}         ,{branch_data['downstream_data']['xs_id']}  , {e+1} , 3 ,{wse}"
             )
 
         self.content += "\n" + "\n".join(lines)
@@ -1583,7 +1669,7 @@ class RasMap:
 
         self.content = "\n".join(lines)
 
-    def add_terrain(self):
+    def add_terrain(self, terrain_name: str):
         """
         Add Terrain to RasMap content
         """
@@ -1593,7 +1679,7 @@ class RasMap:
 
             if line == "  <Terrains />":
 
-                lines.append(TERRAIN)
+                lines.append(TERRAIN.replace(TERRAIN_NAME, terrain_name))
                 continue
 
             lines.append(line)
@@ -1613,3 +1699,51 @@ class RasMap:
         # write backup
         with open(self.text_file + ".backup", "w") as f:
             f.write(self.content)
+
+
+def assert_no_mesh_error(compute_message_file: str, require_exists: bool):
+    try:
+        with open(compute_message_file) as f:
+            content = f.read()
+    except FileNotFoundError:
+        if require_exists:
+            raise
+    else:
+        for line in content.splitlines():
+            if "error generating mesh" in line.lower():
+                raise RASComputeMeshError(
+                    f"'error generating mesh' found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+                )
+
+
+def assert_no_ras_geometry_error(compute_message_file: str):
+    """Scan *.computeMsgs.txt for errors encountered"""
+    with open(compute_message_file) as f:
+        content = f.read()
+    for line in content.splitlines():
+        if "geometry writer failed" in line.lower() or "error processing geometry" in line.lower():
+            raise RASGeometryError(
+                f"geometry error found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+            )
+
+
+def assert_no_ras_compute_error_message(compute_message_file: str):
+    """Scan *.computeMsgs.txt for errors encountered"""
+    with open(compute_message_file) as f:
+        content = f.read()
+    for line in content.splitlines():
+        if "ERROR:" in line:
+            raise RASComputeError(
+                f"'ERROR:' found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+            )
+
+
+def assert_no_store_all_maps_error_message(compute_message_file: str):
+    """Scan *.computeMsgs.txt for errors encountered"""
+    with open(compute_message_file) as f:
+        content = f.read()
+    for line in content.splitlines():
+        if "error executing: storeallmaps" in line.lower():
+            raise RASStoreAllMapsError(
+                f"{repr(line)} found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+            )

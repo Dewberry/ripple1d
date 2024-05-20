@@ -63,4 +63,17 @@ STRUCTURGROUPS = {
     "Connection": "SA 2D Area Conn",
 }
 
-TERRAIN_NAME = "MappingTerrain"
+MAP_DEM_UNCLIPPED_SRC_URL = (
+    "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
+)
+MAP_DEM_CLIPPED_BASENAME = "ned13.tif"
+MAP_DEM_BUFFER_DIST_FT = 1000.0
+MAP_DEM_DIRNAME = "MapTerrain"
+MAP_DEM_HDF_NAME = "MapTerrain.hdf"
+MAP_DEM_VERT_UNITS = "Feet"
+
+METERS_PER_FOOT = 1200.0 / 3937.0
+
+STAC_API_URL = "https://stac.dewberryanalytics.com"
+
+MINDEPTH = 0.1
