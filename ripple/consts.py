@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 HDFGEOMETRIES = {
     "Cross Sections": {"shape": "Line", "poly": "Polyline", "RGB": [0, 255, 0, 100]},
     "River Centerlines": {"shape": "Line", "poly": "Polyline", "RGB": [0, 0, 255, 100]},

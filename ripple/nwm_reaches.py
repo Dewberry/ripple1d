@@ -1,133 +1,90 @@
+from __future__ import annotations
 import geopandas as gpd
 import pandas as pd
 import os
 import rasterio
+from rasterio.enums import Resampling
+import numpy as np
+
+from ras import Ras
+
+# from osgeo import gdal
 
 
-def get_us_ds_rs(fcl, r):
-
-    # sort flow change locations based on rs
-    fcl.sort_values(by="rs", ascending=False, inplace=True)
-
-    # allocate columns for ds_rs and us_rs
-    fcl["ds_rs"] = fcl["rs"]
-    fcl["us_rs"] = None
+def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
 
     xs = r.geom.cross_sections
 
-    # itterate through the flow change locations and determine us/ds most cross sections
-    for i, row in fcl.iterrows():
-        us_rs = None
+    xs = xs.sjoin(nwm_reach_gdf.to_crs(xs.crs))
 
-        # if this is the upsteam most flow change location
-        if i == fcl.index[0]:
-            us_rs = xs.loc[xs["rs"] >= row["ds_rs"], "rs"].max()
-            fcl.loc[i, "us_rs"] = us_rs
-            xs.loc[xs["rs"] >= row["ds_rs"], "feature_id"] = row["feature_id"]
+    us, ds, rivers, reaches = [], [], [], []
+    for id in nwm_reach_gdf["branch_id"]:
 
-        # if this is the downstream most flow change location
-        elif i == fcl.index[-1]:
-            us_rs = xs.loc[
-                (xs["rs"] >= row["rs"]) & (xs["rs"] < previous_rs), "rs"
-            ].max()
-            fcl.loc[i, "us_rs"] = us_rs
-            xs.loc[xs["rs"] < us_rs, "feature_id"] = row["feature_id"]
+        us.append(xs.loc[xs["branch_id"] == id, "rs"].max())
+        ds.append(xs.loc[xs["branch_id"] == id, "rs"].min())
 
-            ds_rs = xs.loc[xs["rs"] < row["rs"], "rs"].min()
-            fcl.loc[i, "ds_rs"] - ds_rs
+        river = xs.loc[xs["rs"] == us[-1], "river"].iloc[0]
+        reach = xs.loc[xs["rs"] == us[-1], "reach"].iloc[0]
 
-        # if this is an intermediate flow change location
-        else:
-            us_rs = xs.loc[
-                (xs["rs"] >= row["rs"]) & (xs["rs"] < previous_rs), "rs"
-            ].max()
-            fcl.loc[i, "us_rs"] = us_rs
-            xs.loc[(xs["rs"] >= row["rs"]) & (xs["rs"] < previous_rs), "feature_id"] = (
-                row["feature_id"]
-            )
+        rivers.append(river)
+        reaches.append(reach)
 
-        previous_rs = row["rs"]
+    nwm_reach_gdf["us_rs"] = us
+    nwm_reach_gdf["ds_rs"] = ds
 
-    r.geom.cross_sections = xs
+    nwm_reach_gdf["river"] = rivers
+    nwm_reach_gdf["reach"] = reaches
 
-    return fcl, r
+    return nwm_reach_gdf, r, xs
 
 
-def detemine_necessary_flow_change_locations(nwm_reach_gdf, r):
-    points = []
-    crs = nwm_reach_gdf.crs
+def increment_rc_flows(nwm_dict: dict, increments: int = 10) -> dict:
+    """
+    Determine flows to apply to the model for an initial rating curve by compiling the 2yr-100yr
 
-    nwm_reach_gdf.set_geometry("geometry", inplace=True, crs=crs)
+    Args:
+        nwm_dict (dict): National water model branches
+        increments (int,optional): Number of flow increments between 2yr flow * min_ration and 100yr flow * max_ratio
 
-    # get end points of reaches
-    for i, row in nwm_reach_gdf.iterrows():
-        first, last = row.geometry.geoms[0].boundary.geoms
-        points.append(last)
+    Returns:
+        dict: _description_
+    """
 
-    nwm_reach_gdf["last_point"] = points
-    nwm_reach_gdf.set_geometry("last_point", inplace=True, crs=crs)
+    for branch_id, branch_data in nwm_dict.items():
 
-    # determine flow change location
-    fcl = nwm_reach_gdf.loc[nwm_reach_gdf["ratio_50"] < 0.8, :]
+        flow = np.linspace(
+            branch_data["flows"]["flow_2_yr_minus"], branch_data["flows"]["flow_100_yr_plus"], increments
+        )
 
-    # determine last cross section
-    last_xs = r.geom.cross_sections.loc[
-        r.geom.cross_sections["rs"] == r.geom.cross_sections["rs"].min()
-    ]
+        flow.sort()
 
-    # get fcl that exists downstream of last cross section
-    nwm_reach_gdf.set_geometry("geometry", inplace=True, crs=crs)
-    ds_most_reach = nwm_reach_gdf[
-        nwm_reach_gdf.intersects(last_xs.to_crs(nwm_reach_gdf.crs).geometry.iloc[0])
-    ]
+        nwm_dict[branch_id]["flows_rc"] = flow
 
-    fcl = gpd.GeoDataFrame(
-        pd.concat([fcl, ds_most_reach]), geometry="last_point", crs=fcl.crs
-    )
-
-    fcl = fcl.to_crs(r.projection).sjoin_nearest(r.geom.cross_sections)
-
-    return fcl
-
-
-def compile_flows(fcl):
-
-    flows = []
-    for i, row in fcl.iterrows():
-
-        flow = [row[i] for i in row.index if "rf_" in i]
-        flow += [min(flow) * 0.8] + [max(flow) * 1.5]
-
-        flows.append(sorted(flow)[::-1])
-
-    fcl["flows_rc"] = flows
-
-    return fcl
+    return nwm_dict
 
 
 def clip_depth_grid(
     src_path: str,
     xs_hull: gpd.GeoDataFrame,
-    river: str,
-    reach: str,
-    us_rs: str,
-    ds_rs: str,
+    id: str,
     profile_name: str,
     dest_directory: str,
 ):
 
+    flow, depth = profile_name.split("-")
+
+    dest_directory = os.path.join(dest_directory, id, depth)
+
     if not os.path.exists(dest_directory):
         os.makedirs(dest_directory)
 
-    dest_path = os.path.join(
-        dest_directory, f"{river}_{reach}_{ds_rs}_{us_rs}_{profile_name}.tif"
-    )
+    dest_path = os.path.join(dest_directory, f"{flow}.tif")
 
     # open the src raster the cross section concave hull as a mask
     with rasterio.open(src_path) as src:
 
         out_image, out_transform = rasterio.mask.mask(
-            src, xs_hull.to_crs(src.crs)["geometry"], crop=True
+            src, xs_hull.to_crs(src.crs)["geometry"], crop=True, all_touched=True
         )
         out_meta = src.meta
 
@@ -138,11 +95,19 @@ def clip_depth_grid(
             "height": out_image.shape[1],
             "width": out_image.shape[2],
             "transform": out_transform,
+            "compress": "LZW",
+            "predictor": 3,
+            "tiled": True,
         }
     )
-
     # write dest raster
+    print(f"Writing: {dest_path}")
     with rasterio.open(dest_path, "w", **out_meta) as dest:
         dest.write(out_image)
+    # print(f"Building overviews for: {dest_path}")
+    with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
+        with rasterio.open(dest_path, "r+") as dst:
+            dst.build_overviews([4, 8, 16], Resampling.nearest)
+            dst.update_tags(ns="rio_overview", resampling="nearest")
 
     return dest_path

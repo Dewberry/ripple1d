@@ -1,4 +1,7 @@
-RASMAP_631 = r"""<RASMapper>
+from __future__ import annotations
+from consts import TERRAIN_NAME
+
+RASMAP_631 = """<RASMapper>
   <Version>2.0.0</Version>
   <Features>
     <Layer Name="Profile Lines" Type="PolylineFeatureLayer" Filename=".\Features\Profile Lines.shp">
@@ -6,7 +9,7 @@ RASMAP_631 = r"""<RASMapper>
     </Layer>
   </Features>
   <Geometries>
-    <Layer Name="Existing Conditions" Type="RASGeometry" Expanded="True" Filename=".\CASIDY BRANCH.g01.hdf">
+    <Layer Name="Existing Conditions" Type="RASGeometry" Expanded="True" Filename=".\geom_hdf_placeholder">
       <Layer Type="RASXS" UnitsRiverStation="Feet" RiverStationDecimalPlaces="0" />
       <Layer Type="FinalNValueLayer">
         <ResampleMethod>near</ResampleMethod>
@@ -72,8 +75,8 @@ RASMAP_631 = r"""<RASMapper>
   </CurrentSettings>
 </RASMapper>"""
 
-TERRAIN = r"""  <Terrains Checked="True" Expanded="True">
-    <Layer Name="Terrain" Type="TerrainLayer" Checked="True" Filename=".\Terrain\Terrain.hdf">
+TERRAIN = f"""  <Terrains Checked="True" Expanded="True">
+    <Layer Name="{TERRAIN_NAME}" Type="TerrainLayer" Checked="True" Filename=".\{TERRAIN_NAME}.hdf">
       <Symbology>
         <SurfaceFill Colors="-10039894,-256,-16744448,-23296,-7667712,-5952982,-8355712,-1286" Values="-0.625,50.4063185155618,70.7601808393692,101.843506660136,135.379737550828,199.971461686389,225.529762277054,366.78125" Stretched="True" AlphaTag="255" UseDatasetMinMax="False" RegenerateForScreen="False" />
       </Symbology>
