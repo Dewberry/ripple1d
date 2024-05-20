@@ -5,8 +5,9 @@ import geopandas as gpd
 from io import BytesIO
 from pathlib import Path
 from boto3 import Session
+import shapely
 
-from .ras1d import RasFimConflater
+from .rasfim import RasFimConflater
 
 
 def plot_conflation_results(
@@ -15,48 +16,65 @@ def plot_conflation_results(
     key: str,
     bucket: str = None,
     s3_client: Session.client = None,
+    limit_plot_to_nearby_branches: bool = True,
 ):
     _, ax = plt.subplots(figsize=(10, 10))
 
     # Plot the centerline and cross-sections first
-    rfc.ras_centerline.plot(
+    rfc.ras_centerlines.plot(
         ax=ax, color="black", label="RAS Centerline", alpha=0.5, linestyle="dashed"
     )
     rfc.ras_xs.plot(ax=ax, color="green", label="RAS XS", markersize=2, alpha=0.2)
 
-    # Create a colormap that maps each branch_id to a color
-    unique_branch_ids = fim_stream["branch_id"].unique()
-    colors = plt.cm.viridis(np.linspace(0, 1, len(unique_branch_ids)))
-    colormap = dict(zip(unique_branch_ids, colors))
-
-    # Plot the fim_stream using the colormap
-    fim_stream["color"] = fim_stream["branch_id"].map(colormap)
-    fim_stream.plot(color=fim_stream["color"], ax=ax, linewidth=2, alpha=0.8)
-
-    # Get the current axis limits
+    # Get the current axis limits and create a rectangle geometry
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
-
-    # Create a mask for the branches that fall within the axis limits
-    mask = rfc.nwm_branches.geometry.apply(
-        lambda geom: xlim[0] <= geom.bounds[0] <= xlim[1]
-        and ylim[0] <= geom.bounds[1] <= ylim[1]
-    )
-
-    # Plot the branches that fall within the axis limits
-    rfc.nwm_branches[mask].plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
-
-    # Create a custom legend using the colormap
-    patches = [
-        mpatches.Patch(color=colormap[branch_id], label=f"Branch {branch_id}")
-        for branch_id in unique_branch_ids
-    ]
+    bounds = shapely.geometry.box(xlim[0], ylim[0], xlim[1], ylim[1])
 
     # Add a patch for the ras_centerline
-    patches.append(
+    patches = [
         mpatches.Patch(color="black", label="RAS Centerline", linestyle="dashed")
-    )
+    ]
+
+    # Add a patch for nearby branches
     patches.append(mpatches.Patch(color="blue", label="Nearby NWM Branches", alpha=0.3))
+
+    # Plot the branches that fall within the axis limits
+    rfc.nwm_branches.plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
+
+    if limit_plot_to_nearby_branches:
+        # Create a colormap that maps each branch_id to a color
+        unique_branch_ids = fim_stream["branch_id"].unique()
+        colors = plt.cm.viridis(np.linspace(0, 1, len(unique_branch_ids)))
+        colormap = dict(zip(unique_branch_ids, colors))
+
+        # Plot the fim_stream using the colormap
+        fim_stream["color"] = fim_stream["branch_id"].map(colormap)
+        fim_stream.plot(color=fim_stream["color"], ax=ax, linewidth=2, alpha=0.8)
+        # Create a custom legend using the colormap
+        patches.extend(
+            [
+                mpatches.Patch(color=colormap[branch_id], label=f"Branch {branch_id}")
+                for branch_id in unique_branch_ids
+            ]
+        )
+
+    zoom_factor = 3  # Adjust this value to change the zoom level
+
+    # Calculate the range of x and y
+    x_range = bounds.bounds[2] - bounds.bounds[0]
+    y_range = bounds.bounds[3] - bounds.bounds[1]
+
+    # Set the axis limits to the bounds, expanded by the zoom factor
+    ax.set_xlim(
+        bounds.bounds[0] - x_range * (zoom_factor - 1) / 2,
+        bounds.bounds[2] + x_range * (zoom_factor - 1) / 2,
+    )
+    ax.set_ylim(
+        bounds.bounds[1] - y_range * (zoom_factor - 1) / 2,
+        bounds.bounds[3] + y_range * (zoom_factor - 1) / 2,
+    )
+
     ax.legend(handles=patches, handleheight=0.005)
     ax.set_xticks([])
     ax.set_yticks([])
