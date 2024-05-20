@@ -34,7 +34,7 @@ from errors import (
 from consts import TERRAIN_NAME
 import json
 from pathlib import Path
-
+from requests.utils import requote_uri
 
 @dataclass
 class FlowChangeLocation:
@@ -128,7 +128,7 @@ class Ras:
         self.default_epsg = default_epsg
         self.version = version
         self.stac_href = stac_href
-        self.stac_item = pystac.Item.from_file(self.stac_href)
+        self.stac_item = pystac.Item.from_file(requote_uri(self.stac_href))
 
         self.projection_file = None
         self.projection = ""
