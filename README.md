@@ -10,7 +10,7 @@ Utilities for reuse of HEC-RAS models for NWM. HEC-RAS models must be cataloged 
 
 ## Getting Started
 To utilize this repository to develop flood inundations maps from 1D steady-state HEC-RAS models the following are required:
-- A Windows opertating system
+- A Windows operating system
 - HEC-RAS 6.3.1 installed
 - Python packages specified in requirements-windows.txt installed
 - Access to s3
@@ -41,15 +41,15 @@ Producing inundation maps at half-foot increments for each NWM branch in a given
 1. Read the input STAC item
 2. Download HEC-RAS files
 3. Load NWM conflation parameters.
-2. Detemine flow increments for each NWM branch in the RAS model using upper and lower flow ranges specified in conflation parameters. Default is 10 increments.
+2. Determine flow increments for each NWM branch in the RAS model using upper and lower flow ranges specified in conflation parameters. Default is 10 increments.
 3. For each NWM branch, write a flow and plan file for an initial run using the incremented flows. 
 4. For each NWM branch, Use the results from the initial run to develop rating curves at the upstream and downstream terminus of each NWM branch. 
-5. For the upstream rating-curve of each branch, determine what flows would be needed to prouduce half-foot increments.
+5. For the upstream rating-curve of each branch, determine what flows would be needed to produce half-foot increments.
 6. For the downstream rating-curve of each branch, determine depths at half-foot increments over the range of flows applied to the branch. 
 7. Convert the downstream depths to water surface elevations
 8. For each NWM branch create a production-run flow/plan file. 
     - The discharges derived from the upstream rating-curve are applied at the top of the HEC-RAS river-reach
     - The water surface elevations derived from the downstream rating-curve are applied as an intermediate known water surface elevation at the downstream terminus of the NWM branch
 9. Run the production-runs with post-processing depth rasters toggled on
-10. For each NWM branch, clip each resulting depth raster to a concave hull derieved from the cross sections associated with each branch.
+10. For each NWM branch, clip each resulting depth raster to a concave hull derived from the cross sections associated with each branch.
 11. For each NWM branch read the HDF results and write rating-curves to sqlite db.  
