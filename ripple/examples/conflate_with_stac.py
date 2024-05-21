@@ -17,7 +17,7 @@ logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
 
 
-def upsert_item(endpoint: str, collection_id: str, item: pystac.Item):
+def upsert_item(endpoint: str, collection_id: str, item: pystac.Item) -> str:
     items_url = f"{endpoint}/collections/{collection_id}/items"
     response = requests.post(items_url, json=item.to_dict())
     if response.status_code == 409:

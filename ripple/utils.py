@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import pathlib
 import posixpath
-import shutil
 import traceback
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -19,75 +19,6 @@ import rasterio
 from dotenv import find_dotenv, load_dotenv
 from shapely.geometry import LineString, Point, Polygon
 from shapely.validation import make_valid
-
-load_dotenv(find_dotenv())
-
-LOGGER = None  # modified by function init_log() the first time it is called.
-
-
-def init_log():
-    """Should be called only once by executable script, calling subsequent times has no effect."""
-    global LOGGER
-    if LOGGER is not None:
-        return
-
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-
-    assert LOGGER is None
-    LOGGER = logger
-    assert LOGGER is not None
-
-
-def get_sessioned_s3_client():
-    """Use env variables to establish a boto3 (AWS) session and return that session's S3 client handle."""
-    session = boto3.Session(
-        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-        region_name=os.environ["AWS_DEFAULT_REGION"],
-    )
-    s3_client = session.client("s3")
-    return s3_client
-
-
-def clip_raster(src_path: str, dst_path: str, mask: Polygon):
-    if os.path.exists(dst_path):
-        raise FileExistsError(dst_path)
-    if not isinstance(mask, Polygon):
-        raise TypeError(mask)
-    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-
-    logging.info(f"Reading: {src_path}")
-    with rasterio.open(src_path) as src:
-        out_meta = src.meta
-        out_image, out_transform = rasterio.mask.mask(src, [mask], all_touched=True, crop=True)
-
-    out_meta.update(
-        {
-            "driver": "GTiff",
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform,
-            "compress": "LZW",
-            "predictor": 3,
-            "tiled": True,
-        }
-    )
-
-    logging.info(f"Writing as masked: {dst_path}")
-    with rasterio.open(dst_path, "w", **out_meta) as dest:
-        dest.write(out_image)
-
-
-from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 
@@ -183,7 +114,6 @@ def get_terrain_exe_path(ras_ver: str) -> str:
         "6.00": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
         "610": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
         "6.10": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
-        "6.10": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
         "631": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
         "6.3.1": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
     }
@@ -191,42 +121,6 @@ def get_terrain_exe_path(ras_ver: str) -> str:
         return d[ras_ver]
     except KeyError as e:
         raise ValueError(f"Unsupported ras_ver: {ras_ver}. choices: {sorted(d)}") from e
-
-
-def plot_xs_with_wse_increments(r):
-    df = pd.DataFrame(r.geom.cross_sections["station_elevation"].iloc[0])
-    fig = go.Figure()
-
-    xs = df.copy()
-    xs.loc[len(xs.index)] = [
-        xs.loc[len(xs.index) - 1, "station"],
-        xs.loc[0, "elevation"],
-    ]
-    xs.loc[len(xs.index)] = xs.loc[0]
-
-    polygon = Polygon(zip(xs["station"], xs["elevation"]))
-
-    if not polygon.is_valid:
-        polygon = make_valid(polygon).geoms[0].geoms[0]
-
-    for wse in r.geom.cross_sections["wses"].iloc[0]:
-        line = LineString([[xs["station"].iloc[0], wse], [xs["station"].iloc[-2], wse]])
-
-        new_line = polygon.intersection(line)
-        if new_line.length == 0:
-            continue
-        if new_line.geom_type in ["GeometryCollection", "MultiLineString"]:
-            for l in new_line.geoms:
-                x, y = l.xy
-                fig.add_scatter(x=list(x), y=list(y), marker={"color": "grey", "size": 0.5})
-        else:
-            x, y = new_line.xy
-            fig.add_scatter(x=list(x), y=list(y), marker={"color": "grey", "size": 0.5})
-
-    fig.add_scatter(x=df["station"], y=df["elevation"], line={"color": "red"})
-    fig.update_layout({"showlegend": False})
-
-    return fig
 
 
 def s3_upload_dir_recursively(local_src_dir: str, tgt_dir: str, s3_client: botocore.client.BaseClient):

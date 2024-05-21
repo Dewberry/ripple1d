@@ -7,10 +7,8 @@ import os
 import re
 import subprocess
 import time
-import typing
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
 
 import boto3
 import geopandas as gpd
@@ -304,7 +302,8 @@ class Ras:
 
         Args:
             title (str): Title of the flow file
-            branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
+            branch_data (pd.DataFrame) dataframe containing rows for each flow change location
+            and columns for river,reach,us_rs,ds_rs, and flows.
             normal_depth (float): normal_depth to apply
         """
 
@@ -344,7 +343,8 @@ class Ras:
 
         Args:
             title (str): Title of the flow file
-            branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for river,reach,us_rs,ds_rs, and flows.
+            branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for
+            river,reach,us_rs,ds_rs, and flows.
             normal_depth (np.array): normal depth to apply at the downstream terminus of the reach.
         """
 
@@ -412,10 +412,12 @@ class Ras:
     def get_new_extension_number(self, dict_of_ras_subclasses: dict) -> str:
         """
         Determines the next numeric extension that should be used when creating a new plan, flow, or geom;
-        e.g., if you are adding a new plan and .p01, and .p02 already exists then the new plan will have a .p03 extension.
+        e.g., if you are adding a new plan and .p01, and .p02 already exists then the new plan
+        will have a .p03 extension.
 
         Args:
-            dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys and objects plan/geom/flow as values.
+            dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys
+                and objects plan/geom/flow as values.
 
         Returns:
             new file extension (str): The new file exension.
@@ -463,7 +465,8 @@ class Ras:
                     raise RASComputeTimeoutError(
                         f"timed out computing current plan for RAS project: {self.ras_project_file}"
                     )
-                # must keep checking for mesh errors while RAS is running because mesh error will cause blocking popup message
+                # must keep checking for mesh errors while RAS is running
+                # because mesh error will cause blocking popup message
                 assert_no_mesh_error(compute_message_file, require_exists=False)  # file might not exist immediately
                 time.sleep(0.2)
             time.sleep(
@@ -485,7 +488,8 @@ class Ras:
 
         Args:
             src_path (str): path to the source raster
-            dest_path (str), optional): path to the dest raster. Defaults to a Terrain directory located in the RAS directory
+            dest_path (str), optional): path to the dest raster.
+                Defaults to a Terrain directory located in the RAS directory
 
         Returns:
             dest_path (str): path to the dest raster. Defaults to a Terrain directory located in the RAS directory
@@ -588,7 +592,8 @@ class Ras:
 
     def get_active_plan(self):
         """
-        Reads the content of the RAS project file to determine what the current plan is and sets the asociated plans,geoms,and flows as active.
+        Reads the content of the RAS project file to determine what the current
+            plan is and sets the asociated plans,geoms,and flows as active.
         """
 
         if "Current Plan=" in self.content.splitlines()[1]:
@@ -646,8 +651,8 @@ class Ras:
                 try:
 
                     rm = glob.glob(self.ras_folder + "/*.rasmap")[0]
-                except IndexError as E:
-                    raise FileNotFoundError(f"Could not find a '.rasmap' file for this project.")
+                except IndexError:
+                    raise FileNotFoundError("Could not find a '.rasmap' file for this project.")
 
                 # read .rasmap file to retrieve projection file.
                 with open(rm) as f:
@@ -667,11 +672,11 @@ class Ras:
                         else:
                             raise ValueError(f"Expected a projection file but got {self.projection_file}")
                     else:
-                        raise FileNotFoundError(f"Could not find projection file for this project")
+                        raise FileNotFoundError("Could not find projection file for this project")
                 else:
-                    raise ValueError(f"No projection specified in .rasmap file.")
+                    raise ValueError("No projection specified in .rasmap file.")
 
-            except (FileNotFoundError, ValueError) as e:
+            except (FileNotFoundError, ValueError):
 
                 raise ProjectionNotFoundError(
                     f"Could not determine the projection for this HEC-RAS model: {self.ras_folder}."
@@ -693,7 +698,7 @@ class Ras:
                     f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
             else:
 
-                raise NoDefaultEPSGError(f"Could not identify projection from RAS Mapper and no default EPSG provided")
+                raise NoDefaultEPSGError("Could not identify projection from RAS Mapper and no default EPSG provided")
 
     def get_ras_project_file(self):
         """
@@ -822,7 +827,7 @@ class Plan(BaseFile):
             self.projection = projection
             self.parse_attrs()
 
-        except FileExistsError as e:
+        except FileExistsError:
             print(f"The plan file provided does not exists: {path}")
 
         self.short_id = None
@@ -904,7 +909,8 @@ class Plan(BaseFile):
         for td in date_time_str_array:
             try:
                 td = datetime.datetime.strptime(td, "%d%b%Y %H:%M:%S")
-            except:
+            except Exception as e:
+                raise (e)
                 td = td.replace(" 24:", " 23:")
                 td = datetime.datetime.strptime(td, "%d%b%Y %H:%M:%S")
                 td += datetime.timedelta(hours=1)
@@ -949,7 +955,7 @@ class Plan(BaseFile):
         lines.append(f"Short Identifier={self.short_id}")
         lines.append(f"Geom File={self.geom.extension.lstrip('.')}")
         lines.append(f"Flow File={self.flow.extension.lstrip('.')}")
-        lines.append(f"Run RASMapper=-1 ")
+        lines.append("Run RASMapper=-1 ")
         self.content = "\n".join(lines)
 
 
@@ -1309,7 +1315,7 @@ class Flow(BaseFile):
             if self.flow_change_locations:
                 self.max_flow_applied()
 
-        except FileExistsError as e:
+        except FileExistsError:
 
             print(f"The flow file provided does not exists: {path}")
 
@@ -1452,7 +1458,8 @@ class Flow(BaseFile):
 
         Args:
             branch_data (dict): Reach data from NWM reaches
-            normal_depth (float): Normal depth to apply if branch_data does not contain a downstream river station (ds_rs)
+            normal_depth (float): Normal depth to apply if branch_data
+                does not contain a downstream river station (ds_rs)
             r (Ras): Ras object representing the HEC-RAS project
         """
 
@@ -1475,8 +1482,8 @@ class Flow(BaseFile):
                     for i in range(number_of_flows):
                         count += 1
                         lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
-                        lines.append(f"Up Type= 0 ")
-                        lines.append(f"Dn Type= 1 ")
+                        lines.append("Up Type= 0 ")
+                        lines.append("Dn Type= 1 ")
                         lines.append(f"Dn Known WS={wse}")
 
                     self.content += "\n" + "\n".join(lines)
@@ -1501,8 +1508,8 @@ class Flow(BaseFile):
             for i in range(number_of_profiles):
                 count += 1
                 lines.append(f"Boundary for River Rch & Prof#={xs.river},{xs.reach.ljust(16,' ')}, {count}")
-                lines.append(f"Up Type= 0 ")
-                lines.append(f"Dn Type= 3 ")
+                lines.append("Up Type= 0 ")
+                lines.append("Dn Type= 3 ")
                 lines.append(f"Dn Slope={normal_depth}")
 
         self.content += "\n" + "\n".join(lines)
@@ -1627,7 +1634,9 @@ class RasMap:
         """
 
         if variable not in ["Depth"]:
-            raise NotImplemented(f"Variable {variable} not currently implemented. Currently only Depth is supported.")
+            raise NotImplementedError(
+                f"Variable {variable} not currently implemented. Currently only Depth is supported."
+            )
 
         lines = []
         for line in self.content.splitlines():

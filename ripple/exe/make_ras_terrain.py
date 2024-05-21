@@ -6,11 +6,8 @@ import os
 import posixpath
 import re
 import tempfile
-import urllib.parse
 
 import geopandas as gpd
-import shapely
-from shapely.geometry import Polygon, box
 
 from ripple.consts import (
     MAP_DEM_BUFFER_DIST_FT,

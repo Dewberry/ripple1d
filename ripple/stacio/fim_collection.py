@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -14,7 +13,7 @@ class FIMCollection:
     Class for interacting with a FIM collection in a STAC API.
     """
 
-    def __init__(self, stac_api: str, collection_id: str, load: bool = True):
+    def __init__(self, stac_api: str, collection_id: str, load: bool = True) -> str:
         self.stac_api = stac_api
         self._collection_id = collection_id
         if load:
@@ -25,7 +24,7 @@ class FIMCollection:
     def __repr__(self) -> str:
         return f"FIMCollection: {self._collection_id}"
 
-    def load(self):
+    def load(self) -> pystac.Collection:
         try:
             client = pystac_client.Client.open(self.stac_api)
         except Exception as e:
@@ -33,7 +32,7 @@ class FIMCollection:
 
         try:
             return client.get_collection(self._collection_id)
-        except Exception as e:
+        except Exception:
             raise KeyError(f"Collection `{self._collection_id}` does not exist. Use new_collection() to create.")
 
     def add_branch_conflation_asset(
@@ -76,10 +75,10 @@ class FIMCollectionRasItem(FIMCollection):
     def __repr__(self) -> str:
         return f"FIMCollectionRasItem: {self._collection_id}-{self._item_id}"
 
-    def load_item(self):
+    def load_item(self) -> pystac.Item:
         try:
             return self.collection.get_item(self._item_id)
-        except Exception as e:
+        except Exception:
             raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")
 
     # def add_topo_assets(self, topo_filename: str = "MapTerrain"):
@@ -97,7 +96,7 @@ class FIMCollectionRasItem(FIMCollection):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.remove("data")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
             if "ras-geometry-gpkg" not in asset.roles:
@@ -107,21 +106,21 @@ class FIMCollectionRasItem(FIMCollection):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="geometry-file"):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="plan-file"):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="projection"):
@@ -130,7 +129,7 @@ class FIMCollectionRasItem(FIMCollection):
                 asset.roles.remove("projection")
                 asset.roles.append("ras-file")
                 asset.roles.append("project-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
     def add_s3_key_to_assets(self, bucket: str = "fim"):
@@ -221,10 +220,10 @@ class FIMCollectionRasItem(FIMCollection):
         software: str = "ripple v0.1.0-alpha.1",
         asset_role: str = "project-file",
         bucket: str = "fim",
-    ):
+    ) -> bool:
         """
         TODO: Placeholder function for adding ripple-params to FIM collection items.
-        This assumes the conflation outupt is in the same directory as the `project-file` asset
+        This assumes the conflation output is in the same directory as the `project-file` asset
         """
 
         if asset_role != "project-file":
@@ -275,8 +274,8 @@ class FIMCollectionRasDGItem(FIMCollection):
     def __repr__(self) -> str:
         return f"FIMCollectionDGItem: {self._collection_id}-{self._item_id}"
 
-    def load_item(self):
+    def load_item(self) -> pystac.Item:
         try:
             return self.collection.get_item(self._item_id)
-        except Exception as e:
+        except Exception:
             raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")

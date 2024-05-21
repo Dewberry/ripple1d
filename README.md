@@ -36,7 +36,8 @@ To utilize this repository to develop flood inundations maps from 1D steady-stat
 
 
 ## About
-Producing inundation maps at half-foot increments for each NWM branch in a given RAS model is a multi-step process: 
+Producing inundation maps at half-foot increments for each NWM branch in a given RAS model is a multi-step process outlined below. "run_process.py" is a script that executes the process in the necessary sequential order. 
+
 1. Read the input STAC item
 2. Download HEC-RAS files
 3. Load NWM conflation parameters.

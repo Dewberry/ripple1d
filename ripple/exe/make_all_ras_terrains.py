@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-import pystac
 import pystac_client
 from dotenv import find_dotenv, load_dotenv
 

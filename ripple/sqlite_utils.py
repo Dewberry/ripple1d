@@ -5,8 +5,10 @@ import pandas as pd
 from ras import Ras
 
 
-def create_db_and_table(db_name, table_name):
-
+def create_db_and_table(db_name: str, table_name: str):
+    """
+    Create sqlite database and table
+    """
     if os.path.exists(db_name):
         os.remove(db_name)
 
@@ -27,6 +29,9 @@ def create_db_and_table(db_name, table_name):
 
 
 def insert_data(db_name: str, table_name: str, data: pd.DataFrame):
+    """
+    Insert data into the sqlite database
+    """
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
 
@@ -44,7 +49,8 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame):
     conn.close()
 
 
-def parse_stage_flow(wses: pd.DataFrame):
+def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
+    """Parse flow and control by stage from profile names"""
     wses_t = wses.T
     wses_t.reset_index(inplace=True)
     wses_t[["flow", "control_by_node_stage"]] = wses_t["index"].str.split("-", expand=True)
@@ -57,7 +63,7 @@ def parse_stage_flow(wses: pd.DataFrame):
 
 
 def rating_curves_to_sqlite(r: Ras):
-
+    """Export rating curves to sqlite"""
     # create dabase and table
     database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
     table = r.ras_project_basename

@@ -19,6 +19,9 @@ def plot_conflation_results(
     s3_client: Session.client = None,
     limit_plot_to_nearby_branches: bool = True,
 ):
+    """
+    Create/write png to s3. The png contains RAS centerline and cross sections and nearby NWM branches
+    """
     _, ax = plt.subplots(figsize=(10, 10))
 
     # Plot the centerline and cross-sections first
