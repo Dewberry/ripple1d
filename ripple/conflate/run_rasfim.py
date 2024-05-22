@@ -9,7 +9,7 @@ from ripple.conflate.rasfim import (
     walk_network,
 )
 
-# from ripple.conflate.rasfim2 import (
+# from rasfim import (
 #     RasFimConflater,
 #     calculate_conflation_metrics,
 #     convert_linestring_to_points,
@@ -61,3 +61,19 @@ def main(
     metadata["ras_river_to_nwm_reaches_ratio"] = ras_to_fim_length_ratio
     metadata["metrics"] = metrics
     return metadata
+
+
+if __name__ == "__main__":
+    # f = "mip/dev/Caney Creek-Lake Creek/LANDRUM CREEK/LANDRUM CREEK.gpkg"
+    f = "mip/dev/West Fork San Jacinto River/ROBINSON CREEK/ROBINSON CREEK.gpkg"
+    # f = "mip/dev/West Fork San Jacinto River/WFSJ Main/WFSJ Main.gpkg"
+    rfc = RasFimConflater(
+        "/Users/slawler/Desktop/nwm_flows.parquet",
+        f"/vsis3/fim/{f}",
+    )
+
+    low_flows = pd.read_parquet(
+        "/Users/slawler/Desktop/nwm_high_water_threshold.parquet"
+    )
+
+    results = main(rfc, low_flows)

@@ -1,11 +1,19 @@
-from fim_collection import FIMCollectionRasItem, FIMCollection
-from s3_utils import read_json_from_s3
+import argparse
 
+from .fim_collection import FIMCollection, FIMCollectionRasItem
+from .s3_utils import read_json_from_s3
 
 if __name__ == "__main__":
     # STAC API URL
     API_URL = "https://stac2.dewberryanalytics.com"
-    collection_id = "huc-12040101"
+
+    parser = argparse.ArgumentParser(description="Process some integers.")
+    parser.add_argument(
+        "--collection_id", type=str, required=True, help="Collection ID"
+    )
+
+    args = parser.parse_args()
+    collection_id = args.collection_id
 
     fc = FIMCollection(API_URL, collection_id)
     for item in fc.collection.get_all_items():
@@ -24,7 +32,6 @@ if __name__ == "__main__":
         fci.ensure_asset_roles_unique()
 
         if conflated:
-            # print(f"Added ripple params for {fci.item.id}")
             params_json = fci.item.assets["ripple_parameters.json"].extra_fields[
                 "s3_key"
             ]

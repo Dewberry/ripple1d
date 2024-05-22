@@ -1,11 +1,12 @@
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
-import geopandas as gpd
 from io import BytesIO
 from pathlib import Path
-from boto3 import Session
+
+import geopandas as gpd
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
 import shapely
+from boto3 import Session
 
 from .rasfim import RasFimConflater
 
@@ -16,7 +17,7 @@ def plot_conflation_results(
     key: str,
     bucket: str = None,
     s3_client: Session.client = None,
-    limit_plot_to_nearby_branches: bool = True,
+    limit_plot_to_nearby_reaches: bool = True,
 ):
     _, ax = plt.subplots(figsize=(10, 10))
 
@@ -36,26 +37,26 @@ def plot_conflation_results(
         mpatches.Patch(color="black", label="RAS Centerline", linestyle="dashed")
     ]
 
-    # Add a patch for nearby branches
-    patches.append(mpatches.Patch(color="blue", label="Nearby NWM Branches", alpha=0.3))
+    # Add a patch for nearby reaches
+    patches.append(mpatches.Patch(color="blue", label="Nearby NWM reaches", alpha=0.3))
 
-    # Plot the branches that fall within the axis limits
-    rfc.nwm_branches.plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
+    # Plot the reaches that fall within the axis limits
+    rfc.nwm_reaches.plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
 
-    if limit_plot_to_nearby_branches:
-        # Create a colormap that maps each branch_id to a color
-        unique_branch_ids = fim_stream["branch_id"].unique()
-        colors = plt.cm.viridis(np.linspace(0, 1, len(unique_branch_ids)))
-        colormap = dict(zip(unique_branch_ids, colors))
+    if limit_plot_to_nearby_reaches:
+        # Create a colormap that maps each reach_id to a color
+        unique_reach_ids = fim_stream["ID"].unique()
+        colors = plt.cm.viridis(np.linspace(0, 1, len(unique_reach_ids)))
+        colormap = dict(zip(unique_reach_ids, colors))
 
         # Plot the fim_stream using the colormap
-        fim_stream["color"] = fim_stream["branch_id"].map(colormap)
+        fim_stream["color"] = fim_stream["ID"].map(colormap)
         fim_stream.plot(color=fim_stream["color"], ax=ax, linewidth=2, alpha=0.8)
         # Create a custom legend using the colormap
         patches.extend(
             [
-                mpatches.Patch(color=colormap[branch_id], label=f"Branch {branch_id}")
-                for branch_id in unique_branch_ids
+                mpatches.Patch(color=colormap[reach_id], label=f"reach {reach_id}")
+                for reach_id in unique_reach_ids
             ]
         )
 

@@ -1,12 +1,13 @@
 import os
-import pystac_client
-import pystac
-import pystac_client.errors
 from datetime import datetime
 from pathlib import Path
 
-from s3_utils import check_s3_key_exists
-from stac_utils import key_to_uri, uri_to_key, upsert_collection, upsert_item
+import pystac
+import pystac_client
+import pystac_client.errors
+
+from .s3_utils import check_s3_key_exists
+from .stac_utils import key_to_uri, upsert_collection, upsert_item, uri_to_key
 
 
 class FIMCollection:
