@@ -1,12 +1,11 @@
-import os
-import pystac_client
-import pystac
-import pystac_client.errors
 from datetime import datetime
 from pathlib import Path
 
+import pystac
+import pystac_client
+import pystac_client.errors
 from s3_utils import check_s3_key_exists
-from stac_utils import key_to_uri, uri_to_key, upsert_collection, upsert_item
+from stac_utils import key_to_uri, upsert_collection, upsert_item, uri_to_key
 
 
 class FIMCollection:
@@ -14,7 +13,7 @@ class FIMCollection:
     Class for interacting with a FIM collection in a STAC API.
     """
 
-    def __init__(self, stac_api: str, collection_id: str, load: bool = True):
+    def __init__(self, stac_api: str, collection_id: str, load: bool = True) -> str:
         self.stac_api = stac_api
         self._collection_id = collection_id
         if load:
@@ -25,7 +24,7 @@ class FIMCollection:
     def __repr__(self) -> str:
         return f"FIMCollection: {self._collection_id}"
 
-    def load(self):
+    def load(self) -> pystac.Collection:
         try:
             client = pystac_client.Client.open(self.stac_api)
         except Exception as e:
@@ -33,10 +32,8 @@ class FIMCollection:
 
         try:
             return client.get_collection(self._collection_id)
-        except Exception as e:
-            raise KeyError(
-                f"Collection `{self._collection_id}` does not exist. Use new_collection() to create."
-            )
+        except Exception:
+            raise KeyError(f"Collection `{self._collection_id}` does not exist. Use new_collection() to create.")
 
     def add_branch_conflation_asset(
         self,
@@ -67,28 +64,22 @@ class FIMCollectionRasItem(FIMCollection):
     Class for interacting with a FIM collection RAS item in a STAC API.
     """
 
-    def __init__(
-        self, stac_api: str, collection_id: str, item_id: str, load: bool = True
-    ):
+    def __init__(self, stac_api: str, collection_id: str, item_id: str, load: bool = True):
         super().__init__(stac_api, collection_id, load)
         self._item_id = item_id
         if load:
             self.item = self.load_item()
         else:
-            raise KeyError(
-                f"Item `{self._item_id}` does not exist. Use new_item() to create."
-            )
+            raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")
 
     def __repr__(self) -> str:
         return f"FIMCollectionRasItem: {self._collection_id}-{self._item_id}"
 
-    def load_item(self):
+    def load_item(self) -> pystac.Item:
         try:
             return self.collection.get_item(self._item_id)
-        except Exception as e:
-            raise KeyError(
-                f"Item `{self._item_id}` does not exist. Use new_item() to create."
-            )
+        except Exception:
+            raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")
 
     # def add_topo_assets(self, topo_filename: str = "MapTerrain"):
 
@@ -105,7 +96,7 @@ class FIMCollectionRasItem(FIMCollection):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.remove("data")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
             if "ras-geometry-gpkg" not in asset.roles:
@@ -115,21 +106,21 @@ class FIMCollectionRasItem(FIMCollection):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="geometry-file"):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="plan-file"):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="projection"):
@@ -138,7 +129,7 @@ class FIMCollectionRasItem(FIMCollection):
                 asset.roles.remove("projection")
                 asset.roles.append("ras-file")
                 asset.roles.append("project-file")
-            except:
+            except Exception:
                 print(f"no data role: {asset.href}")
 
     def add_s3_key_to_assets(self, bucket: str = "fim"):
@@ -164,14 +155,10 @@ class FIMCollectionRasItem(FIMCollection):
         This assumes the topo assets are in the same directory as the `ras-geometry-gpkg` asset
         """
         if source != "USGS_Seamless_DEM_13":
-            raise NotImplementedError(
-                "Only USGS_Seamless_DEM_13 is supported at this time."
-            )
+            raise NotImplementedError("Only USGS_Seamless_DEM_13 is supported at this time.")
 
         if asset_role != "ras-geometry-gpkg":
-            raise NotImplementedError(
-                "Only ras-geometry-gpkg is supported at this time."
-            )
+            raise NotImplementedError("Only ras-geometry-gpkg is supported at this time.")
 
         if topo_filename != "MapTerrain":
             raise NotImplementedError("Only MapTerrain is supported at this time.")
@@ -180,15 +167,9 @@ class FIMCollectionRasItem(FIMCollection):
             # print(asset_name)
             asset_href = self.item.assets[asset_name].href
 
-        topo_href = str(
-            Path(asset_href).parent / "MapTerrain/MapTerrain.ned13.tif"
-        ).replace("https:/", "https://")
-        ras_topo_href = str(
-            Path(asset_href).parent / "MapTerrain/MapTerrain.hdf"
-        ).replace("https:/", "https://")
-        vrt_href = str(Path(asset_href).parent / "MapTerrain/MapTerrain.vrt").replace(
-            "https:/", "https://"
-        )
+        topo_href = str(Path(asset_href).parent / "MapTerrain/MapTerrain.ned13.tif").replace("https:/", "https://")
+        ras_topo_href = str(Path(asset_href).parent / "MapTerrain/MapTerrain.hdf").replace("https:/", "https://")
+        vrt_href = str(Path(asset_href).parent / "MapTerrain/MapTerrain.vrt").replace("https:/", "https://")
         topo_source = "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
 
         self.item.add_asset(
@@ -239,10 +220,10 @@ class FIMCollectionRasItem(FIMCollection):
         software: str = "ripple v0.1.0-alpha.1",
         asset_role: str = "project-file",
         bucket: str = "fim",
-    ):
+    ) -> bool:
         """
         TODO: Placeholder function for adding ripple-params to FIM collection items.
-        This assumes the conflation outupt is in the same directory as the `project-file` asset
+        This assumes the conflation output is in the same directory as the `project-file` asset
         """
 
         if asset_role != "project-file":
@@ -251,9 +232,9 @@ class FIMCollectionRasItem(FIMCollection):
         for asset_name in self.item.get_assets(role=asset_role):
             asset_href = self.item.assets[asset_name].href
 
-        ripple_parameters_href = str(
-            (Path(asset_href).parent / "ripple_parameters.json")
-        ).replace("https:/", "https://")
+        ripple_parameters_href = str((Path(asset_href).parent / "ripple_parameters.json")).replace(
+            "https:/", "https://"
+        )
         ripple_parameters_key = uri_to_key(ripple_parameters_href, bucket)
 
         # print(ripple_parameters_key)
@@ -281,26 +262,20 @@ class FIMCollectionRasDGItem(FIMCollection):
     Not Implemented
     """
 
-    def __init__(
-        self, stac_api: str, collection_id: str, item_id: str, load: bool = True
-    ):
+    def __init__(self, stac_api: str, collection_id: str, item_id: str, load: bool = True):
         super().__init__(stac_api, collection_id, load)
         raise NotImplementedError("FIMCollectionRasDGItem is not implemented.")
         self._item_id = item_id
         if load:
             self.item = self.load_item()
         else:
-            raise KeyError(
-                f"Item `{self._item_id}` does not exist. Use new_item() to create."
-            )
+            raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")
 
     def __repr__(self) -> str:
         return f"FIMCollectionDGItem: {self._collection_id}-{self._item_id}"
 
-    def load_item(self):
+    def load_item(self) -> pystac.Item:
         try:
             return self.collection.get_item(self._item_id)
-        except Exception as e:
-            raise KeyError(
-                f"Item `{self._item_id}` does not exist. Use new_item() to create."
-            )
+        except Exception:
+            raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")

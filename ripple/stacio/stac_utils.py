@@ -1,6 +1,7 @@
+from typing import List
+
 import pystac
 import requests
-from typing import List
 
 
 def key_to_uri(key: str, bucket: str) -> str:

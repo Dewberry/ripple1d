@@ -1,50 +1,22 @@
 from __future__ import annotations
-import geopandas as gpd
-import pandas as pd
+
 import os
+
+import geopandas as gpd
+import numpy as np
 import rasterio
 from rasterio.enums import Resampling
-import numpy as np
-
-from ras import Ras
-
-# from osgeo import gdal
-
-
-def get_us_ds_rs(nwm_reach_gdf: gpd.GeoDataFrame, r: Ras):
-
-    xs = r.geom.cross_sections
-
-    xs = xs.sjoin(nwm_reach_gdf.to_crs(xs.crs))
-
-    us, ds, rivers, reaches = [], [], [], []
-    for id in nwm_reach_gdf["branch_id"]:
-
-        us.append(xs.loc[xs["branch_id"] == id, "rs"].max())
-        ds.append(xs.loc[xs["branch_id"] == id, "rs"].min())
-
-        river = xs.loc[xs["rs"] == us[-1], "river"].iloc[0]
-        reach = xs.loc[xs["rs"] == us[-1], "reach"].iloc[0]
-
-        rivers.append(river)
-        reaches.append(reach)
-
-    nwm_reach_gdf["us_rs"] = us
-    nwm_reach_gdf["ds_rs"] = ds
-
-    nwm_reach_gdf["river"] = rivers
-    nwm_reach_gdf["reach"] = reaches
-
-    return nwm_reach_gdf, r, xs
 
 
 def increment_rc_flows(nwm_dict: dict, increments: int = 10) -> dict:
     """
-    Determine flows to apply to the model for an initial rating curve by compiling the 2yr-100yr
+    Determine flows to apply to the model for an initial rating
+    curve incremented between flow_2_yr_minus and flow_100_yr_plus
 
     Args:
-        nwm_dict (dict): National water model branches
-        increments (int,optional): Number of flow increments between 2yr flow * min_ration and 100yr flow * max_ratio
+        nwm_dict (dict): National Water Model conflation data
+        increments (int,optional): Number of flow increments
+        between flow_2_yr_minus and flow_100_yr_plus
 
     Returns:
         dict: _description_
@@ -70,7 +42,9 @@ def clip_depth_grid(
     profile_name: str,
     dest_directory: str,
 ):
-
+    """
+    Clip the depth raster to a concave hull of the cross section associated with NWM branch.
+    """
     flow, depth = profile_name.split("-")
 
     dest_directory = os.path.join(dest_directory, id, depth)
@@ -109,5 +83,3 @@ def clip_depth_grid(
         with rasterio.open(dest_path, "r+") as dst:
             dst.build_overviews([4, 8, 16], Resampling.nearest)
             dst.update_tags(ns="rio_overview", resampling="nearest")
-
-    return dest_path

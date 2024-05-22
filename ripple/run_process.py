@@ -1,51 +1,64 @@
-from ras import Ras
-from utils import create_flow_depth_array
+import os
+import tempfile
+import warnings
+from urllib.parse import urlparse
+
 import boto3
 import botocore
-import os
-import pprint
-import sys
-from urllib.parse import urlparse
-from dotenv import load_dotenv, find_dotenv
-from nwm_reaches import increment_rc_flows
+import numpy as np
 import pystac_client
-from ras import RasMap, Ras
-from consts import TERRAIN_NAME, STAC_API_URL, MINDEPTH
-import tempfile
 import utils
-from nwm_reaches import clip_depth_grid
-import warnings
-from sqlite_utils import rating_curves_to_sqlite
+from consts import DEFAULT_EPSG, MINDEPTH, NORMAL_DEPTH, STAC_API_URL
+from dotenv import find_dotenv, load_dotenv
 from errors import DepthGridNotFoundError
-
+from nwm_reaches import clip_depth_grid, increment_rc_flows
+from ras import Ras, RasMap
+from sqlite_utils import rating_curves_to_sqlite
+from utils import create_flow_depth_array
 
 # load s3 credentials
 load_dotenv(find_dotenv())
 
-dewberrywrc_acct_session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-client = dewberrywrc_acct_session.client("s3")
+session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+client = session.client("s3")
 
 
-def read_ras_nwm(stac_href: str, ras_directory: str, bucket: str, client):
-
-    # read ras model and create cross section gdf
-    r = Ras(ras_directory, stac_href, client, bucket, default_epsg=2277)
+def read_ras_nwm(
+    stac_href: str,
+    ras_directory: str,
+    bucket: str,
+    client: boto3.session.Session.client,
+    default_epsg: int = DEFAULT_EPSG,
+) -> Ras:
+    """
+    Download RAS model and retrieve NWM conflation data.
+    """
+    # read ras model
+    r = Ras(ras_directory, stac_href, client, bucket, default_epsg=default_epsg)
     r.download_model()
     r.read_ras()
+
+    # create cross section gdf
     r.plan.geom.scan_for_xs()
+
+    # create nwm conflation dictionary
     r.create_nwm_dict()
 
     return r
 
 
-def run_rating_curves(r: Ras):
-
+def run_rating_curves(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
+    """
+    Write the flow/plan files needed to produce initial rating curves. 10 (default)
+    discharges are applied incremented evenly between flow_2_yr_minus and  flow_100_yr_plus
+    specified in the NWM conflation stac item.
+    """
     for branch_id, branch_data in r.nwm_dict.items():
 
         id = branch_id + "_rc"
 
         # write the new flow file
-        r.write_new_flow_rating_curves(id, branch_data, normal_depth=0.001)
+        r.write_new_flow_rating_curves(id, branch_data, normal_depth=normal_depth)
 
         # write the new plan file
         r.write_new_plan(r.geom, r.flows[id], id, id)
@@ -59,11 +72,14 @@ def run_rating_curves(r: Ras):
 
         # run the RAS plan
         r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=True)
+
     return r
 
 
 def get_new_flow_depth_arrays(r: Ras, branch_data: dict, upstream_downstream: str) -> tuple:
-
+    """
+    Create new flow and depth arrays from rating curve-plans results.
+    """
     # read in flow/wse
     rc = r.plan.read_rating_curves()
     wses, flows = rc.values()
@@ -87,11 +103,13 @@ def get_new_flow_depth_arrays(r: Ras, branch_data: dict, upstream_downstream: st
     # enforce min depth
     new_depth[new_depth < MINDEPTH] = MINDEPTH
 
-    return new_depth, new_flow
+    return (new_depth, new_flow)
 
 
-def determine_flow_increments(r: Ras, depth_increment: float):
-
+def determine_flow_increments(r: Ras, depth_increment: float = 0.5) -> Ras:
+    """
+    Detemine flow increments corresponding to 0.5 ft depth increments using the rating-curve-run results
+    """
     for branch_id, branch_data in r.nwm_dict.items():
 
         r.plan = r.plans[str(branch_id) + "_rc"]
@@ -123,7 +141,7 @@ def determine_flow_increments(r: Ras, depth_increment: float):
             new_flow_us = np.unique(np.concatenate([new_flow_us, new_flow_from_us_branch]))
 
         # get thalweg for the downstream cross section
-        thalweg = branch_data[f"downstream_data"]["min_elevation"]
+        thalweg = branch_data["downstream_data"]["min_elevation"]
 
         r.nwm_dict[branch_id]["us_flows"] = new_flow_us
         r.nwm_dict[branch_id]["ds_depths"] = new_depth_ds
@@ -132,13 +150,16 @@ def determine_flow_increments(r: Ras, depth_increment: float):
     return r
 
 
-def run_production_runs(r: Ras):
-
+def run_production_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
+    """
+    Write and compute the production run plans using the flow/wse increments determined from the
+    initial rating-curve-runs.
+    """
     for branch_id, branch_data in r.nwm_dict.items():
         print(f"Handling branch_id={branch_id}")
 
         # write the new flow file
-        r.write_new_flow_production_runs(branch_id, branch_data, 0.001)
+        r.write_new_flow_production_runs(branch_id, branch_data, normal_depth=normal_depth)
 
         # write the new plan file
         r.write_new_plan(r.geom, r.flows[branch_id], branch_id, branch_id)
@@ -178,7 +199,10 @@ def run_production_runs(r: Ras):
 
 
 def post_process_depth_grids(r: Ras, except_missing_grid: bool = False, dest_directory=None):
+    """
+    Clip depth grids based on their associated NWM branch and respective cross sections.
 
+    """
     xs = r.geom.cross_sections
 
     # contruct the dest directory for the clipped depth grid
@@ -220,7 +244,7 @@ def post_process_depth_grids(r: Ras, except_missing_grid: bool = False, dest_dir
                     raise DepthGridNotFoundError(f"depth raster does not exists: {depth_file}")
 
             # clip the depth grid naming it with with branch_id, downstream depth, and flow
-            out_file = clip_depth_grid(
+            clip_depth_grid(
                 depth_file,
                 xs_hull,
                 id,
@@ -236,20 +260,32 @@ def main(
     s3_resource: boto3.resources.factory.ServiceResource,
     s3_client: botocore.client.BaseClient,
     depth_increment: float,
+    number_of_discharges_for_rating_curve: int = 10,
 ):
+    """
+    Processes 1 RAS-STAC item at a time. Processes all NWM branches identified in the
+    conflation parameters asset of the STAC item.
+    """
 
+    # read stac item, download ras model, load nwm conflation parameters
     r = read_ras_nwm(stac_href, ras_directory, bucket, s3_client)
 
-    r.nwm_dict = increment_rc_flows(r.nwm_dict, 10)
+    # increment flows based on min and max flows specified in conflation parameters
+    r.nwm_dict = increment_rc_flows(r.nwm_dict, number_of_discharges_for_rating_curve)
 
+    # write and compute initial flows/plans to develop rating curves
     run_rating_curves(r)
 
+    # determine flow increments from rating curves derived from initial runs
     r = determine_flow_increments(r, depth_increment)
 
+    # write and compute flow/plans for production runs
     r = run_production_runs(r)
 
+    # post process the depth grids
     post_process_depth_grids(r)
 
+    # post process the rating curves
     rating_curves_to_sqlite(r)
 
     utils.s3_delete_dir_recursively(s3_dir=r.postprocessed_output_s3_path, s3_resource=s3_resource)
@@ -267,6 +303,7 @@ if __name__ == "__main__":
     collection_id = "huc-12040101"
     bucket = "fim"
     depth_increment = 0.5
+    number_of_discharges_for_rating_curve = 10
 
     load_dotenv(find_dotenv())
 
@@ -314,7 +351,15 @@ if __name__ == "__main__":
                 ras_directory = os.path.realpath(ras_directory)
 
                 print(f"Processing {repr(ras_model_stac_href)}, writing to folder {repr(ras_directory)}")
-                main(ras_model_stac_href, ras_directory, bucket, s3_resource, s3_client, depth_increment)
+                main(
+                    ras_model_stac_href,
+                    ras_directory,
+                    bucket,
+                    s3_resource,
+                    s3_client,
+                    depth_increment,
+                    number_of_discharges_for_rating_curve,
+                )
 
         except Exception as e:
             utils.s3_upload_status_file(ras_model_stac_href, bucket, s3_client, e)

@@ -1,24 +1,23 @@
-from datetime import datetime
-import pystac_client
-import pystac
-import os
-import boto3
 import json
-import requests
 import logging
-
+import os
+from datetime import datetime
 from pathlib import Path
 
-from ripple.conflate.rasfim import RasFimConflater, nwm_conflated_reaches
-from ripple.conflate.rasfim import STAC_API_URL
-from ripple.conflate.run_rasfim import conflate_branches, point_method_conflation
+import boto3
+import pystac
+import pystac_client
+import requests
+
 from ripple.conflate.plotter import plot_conflation_results
+from ripple.conflate.rasfim import STAC_API_URL, RasFimConflater, nwm_conflated_reaches
+from ripple.conflate.run_rasfim import conflate_branches, point_method_conflation
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
 
 
-def upsert_item(endpoint: str, collection_id: str, item: pystac.Item):
+def upsert_item(endpoint: str, collection_id: str, item: pystac.Item) -> str:
     items_url = f"{endpoint}/collections/{collection_id}/items"
     response = requests.post(items_url, json=item.to_dict())
     if response.status_code == 409:
@@ -47,9 +46,7 @@ def main(item, client, bucket, collection_id, rfc, river_reach_name):
         fim_stream = nwm_conflated_reaches(rfc, summary)
 
         ripple_parameters_key = f"{s3_prefix}/ripple_parameters.json"
-        ripple_parameters_href = (
-            f"https://{bucket}.s3.amazonaws.com/{ripple_parameters_key}"
-        )
+        ripple_parameters_href = f"https://{bucket}.s3.amazonaws.com/{ripple_parameters_key}"
 
         client.put_object(
             Body=json.dumps(summary).encode(),
@@ -72,17 +69,11 @@ def main(item, client, bucket, collection_id, rfc, river_reach_name):
         )
 
         for asset in item.get_assets():
-            item.assets[asset].href = item.assets[asset].href.replace(
-                "https:/fim", "https://fim"
-            )
+            item.assets[asset].href = item.assets[asset].href.replace("https:/fim", "https://fim")
         limit_plot = True
 
-    conflation_thumbnail_key = (
-        f"stac/{collection_id}/thumbnails/{item.id}-conflation.png".replace(" ", "")
-    )
-    conflation_thumbnail_href = (
-        f"https://{bucket}.s3.amazonaws.com/{conflation_thumbnail_key}"
-    )
+    conflation_thumbnail_key = f"stac/{collection_id}/thumbnails/{item.id}-conflation.png".replace(" ", "")
+    conflation_thumbnail_href = f"https://{bucket}.s3.amazonaws.com/{conflation_thumbnail_key}"
 
     item.properties["NWM_FIM:Conflation_Metrics"] = conflation_metrics
 
@@ -144,9 +135,7 @@ if __name__ == "__main__":
         for asset in item.get_assets(role="ras-geometry-gpkg"):
             gpkg_name = Path(item.assets[asset].href).name
             s3_prefix = (
-                item.assets[asset]
-                .href.replace(f"https://{bucket}.s3.amazonaws.com/", "")
-                .replace(f"/{gpkg_name}", "")
+                item.assets[asset].href.replace(f"https://{bucket}.s3.amazonaws.com/", "").replace(f"/{gpkg_name}", "")
             )
             ras_gpkg = href_to_vsis(item.assets[asset].href, bucket="fim")
 

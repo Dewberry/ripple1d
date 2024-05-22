@@ -3,12 +3,11 @@ from __future__ import annotations
 import logging
 
 import pystac_client
-import pystac
 from dotenv import find_dotenv, load_dotenv
 
 from ripple import consts
-from ripple.utils import init_log
 from ripple.exe import make_ras_terrain
+from ripple.utils import init_log
 
 load_dotenv(find_dotenv())
 

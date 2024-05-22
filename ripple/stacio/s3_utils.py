@@ -1,12 +1,12 @@
-import boto3
+import json
 import os
 import re
 
-import json
+import boto3
 import boto3.session
 
 
-def list_keys(s3_client: boto3.Session.client, bucket: str, prefix: str, suffix=""):
+def list_keys(s3_client: boto3.Session.client, bucket: str, prefix: str, suffix="") -> list:
     keys = []
     kwargs = {"Bucket": bucket, "Prefix": prefix}
     while True:
@@ -19,18 +19,14 @@ def list_keys(s3_client: boto3.Session.client, bucket: str, prefix: str, suffix=
     return keys
 
 
-def list_keys_regex(
-    s3_client: boto3.Session.client, bucket: str, prefix_includes: str, suffix=""
-):
+def list_keys_regex(s3_client: boto3.Session.client, bucket: str, prefix_includes: str, suffix="") -> list:
     keys = []
     kwargs = {"Bucket": bucket, "Prefix": prefix_includes}
     prefix_pattern = re.compile(prefix_includes.replace("*", ".*"))
     while True:
         resp = s3_client.list_objects_v2(**kwargs)
         keys += [
-            obj["Key"]
-            for obj in resp["Contents"]
-            if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
+            obj["Key"] for obj in resp["Contents"] if prefix_pattern.match(obj["Key"]) and obj["Key"].endswith(suffix)
         ]
         try:
             kwargs["ContinuationToken"] = resp["NextContinuationToken"]
@@ -51,16 +47,16 @@ def init_s3_resources():
     return session, s3_client, s3_resource
 
 
-def check_s3_key_exists(bucket: str, key: str):
+def check_s3_key_exists(bucket: str, key: str) -> bool:
     s3 = boto3.client("s3")
     try:
         s3.head_object(Bucket=bucket, Key=key)
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 
-def read_json_from_s3(bucket: str, key: str):
+def read_json_from_s3(bucket: str, key: str) -> dict:
     s3 = boto3.client("s3")
     response = s3.get_object(Bucket=bucket, Key=key)
     file_content = response["Body"].read().decode("utf-8")
