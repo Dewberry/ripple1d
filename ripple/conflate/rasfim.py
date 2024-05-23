@@ -326,7 +326,7 @@ def calculate_conflation_metrics(
         manual_check_required = False
 
     elif dangling_xs_interesects.shape[0] == 0:
-        conlfation_notes = f"Probable Conflation. Score = {conflation_score}% with {dangling_xs.shape[0]} dangling xs"
+        conlfation_notes = f"Unable to conflate: score"
         manual_check_required = False
 
     elif conflation_score >= 0.25:
