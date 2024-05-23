@@ -2,26 +2,23 @@ from __future__ import annotations
 
 import datetime
 import glob
-import json
 import os
 import re
 import subprocess
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 import boto3
 import geopandas as gpd
 import h5py
 import numpy as np
 import pandas as pd
-import pystac
 import rasterio
 import rasterio.mask
 import win32com.client
 from consts import TERRAIN_NAME
 from errors import (
-    ModelNotDownloadedError,
+    ModelNotFoundError,
     NoDefaultEPSGError,
     ProjectionNotFoundError,
     RASComputeError,
@@ -32,9 +29,8 @@ from errors import (
 )
 from pyproj import CRS
 from rasmap import PLAN, RASMAP_631, TERRAIN
-from requests.utils import requote_uri
 from shapely.geometry import LineString, Point, Polygon
-from utils import decode, get_terrain_exe_path, s3_get_output_s3path
+from utils import decode, get_terrain_exe_path
 
 
 @dataclass
@@ -79,8 +75,6 @@ class Ras:
 
     Attributes:
     ----------
-    stac_href : href for the stac item representation of the HEC-RAS model
-    stac_item : stac item representing the HEC-RAS model
     client : s3 client if reading from s3 (default=None)
     bucket : s3 bucket if treading from s3 (default=None)
     ras_folder : directory/s3 location where the ras model will be placed
@@ -103,9 +97,11 @@ class Ras:
     def __init__(
         self,
         path: str,
-        stac_href: str,
+        nwm_dict: dict,
+        terrain_name: str,
         s3_client: boto3.client = None,
         s3_bucket: str = None,
+        postprocessed_output_s3_path: str = None,
         version: str = "631",
         default_epsg: int = None,
     ):
@@ -113,9 +109,11 @@ class Ras:
 
         Args:
             path (str): directory/s3 location where the ras model will be placed
-            stac_href (str): href for the stac item representation of the HEC-RAS model
+            nwm_dict (dict): nwm conflation parameters
+            terrain_name (str): name of the terrain
             s3_client (boto3.client, optional): s3 client if reading from s3. Defaults to None.
             s3_bucket (str, optional): s3 bucket if treading from s3. Defaults to None.
+            postprocessed_output_s3_path: (str): s3 path for output rasters/sqlite
             version (str, optional): HEC-RAS version. Defaults to "631".
             default_epsg (int, optional): EPSG to default to if a projection cannot be found. Defaults to None.
         """
@@ -124,12 +122,12 @@ class Ras:
         self.bucket = s3_bucket
 
         self.ras_folder = path
+        self.terrain_name = terrain_name
         self.postprocessed_output_folder = os.path.join(self.ras_folder, "output")
-        self.postprocessed_output_s3_path = s3_get_output_s3path(s3_bucket, stac_href)
+        self.postprocessed_output_s3_path = postprocessed_output_s3_path
         self.default_epsg = default_epsg
         self.version = version
-        self.stac_href = stac_href
-        self.stac_item = pystac.Item.from_file(requote_uri(self.stac_href))
+        self.nwm_dict = nwm_dict
 
         self.projection_file = None
         self.projection = ""
@@ -141,15 +139,8 @@ class Ras:
         self.plan = None
         self.geom = None
         self.flow = None
-        self.terrain_name = None
 
     def read_ras(self):
-
-        if not self.model_downloaded:
-
-            raise ModelNotDownloadedError(
-                "The RAS model must be downloaded from STAC prior to reading. Try Ras.download_model() "
-            )
 
         self.get_ras_project_file()
         self.get_ras_projection()
@@ -164,47 +155,6 @@ class Ras:
         self.get_active_plan()
 
         self.terrain_exe = get_terrain_exe_path(self.version)
-
-    def create_nwm_dict(self):
-
-        # create nwm dataframe
-        for _, asset in self.stac_item.get_assets(role="ripple-params").items():
-
-            response = self.client.get_object(
-                Bucket=self.bucket, Key=asset.href.replace(f"https://{self.bucket}.s3.amazonaws.com/", "")
-            )
-            json_data = response["Body"].read()
-            self.nwm_dict = json.loads(json_data)
-
-    def download_model(self):
-        """
-        Download HEC-RAS model from stac href
-        """
-
-        # make RAS directory if it does not exists
-        if not os.path.exists(self.ras_folder):
-            os.makedirs(self.ras_folder)
-
-        # download HEC-RAS model files
-        for _, asset in self.stac_item.get_assets(role="ras-file").items():
-
-            s3_key = asset.extra_fields["s3_key"]
-
-            file = os.path.join(self.ras_folder, Path(s3_key).name)
-            self.client.download_file(self.bucket, s3_key, file)
-
-        # download HEC-RAS topo files
-        for _, asset in self.stac_item.get_assets(role="ras-topo").items():
-
-            s3_key = asset.extra_fields["s3_key"]
-
-            file = os.path.join(self.ras_folder, Path(s3_key).name)
-            self.client.download_file(self.bucket, s3_key, file)
-
-            if ".hdf" in Path(s3_key).name:
-                self.terrain_name = Path(s3_key).name.rstrip(".hdf")
-
-        self.model_downloaded = True
 
     def read_content(self):
         """
@@ -711,6 +661,10 @@ class Ras:
                 if "Proj Title=" in lines[0]:
                     self.ras_project_file = prj
                     break
+
+        if not self.ras_project_file:
+
+            raise ModelNotFoundError(f"Could  not find a HEC-RAS project in the specified directory: {self.path}")
 
     def get_ras_files(self, file_type: str) -> list[str]:
         """

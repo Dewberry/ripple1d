@@ -7,6 +7,7 @@ import pathlib
 import posixpath
 import traceback
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urlparse
 
 import boto3
@@ -14,11 +15,11 @@ import botocore
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
+import pystac
 import rasterio
 from dotenv import find_dotenv, load_dotenv
-from shapely.geometry import LineString, Point, Polygon
-from shapely.validation import make_valid
+from requests.utils import requote_uri
+from shapely.geometry import Point, Polygon
 
 load_dotenv(find_dotenv())
 
@@ -240,3 +241,67 @@ def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
 
     return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=xs.crs)
+
+
+def derive_input_from_stac_item(
+    ras_model_stac_href: str, ras_directory: str, client: boto3.session.Session.client, bucket: str
+) -> tuple:
+
+    # read stac item
+    stac_item = pystac.Item.from_file(requote_uri(ras_model_stac_href))
+
+    # download RAS model from stac item. derive terrain_name during download.
+    # terrain_name is the basename of the terrain hdf without extension.
+    terrain_name = download_model(stac_item, ras_directory, client, bucket)
+
+    # get nwm conflation parameters
+    nwm_dict = create_nwm_dict_from_stac_item(stac_item, client, bucket)
+
+    # directory for post processed depth grids/sqlite db. The default is None which will not upload to s3
+    postprocessed_output_s3_path = s3_get_output_s3path(bucket, ras_model_stac_href)
+
+    return terrain_name, nwm_dict, postprocessed_output_s3_path
+
+
+def create_nwm_dict_from_stac_item(stac_item: pystac.Item, client: boto3.session.Session.client, bucket: str) -> dict:
+
+    # create nwm dictionary
+    for _, asset in stac_item.get_assets(role="ripple-params").items():
+
+        response = client.get_object(Bucket=bucket, Key=asset.href.replace(f"https://{bucket}.s3.amazonaws.com/", ""))
+        json_data = response["Body"].read()
+
+    return json.loads(json_data)
+
+
+def download_model(
+    stac_item: pystac.Item, ras_directory: str, client: boto3.session.Session.client, bucket: str
+) -> str:
+    """
+    Download HEC-RAS model from stac href
+    """
+
+    # make RAS directory if it does not exists
+    if not os.path.exists(ras_directory):
+        os.makedirs(ras_directory)
+
+    # download HEC-RAS model files
+    for _, asset in stac_item.get_assets(role="ras-file").items():
+
+        s3_key = asset.extra_fields["s3_key"]
+
+        file = os.path.join(ras_directory, Path(s3_key).name)
+        client.download_file(bucket, s3_key, file)
+
+    # download HEC-RAS topo files
+    for _, asset in stac_item.get_assets(role="ras-topo").items():
+
+        s3_key = asset.extra_fields["s3_key"]
+
+        file = os.path.join(ras_directory, Path(s3_key).name)
+        client.download_file(bucket, s3_key, file)
+
+        if ".hdf" in Path(s3_key).name:
+            terrain_name = Path(s3_key).name.rstrip(".hdf")
+
+    return terrain_name
