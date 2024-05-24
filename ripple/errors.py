@@ -10,6 +10,10 @@ class ModelNotFoundError(Exception):
     pass
 
 
+class HECRASVersionNotInstalledError(Exception):
+    pass
+
+
 class RASComputeTimeoutError(Exception):
     """Raised on timeout of API call to Compute_CurrentPlan."""
 

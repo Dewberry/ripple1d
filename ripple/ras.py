@@ -18,6 +18,7 @@ import rasterio.mask
 import win32com.client
 from consts import TERRAIN_NAME
 from errors import (
+    HECRASVersionNotInstalledError,
     ModelNotFoundError,
     NoDefaultEPSGError,
     ProjectionNotFoundError,
@@ -28,6 +29,7 @@ from errors import (
     RASStoreAllMapsError,
 )
 from pyproj import CRS
+from pythoncom import com_error
 from rasmap import PLAN, RASMAP_631, TERRAIN
 from shapely.geometry import LineString, Point, Polygon
 from utils import decode, get_terrain_exe_path
@@ -126,7 +128,8 @@ class Ras:
         self.postprocessed_output_folder = os.path.join(self.ras_folder, "output")
         self.postprocessed_output_s3_path = postprocessed_output_s3_path
         self.default_epsg = default_epsg
-        self.version = version
+        self.check_version_installed(version)
+
         self.nwm_dict = nwm_dict
 
         self.projection_file = None
@@ -139,6 +142,16 @@ class Ras:
         self.plan = None
         self.geom = None
         self.flow = None
+
+    def check_version_installed(self, version: str):
+
+        try:
+            assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER")
+            self.version = version
+        except com_error:
+            raise HECRASVersionNotInstalledError(
+                f"Could not find the specified RAS version; please ensure it is installed. Version provided: {version}."
+            )
 
     def read_ras(self):
 
@@ -402,7 +415,7 @@ class Ras:
                     current_plan_code = line[len("Current Plan=") :].strip()
         compute_message_file = os.path.splitext(self.ras_project_file)[0] + f".{current_plan_code}.computeMsgs.txt"
 
-        RC = win32com.client.Dispatch("RAS631.HECRASCONTROLLER")
+        RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER")
         try:
             RC.Project_Open(self.ras_project_file)
             if show_ras:
