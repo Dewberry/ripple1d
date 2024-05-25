@@ -2,12 +2,12 @@
     "2823972": {
         "up_xs": {
             "min_el": 33.59,
-            "max_el": 85.84,
+            "max_elevation": 85.84,
             "xs_id": "47694."
         },
         "ds_xs": {
             "min_el": 29.61,
-            "max_el": 79.84,
+            "max_elevation": 79.84,
             "xs_id": "39012."
         },
         "low_flow_cfs": 4774.55,
@@ -17,12 +17,12 @@
     "2823960": {
         "up_xs": {
             "min_el": 50.0,
-            "max_el": 105.42,
+            "max_elevation": 105.42,
             "xs_id": "78658."
         },
         "ds_xs": {
             "min_el": 34.0,
-            "max_el": 85.52,
+            "max_elevation": 85.52,
             "xs_id": "48209."
         },
         "low_flow_cfs": 4745.59

@@ -2,12 +2,12 @@
     "2823972": {
         "up_xs": {
             "min_el": 33.59,
-            "max_el": 85.84,
+            "max_elevation": 85.84,
             "xs_id": "47694."
         },
         "ds_xs": {
             "min_el": 29.61,
-            "max_el": 79.84,
+            "max_elevation": 79.84,
             "xs_id": "39012."
         },
         "low_flow_cfs": 4774.55,
@@ -17,12 +17,12 @@
     "2823932": {
         "up_xs": {
             "min_el": 55.0,
-            "max_el": 120.02,
+            "max_elevation": 120.02,
             "xs_id": "84000."
         },
         "ds_xs": {
             "min_el": 45.0,
-            "max_el": 120.0,
+            "max_elevation": 120.0,
             "xs_id": "82599."
         },
         "low_flow_cfs": 4724.75
@@ -30,12 +30,12 @@
     "2823960": {
         "up_xs": {
             "min_el": 50.0,
-            "max_el": 105.42,
+            "max_elevation": 105.42,
             "xs_id": "78658."
         },
         "ds_xs": {
             "min_el": 34.0,
-            "max_el": 85.52,
+            "max_elevation": 85.52,
             "xs_id": "48209."
         },
         "low_flow_cfs": 4745.59
@@ -43,12 +43,12 @@
     "2826230": {
         "up_xs": {
             "min_el": 35.1,
-            "max_el": 120.06,
+            "max_elevation": 120.06,
             "xs_id": "81920."
         },
         "ds_xs": {
             "min_el": 45.0,
-            "max_el": 112.4,
+            "max_elevation": 112.4,
             "xs_id": "81236."
         },
         "low_flow_cfs": 4726.16
@@ -56,12 +56,12 @@
     "2823934": {
         "up_xs": {
             "min_el": 55.0,
-            "max_el": 110.29,
+            "max_elevation": 110.29,
             "xs_id": "80916."
         },
         "ds_xs": {
             "min_el": 55.0,
-            "max_el": 110.01,
+            "max_elevation": 110.01,
             "xs_id": "80377."
         },
         "low_flow_cfs": 4726.87
@@ -69,12 +69,12 @@
     "2826224": {
         "up_xs": {
             "min_el": 50.0,
-            "max_el": 110.0,
+            "max_elevation": 110.0,
             "xs_id": "79577."
         },
         "ds_xs": {
             "min_el": 35.1,
-            "max_el": 107.8,
+            "max_elevation": 107.8,
             "xs_id": "79082."
         },
         "low_flow_cfs": 4727.93

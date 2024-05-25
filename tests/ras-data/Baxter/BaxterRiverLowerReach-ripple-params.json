@@ -2,12 +2,12 @@
     "2820012": {
         "up_xs": {
             "min_el": 26.9,
-            "max_el": 61.62,
+            "max_elevation": 61.62,
             "xs_id": "12789."
         },
         "ds_xs": {
             "min_el": 23.0,
-            "max_el": 58.45,
+            "max_elevation": 58.45,
             "xs_id": "3552."
         },
         "low_flow_cfs": 4756.18
@@ -15,12 +15,12 @@
     "2820006": {
         "up_xs": {
             "min_el": 25.8,
-            "max_el": 65.0,
+            "max_elevation": 65.0,
             "xs_id": "13617."
         },
         "ds_xs": {
             "min_el": 25.8,
-            "max_el": 61.03,
+            "max_elevation": 61.03,
             "xs_id": "13104."
         },
         "low_flow_cfs": 4756.18
@@ -28,12 +28,12 @@
     "2823972": {
         "up_xs": {
             "min_el": 33.59,
-            "max_el": 85.84,
+            "max_elevation": 85.84,
             "xs_id": "47694."
         },
         "ds_xs": {
             "min_el": 29.61,
-            "max_el": 79.84,
+            "max_elevation": 79.84,
             "xs_id": "39012."
         },
         "low_flow_cfs": 4774.55,
@@ -43,12 +43,12 @@
     "2820002": {
         "up_xs": {
             "min_el": 31.9,
-            "max_el": 85.84,
+            "max_elevation": 85.84,
             "xs_id": "38312."
         },
         "ds_xs": {
             "min_el": 25.5,
-            "max_el": 65.0,
+            "max_elevation": 65.0,
             "xs_id": "14214."
         },
         "low_flow_cfs": 4756.18
