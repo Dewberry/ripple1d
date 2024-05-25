@@ -341,9 +341,9 @@ def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
     multiline = xs.geometry.values[0]
     if isinstance(multiline, MultiLineString):
         for linestring in multiline.geoms:
-            min_el = min([p[2] for p in linestring.coords])
+            min_elevation = min([p[2] for p in linestring.coords])
             max_elevation = max([p[2] for p in linestring.coords])
-    return {"min_el": min_el, "max_elevation": max_elevation}
+    return {"min_elevation": min_elevation, "max_elevation": max_elevation}
 
 
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):

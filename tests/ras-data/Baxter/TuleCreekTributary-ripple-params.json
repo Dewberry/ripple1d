@@ -1,12 +1,12 @@
 {
     "2823972": {
         "up_xs": {
-            "min_el": 33.59,
+            "min_elevation": 33.59,
             "max_elevation": 85.84,
             "xs_id": "47694."
         },
         "ds_xs": {
-            "min_el": 29.61,
+            "min_elevation": 29.61,
             "max_elevation": 79.84,
             "xs_id": "39012."
         },
@@ -16,12 +16,12 @@
     },
     "2823960": {
         "up_xs": {
-            "min_el": 50.0,
+            "min_elevation": 50.0,
             "max_elevation": 105.42,
             "xs_id": "78658."
         },
         "ds_xs": {
-            "min_el": 34.0,
+            "min_elevation": 34.0,
             "max_elevation": 85.52,
             "xs_id": "48209."
         },
