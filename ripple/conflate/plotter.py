@@ -25,9 +25,7 @@ def plot_conflation_results(
     _, ax = plt.subplots(figsize=(10, 10))
 
     # Plot the centerline and cross-sections first
-    rfc.ras_centerlines.plot(
-        ax=ax, color="black", label="RAS Centerline", alpha=0.5, linestyle="dashed"
-    )
+    rfc.ras_centerlines.plot(ax=ax, color="black", label="RAS Centerline", alpha=0.5, linestyle="dashed")
     rfc.ras_xs.plot(ax=ax, color="green", label="RAS XS", markersize=2, alpha=0.2)
 
     # Get the current axis limits and create a rectangle geometry
@@ -36,9 +34,7 @@ def plot_conflation_results(
     bounds = shapely.geometry.box(xlim[0], ylim[0], xlim[1], ylim[1])
 
     # Add a patch for the ras_centerline
-    patches = [
-        mpatches.Patch(color="black", label="RAS Centerline", linestyle="dashed")
-    ]
+    patches = [mpatches.Patch(color="black", label="RAS Centerline", linestyle="dashed")]
 
     # Add a patch for nearby reaches
     patches.append(mpatches.Patch(color="blue", label="Nearby NWM reaches", alpha=0.3))
@@ -57,10 +53,7 @@ def plot_conflation_results(
         fim_stream.plot(color=fim_stream["color"], ax=ax, linewidth=2, alpha=0.8)
         # Create a custom legend using the colormap
         patches.extend(
-            [
-                mpatches.Patch(color=colormap[reach_id], label=f"reach {reach_id}")
-                for reach_id in unique_reach_ids
-            ]
+            [mpatches.Patch(color=colormap[reach_id], label=f"reach {reach_id}") for reach_id in unique_reach_ids]
         )
 
     zoom_factor = 3  # Adjust this value to change the zoom level

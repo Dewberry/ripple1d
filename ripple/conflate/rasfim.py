@@ -45,9 +45,7 @@ class RasFimConflater:
         DriverError: Unable to read the GeoPackage
     """
 
-    def __init__(
-        self, nwm_pq: str, ras_gpkg: str, load_data: bool = True, bucket="fim"
-    ):
+    def __init__(self, nwm_pq: str, ras_gpkg: str, load_data: bool = True, bucket="fim"):
         self.nwm_pq = nwm_pq
         self.ras_gpkg = ras_gpkg
         self.bucket = bucket
@@ -130,9 +128,7 @@ class RasFimConflater:
 
     def get_projected_bbox(self, gdf: gpd.GeoDataFrame) -> Polygon:
         assert gdf.crs, "GeoDataFrame must have a CRS"
-        project = pyproj.Transformer.from_crs(
-            gdf.crs, NWM_CRS, always_xy=True
-        ).transform
+        project = pyproj.Transformer.from_crs(gdf.crs, NWM_CRS, always_xy=True).transform
         return transform(project, box(*tuple(gdf.total_bounds)))
 
     @property
@@ -149,11 +145,7 @@ class RasFimConflater:
         local_reaches = self.local_nwm_reaches
         gages = local_reaches["gages"]
         reach_ids = local_reaches["ID"]
-        return {
-            reach_id: gage
-            for reach_id, gage in zip(reach_ids, gages)
-            if pd.notna(gage) and gage.strip()
-        }
+        return {reach_id: gage for reach_id, gage in zip(reach_ids, gages) if pd.notna(gage) and gage.strip()}
 
     def local_lakes(self):
         raise NotImplementedError
@@ -169,26 +161,20 @@ class RasFimConflater:
 
             river_reach_name = kwargs.get("river_reach_name", None)
             if river_reach_name:
-                print(
-                    "No river_reach_name specified, using first and only centerline found."
-                )
+                print("No river_reach_name specified, using first and only centerline found.")
                 centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
             else:
                 if self.ras_centerlines.shape[0] == 1:
                     centerline = self.ras_centerlines.geometry.iloc[0]
                 else:
-                    raise ValueError(
-                        "Multiple centerlines found, please specify river_reach_name"
-                    )
+                    raise ValueError("Multiple centerlines found, please specify river_reach_name")
             kwargs["centerline"] = centerline
             return func(self, *args, **kwargs)
 
         return wrapper
 
     @check_centerline
-    def ras_start_end_points(
-        self, river_reach_name: str = None, centerline=None
-    ) -> Tuple[Point, Point]:
+    def ras_start_end_points(self, river_reach_name: str = None, centerline=None) -> Tuple[Point, Point]:
         """
         river_reach_name used by the decorator to get the centerline
         """
@@ -202,9 +188,7 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
     return Point(start_point), Point(end_point)
 
 
-def nearest_line_to_point(
-    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID"
-) -> int:
+def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID") -> int:
     if not column_id in lines.columns:
         raise ValueError("required `ID` column not found in GeoDataFrame")
 
@@ -231,10 +215,7 @@ def convert_linestring_to_points(
     if num_points == 0:
         num_points = 1
 
-    points = [
-        linestring.interpolate(distance)
-        for distance in np.linspace(0, linestring.length, num_points)
-    ]
+    points = [linestring.interpolate(distance) for distance in np.linspace(0, linestring.length, num_points)]
 
     return gpd.GeoDataFrame(
         geometry=points,
@@ -242,9 +223,7 @@ def convert_linestring_to_points(
     )
 
 
-def cacl_avg_nearest_points(
-    reference_gdf: gpd.GeoDataFrame, compare_points_gdf: gpd.GeoDataFrame
-) -> float:
+def cacl_avg_nearest_points(reference_gdf: gpd.GeoDataFrame, compare_points_gdf: gpd.GeoDataFrame) -> float:
     multipoint = compare_points_gdf.geometry.unary_union
     reference_gdf["nearest_distance"] = reference_gdf.geometry.apply(
         lambda point: point.distance(nearest_points(point, multipoint)[1])
@@ -252,18 +231,14 @@ def cacl_avg_nearest_points(
     return reference_gdf["nearest_distance"].mean()
 
 
-def count_intersecting_lines(
-    ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataFrame
-) -> int:
+def count_intersecting_lines(ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataFrame) -> int:
     if ras_xs.crs != nwm_reaches.crs:
         ras_xs = ras_xs.to_crs(nwm_reaches.crs)
     join_gdf = gpd.sjoin(ras_xs, nwm_reaches, predicate="intersects")
     return join_gdf
 
 
-def filter_gdf(
-    gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "id"
-) -> gpd.GeoDataFrame:
+def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "id") -> gpd.GeoDataFrame:
     return gdf[~gdf[column_name].isin(column_values)]
 
 
@@ -298,14 +273,10 @@ def calculate_conflation_metrics(
     xs_hits_ids = []
     total_hits = 0
     for i in candidate_reaches.index:
-        candidate_reach_points = convert_linestring_to_points(
-            candidate_reaches.loc[i].geometry, crs=rfc.common_crs
-        )
+        candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
         if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 2000:
             next_round_candidates.append(candidate_reaches.loc[i]["ID"])
-            gdftmp = gpd.GeoDataFrame(
-                geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs
-            )
+            gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
             xs_hits = count_intersecting_lines(xs_group, gdftmp)
 
             total_hits += xs_hits.shape[0]
@@ -315,9 +286,7 @@ def calculate_conflation_metrics(
 
     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
 
-    dangling_xs_interesects = gpd.sjoin(
-        dangling_xs, rfc.nwm_reaches, predicate="intersects"
-    )
+    dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_reaches, predicate="intersects")
 
     conflation_score = round(total_hits / xs_group.shape[0], 2)
 
@@ -386,9 +355,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):
     }
 
 
-def ras_reaches_metadata(
-    rfc: RasFimConflater, low_flow_df: pd.DataFrame, candidate_reaches: gpd.GeoDataFrame
-):
+def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candidate_reaches: gpd.GeoDataFrame):
     reach_metadata = OrderedDict()
     for reach in candidate_reaches.itertuples():
         reach_geom = reach.geometry
@@ -402,9 +369,7 @@ def ras_reaches_metadata(
     for k in reach_metadata.keys():
         low_flow = low_flow_df[low_flow_df.feature_id == k]
         try:
-            reach_metadata[k]["low_flow_cfs"] = round(
-                low_flow.iloc[0]["discharge_cfs"], 2
-            )
+            reach_metadata[k]["low_flow_cfs"] = round(low_flow.iloc[0]["discharge_cfs"], 2)
         except IndexError as e:
             print(f"warning 1: no low flow data for reach {k}: error {e}")
             reach_metadata[k]["low_flow_cfs"] = -9999
@@ -415,9 +380,7 @@ def ras_reaches_metadata(
         if k in rfc.local_gages.keys():
             gage_id = rfc.local_gages[k].replace(" ", "")
             reach_metadata[k]["gage"] = gage_id
-            reach_metadata[k][
-                "gage_url"
-            ] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
+            reach_metadata[k]["gage_url"] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
 
     sorted_data = dict(
         sorted(
