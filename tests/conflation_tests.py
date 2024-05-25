@@ -1,7 +1,6 @@
 import json
 import os
 import unittest
-from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
 import pandas as pd
