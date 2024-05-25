@@ -160,8 +160,9 @@ class RasFimConflater:
             assert self.__data_loaded, "Data not loaded"
 
             river_reach_name = kwargs.get("river_reach_name", None)
+
             if river_reach_name:
-                print("No river_reach_name specified, using first and only centerline found.")
+                # print("river_reach_name", river_reach_name)
                 centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
             else:
                 if self.ras_centerlines.shape[0] == 1:
@@ -178,7 +179,17 @@ class RasFimConflater:
         """
         river_reach_name used by the decorator to get the centerline
         """
+        if river_reach_name:
+            centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
         return endpoints_from_multiline(centerline)
+
+    def ras_centerline_by_river_reach_name(self, river_reach_name: str) -> LineString:
+        return self.ras_centerlines[self.ras_centerlines.id == river_reach_name].geometry.iloc[0]
+
+    def xs_by_river_reach_name(self, river_reach_name: str) -> gpd.GeoDataFrame:
+        return self.ras_xs[
+            self.ras_xs["fields"].apply(lambda x: json.loads(x).get("RiverReachName") == river_reach_name)
+        ]
 
 
 # general geospatial functions
@@ -382,12 +393,15 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
             reach_metadata[k]["gage"] = gage_id
             reach_metadata[k]["gage_url"] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
 
-    sorted_data = dict(
-        sorted(
-            reach_metadata.items(),
-            key=lambda item: int(item[1]["up_xs"]["xs_id"]),
-            reverse=True,
+    try:
+        return dict(
+            sorted(
+                reach_metadata.items(),
+                key=lambda item: int(item[1]["up_xs"]["xs_id"]),
+                reverse=True,
+            )
         )
-    )
-
-    return sorted_data
+    except ValueError as e:
+        # Occurs where stations are floats and not integers
+        # print(f"warning 2: error {e}")
+        return reach_metadata
