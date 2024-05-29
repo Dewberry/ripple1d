@@ -300,7 +300,9 @@ class Ras:
         # add new flow to the ras class
         self.flows[title] = flow
 
-    def write_new_flow_production_runs(self, title: str, branch_data: pd.Series, normal_depth: float):
+    def write_new_flow_production_runs(
+        self, title: str, branch_data: pd.Series, normal_depth: float, intermediate_known_wse: bool = False
+    ):
         """
         Write a new flow file contaning the specified title, branch_data, and normal depth.
 
@@ -309,17 +311,24 @@ class Ras:
             branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for
             river,reach,us_rs,ds_rs, and flows.
             normal_depth (np.array): normal depth to apply at the downstream terminus of the reach.
+            intermediate_known_wse (bool): indicates if intermediate known wse should be applied. defaults to False
         """
 
         # get a new extension number for the new flow file
         new_extension_number = self.get_new_extension_number(self.flows)
         text_file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
 
-        # create new flow
+        # create new flow class
         flow = Flow(text_file)
 
         # create profile names
-        profile_names, flows, wses = flow.create_profile_names(branch_data, branch_data["us_flows"])
+        if intermediate_known_wse:
+            profile_names, flows, wses = flow.create_profile_names_kwse(
+                branch_data["ds_depths"], branch_data["ds_wses"], branch_data["us_flows"], branch_data["nd_depth"]
+            )
+        else:
+            flows = branch_data["us_flows"]
+            profile_names = [str(int(flow)) for flow in flows]
 
         flow.profile_names = profile_names
         flow.profile_count = len(flow.profile_names)
@@ -336,8 +345,9 @@ class Ras:
         # write DS boundary conditions
         flow.write_ds_known_ws(branch_data, normal_depth, self)
 
-        # add intermediate known wses
-        flow.add_intermediate_known_wse(branch_data, wses)
+        if intermediate_known_wse:
+            # add intermediate known wses
+            flow.add_intermediate_known_wse(branch_data, wses)
 
         # write flow file content
         flow.write()
@@ -1341,14 +1351,18 @@ class Flow(BaseFile):
 
         self.max_flow_applied = max([max(flow.flows) for flow in self.flow_change_locations])
 
-    def create_profile_names(self, branch_data: dict, input_flows: np.array) -> tuple:
+    def create_profile_names_kwse(
+        self, ds_depths: list, ds_wses: list, input_flows: np.array, min_depths: pd.Series
+    ) -> tuple:
         """
         Create profile names from flows and ds_depths specified in the branch_data
 
         Args:
-            branch_data (dict): NWM reach data
+            ds_depths (list): downstream depths
+            ds_wses (list): downstream water surface elevations
             input_flows (np.array): Flows to create profiles names from. Combine with incremental depths
             of the downstream cross section of the reach
+            min_depths (pd.Series): minimum depth to be included
 
         Returns:
             tuple: tuple of profile_names, flows, and wses
@@ -1356,14 +1370,19 @@ class Flow(BaseFile):
 
         profile_names, flows, wses = [], [], []
 
-        for e, depth in enumerate(branch_data["ds_depths"]):
+        for e, depth in enumerate(ds_depths):
 
             for flow in input_flows:
 
-                profile_names.append(f"f_{int(flow)}-z_{str(depth).replace('.','_')}")
+                if depth > min_depths.loc[str(int(flow))]:
+                    profile_names.append(f"f_{int(flow)}-z_{str(depth).replace('.','_')}")
 
-                flows.append(flow)
-                wses.append(branch_data["ds_wses"][e])
+                    flows.append(flow)
+                    wses.append(ds_wses[e])
+                else:
+                    print(
+                        f"excluding flow: {int(flow)} | depth {depth} | min depth: {round(min_depths.loc[str(int(flow))],2)}"
+                    )
 
         return (profile_names, flows, wses)
 
