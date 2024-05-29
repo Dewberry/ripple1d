@@ -201,6 +201,31 @@ def filter_ds_depths(r: Ras):
     return r
 
 
+def run_kwse_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
+    """
+    Write and compute the production run plans using the flow/wse increments determined from the
+    initial rating-curve-runs.
+    """
+    for branch_id, branch_data in r.nwm_dict.items():
+        print(f"Handling production run for branch_id={branch_id}")
+
+        branch_id = branch_id + "_kwse"
+
+        # write the new flow file
+        r.write_new_flow_production_runs(branch_id, branch_data, normal_depth=normal_depth, intermediate_known_wse=True)
+
+        # write the new plan file
+        r.write_new_plan(r.geom, r.flows[branch_id], branch_id, branch_id)
+
+        # update the content of the RAS project file
+        r.update_content()
+        r.set_current_plan(r.plans[branch_id])
+
+        # write the update RAS project content to file
+        r.write()
+
+        # update rasmapper file
+        r = update_rasmapper_for_mapping(r)
 
         # run the RAS plan
         r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=False)
