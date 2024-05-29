@@ -126,16 +126,20 @@ def determine_flow_increments(r: Ras, default_depths: list[float], depth_increme
     return r
 
 
-def run_production_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
+def run_normal_depth_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     """
-    Write and compute the production run plans using the flow/wse increments determined from the
+    Write and compute the normal depth run plans using the flow increments determined from the
     initial rating-curve-runs.
     """
     for branch_id, branch_data in r.nwm_dict.items():
-        print(f"Handling branch_id={branch_id}")
+        print(f"Handling normal depth run for branch_id={branch_id}")
+
+        branch_id = branch_id + "_nd"
 
         # write the new flow file
-        r.write_new_flow_production_runs(branch_id, branch_data, normal_depth=normal_depth)
+        r.write_new_flow_production_runs(
+            branch_id, branch_data, normal_depth=normal_depth, intermediate_known_wse=False
+        )
 
         # write the new plan file
         r.write_new_plan(r.geom, r.flows[branch_id], branch_id, branch_id)
@@ -146,6 +150,15 @@ def run_production_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
 
         # write the update RAS project content to file
         r.write()
+
+        # update rasmapper file
+        r = update_rasmapper_for_mapping(r)
+
+        # run the RAS plan
+        r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=False)
+
+    return r
+
 
         # manage rasmapper
         map_file = os.path.join(r.ras_folder, f"{r.ras_project_basename}.rasmap")
