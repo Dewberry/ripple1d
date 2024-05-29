@@ -189,6 +189,18 @@ def update_rasmapper_for_mapping(r: Ras):
     return r
 
 
+def filter_ds_depths(r: Ras):
+    for branch_id, branch_data in r.nwm_dict.items():
+
+        r.plan = r.plans[str(branch_id) + "_nd"]
+
+        # get ds wses resulting from normal depth runs
+        nd_depth, nd_flow = get_flow_depth_arrays(r, branch_data, "downstream")
+        r.nwm_dict[branch_id]["nd_depth"] = nd_depth
+
+    return r
+
+
 
         # run the RAS plan
         r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=False)
