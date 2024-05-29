@@ -251,38 +251,39 @@ def post_process_depth_grids(r: Ras, except_missing_grid: bool = False, dest_dir
     # iterate thorugh the flow change locations
     for branch_id, branch_data in r.nwm_dict.items():
 
-        id = branch_id
+        for prefix in ["_kwse", "_nd"]:
+            id = branch_id + prefix
 
-        # get cross section asociated with this nwm reach
-        truncated_xs = xs[
-            (xs["river"] == branch_data["upstream_data"]["river"])
-            & (xs["reach"] == branch_data["upstream_data"]["reach"])
-            & (xs["rs"] <= float(branch_data["upstream_data"]["xs_id"]))
-            & (xs["rs"] >= float(branch_data["downstream_data"]["xs_id"]))
-        ]
+            # get cross section asociated with this nwm reach
+            truncated_xs = xs[
+                (xs["river"] == branch_data["upstream_data"]["river"])
+                & (xs["reach"] == branch_data["upstream_data"]["reach"])
+                & (xs["rs"] <= float(branch_data["upstream_data"]["xs_id"]))
+                & (xs["rs"] >= float(branch_data["downstream_data"]["xs_id"]))
+            ]
 
-        # create concave hull for this nwm reach/cross sections
-        xs_hull = r.geom.xs_concave_hull(truncated_xs)
+            # create concave hull for this nwm reach/cross sections
+            xs_hull = r.geom.xs_concave_hull(truncated_xs)
 
-        # iterate through the profile names for this plan
-        for profile_name in r.plans[id].flow.profile_names:
+            # iterate through the profile names for this plan
+            for profile_name in r.plans[id].flow.profile_names:
 
-            # construct the default path to the depth grid for this plan/profile
-            depth_file = os.path.join(r.ras_folder, str(id), f"Depth ({profile_name}).vrt")
+                # construct the default path to the depth grid for this plan/profile
+                depth_file = os.path.join(r.ras_folder, str(id), f"Depth ({profile_name}).vrt")
 
-            # if the depth grid path does not exists print a warning then continue to the next profile
-            if not os.path.exists(depth_file):
-                if except_missing_grid:
-                    warnings.warn(f"depth raster does not exists: {depth_file}")
-                    continue
-                else:
-                    raise DepthGridNotFoundError(f"depth raster does not exists: {depth_file}")
+                # if the depth grid path does not exists print a warning then continue to the next profile
+                if not os.path.exists(depth_file):
+                    if except_missing_grid:
+                        warnings.warn(f"depth raster does not exists: {depth_file}")
+                        continue
+                    else:
+                        raise DepthGridNotFoundError(f"depth raster does not exists: {depth_file}")
 
-            # clip the depth grid naming it with with branch_id, downstream depth, and flow
-            clip_depth_grid(
-                depth_file,
-                xs_hull,
-                id,
-                profile_name,
-                dest_directory,
-            )
+                # clip the depth grid naming it with with branch_id, downstream depth, and flow
+                clip_depth_grid(
+                    depth_file,
+                    xs_hull,
+                    id,
+                    profile_name,
+                    dest_directory,
+                )
