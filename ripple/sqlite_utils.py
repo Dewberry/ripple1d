@@ -62,6 +62,42 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     return wses_t
 
 
+def zero_depth_to_sqlite(r: Ras):
+
+    database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
+    table = r.ras_project_basename
+
+    for branch_id, branch_data in r.nwm_dict.items():
+
+        # set the plan
+        r.plan = r.plans[str(branch_id) + "_nd"]
+
+        # read in flow/wse
+        rc = r.plan.read_rating_curves()
+        wses, flows = rc.values()
+
+        # create rating curve for each  node:
+        node_data = branch_data["intermediate_data"] + [branch_data["upstream_data"]]
+
+        for nd in node_data:
+            # get river-reach-rs id for the intermediate node
+            river = nd["river"]
+            reach = nd["reach"]
+            rs = nd["xs_id"]
+            river_reach_rs = f"{river} {reach} {rs}"
+
+            wses_t = wses.T
+            wses_t["flow"] = wses_t.index
+            wses_t["control_by_node_stage"] = 0
+            df = wses_t.loc[:, [river_reach_rs, "flow", "control_by_node_stage"]]
+            df.rename(columns={river_reach_rs: "stage"}, inplace=True)
+
+            # add control id
+            df["node_id"] = [nd["node_id"]] * len(df)
+
+            insert_data(database_path, table, df)
+
+
 def rating_curves_to_sqlite(r: Ras):
     """Export rating curves to sqlite"""
     # create dabase and table
@@ -70,14 +106,11 @@ def rating_curves_to_sqlite(r: Ras):
 
     create_db_and_table(database_path, table)
 
-    df_list = []
+    # df_list = []
     for branch_id, branch_data in r.nwm_dict.items():
 
-        if branch_id in ["1468436"]:
-            continue
-
         # set the plan
-        r.plan = r.plans[str(branch_id)]
+        r.plan = r.plans[str(branch_id) + "_kwse"]
 
         # read in flow/wse
         rc = r.plan.read_rating_curves()
@@ -110,15 +143,16 @@ def rating_curves_to_sqlite(r: Ras):
             thalweg = nd["min_elevation"]
             df.loc[:, "stage"] = df["stage"] - thalweg
 
-            df_list.append(df)
+            insert_data(database_path, table, df)
+    #         df_list.append(df)
 
-    if df_list:
+    # if df_list:
 
-        # combine dataframes into one
-        if len(df_list) > 1:
-            combined_df = pd.concat(df_list)
-        else:
-            combined_df = df_list[0]
+    #     # combine dataframes into one
+    #     if len(df_list) > 1:
+    #         combined_df = pd.concat(df_list)
+    #     else:
+    #         combined_df = df_list[0]
 
-        # write to sqlite db
-        insert_data(database_path, table, combined_df)
+    # # write to sqlite db
+    # insert_data(database_path, table, combined_df)

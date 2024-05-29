@@ -8,12 +8,14 @@ from dotenv import find_dotenv, load_dotenv
 from nwm_reaches import increment_rc_flows
 from process import (
     determine_flow_increments,
+    filter_ds_depths,
     post_process_depth_grids,
     read_ras,
+    run_normal_depth_runs,
     run_production_runs,
     run_rating_curves,
 )
-from sqlite_utils import rating_curves_to_sqlite
+from sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 from utils import (
     derive_input_from_stac_item,
 )
@@ -48,6 +50,12 @@ def main(
     # determine flow increments from rating curves derived from initial runs
     r = determine_flow_increments(r, default_depths, depth_increment)
 
+    # write and compute flow/plans for normal_depth runs
+    r = run_normal_depth_runs(r)
+
+    # get resulting depths from normal depth runs
+    r = filter_ds_depths(r)
+
     # write and compute flow/plans for production runs
     r = run_production_runs(r)
 
@@ -56,6 +64,7 @@ def main(
 
     # post process the rating curves
     rating_curves_to_sqlite(r)
+    zero_depth_to_sqlite(r)
 
     # upload to s3 if an s3 path was provided
     if postprocessed_output_s3_path:
@@ -74,7 +83,7 @@ if __name__ == "__main__":
     bucket = "fim"
     depth_increment = 0.5
     number_of_discharges_for_rating_curve = 10
-    default_depths = list(np.arange(2, 5, 0.5))
+    default_depths = list(np.arange(2, 10, 0.5))
 
     # load s3 credentials
     load_dotenv(find_dotenv())
