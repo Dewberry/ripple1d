@@ -44,6 +44,7 @@ def run_rating_curves(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     specified in the NWM conflation stac item.
     """
     for branch_id, branch_data in r.nwm_dict.items():
+        print(f"Handling initial (rating curve) run for branch_id={branch_id}")
 
         id = branch_id + "_rc"
 
@@ -66,7 +67,7 @@ def run_rating_curves(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     return r
 
 
-def get_new_flow_depth_arrays(r: Ras, branch_data: dict, upstream_downstream: str, depth_increment: float) -> tuple:
+def get_flow_depth_arrays(r: Ras, branch_data: dict, upstream_downstream: str) -> tuple:
     """
     Create new flow and depth arrays from rating curve-plans results.
     """
@@ -85,15 +86,9 @@ def get_new_flow_depth_arrays(r: Ras, branch_data: dict, upstream_downstream: st
 
     # convert wse to depth
     thalweg = branch_data[f"{upstream_downstream}_data"]["min_elevation"]
-    depth = [e - thalweg for e in wse]
+    depth = wse - thalweg
 
-    # get new flow/depth incremented every x ft
-    new_flow, new_depth = create_flow_depth_array(flow, depth, depth_increment)
-
-    # enforce min depth
-    new_depth[new_depth < MINDEPTH] = MINDEPTH
-
-    return (new_depth, new_flow)
+    return (depth, flow)
 
 
 def determine_flow_increments(r: Ras, default_depths: list[float], depth_increment: float = 0.5) -> Ras:
@@ -105,16 +100,26 @@ def determine_flow_increments(r: Ras, default_depths: list[float], depth_increme
         r.plan = r.plans[str(branch_id) + "_rc"]
 
         # get new flow/depth for current branch
-        new_depth_us, new_flow_us = get_new_flow_depth_arrays(r, branch_data, "upstream", depth_increment)
+        depth_us, flow_us = get_flow_depth_arrays(r, branch_data, "upstream")
+
+        # get new flow/depth incremented every x ft
+        new_flow_us, _ = create_flow_depth_array(flow_us, depth_us, depth_increment)
 
         # get new depth for downstream branch
-        ds_node = branch_data["downstream_data"]["node_id"]
+        ds_node = str(branch_data["downstream_data"]["node_id"])
 
         if ds_node in r.nwm_dict.keys():
             r.plan = r.plans[str(ds_node) + "_rc"]
-            new_depth_from_ds_branch, _ = get_new_flow_depth_arrays(r, r.nwm_dict[ds_node], "upstream", depth_increment)
+            depth_from_ds_branch, flow_from_ds_branch = get_flow_depth_arrays(r, r.nwm_dict[ds_node], "upstream")
 
+            # get new flow/depth incremented every x ft
+            _, new_depth_from_ds_branch = create_flow_depth_array(flow_us, depth_us, depth_increment)
+
+            # enforce min depth
+            new_depth_from_ds_branch[new_depth_from_ds_branch < MINDEPTH] = MINDEPTH
         else:
+            # print("using default depths")
+            # print(ds_node, r.nwm_dict.keys())
             new_depth_from_ds_branch = default_depths
         # get thalweg for the downstream cross section
         thalweg = branch_data["downstream_data"]["min_elevation"]
