@@ -160,26 +160,35 @@ def run_normal_depth_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     return r
 
 
-        # manage rasmapper
-        map_file = os.path.join(r.ras_folder, f"{r.ras_project_basename}.rasmap")
-        profiles = r.plan.flow.profile_names
-        plan_name = r.plan.title
-        plan_hdf = os.path.basename(r.plan.text_file) + ".hdf"
+def update_rasmapper_for_mapping(r: Ras):
+    """
+    Write a rasmapper file to output depth grids for the current plan
+    """
 
-        if os.path.exists(map_file):
-            os.remove(map_file)
+    # manage rasmapper
+    map_file = os.path.join(r.ras_folder, f"{r.ras_project_basename}.rasmap")
+    profiles = r.plan.flow.profile_names
+    plan_name = r.plan.title
+    plan_hdf = os.path.basename(r.plan.text_file) + ".hdf"
 
-        if os.path.exists(map_file + ".backup"):
-            os.remove(map_file + ".backup")
+    if os.path.exists(map_file):
+        os.remove(map_file)
 
-        rm = RasMap(map_file, r.version)
+    if os.path.exists(map_file + ".backup"):
+        os.remove(map_file + ".backup")
 
-        rm.update_projection(r.projection_file)
+    rm = RasMap(map_file, r.version)
 
-        rm.add_terrain(r.terrain_name)
-        rm.add_plan_layer(plan_name, plan_hdf, profiles)
-        rm.add_result_layers(plan_name, profiles, "Depth")
-        rm.write()
+    rm.update_projection(r.projection_file)
+
+    rm.add_terrain(r.terrain_name)
+    rm.add_plan_layer(plan_name, plan_hdf, profiles)
+    rm.add_result_layers(plan_name, profiles, "Depth")
+    rm.write()
+
+    return r
+
+
 
         # run the RAS plan
         r.RunSIM(close_ras=True, show_ras=True, ignore_store_all_maps_error=False)
