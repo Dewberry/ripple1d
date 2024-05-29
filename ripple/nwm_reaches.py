@@ -45,7 +45,11 @@ def clip_depth_grid(
     """
     Clip the depth raster to a concave hull of the cross section associated with NWM branch.
     """
-    flow, depth = profile_name.split("-")
+    if "_kwse" in id:
+        flow, depth = profile_name.split("-")
+    elif "_nd" in id:
+        flow = f"f_{profile_name}"
+        depth = "z_0_0"
 
     dest_directory = os.path.join(dest_directory, id, depth)
 
