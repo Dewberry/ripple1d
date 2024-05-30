@@ -23,4 +23,4 @@ MAX_FLOW_FACTOR = 1.5
 
 STAC_API_URL = "https://stac2.dewberryanalytics.com"
 
-TERRAIN_NAME = "MampTerrain"
+TERRAIN_NAME = "MapTerrain"

@@ -6,7 +6,11 @@ class NoDefaultEPSGError(Exception):
     pass
 
 
-class ModelNotDownloadedError(Exception):
+class ModelNotFoundError(Exception):
+    pass
+
+
+class HECRASVersionNotInstalledError(Exception):
     pass
 
 
