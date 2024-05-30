@@ -60,8 +60,10 @@ class TestGeom(unittest.TestCase):
         self.assertEqual(self.ras_geom.title, "Imported GIS Data +Bridges")
         self.assertEqual(self.ras_geom.version, "5.00")
 
-    def test_new_geom(self):
-        pass
+    def test_parser(self):
+        self.assertEqual(len(self.ras_geom.river_reaches), 5)
+        reach_info = self.ras_geom.river_reach_info("Baxter River    ,Upper Reach")
+        self.assertEqual(reach_info.river, "Baxter River")
 
 
 # RasFlowText

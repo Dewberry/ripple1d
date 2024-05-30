@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from typing import List
 
+from ripple.data_model import XS
+
 RAS_FILE_TYPES = ["Plan", "Flow", "Geometry", "Project"]
 
 VALID_PLANS = [f".p{i:02d}" for i in range(1, 100)]
@@ -9,6 +11,10 @@ VALID_GEOMS = [f".g{i:02d}" for i in range(1, 100)]
 VALID_STEADY_FLOWS = [f".f{i:02d}" for i in range(1, 100)]
 VALID_UNSTEADY_FLOWS = [f".u{i:02d}" for i in range(1, 100)]
 VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
+
+
+def parse_ras_crs():
+    pass
 
 
 class RasManager:
@@ -44,7 +50,7 @@ class RasTextFile:
         if not os.path.exists(ras_text_file_path):
             raise FileNotFoundError(f"could not find {ras_text_file_path}")
         else:
-            self._ras_file_path = ras_text_file_path
+            self._ras_text_file_path = ras_text_file_path
 
     @property
     def contents(self):
@@ -55,7 +61,7 @@ class RasTextFile:
 
     @property
     def file_extension(self):
-        return Path(self._ras_file_path).suffix
+        return Path(self._ras_text_file_path).suffix
 
     def search_contents(self, search_string: str, token: str = "=", expect_one: bool = True):
         """
@@ -157,6 +163,13 @@ class RasGeomText(RasTextFile):
     def version(self):
         return self.search_contents("Program Version")
 
+    @property
+    def river_reaches(self):
+        return self.search_contents("River Reach", expect_one=False)
+
+    def river_reach_info(self, river_reach: str):
+        pass
+
     def determine_wse_increments_for_xs(self):
         pass
 
@@ -164,9 +177,6 @@ class RasGeomText(RasTextFile):
         pass
 
     def scan_for_xs(self):
-        pass
-
-    def parse_reach_lengths(self):
         pass
 
     def parse_number_of_coords(self):
