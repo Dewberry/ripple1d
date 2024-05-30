@@ -165,3 +165,4 @@ test.py
 *.db
 
 /ripple/models/
+.vscode/settings.json
