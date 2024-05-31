@@ -18,6 +18,12 @@ import pandas as pd
 import pystac
 import rasterio
 from dotenv import find_dotenv, load_dotenv
+from errors import (
+    RASComputeError,
+    RASComputeMeshError,
+    RASGeometryError,
+    RASStoreAllMapsError,
+)
 from requests.utils import requote_uri
 from shapely.geometry import Point, Polygon
 
@@ -305,3 +311,133 @@ def download_model(
             terrain_name = Path(s3_key).name.rstrip(".hdf")
 
     return terrain_name
+
+
+def search_contents(lines: list, search_string: str, token: str = "=", expect_one: bool = True):
+    """
+    Splits a line by a token and returns the second half of the line
+        if the search_string is found in the first half
+    """
+    results = []
+    for line in lines:
+        if f"{search_string}{token}" in line:
+            results.append(line.split(token)[1])
+
+    if expect_one and len(results) > 1:
+        raise ValueError(f"expected 1 result, got {len(results)}")
+    elif expect_one and len(results) == 0:
+        raise ValueError("expected 1 result, no results found")
+    elif expect_one and len(results) == 1:
+        return results[0]
+    else:
+        return results
+
+
+def text_block_from_start_end_str(start_str: str, end_str: str, lines: list):
+    """
+    Search for an exact match to the start_token and return
+    all lines from there to a line containing the end token.
+    """
+
+    results = []
+    in_block = False
+    for line in lines:
+
+        if line == start_str:
+            in_block = True
+            results.append(line)
+            continue
+
+        if in_block:
+            if end_str in line:
+                results.append(line)
+                return results
+            else:
+                results.append(line)
+    return results
+
+
+def text_block_from_start_str_length(start_str: str, number_of_lines: int, lines: list):
+    """
+    Search for an exact match to the start token and return
+    a number of lines equal to number_of_lines
+
+    start_token:
+    """
+
+    results = []
+    in_block = False
+    for line in lines:
+        if line == start_str:
+            in_block = True
+            continue
+
+        if in_block:
+            if len(results) >= number_of_lines:
+                return results
+            else:
+                results.append(line)
+
+
+def data_pairs_from_text_block(lines: list[str], width: int):
+    """
+    Split lines at given width to get paired data string.
+    Split the string in half and convert to tuple of floats.
+    """
+    pairs = []
+    for line in lines:
+        for i in range(0, len(line), width):
+
+            x = line[i : int(i + width / 2)]
+            y = line[int(i + width / 2) : int(i + width)]
+            pairs.append((float(x), float(y)))
+
+    return pairs
+
+
+def assert_no_mesh_error(compute_message_file: str, require_exists: bool):
+    try:
+        with open(compute_message_file) as f:
+            content = f.read()
+    except FileNotFoundError:
+        if require_exists:
+            raise
+    else:
+        for line in content.splitlines():
+            if "error generating mesh" in line.lower():
+                raise RASComputeMeshError(
+                    f"'error generating mesh' found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+                )
+
+
+def assert_no_ras_geometry_error(compute_message_file: str):
+    """Scan *.computeMsgs.txt for errors encountered"""
+    with open(compute_message_file) as f:
+        content = f.read()
+    for line in content.splitlines():
+        if "geometry writer failed" in line.lower() or "error processing geometry" in line.lower():
+            raise RASGeometryError(
+                f"geometry error found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+            )
+
+
+def assert_no_ras_compute_error_message(compute_message_file: str):
+    """Scan *.computeMsgs.txt for errors encountered"""
+    with open(compute_message_file) as f:
+        content = f.read()
+    for line in content.splitlines():
+        if "ERROR:" in line:
+            raise RASComputeError(
+                f"'ERROR:' found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+            )
+
+
+def assert_no_store_all_maps_error_message(compute_message_file: str):
+    """Scan *.computeMsgs.txt for errors encountered"""
+    with open(compute_message_file) as f:
+        content = f.read()
+    for line in content.splitlines():
+        if "error executing: storeallmaps" in line.lower():
+            raise RASStoreAllMapsError(
+                f"{repr(line)} found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
+            )
