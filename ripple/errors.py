@@ -14,6 +14,14 @@ class HECRASVersionNotInstalledError(Exception):
     pass
 
 
+class FlowTitleAlreadyExistsError(Exception):
+    pass
+
+
+class PlanTitleAlreadyExistsError(Exception):
+    pass
+
+
 class RASComputeTimeoutError(Exception):
     """Raised on timeout of API call to Compute_CurrentPlan."""
 
