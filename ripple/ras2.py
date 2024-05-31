@@ -1,5 +1,6 @@
 import glob
 import os
+import platform
 import time
 from pathlib import Path
 from typing import List
@@ -8,7 +9,6 @@ import numpy as np
 import pandas as pd
 from pyproj import CRS
 
-# import win32com.client
 from .consts import TERRAIN_NAME
 from .data_model import Reach
 from .errors import (
@@ -19,8 +19,6 @@ from .errors import (
     ProjectionNotFoundError,
     RASComputeTimeoutError,
 )
-
-# from pythoncom import com_error
 from .rasmap import PLAN, RASMAP_631, TERRAIN
 from .utils import (
     assert_no_mesh_error,
@@ -29,6 +27,11 @@ from .utils import (
     assert_no_store_all_maps_error_message,
     search_contents,
 )
+
+if platform.system() == "Windows":
+    import win32com.client
+    from pythoncom import com_error
+
 
 RAS_FILE_TYPES = ["Plan", "Flow", "Geometry", "Project"]
 
@@ -39,6 +42,7 @@ VALID_UNSTEADY_FLOWS = [f".u{i:02d}" for i in range(1, 100)]
 VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
 
 
+# Decorator Functions
 def check_projection(func):
     def wrapper(self, *args, **kwargs):
         if self.projection is None:
@@ -56,32 +60,45 @@ def combine_root_extension(func):
     return wrapper
 
 
+def check_version_installed(version: str):
+    def decorator(func):
+        def wrapper(self, *args, **kwargs):
+            try:
+                assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER")
+                self.version = version
+            except com_error:
+                raise HECRASVersionNotInstalledError(
+                    f"Could not find the specified RAS version; please ensure it is installed. Version provided: {version}."
+                )
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def check_windows(func):
+    def wrapper(self, *args, **kwargs):
+        if platform.system() != "Windows":
+            raise SystemError("This method can only be run on a Windows machine.")
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class RasManager:
-    def __init__(self, ras_text_file_path: str, version: str = "631", default_epsg: int = None):
+    def __init__(self, ras_text_file_path: str, version: str = "631", projection: str = None):
         self._ras_text_file_path = ras_text_file_path
 
         self._ras_project_basename = os.path.splitext(os.path.basename(self._ras_text_file_path))[0]
         self._ras_dir = os.path.dirname(self._ras_text_file_path)
-        self._default_epsg = default_epsg
-        self.check_version_installed(version)
 
         self.ras_project = RasProject(self._ras_text_file_path)
-        self.get_ras_projection()
-
+        self.projection = "EPSG:4269"
         self.plans = self.get_plans()
         self.geoms = self.get_geoms()
         self.flows = self.get_flows()
-        self.get_active_plan()
-
-    def check_version_installed(self, version: str):
-
-        try:
-            assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER")
-            self.version = version
-        except com_error:
-            raise HECRASVersionNotInstalledError(
-                f"Could not find the specified RAS version; please ensure it is installed. Version provided: {version}."
-            )
+        # self.get_active_plan()
 
     def get_plans(self):
         """
@@ -89,18 +106,25 @@ class RasManager:
         """
         plans = {}
         for plan_file in self.ras_project.plans:
-            plan = RasPlanText(plan_file, self.projection)
-            plans[plan.title] = plan
+            try:
+                plan = RasPlanText(plan_file)
+                plans[plan.title] = plan
+            except FileNotFoundError:
+                print(f"Could not find plan file: {plan_file}")
         return plans
 
+    @check_projection
     def get_geoms(self):
         """
         Create geom objects for each geom.
         """
         geoms = {}
         for geom_file in self.ras_project.geoms:
-            geom = RasGeomText(geom_file, self.projection)
-            self.geoms[geom.title] = geom
+            try:
+                geom = RasGeomText(geom_file, self.projection)
+                geoms[geom.title] = geom
+            except FileNotFoundError:
+                print(f"Could not find geom file: {geom_file}")
         return geoms
 
     def get_flows(self):
@@ -109,8 +133,11 @@ class RasManager:
         """
         flows = {}
         for flow_file in self.ras_project.steady_flows:
-            flow = RasFlowText(flow_file)
-            self.flows[flow.title] = flow
+            try:
+                flow = RasFlowText(flow_file)
+                flows[flow.title] = flow
+            except FileNotFoundError:
+                print(f"Could not find flow file: {flow_file}")
         return flows
 
     def set_active_plan_for_ras_manager(self):
@@ -132,6 +159,8 @@ class RasManager:
     def write_to_new_file(self):
         pass
 
+    @check_windows
+    @check_version_installed("631")
     def run_sim(
         self,
         pid_running=None,
@@ -183,69 +212,71 @@ class RasManager:
                 RC.QuitRas()
 
     def get_ras_projection(self):
-        """
-        Attempts to find the RAS projection by reading the .rasmap file. Raises Errors if .rasmap or
-        projection file can't be found or if the projection is not specified.
+        pass
+        # """
+        # Attempts to find the RAS projection by reading the .rasmap file. Raises Errors if .rasmap or
+        # projection file can't be found or if the projection is not specified.
 
-        Raises:
-            FileNotFoundError: If .rasmap file can't be found.
-            FileNotFoundError: If projection file can't be found.
-            ValueError: If projection is not specified.
-        """
-        try:
-            try:
-                # look for .rasmap files
-                try:
+        # Raises:
+        #     FileNotFoundError: If .rasmap file can't be found.
+        #     FileNotFoundError: If projection file can't be found.
+        #     ValueError: If projection is not specified.
+        # """
+        # # TODO: separate the try except logic
+        # try:
+        #     try:
+        #         # look for .rasmap files
+        #         try:
 
-                    rm = glob.glob(self._ras_dir + "/*.rasmap")[0]
-                except IndexError:
-                    raise FileNotFoundError("Could not find a '.rasmap' file for this project.")
+        #             rm = glob.glob(self._ras_dir + "/*.rasmap")[0]
+        #         except IndexError:
+        #             raise FileNotFoundError("Could not find a '.rasmap' file for this project.")
 
-                # read .rasmap file to retrieve projection file.
-                with open(rm) as f:
-                    lines = f.readlines()
-                    for line in lines:
-                        if "RASProjectionFilename Filename=" in line:
-                            relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
-                            self.projection_file = self._ras_dir + relative_path
+        #         # read .rasmap file to retrieve projection file.
+        #         with open(rm) as f:
+        #             lines = f.readlines()
+        #             for line in lines:
+        #                 if "RASProjectionFilename Filename=" in line:
+        #                     relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
+        #                     self.projection_file = self._ras_dir + relative_path
 
-                # check if the projection file exists
-                if self.projection_file:
-                    if os.path.exists(self.projection_file):
-                        if self.projection_file.endswith(".prj"):
+        #         # check if the projection file exists
+        #         if self.projection_file:
+        #             if os.path.exists(self.projection_file):
+        #                 if self.projection_file.endswith(".prj"):
 
-                            with open(self.projection_file) as src:
-                                self.projection = src.read()
-                        else:
-                            raise ValueError(f"Expected a projection file but got {self.projection_file}")
-                    else:
-                        raise FileNotFoundError("Could not find projection file for this project")
-                else:
-                    raise ValueError("No projection specified in .rasmap file.")
+        #                     with open(self.projection_file) as src:
+        #                         self.projection = src.read()
+        #                 else:
+        #                     raise ValueError(f"Expected a projection file but got {self.projection_file}")
+        #             else:
+        #                 raise FileNotFoundError("Could not find projection file for this project")
+        #         else:
+        #             raise ValueError("No projection specified in .rasmap file.")
 
-            except (FileNotFoundError, ValueError):
+        #     except (FileNotFoundError, ValueError):
 
-                raise ProjectionNotFoundError(
-                    f"Could not determine the projection for this HEC-RAS model: {self._ras_dir}."
-                )
+        #         raise ProjectionNotFoundError(
+        #             f"Could not determine the projection for this HEC-RAS model: {self._ras_dir}."
+        #         )
 
-        except ProjectionNotFoundError as e:
+        # except ProjectionNotFoundError as e:
 
-            print(e)
+        #     print(e)
 
-            if self._default_epsg:
+        #     if self._default_epsg:
 
-                print(f"Attempting to use specified default projection: EPSG:{self._default_epsg}")
+        #         print(f"Attempting to use specified default projection: EPSG:{self._default_epsg}")
 
-                self.projection = self._default_epsg
+        #         self.projection = self._default_epsg
 
-                self.projection_file = os.path.join(self._ras_dir, "projection.prj")
+        #         self.projection_file = os.path.join(self._ras_dir, "projection.prj")
 
-                with open(self.projection_file, "w") as f:
-                    f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
-            else:
+        #         with open(self.projection_file, "w") as f:
+        #             f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
+        #     else:
 
-                raise NoDefaultEPSGError("Could not identify projection from RAS Mapper and no default EPSG provided")
+        #         raise NoDefaultEPSGError("Could not identify projection from RAS Mapper and no default EPSG provided")
 
     def write_new_flow_initial_normal_depth(self, title: str, branch_data: dict, normal_depth: float):
         """
@@ -374,12 +405,13 @@ class RasTextFile:
     def write(self):
         """
         Write the content to file
+        TODO: require file name argument for safety?
         """
+        raise NotImplementedError
+        # print(f"writing: {self.text_file}")
 
-        print(f"writing: {self.text_file}")
-
-        with open(self.text_file, "w") as src:
-            src.write(self.content)
+        # with open(self.text_file, "w") as src:
+        #     src.write(self.content)
 
 
 class RasProject(RasTextFile):
@@ -763,15 +795,11 @@ def create_terrain():
     pass
 
 
-def get_ras_projection(self):
-    pass
-
-
 def read_rating_curves(self):
     pass
 
 
-def get_new_extension_number(self, dict_of_ras_subclasses: dict) -> str:
+def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
     """
     Determines the next numeric extension that should be used when creating a new plan, flow, or geom;
     e.g., if you are adding a new plan and .p01, and .p02 already exists then the new plan

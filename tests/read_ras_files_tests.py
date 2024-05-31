@@ -1,10 +1,11 @@
 import os
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from ripple.ras2 import RasFlowText, RasGeomText, RasPlanText, RasProject, RasTextFile
+from ripple.ras2 import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/baxter.json"
@@ -86,3 +87,12 @@ class TestFlow(unittest.TestCase):
 
     def test_new_flow(self):
         pass
+
+
+# RasManagerText
+class TestRasManager(unittest.TestCase):
+    @patch("platform.system", return_value="Linux")
+    def test_run_sim_on_non_windows(self, _):
+        ras_manager = RasManager(RAS_PROJECT)
+        with self.assertRaises(SystemError):
+            ras_manager.run_sim()
