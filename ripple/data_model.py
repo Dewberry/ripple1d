@@ -4,7 +4,8 @@ from dataclasses import dataclass
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString
-from utils import (
+
+from .utils import (
     data_pairs_from_text_block,
     search_contents,
     text_block_from_start_end_str,

@@ -6,10 +6,12 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-import win32com.client
-from consts import TERRAIN_NAME
-from data_model import Reach
-from errors import (
+from pyproj import CRS
+
+# import win32com.client
+from .consts import TERRAIN_NAME
+from .data_model import Reach
+from .errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
     NoDefaultEPSGError,
@@ -17,10 +19,10 @@ from errors import (
     ProjectionNotFoundError,
     RASComputeTimeoutError,
 )
-from pyproj import CRS
-from pythoncom import com_error
-from rasmap import PLAN, RASMAP_631, TERRAIN
-from utils import (
+
+# from pythoncom import com_error
+from .rasmap import PLAN, RASMAP_631, TERRAIN
+from .utils import (
     assert_no_mesh_error,
     assert_no_ras_compute_error_message,
     assert_no_ras_geometry_error,
@@ -35,6 +37,23 @@ VALID_GEOMS = [f".g{i:02d}" for i in range(1, 100)]
 VALID_STEADY_FLOWS = [f".f{i:02d}" for i in range(1, 100)]
 VALID_UNSTEADY_FLOWS = [f".u{i:02d}" for i in range(1, 100)]
 VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
+
+
+def check_projection(func):
+    def wrapper(self, *args, **kwargs):
+        if self.projection is None:
+            raise ValueError("Projection cannot be None")
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def combine_root_extension(func):
+    def wrapper(self, *args, **kwargs):
+        extensions = func(self, *args, **kwargs)
+        return [self._ras_root_path + "." + extension for extension in extensions]
+
+    return wrapper
 
 
 class RasManager:
@@ -373,24 +392,25 @@ class RasProject(RasTextFile):
     def title(self):
         return search_contents(self.contents, "Proj Title")
 
-    def combine_root_extension(self, extensions: str):
-        return [self._ras_root_path + "." + extension for extension in extensions]
-
     @property
+    @combine_root_extension
     def plans(self):
-        return self.combine_root_extension(search_contents(self.contents, "Plan File", expect_one=False))
+        return search_contents(self.contents, "Plan File", expect_one=False)
 
     @property
+    @combine_root_extension
     def geoms(self):
-        return self.combine_root_extension(search_contents(self.contents, "Geom File", expect_one=False))
+        return search_contents(self.contents, "Geom File", expect_one=False)
 
     @property
+    @combine_root_extension
     def unsteady_flows(self):
-        return self.combine_root_extension(search_contents(self.contents, "Unsteady File", expect_one=False))
+        return search_contents(self.contents, "Unsteady File", expect_one=False)
 
     @property
+    @combine_root_extension
     def steady_flows(self):
-        return self.combine_root_extension(search_contents(self.contents, "Flow File", expect_one=False))
+        return search_contents(self.contents, "Flow File", expect_one=False)
 
     def set_current_plan_in(self, current_plan):
         """
@@ -415,7 +435,7 @@ class RasProject(RasTextFile):
 
 
 class RasPlanText(RasTextFile):
-    def __init__(self, ras_text_file_path: str, projection: str, new_file=False):
+    def __init__(self, ras_text_file_path: str, projection: str = None, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
@@ -442,6 +462,7 @@ class RasPlanText(RasTextFile):
         return search_contents(self.contents, "Flow File")
 
     @property
+    @check_projection
     def geom(self):
         return RasGeomText(
             f"{os.path.splitext(self._ras_text_file_path)[0]}.{self.plan_geom_file}",
@@ -455,15 +476,15 @@ class RasPlanText(RasTextFile):
     def populate_new_plan_content(self, title, short_id, geom, flow):
         """
         Populate the content of the new plan with basic attributes (title, short_id, flow, and geom)
-
         """
         # create necessary lines for the content of the plan text file.
-        lines = []
-        lines.append(f"Plan Title={title}")
-        lines.append(f"Short Identifier={short_id}")
-        lines.append(f"Geom File={geom.extension.lstrip('.')}")
-        lines.append(f"Flow File={flow.extension.lstrip('.')}")
-        lines.append("Run RASMapper=-1 ")
+        lines = [
+            f"Plan Title={title}",
+            f"Short Identifier={short_id}",
+            f"Geom File={geom.extension.lstrip('.')}",
+            f"Flow File={flow.extension.lstrip('.')}",
+            "Run RASMapper=-1 ",
+        ]
         return "\n".join(lines)
 
     def write_new_plan(self):
@@ -471,7 +492,7 @@ class RasPlanText(RasTextFile):
 
 
 class RasGeomText(RasTextFile):
-    def __init__(self, ras_text_file_path: str, projection: str):
+    def __init__(self, ras_text_file_path: str, projection: str = None):
         super().__init__(ras_text_file_path)
         if self.file_extension not in VALID_GEOMS:
             raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {self.file_extension}")
@@ -491,6 +512,7 @@ class RasGeomText(RasTextFile):
         return search_contents(self.contents, "River Reach", expect_one=False)
 
     @property
+    @check_projection
     def reaches(self):
         reaches = []
         for river_reach in self.river_reaches:
@@ -498,9 +520,11 @@ class RasGeomText(RasTextFile):
         return reaches
 
     @property
+    @check_projection
     def reaches_gdf(self):
         return pd.concat([reach.gdf for reach in self.reaches])
 
+    @check_projection
     def xs_gdf(self):
         """
         Geodataframe of all cross sections in the geometry text file.
@@ -509,7 +533,7 @@ class RasGeomText(RasTextFile):
 
 
 class RasFlowText(RasTextFile):
-    def __init__(self, ras_text_file_path: str, new_file=False):
+    def __init__(self, ras_text_file_path: str, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension in VALID_UNSTEADY_FLOWS or self.file_extension in VALID_QUASISTEADY_FLOWS:
             raise NotImplementedError("only steady flow (f.**) supported")
@@ -930,12 +954,3 @@ class RasMap:
         # write backup
         with open(self.text_file + ".backup", "w") as f:
             f.write(self.contents)
-
-
-g = RasGeomText(
-    r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\Baxter.g02",
-    'PROJCS["NAD_1983_StatePlane_California_III_FIPS_0403_Feet",GEOGCS["GCS_North_American_1983",DATUM["D_North_American_1983",SPHEROID["GRS_1980",6378137,298.257222101]],PRIMEM["Greenwich",0],UNIT["Degree",0.0174532925199432955]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["False_Easting",6561666.666666666],PARAMETER["False_Northing",1640416.666666667],PARAMETER["Central_Meridian",-120.5],PARAMETER["Standard_Parallel_1",37.06666666666667],PARAMETER["Standard_Parallel_2",38.43333333333333],PARAMETER["Latitude_Of_Origin",36.5],UNIT["Foot_US",0.304800609601219241]]',
-)
-
-m = g.reaches[2].gdf.explore()
-g.reaches[2].xs_gdf.explore(m=m, color="green")

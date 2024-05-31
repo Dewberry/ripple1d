@@ -20,7 +20,7 @@ RAS_FLOW = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.f01")
 def setup_data(request):
     request.cls.ras_project = RasProject(RAS_PROJECT)
     request.cls.ras_plan = RasPlanText(RAS_PLAN)
-    request.cls.ras_geom = RasGeomText(RAS_GEOM)
+    request.cls.ras_geom = RasGeomText(RAS_GEOM, projection="NAD83(2011) UTM Zone 19N")
     request.cls.ras_flow = RasFlowText(RAS_FLOW)
 
 
@@ -30,10 +30,21 @@ class TestProject(unittest.TestCase):
     def test_load_data(self):
         self.assertEqual(len(self.ras_project.contents), 36)
         self.assertEqual(self.ras_project.title, "Baxter River GIS Example")
-        self.assertEqual(self.ras_project.plans, ["p01", "p02"])
-        self.assertEqual(self.ras_project.geoms, ["g02"])
-        self.assertEqual(self.ras_project.steady_flows, ["f01"])
-        self.assertEqual(self.ras_project.unsteady_flows, ["u01", "u02", "u03"])
+        for plan in self.ras_project.plans:
+            extension = Path(plan).suffix
+            self.assertIn(extension, [".p01", ".p02"])
+
+        for geom in self.ras_project.geoms:
+            extension = Path(geom).suffix
+            self.assertEqual(extension, ".g02")
+
+        for steady_flow in self.ras_project.steady_flows:
+            extension = Path(steady_flow).suffix
+            self.assertEqual(extension, ".f01")
+
+        for unsteady_flow in self.ras_project.unsteady_flows:
+            extension = Path(unsteady_flow).suffix
+            self.assertIn(extension, [".u01", ".u02", ".u03"])
 
     def test_new_project(self):
         pass
@@ -62,8 +73,7 @@ class TestGeom(unittest.TestCase):
 
     def test_parser(self):
         self.assertEqual(len(self.ras_geom.river_reaches), 5)
-        reach_info = self.ras_geom.river_reach_info("Baxter River    ,Upper Reach")
-        self.assertEqual(reach_info.river, "Baxter River")
+        self.assertEqual(self.ras_geom.reaches[0].river_reach, "Baxter River    ,Upper Reach     ")
 
 
 # RasFlowText

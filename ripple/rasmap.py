@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from consts import TERRAIN_NAME
+from .consts import TERRAIN_NAME
 
 RASMAP_631 = """<RASMapper>
   <Version>2.0.0</Version>
