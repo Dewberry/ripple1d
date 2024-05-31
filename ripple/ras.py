@@ -171,7 +171,7 @@ class Ras:
 
     def read_content(self):
         """
-        Attempt to read content of the RAS project text file. Checks both locally and on s3
+        Attempt to read content of the RAS project text file.
 
         Raises:
             FileNotFoundError:
@@ -182,17 +182,7 @@ class Ras:
             with open(self.ras_project_file) as f:
                 self.content = f.read()
         else:
-
-            try:
-
-                response = self.client.get_object(Bucket=self.bucket, Key=self.ras_project_file)
-                self.content = response["Body"].read().decode()
-
-            except Exception as E:
-
-                print(E)
-
-                raise FileNotFoundError(f"could not find {self.ras_project_file} locally nor on s3")
+            raise FileNotFoundError(f"could not find {self.ras_project_file} locally nor on s3")
 
     def update_content(self):
         """
@@ -254,10 +244,6 @@ class Ras:
 
             with open(ras_project_file, "w") as f:
                 f.write(self.content)
-
-        else:
-
-            self.client.put_object(Body=self.content, Bucket=self.bucket, Key=ras_project_file)
 
     def write_new_flow_rating_curves(self, title: str, branch_data: pd.DataFrame, normal_depth: float):
         """
