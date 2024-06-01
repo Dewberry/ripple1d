@@ -24,3 +24,4 @@ MAX_FLOW_FACTOR = 1.5
 STAC_API_URL = "https://stac2.dewberryanalytics.com"
 
 TERRAIN_NAME = "MapTerrain"
+SUPPORTED_LAYERS = ["River", "XS"]

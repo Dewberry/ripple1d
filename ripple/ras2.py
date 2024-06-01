@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from pyproj import CRS
 
-from .consts import TERRAIN_NAME
+from .consts import SUPPORTED_LAYERS, TERRAIN_NAME
 from .data_model import Reach
 from .errors import (
     FlowTitleAlreadyExistsError,
@@ -481,6 +481,15 @@ class RasGeomText(RasTextFile):
 
     def __repr__(self):
         return f"RasGeomText({self._ras_text_file_path})"
+
+    def _check_layers(self):
+        layers = set(fiona.listlayers(self._gpkg_path)) & set(SUPPORTED_LAYERS)
+
+        if "XS" not in layers:
+            raise NoCrossSectionLayerError(f"Could not find a layer called XS in {self._gpkg_path}")
+
+        if "River" not in layers:
+            raise NoRiverLayerError(f"Could not find a layer called River in {self._gpkg_path}")
 
     @property
     def title(self):
