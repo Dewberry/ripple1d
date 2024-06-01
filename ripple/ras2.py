@@ -14,9 +14,7 @@ from .data_model import Reach
 from .errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
-    NoDefaultEPSGError,
     PlanTitleAlreadyExistsError,
-    ProjectionNotFoundError,
     RASComputeTimeoutError,
 )
 from .rasmap import PLAN, RASMAP_631, TERRAIN
@@ -145,7 +143,7 @@ class RasManager:
         Reads the content of the RAS project file to determine what the current
             plan is and sets the asociated plans,geoms,and flows as active.
         """
-        current_plan_extension = search_contents(self.ras_project.contents, "Current Plan", "=")
+        current_plan_extension = search_contents(self.ras_project.contents, "Current Plan")
 
         for plan in self.plans.values():
             if plan.file_extension == f".{current_plan_extension}":
@@ -210,73 +208,6 @@ class RasManager:
             if close_ras:
                 RC.Project_Close()
                 RC.QuitRas()
-
-    def get_ras_projection(self):
-        pass
-        # """
-        # Attempts to find the RAS projection by reading the .rasmap file. Raises Errors if .rasmap or
-        # projection file can't be found or if the projection is not specified.
-
-        # Raises:
-        #     FileNotFoundError: If .rasmap file can't be found.
-        #     FileNotFoundError: If projection file can't be found.
-        #     ValueError: If projection is not specified.
-        # """
-        # # TODO: separate the try except logic
-        # try:
-        #     try:
-        #         # look for .rasmap files
-        #         try:
-
-        #             rm = glob.glob(self._ras_dir + "/*.rasmap")[0]
-        #         except IndexError:
-        #             raise FileNotFoundError("Could not find a '.rasmap' file for this project.")
-
-        #         # read .rasmap file to retrieve projection file.
-        #         with open(rm) as f:
-        #             lines = f.readlines()
-        #             for line in lines:
-        #                 if "RASProjectionFilename Filename=" in line:
-        #                     relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
-        #                     self.projection_file = self._ras_dir + relative_path
-
-        #         # check if the projection file exists
-        #         if self.projection_file:
-        #             if os.path.exists(self.projection_file):
-        #                 if self.projection_file.endswith(".prj"):
-
-        #                     with open(self.projection_file) as src:
-        #                         self.projection = src.read()
-        #                 else:
-        #                     raise ValueError(f"Expected a projection file but got {self.projection_file}")
-        #             else:
-        #                 raise FileNotFoundError("Could not find projection file for this project")
-        #         else:
-        #             raise ValueError("No projection specified in .rasmap file.")
-
-        #     except (FileNotFoundError, ValueError):
-
-        #         raise ProjectionNotFoundError(
-        #             f"Could not determine the projection for this HEC-RAS model: {self._ras_dir}."
-        #         )
-
-        # except ProjectionNotFoundError as e:
-
-        #     print(e)
-
-        #     if self._default_epsg:
-
-        #         print(f"Attempting to use specified default projection: EPSG:{self._default_epsg}")
-
-        #         self.projection = self._default_epsg
-
-        #         self.projection_file = os.path.join(self._ras_dir, "projection.prj")
-
-        #         with open(self.projection_file, "w") as f:
-        #             f.write(CRS.from_epsg(self.projection).to_wkt("WKT1_ESRI"))
-        #     else:
-
-        #         raise NoDefaultEPSGError("Could not identify projection from RAS Mapper and no default EPSG provided")
 
     def write_new_flow_initial_normal_depth(self, title: str, branch_data: dict, normal_depth: float):
         """
@@ -460,10 +391,9 @@ class RasProject(RasTextFile):
             lines.append(line)
 
         self.contents = "\n".join(lines)
-
-        self.write
-
-        self.plan = current_plan
+        # self.write
+        # self.plan = current_plan
+        raise NotImplementedError
 
 
 class RasPlanText(RasTextFile):
@@ -594,6 +524,7 @@ class RasFlowText(RasTextFile):
     def max_flow_applied(self):
         raise NotImplementedError
 
+    # TODO: Should these be functions outside of the class?
     def write_initial_normal_depth_flow_file(
         self,
         title: str,
@@ -625,6 +556,7 @@ class RasFlowText(RasTextFile):
         # write flow file content
         self.write()
 
+    # TODO: Should these be functions outside of the class?
     def write_kwses_flow_file(
         self,
         title: str,
@@ -702,11 +634,11 @@ class RasFlowText(RasTextFile):
         Returns:
             list (list[str]): lines of the flow content
         """
-        lines = []
-        lines.append(f"Flow Title={title}")
-        lines.append(f"Number of Profiles= {len(profile_names)}")
-        lines.append(f"Profile Names={','.join([str(pn) for pn in profile_names])}")
-
+        lines = [
+            f"Flow Title={title}",
+            f"Number of Profiles= {len(profile_names)}",
+            f"Profile Names={','.join([str(pn) for pn in profile_names])}",
+        ]
         return "\n".join(lines)
 
     def write_discharges(self, flows: list, river: str, reach: str, river_station: float):
@@ -721,23 +653,18 @@ class RasFlowText(RasTextFile):
         """
 
         lines = []
-        line = ""
         lines.append(
             f"River Rch & RM={river},{reach.ljust(16,' ')},{str(river_station).rstrip('0').rstrip('.').ljust(8,' ')}"
         )
-
+        line = ""
         for i, flow in enumerate(flows):
-
             line += f"{str(int(flow)).rjust(8,' ')}"
-
             if (i + 1) % 10 == 0:
-
                 lines.append(line)
                 line = ""
 
         if (i + 1) % 10 != 0:
             lines.append(line)
-
         return "\n" + "\n".join(lines)
 
     def write_ds_known_ws(
@@ -755,10 +682,8 @@ class RasFlowText(RasTextFile):
         """
         count = 0
         lines = []
-        for e, wse in enumerate(ds_wses):
-
-            for i in range(number_of_flows):
-
+        for wse in ds_wses:
+            for _ in range(number_of_flows):
                 count += 1
                 lines.append(f"Boundary for River Rch & Prof#={river},{reach.ljust(16,' ')}, {count}")
                 lines.append("Up Type= 0 ")
@@ -812,7 +737,6 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
     Returns:
         new file extension (str): The new file exension.
     """
-
     extension_number = []
     for val in dict_of_ras_subclasses.values():
         extension_number.append(int(val.extension[2:]))
@@ -834,18 +758,15 @@ class RasMap:
 
     def __init__(self, path: str, version: str = 631):
         """
-
         Args:
             path (str): file path to the plan text file
             version (str): HEC-RAS vesion for this RAS Mapper file
         """
-
         self.text_file = path
         self.version = version
 
         if os.path.exists(path):
             self.read_contents()
-
         else:
             self.new_rasmap_content()
 
@@ -982,3 +903,23 @@ class RasMap:
         # write backup
         with open(self.text_file + ".backup", "w") as f:
             f.write(self.contents)
+
+
+def search_for_ras_projection(search_dir: str):
+    rasmap_files = glob.glob(f"{search_dir}/*.rasmap")
+    if rasmap_files:
+        rm = rasmap_files[0]
+    else:
+        raise FileNotFoundError(f"Could not find rasmap file in {search_dir}")
+
+    with open(rm) as f:
+        for line in f.readlines():
+            if "RASProjectionFilename Filename=" in line:
+                relative_path = line.split("=")[-1].split('"')[1].lstrip(".")
+                abs_path = f"{search_dir}/{relative_path}"
+                if os.path.exists(abs_path):
+                    with open(abs_path) as src:
+                        projection = src.read()
+                        return projection
+                else:
+                    raise FileNotFoundError(f"Could not find projection file in {search_dir}")
