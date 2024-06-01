@@ -23,6 +23,7 @@ from .utils import (
     assert_no_ras_compute_error_message,
     assert_no_ras_geometry_error,
     assert_no_store_all_maps_error_message,
+    replace_line_in_contents,
     search_contents,
 )
 
@@ -339,17 +340,6 @@ class RasTextFile:
     def file_extension(self):
         return Path(self._ras_text_file_path).suffix
 
-    def write(self):
-        """
-        Write the content to file
-        TODO: require file name argument for safety?
-        """
-        raise NotImplementedError
-        # print(f"writing: {self.text_file}")
-
-        # with open(self.text_file, "w") as src:
-        #     src.write(self.content)
-
 
 class RasProject(RasTextFile):
     def __init__(self, ras_text_file_path: str):
@@ -447,22 +437,37 @@ class RasPlanText(RasTextFile):
     def flow(self):
         return RasFlowText(f"{os.path.splitext(self._ras_text_file_path)[0]}.{self.plan_steady_flow}")
 
-    def populate_new_plan_content(self, title, short_id, geom, flow):
+    def new_plan_from_existing(self, title, short_id, geom_ext, flow_ext):
         """
         Populate the content of the new plan with basic attributes (title, short_id, flow, and geom)
         """
-        # create necessary lines for the content of the plan text file.
-        lines = [
-            f"Plan Title={title}",
-            f"Short Identifier={short_id}",
-            f"Geom File={geom.extension.lstrip('.')}",
-            f"Flow File={flow.extension.lstrip('.')}",
-            "Run RASMapper=-1 ",
-        ]
-        return "\n".join(lines)
+        new_contents = self.contents
+        if len(title) > 80:
+            raise ValueError("Short Identifier must be less than 80 characters")
+        else:
+            new_contents = replace_line_in_contents(new_contents, "Plan Title", title)
 
-    def write_new_plan(self):
-        pass
+        if len(short_id) > 80:
+            raise ValueError("Short Identifier must be less than 80 characters")
+        else:
+            new_contents = replace_line_in_contents(new_contents, "Short Identifier", short_id)
+
+        if geom_ext not in VALID_GEOMS:
+            raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {geom_ext}")
+        else:
+            new_contents = replace_line_in_contents(new_contents, "Geom File", geom_ext.strip("."))
+
+        if flow_ext not in VALID_STEADY_FLOWS:
+            raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {flow_ext}")
+        else:
+            new_contents = replace_line_in_contents(new_contents, "Flow File", flow_ext.strip("."))
+
+        try:
+            new_contents = replace_line_in_contents(new_contents, "Run RASMapper", "-1")
+        except ValueError:
+            new_contents.append("Run RASMapper=-1 ")
+
+        return new_contents
 
 
 class RasGeomText(RasTextFile):

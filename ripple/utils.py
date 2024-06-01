@@ -334,6 +334,24 @@ def search_contents(lines: list, search_string: str, token: str = "=", expect_on
         return results
 
 
+def replace_line_in_contents(lines: list, search_string: str, replacement: str, token: str = "="):
+    """
+    Splits a line by a token and replaces the second half of the line
+    (for the first occurence only!)
+    """
+    updated = 0
+    for i, line in enumerate(lines):
+        if f"{search_string}{token}" in line:
+            updated += 1
+            lines[i] = line.split(token)[0] + token + replacement
+    if updated == 0:
+        raise ValueError(f"search_string: {search_string} not found in lines")
+    elif updated > 1:
+        raise ValueError(f"expected 1 result, got {updated} occurences of {replacement}")
+    else:
+        return lines
+
+
 def text_block_from_start_end_str(start_str: str, end_str: str, lines: list):
     """
     Search for an exact match to the start_token and return
