@@ -12,6 +12,8 @@ RAS_GEOM = os.path.join(TEST_DIR, "tests/ras-data/Baxter/Baxter.g02")
 RAS_FLOW = os.path.join(TEST_DIR, "tests/ras-data/Baxter/Baxter.f01")
 
 
-rp = RasPlanText(RAS_PLAN)
+rp = RasProject(RAS_PROJECT)
+new_project = rp.set_current_plan(".p11")
 
-new_plan = rp.new_plan_from_existing("ripple-demo", "rd", ".g10", ".f02")
+# rp = RasPlanText(RAS_PLAN)
+# new_plan = rp.new_plan_from_existing("ripple-demo", "rd", ".g10", ".f02")

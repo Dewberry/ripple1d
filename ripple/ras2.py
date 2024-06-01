@@ -374,25 +374,25 @@ class RasProject(RasTextFile):
     def steady_flows(self):
         return search_contents(self.contents, "Flow File", expect_one=False)
 
-    def set_current_plan_in(self, current_plan):
+    def set_current_plan(self, plan_ext):
         """
         Update the current RAS plan in the RAS project content.
         This does not update the actual file; use the 'write' method to do this.
 
         Args:
-            current_plan (Plan): The plan to set as the current plan
+            plan_ext: The plan extension to set as the current plan
         """
+        new_contents = self.contents
+        if plan_ext not in VALID_PLANS:
+            raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {plan_ext}")
+        else:
+            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext.strip("."))
 
-        lines = []
-        for line in self.contents.splitlines():
-            if "Current Plan=" in line:
-                line = f"Current Plan={current_plan.file_extension.lstrip('.')}"
-            lines.append(line)
+        # TODO: Update this to put it with the other plans
+        if f"Plan File={plan_ext}" not in new_contents:
+            new_contents.append(f"Plan File={plan_ext.strip('.')}")
 
-        self.contents = "\n".join(lines)
-        # self.write
-        # self.plan = current_plan
-        raise NotImplementedError
+        return new_contents
 
 
 class RasPlanText(RasTextFile):
