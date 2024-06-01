@@ -1,4 +1,5 @@
 import glob
+import logging
 import os
 import platform
 import time
@@ -112,7 +113,7 @@ class RasManager:
                 plan = RasPlanText(plan_file)
                 plans[plan.title] = plan
             except FileNotFoundError:
-                print(f"Could not find plan file: {plan_file}")
+                logging.info(f"Could not find plan file: {plan_file}")
         return plans
 
     @check_projection
@@ -126,7 +127,7 @@ class RasManager:
                 geom = RasGeomText(geom_file, self.projection)
                 geoms[geom.title] = geom
             except FileNotFoundError:
-                print(f"Could not find geom file: {geom_file}")
+                logging.warning(f"Could not find geom file: {geom_file}")
         return geoms
 
     def get_flows(self):
@@ -139,7 +140,7 @@ class RasManager:
                 flow = RasFlowText(flow_file)
                 flows[flow.title] = flow
             except FileNotFoundError:
-                print(f"Could not find flow file: {flow_file}")
+                logging.warning(f"Could not find flow file: {flow_file}")
         return flows
 
     def set_active_plan_for_ras_manager(self):
@@ -391,7 +392,7 @@ class RasProject(RasTextFile):
         # TODO: Update this to put it with the other plans
         if f"Plan File={plan_ext}" not in new_contents:
             new_contents.append(f"Plan File={plan_ext.strip('.')}")
-
+        logging.info("set plan!")
         return new_contents
 
 
@@ -921,7 +922,7 @@ class RasMap:
         write Ras Map contents to file
         """
 
-        print(f"writing: {self.text_file}")
+        logging.info(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as f:
             f.write(self.contents)

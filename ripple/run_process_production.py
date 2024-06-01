@@ -1,7 +1,7 @@
 import os
 import tempfile
 from urllib.parse import urlparse
-
+import logging
 import boto3
 import botocore
 import numpy as np
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     for i, item in enumerate(items):
         pct_s = "{:.0%}".format((i + 1) / len(items))
-        print(f"{pct_s} ({i+1} / {len(items)}) {item.id}")
+        logging.info(f"{pct_s} ({i+1} / {len(items)}) {item.id}")
 
         hrefs = [link.target for link in item.links if link.rel == "self"]
         if len(hrefs) != 1:
@@ -108,11 +108,11 @@ if __name__ == "__main__":
         ras_model_stac_href = hrefs[0]
 
         if ras_model_stac_href in skip_stac_hrefs:
-            print(f"SKIPPING HREF SINCE IN skip_stac_hrefs: {ras_model_stac_href}")
+            logging.info(f"SKIPPING HREF SINCE IN skip_stac_hrefs: {ras_model_stac_href}")
             hrefs_skipped.append(f"{ras_model_stac_href}: REASON: in skip_stac_hrefs")
             continue
         if utils.s3_ripple_status_succeed_file_exists(ras_model_stac_href, bucket, client):
-            print(f"SKIPPING HREF SINCE SUCCEED FILE EXISTS: {ras_model_stac_href}")
+            logging.info(f"SKIPPING HREF SINCE SUCCEED FILE EXISTS: {ras_model_stac_href}")
             hrefs_skipped.append(f"{ras_model_stac_href}: REASON: ripple succeed file exists")
             continue
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
                     ras_model_stac_href, ras_directory, client, bucket
                 )
 
-                print(f"Processing {repr(ras_model_stac_href)}, writing to folder {repr(ras_directory)}")
+                logging.info(f"Processing {repr(ras_model_stac_href)}, writing to folder {repr(ras_directory)}")
                 main(
                     ras_directory,
                     bucket,
@@ -145,19 +145,19 @@ if __name__ == "__main__":
 
         except Exception as e:
             utils.s3_upload_status_file(ras_model_stac_href, bucket, client, e)
-            print(f"HREF FAILED {ras_model_stac_href}")
+            logging.info(f"HREF FAILED {ras_model_stac_href}")
             hrefs_failed.append(f"{ras_model_stac_href}: ERROR: {e}")
         else:
             utils.s3_upload_status_file(ras_model_stac_href, bucket, client, None)
-            print(f"HREF SUCCEEDED {ras_model_stac_href}")
+            logging.info(f"HREF SUCCEEDED {ras_model_stac_href}")
             hrefs_succeeded.append(ras_model_stac_href)
 
-    print(
-        f"\n\nvvv {len(hrefs_skipped)} TOTAL HREFS SKIPPED: vvv\n{'\n'.join(hrefs_skipped)}\n^^^ {len(hrefs_skipped)} TOTAL HREFS SKIPPED ^^^"
+    logging.info(
+        f"\{len(hrefs_skipped)} TOTAL HREFS SKIPPED: vvv\n{'\n'.join(hrefs_skipped)}\n^^^ {len(hrefs_skipped)} TOTAL HREFS SKIPPED"
     )
-    print(
-        f"\n\nvvv {len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED: vvv\n{'\n'.join(hrefs_succeeded)}\n^^^ {len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED ^^^"
+    logging.info(
+        f"{len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED: vvv\n{'\n'.join(hrefs_succeeded)}\n^^^ {len(hrefs_succeeded)} TOTAL HREFS SUCCEEDED"
     )
-    print(
-        f"\n\nvvv {len(hrefs_failed)} TOTAL HREFS FAILED: vvv\n{'\n'.join(hrefs_failed)}\n^^^ {len(hrefs_failed)} TOTAL HREFS FAILED ^^^"
+    logging.info(
+        f"{len(hrefs_failed)} TOTAL HREFS FAILED: vvv\n{'\n'.join(hrefs_failed)}\n^^^ {len(hrefs_failed)} TOTAL HREFS FAILED"
     )

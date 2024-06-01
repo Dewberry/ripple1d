@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 
 import geopandas as gpd
@@ -79,10 +80,10 @@ def clip_depth_grid(
         }
     )
     # write dest raster
-    print(f"Writing: {dest_path}")
+    logging.info(f"Writing: {dest_path}")
     with rasterio.open(dest_path, "w", **out_meta) as dest:
         dest.write(out_image)
-    # print(f"Building overviews for: {dest_path}")
+    # logging.debug(f"Building overviews for: {dest_path}")
     with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
         with rasterio.open(dest_path, "r+") as dst:
             dst.build_overviews([4, 8, 16], Resampling.nearest)

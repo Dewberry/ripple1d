@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -111,7 +112,7 @@ class FIMCollectionRasItem(FIMCollection):
             try:
                 asset.roles.remove("data")
             except Exception:
-                print(f"no data role: {asset.href}")
+                logging.warning(f"no data role: {asset.href}")
 
             if "ras-geometry-gpkg" not in asset.roles:
                 asset.roles.append("ras-geometry-gpkg")
@@ -121,21 +122,21 @@ class FIMCollectionRasItem(FIMCollection):
             try:
                 asset.roles.append("ras-file")
             except Exception:
-                print(f"no data role: {asset.href}")
+                logging.warning(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="geometry-file"):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
             except Exception:
-                print(f"no data role: {asset.href}")
+                logging.warning(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="plan-file"):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.append("ras-file")
             except Exception:
-                print(f"no data role: {asset.href}")
+                logging.warning(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="projection"):
             asset = self.item.assets[asset_name]
@@ -144,7 +145,7 @@ class FIMCollectionRasItem(FIMCollection):
                 asset.roles.append("ras-file")
                 asset.roles.append("project-file")
             except Exception:
-                print(f"no data role: {asset.href}")
+                logging.warning(f"no data role: {asset.href}")
 
     def add_s3_key_to_assets(self, bucket: str = "fim"):
         for asset_name in self.item.assets:
@@ -178,7 +179,7 @@ class FIMCollectionRasItem(FIMCollection):
             raise NotImplementedError("Only MapTerrain is supported at this time.")
 
         for asset_name in self.item.get_assets(role=asset_role):
-            # print(asset_name)
+            # logging.debug(asset_name)
             asset_href = self.item.assets[asset_name].href
 
         topo_href = str(Path(asset_href).parent / "MapTerrain/MapTerrain.ned13.tif").replace("https:/", "https://")
@@ -251,7 +252,7 @@ class FIMCollectionRasItem(FIMCollection):
         )
         ripple_parameters_key = uri_to_key(ripple_parameters_href, bucket)
 
-        # print(ripple_parameters_key)
+        # logging.debug(ripple_parameters_key)
         if check_s3_key_exists(bucket, ripple_parameters_key):
             self.item.add_asset(
                 "ripple_parameters.json",

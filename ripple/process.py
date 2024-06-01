@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import logging
 import os
-import warnings
 
 import boto3
 import numpy as np
@@ -44,7 +44,7 @@ def run_rating_curves(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     specified in the NWM conflation stac item.
     """
     for branch_id, branch_data in r.nwm_dict.items():
-        print(f"Handling initial (rating curve) run for branch_id={branch_id}")
+        logging.info(f"Handling initial (rating curve) run for branch_id={branch_id}")
 
         id = branch_id + "_rc"
 
@@ -118,8 +118,8 @@ def determine_flow_increments(r: Ras, default_depths: list[float], depth_increme
             # enforce min depth
             new_depth_from_ds_branch[new_depth_from_ds_branch < MINDEPTH] = MINDEPTH
         else:
-            # print("using default depths")
-            # print(ds_node, r.nwm_dict.keys())
+            # logging.debug("using default depths")
+            # logging.debug(ds_node, r.nwm_dict.keys())
             new_depth_from_ds_branch = default_depths
         # get thalweg for the downstream cross section
         thalweg = branch_data["downstream_data"]["min_elevation"]
@@ -137,7 +137,7 @@ def run_normal_depth_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     initial rating-curve-runs.
     """
     for branch_id, branch_data in r.nwm_dict.items():
-        print(f"Handling normal depth run for branch_id={branch_id}")
+        logging.info(f"Handling normal depth run for branch_id={branch_id}")
 
         branch_id = branch_id + "_nd"
 
@@ -212,7 +212,7 @@ def run_kwse_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     initial rating-curve-runs.
     """
     for branch_id, branch_data in r.nwm_dict.items():
-        print(f"Handling production run for branch_id={branch_id}")
+        logging.info(f"Handling production run for branch_id={branch_id}")
 
         branch_id = branch_id + "_kwse"
 
@@ -279,7 +279,7 @@ def post_process_depth_grids(r: Ras, except_missing_grid: bool = False, dest_dir
                 # if the depth grid path does not exists print a warning then continue to the next profile
                 if not os.path.exists(depth_file):
                     if except_missing_grid:
-                        warnings.warn(f"depth raster does not exists: {depth_file}")
+                        logging.warning(f"depth raster does not exists: {depth_file}")
                         continue
                     else:
                         raise DepthGridNotFoundError(f"depth raster does not exists: {depth_file}")

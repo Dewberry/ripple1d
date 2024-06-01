@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import glob
+import logging
 import os
 import re
 import subprocess
@@ -238,7 +239,7 @@ class Ras:
         if not ras_project_file:
             ras_project_file = self.ras_project_file
 
-        print(f"writing: {ras_project_file}")
+        logging.debug(f"writing: {ras_project_file}")
 
         if os.path.exists(ras_project_file):
 
@@ -533,7 +534,7 @@ class Ras:
         ]
         # add list of input rasters from which to build the Terrain
         subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
-        print(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
+        logging.debug(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
         subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
 
         # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
@@ -574,7 +575,7 @@ class Ras:
                 plan = Plan(plan_file, self.projection)
                 self.plans[plan.title] = plan
             except FileExistsError as E:
-                print(E)
+                logging.debug(E)
 
     def get_geoms(self):
         """
@@ -643,11 +644,11 @@ class Ras:
 
         except ProjectionNotFoundError as e:
 
-            print(e)
+            logging.debug(e)
 
             if self.default_epsg:
 
-                print(f"Attempting to use specified default projection: EPSG:{self.default_epsg}")
+                logging.debug(f"Attempting to use specified default projection: EPSG:{self.default_epsg}")
 
                 self.projection = self.default_epsg
 
@@ -732,7 +733,7 @@ class BaseFile:
         self.program_version = self.content.splitlines()[1].split("=")[-1].rstrip("\n")
 
         if not os.path.exists(self.hdf_file):
-            print(f'The file "{self.hdf_file}" does not exists')
+            logging.debug(f'The file "{self.hdf_file}" does not exists')
             self.hdf_file = None
 
     def read_content(self):
@@ -750,7 +751,7 @@ class BaseFile:
                 response = self.client.get_object(Bucket=self.bucket, Key=self.text_file)
                 self.content = response["Body"].read().decode()
             except Exception as E:
-                print(E)
+                logging.debug(E)
                 raise FileNotFoundError(f"could not find {self.text_file} locally nor on s3")
 
     def write(self):
@@ -758,7 +759,7 @@ class BaseFile:
         Write the content to file
         """
 
-        print(f"writing: {self.text_file}")
+        logging.debug(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as src:
             src.write(self.content)
@@ -791,7 +792,7 @@ class Plan(BaseFile):
             self.parse_attrs()
 
         except FileExistsError:
-            print(f"The plan file provided does not exists: {path}")
+            logging.debug(f"The plan file provided does not exists: {path}")
 
         self.short_id = None
 
@@ -1280,7 +1281,7 @@ class Flow(BaseFile):
 
         except FileExistsError:
 
-            print(f"The flow file provided does not exists: {path}")
+            logging.debug(f"The flow file provided does not exists: {path}")
 
     def parse_attrs(self):
         """
@@ -1366,7 +1367,7 @@ class Flow(BaseFile):
                     flows.append(flow)
                     wses.append(ds_wses[e])
                 else:
-                    print(
+                    logging.debug(
                         f"excluding flow: {int(flow)} | depth {depth} | min depth: {round(min_depths.loc[str(int(flow))],2)}"
                     )
 
@@ -1558,7 +1559,7 @@ class RasMap:
                 response = self.client.get_object(Bucket=self.bucket, Key=self.text_file)
                 self.content = response["Body"].read().decode()
             except Exception as E:
-                print(E)
+                logging.debug(E)
                 raise FileNotFoundError(f"could not find {self.text_file} locally nor on s3")
 
     def new_rasmap_content(self):
@@ -1673,7 +1674,7 @@ class RasMap:
         write Ras Map content to file
         """
 
-        print(f"writing: {self.text_file}")
+        logging.debug(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as f:
             f.write(self.content)

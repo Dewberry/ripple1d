@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import OrderedDict
 from typing import List, Tuple
 
@@ -162,7 +163,7 @@ class RasFimConflater:
             river_reach_name = kwargs.get("river_reach_name", None)
 
             if river_reach_name:
-                # print("river_reach_name", river_reach_name)
+                logging.debug("river_reach_name", river_reach_name)
                 centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
             else:
                 if self.ras_centerlines.shape[0] == 1:
@@ -262,7 +263,7 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int
         result = gdf.query(f"ID == {current_id}")
 
         if result.empty:
-            print(f"No row found with ID = {current_id}")
+            logging.error(f"No row found with ID = {current_id}")
             break
 
         to_value = result.iloc[0]["to"]
@@ -293,7 +294,7 @@ def calculate_conflation_metrics(
             total_hits += xs_hits.shape[0]
             xs_hits_ids.extend(xs_hits.id.tolist())
 
-            # print(total_hits, xs_group.shape[0])
+            logging.debug(total_hits, xs_group.shape[0])
 
     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
 
@@ -382,11 +383,11 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
         try:
             reach_metadata[k]["low_flow_cfs"] = round(low_flow.iloc[0]["discharge_cfs"], 2)
         except IndexError as e:
-            print(f"warning 1: no low flow data for reach {k}: error {e}")
+            logging.warning(f"no low flow data for reach {k}: error {e}")
             reach_metadata[k]["low_flow_cfs"] = -9999
 
         except TypeError as e:
-            print(f"warning 1: no low flow data for reach {k}: error {e}")
+            logging.warning(f"no low flow data for reach {k}: error {e}")
 
         if k in rfc.local_gages.keys():
             gage_id = rfc.local_gages[k].replace(" ", "")
@@ -403,5 +404,5 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
         )
     except ValueError as e:
         # Occurs where stations are floats and not integers
-        # print(f"warning 2: error {e}")
+        logging.debug(f"warning 2: error {e}")
         return reach_metadata

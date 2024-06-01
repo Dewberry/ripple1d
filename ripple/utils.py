@@ -147,7 +147,7 @@ def s3_upload_dir_recursively(local_src_dir: str, tgt_dir: str, s3_client: botoc
         for fn in files:
             src_file = os.path.join(root, fn)
             tgt_file = pathmod.join(tgt_dir, rel_root, fn)
-            print(f"Uploading: {src_file} -> {tgt_file}")
+            logging.debug(f"Uploading: {src_file} -> {tgt_file}")
             bucket_name, key = extract_bucketname_and_keyname(s3path=tgt_file)
             s3_client.upload_file(
                 Filename=src_file,
@@ -158,7 +158,7 @@ def s3_upload_dir_recursively(local_src_dir: str, tgt_dir: str, s3_client: botoc
 
 def s3_delete_dir_recursively(s3_dir: str, s3_resource: boto3.resources.factory.ServiceResource) -> None:
     """Delete a s3:// directory and its contents recursively. OK if dir does not exist."""
-    print(f"Deleting directory if exists: {s3_dir}")
+    logging.debug(f"Deleting directory if exists: {s3_dir}")
     if not s3_dir.startswith("s3://"):
         raise ValueError(f"Expected s3_dir to start with s3://, but got: {s3_dir}")
     bucket, key = extract_bucketname_and_keyname(s3path=s3_dir)
@@ -199,20 +199,20 @@ def s3_upload_status_file(stac_href: str, s3_bucket: str, s3_client: botocore.cl
     else:
         raise TypeError(f"For e, expected None or type Exception, but got type: {type(e)}")
 
-    print(f"Deleting if exists: {s3_output_key_succeed}")
+    logging.debug(f"Deleting if exists: {s3_output_key_succeed}")
     s3_client.delete_object(Bucket=s3_bucket, Key=s3_output_key_succeed)
-    print(f"Deleting if exists: {s3_output_key_fail}")
+    logging.debug(f"Deleting if exists: {s3_output_key_fail}")
     s3_client.delete_object(Bucket=s3_bucket, Key=s3_output_key_fail)
 
     body_str = json.dumps(body, indent=2)
-    print(f"Writing: {s3_output_key} with body: {body_str}")
+    logging.debug(f"Writing: {s3_output_key} with body: {body_str}")
     s3_client.put_object(Body=body_str, Bucket=s3_bucket, Key=s3_output_key, ContentType="application/json")
 
 
 def s3_ripple_status_succeed_file_exists(stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient) -> bool:
     """Check if the standard ripple succeed sentinel file exists.  If it does, return True, otherwise return False."""
     s3_output_key_succeed, _ = s3_get_ripple_status_file_key_names(stac_href, s3_bucket, s3_client)
-    print(f"Checking if s3 file exists: s3://{s3_bucket}/{s3_output_key_succeed}")
+    logging.debug(f"Checking if s3 file exists: s3://{s3_bucket}/{s3_output_key_succeed}")
     try:
         s3_client.head_object(Bucket=s3_bucket, Key=s3_output_key_succeed)
     except botocore.exceptions.ClientError as e:

@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 
 from ripple.conflate.rasfim import (
@@ -16,7 +18,7 @@ def main(
 ):
     metadata = {}
     for river_reach_name in rfc.ras_river_reach_names:
-        print(f"Processing {river_reach_name}")
+        logging.info(f"Processing {river_reach_name}")
         ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
         us_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_start_point)
         ds_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_stop_point)

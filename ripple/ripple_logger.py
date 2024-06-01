@@ -1,0 +1,28 @@
+import logging
+from logging.handlers import RotatingFileHandler
+
+
+def configure_logging(level, logfile: str = None, milliseconds: bool = False):
+    if milliseconds:
+        datefmt = "%Y-%m-%dT%H:%M:%S.%fZ"
+    else:
+        datefmt = "%Y-%m-%dT%H:%M:%SZ"
+
+    log_formatter = logging.Formatter(
+        '{"time": "%(asctime)s" , "level": "%(levelname)s", "msg": "%(message)s"}', datefmt=datefmt
+    )
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    handlers = [console_handler]
+
+    if logfile:
+        file_handler = RotatingFileHandler(logfile, maxBytes=5000000, backupCount=5)
+        file_handler.setFormatter(log_formatter)
+        handlers.append(file_handler)
+
+    logging.basicConfig(
+        level=level,
+        datefmt=datefmt,
+        handlers=handlers,
+    )
