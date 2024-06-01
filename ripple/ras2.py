@@ -98,6 +98,9 @@ class RasManager:
         self.flows = self.get_flows()
         # self.get_active_plan()
 
+    def __repr__(self):
+        return f"RasManager(project={self.ras_text_file_path} ras-version={self.version})"
+
     def get_plans(self):
         """
         Create plan objects for each plan.
@@ -323,6 +326,9 @@ class RasTextFile:
         if not new_file:
             self.read_contents()
 
+    def __repr__(self):
+        return f"RasTextFile({self._ras_text_file_path})"
+
     def read_contents(self):
         if not os.path.exists(self._ras_text_file_path):
             raise FileNotFoundError(f"could not find {self._ras_text_file_path}")
@@ -350,6 +356,9 @@ class RasProject(RasTextFile):
         super().__init__(ras_text_file_path)
         if self.file_extension != ".prj":
             raise TypeError(f"Plan extenstion must be .prj, not {self.file_extension}")
+
+    def __repr__(self):
+        return f"RasProject({self._ras_text_file_path})"
 
     @property
     def title(self):
@@ -402,6 +411,9 @@ class RasPlanText(RasTextFile):
         if self.file_extension not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
         self.projection = projection
+
+    def __repr__(self):
+        return f"RasPlanText({self._ras_text_file_path})"
 
     @property
     def title(self):
@@ -461,6 +473,9 @@ class RasGeomText(RasTextFile):
 
         self.projection = projection
 
+    def __repr__(self):
+        return f"RasGeomText({self._ras_text_file_path})"
+
     @property
     def title(self):
         return search_contents(self.contents, "Geom Title")
@@ -502,6 +517,9 @@ class RasFlowText(RasTextFile):
 
         if self.file_extension not in VALID_STEADY_FLOWS:
             raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {self.file_extension}")
+
+    def __repr__(self):
+        return f"RasFlowText({self._ras_text_file_path})"
 
     @property
     def title(self):
@@ -769,6 +787,9 @@ class RasMap:
             self.read_contents()
         else:
             self.new_rasmap_content()
+
+    def __repr__(self):
+        return f"RasMap({self.path})"
 
     def read_contents(self):
         """

@@ -148,12 +148,9 @@ class Reach:
     def cross_sections(self):
         xs = []
         for header in self.reach_nodes:
-
             type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")
-
             if type != " 1 ":
                 continue
-
             xs_lines = text_block_from_start_end_str(f"Type RM Length L Ch R ={header}", "Exp/Cntr", self.ras_data)
             xs.append(XS(xs_lines, self.river_reach, self.river, self.reach, self.projection))
 
