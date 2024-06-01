@@ -8,9 +8,17 @@ def configure_logging(level, logfile: str = None, milliseconds: bool = False):
     else:
         datefmt = "%Y-%m-%dT%H:%M:%SZ"
 
-    log_formatter = logging.Formatter(
-        '{"time": "%(asctime)s" , "level": "%(levelname)s", "msg": "%(message)s"}', datefmt=datefmt
-    )
+    if level == logging.DEBUG:
+        log_formatter = logging.Formatter(
+            '{"time": "%(asctime)s", "level": "%(levelname)s", "msg": "%(message)s", \
+             "path": "%(pathname)s", "file": "%(filename)s", "module": "%(module)s", \
+             "function": "%(funcName)s", "line": %(lineno)d}',
+            datefmt=datefmt,
+        )
+    else:
+        log_formatter = logging.Formatter(
+            '{"time": "%(asctime)s" , "level": "%(levelname)s", "msg": "%(message)s"}', datefmt=datefmt
+        )
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(log_formatter)

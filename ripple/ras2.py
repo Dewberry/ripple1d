@@ -384,14 +384,14 @@ class RasProject(RasTextFile):
             plan_ext: The plan extension to set as the current plan
         """
         new_contents = self.contents
-        if plan_ext not in VALID_PLANS:
+        if f".{plan_ext}" not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {plan_ext}")
         else:
-            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext.strip("."))
+            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext)
 
         # TODO: Update this to put it with the other plans
-        if f"Plan File={plan_ext}" not in new_contents:
-            new_contents.append(f"Plan File={plan_ext.strip('.')}")
+        if f"Plan File=.{plan_ext}" not in new_contents:
+            new_contents.append(f"Plan File={plan_ext}")
         logging.info("set plan!")
         return new_contents
 
@@ -453,15 +453,15 @@ class RasPlanText(RasTextFile):
         else:
             new_contents = replace_line_in_contents(new_contents, "Short Identifier", short_id)
 
-        if geom_ext not in VALID_GEOMS:
-            raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {geom_ext}")
+        if f".{geom_ext}" not in VALID_GEOMS:
+            raise TypeError(f"Geometry extenstion must be one of g01-g99, not {geom_ext}")
         else:
-            new_contents = replace_line_in_contents(new_contents, "Geom File", geom_ext.strip("."))
+            new_contents = replace_line_in_contents(new_contents, "Geom File", geom_ext)
 
-        if flow_ext not in VALID_STEADY_FLOWS:
-            raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {flow_ext}")
+        if f".{flow_ext}" not in VALID_STEADY_FLOWS:
+            raise TypeError(f"Flow extenstion must be one of f01-f99, not {flow_ext}")
         else:
-            new_contents = replace_line_in_contents(new_contents, "Flow File", flow_ext.strip("."))
+            new_contents = replace_line_in_contents(new_contents, "Flow File", flow_ext)
 
         try:
             new_contents = replace_line_in_contents(new_contents, "Run RASMapper", "-1")
