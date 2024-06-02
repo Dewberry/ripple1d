@@ -15,6 +15,8 @@ from .data_model import Reach
 from .errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
+    NoCrossSectionLayerError,
+    NoRiverLayerError,
     PlanTitleAlreadyExistsError,
     RASComputeTimeoutError,
 )

@@ -14,6 +14,14 @@ class HECRASVersionNotInstalledError(Exception):
     pass
 
 
+class NoRiverLayerError(Exception):
+    pass
+
+
+class NoCrossSectionLayerError(Exception):
+    pass
+
+
 class FlowTitleAlreadyExistsError(Exception):
     pass
 
