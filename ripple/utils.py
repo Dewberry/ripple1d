@@ -354,8 +354,8 @@ def replace_line_in_contents(lines: list, search_string: str, replacement: str, 
 
 def text_block_from_start_end_str(start_str: str, end_str: str, lines: list):
     """
-    Search for an exact match to the start_token and return
-    all lines from there to a line containing the end token.
+    Search for an exact match to the start_str and return
+    all lines from there to a line that contains the end_str.
     """
 
     results = []
@@ -369,6 +369,29 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list):
 
         if in_block:
             if end_str in line:
+                return results
+            else:
+                results.append(line)
+    return results
+
+
+def text_block_from_start_str_to_empty_line(start_str: str, lines: list):
+    """
+    Search for an exact match to the start_str and return
+    all lines from there to the next empty line.
+    """
+
+    results = []
+    in_block = False
+    for line in lines:
+
+        if line == start_str:
+            in_block = True
+            results.append(line)
+            continue
+
+        if in_block:
+            if line == "":
                 results.append(line)
                 return results
             else:
