@@ -6,12 +6,14 @@ import time
 from pathlib import Path
 from typing import List
 
+import fiona
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from pyproj import CRS
 
 from .consts import SUPPORTED_LAYERS, TERRAIN_NAME
-from .data_model import Reach
+from .data_model import Junction, Reach
 from .errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
@@ -339,6 +341,12 @@ class RasTextFile:
         with open(self._ras_text_file_path) as f:
             self.contents = f.read().splitlines()
 
+    def write_contents(self, file_path):
+        if os.path.exists(file_path):
+            raise FileExistsError(f"The specified file already exists {file_path}")
+        with open(file_path, "w") as f:
+            f.write("\n".join(self.contents))
+
     @property
     def file_extension(self):
         return Path(self._ras_text_file_path).suffix
@@ -474,15 +482,74 @@ class RasPlanText(RasTextFile):
 
 
 class RasGeomText(RasTextFile):
-    def __init__(self, ras_text_file_path: str, projection: str = None):
-        super().__init__(ras_text_file_path)
-        if self.file_extension not in VALID_GEOMS:
+    def __init__(self, ras_text_file_path: str, projection: str = None, new_file=False):
+        super().__init__(ras_text_file_path, new_file)
+        if not new_file and self.file_extension not in VALID_GEOMS:
             raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {self.file_extension}")
 
         self.projection = projection
 
     def __repr__(self):
         return f"RasGeomText({self._ras_text_file_path})"
+
+    @classmethod
+    def from_gpkg(cls, gpkg_path, version: str):
+
+        inst = cls("", projection=gpd.read_file(gpkg_path).crs, new_file=True)
+        inst._gpkg_path = gpkg_path
+        inst._version = version
+
+        inst.contents = inst._content_from_gpkg
+        return inst
+
+    @property
+    def _content_from_gpkg(
+        self,
+    ):
+
+        if not hasattr(self, "_gpkg_path"):
+            raise ("gpkg_path not provided")
+        if not os.path.exists(self._gpkg_path):
+            raise FileNotFoundError(f"Could not find the specified gpkg_path {self._gpkg_path}")
+
+        self._check_layers()
+
+        title = os.path.splitext(os.path.basename(self._gpkg_path))[0]
+
+        xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
+
+        # headers
+        gpkg_data = f"Geom Title={title}\nProgram Version={self._version}\nViewing Rectangle={self._bbox(xs_gdf)}\n\n"
+
+        # river reach data
+        gpkg_data += self._river_reach_data_from_gpkg
+
+        # cross section data
+        gpkg_data += xs_gdf["ras_data"].str.cat(sep="\n")
+
+        return gpkg_data.splitlines()
+
+    @property
+    def _river_reach_data_from_gpkg(self):
+        river_gdf = gpd.read_file(self._gpkg_path, layer="River", driver="GPKG").iloc[0]
+        centroid = river_gdf.geometry.centroid
+
+        coords = river_gdf["geometry"].coords
+        data = f"River Reach={river_gdf['river'].ljust(16)}{river_gdf['reach'].ljust(16)}\n"
+        data += f"Reach XY= {len(coords)} \n"
+
+        for i, (x, y) in enumerate(coords):
+            data += str(x).rjust(16) + str(y).rjust(16)
+            if i % 2 != 0:
+                data += "\n"
+
+        data += f"\nRch Text X Y={centroid.x},{centroid.y}\nReverse River Text= 0 \n\n"
+
+        return data
+
+    def _bbox(self, gdf):
+        bounds = gdf.total_bounds
+        return f"{bounds[0]} , {bounds[2]} , {bounds[3]} , {bounds[1]} "
 
     def _check_layers(self):
         layers = set(fiona.listlayers(self._gpkg_path)) & set(SUPPORTED_LAYERS)
@@ -502,28 +569,45 @@ class RasGeomText(RasTextFile):
         return search_contents(self.contents, "Program Version")
 
     @property
-    def river_reaches(self):
-        return search_contents(self.contents, "River Reach", expect_one=False)
-
-    @property
     @check_projection
-    def reaches(self):
-        reaches = []
-        for river_reach in self.river_reaches:
-            reaches.append(Reach(self.contents, river_reach, self.projection))
+    def reaches(self) -> dict:
+        river_reaches = search_contents(self.contents, "River Reach", expect_one=False)
+        reaches = {}
+        for river_reach in river_reaches:
+            reaches[river_reach] = Reach(self.contents, river_reach, self.projection)
         return reaches
 
     @property
     @check_projection
-    def reaches_gdf(self):
-        return pd.concat([reach.gdf for reach in self.reaches])
+    def junctions(self) -> dict:
+        juncts = search_contents(self.contents, "Junct Name", expect_one=False)
+        junctions = {}
+        for junction in juncts:
+            junctions[junction] = Junction.from_text(self.contents, juncts, self.projection)
 
+        return junctions
+
+    @property
+    @check_projection
+    def cross_sections(self) -> dict:
+        cross_sections = {}
+        for reach in self.reaches.values():
+            cross_sections.update(reach.cross_sections)
+
+        return cross_sections
+
+    @property
+    @check_projection
+    def reaches_gdf(self):
+        return pd.concat([reach.gdf for reach in self.reaches.values()])
+
+    @property
     @check_projection
     def xs_gdf(self):
         """
         Geodataframe of all cross sections in the geometry text file.
         """
-        raise NotImplementedError
+        return pd.concat([xs.gdf for xs in self.cross_sections.values()])
 
 
 class RasFlowText(RasTextFile):
@@ -745,14 +829,6 @@ class RasFlowText(RasTextFile):
             lines.append(f"Dn Slope={normal_depth}")
 
         return "\n" + "\n".join(lines)
-
-
-def clip_dem():
-    pass
-
-
-def create_terrain():
-    pass
 
 
 def read_rating_curves(self):
