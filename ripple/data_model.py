@@ -1,15 +1,17 @@
 import math
 from dataclasses import dataclass
+from typing import List
 
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 
 from .utils import (
     data_pairs_from_text_block,
     search_contents,
     text_block_from_start_end_str,
     text_block_from_start_str_length,
+    text_block_from_start_str_to_empty_line,
 )
 
 
@@ -101,7 +103,7 @@ class XS:
                 # "left_reach_length": [self.left_reach_length],
                 # "right_reach_length": [self.right_reach_length],
                 # "channel_reach_length": [self.channel_reach_length],
-                "ras_data": [self.ras_data],
+                "ras_data": ["\n".join(self.ras_data)],
                 # "station_elevation_points": [self.station_elevation_points],
                 # "bank_stations": [self.bank_stations],
                 # "number_of_station_elevation_points": [self.number_of_station_elevation_points],
@@ -115,7 +117,7 @@ class XS:
 
 class Reach:
     def __init__(self, ras_data: list, river_reach: str, projection: str):
-        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", "River Reach=", ras_data)[:-2]
+        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", "River Reach", ras_data)[:-1]
         self.ras_data = reach_lines
         self.projection = projection
         self.river_reach = river_reach
@@ -146,15 +148,16 @@ class Reach:
 
     @property
     def cross_sections(self):
-        xs = []
+        cross_sections = {}
         for header in self.reach_nodes:
             type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")
             if type != " 1 ":
                 continue
-            xs_lines = text_block_from_start_end_str(f"Type RM Length L Ch R ={header}", "Exp/Cntr", self.ras_data)
-            xs.append(XS(xs_lines, self.river_reach, self.river, self.reach, self.projection))
+            xs_lines = text_block_from_start_str_to_empty_line(f"Type RM Length L Ch R ={header}", self.ras_data)
+            cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.projection)
+            cross_sections[cross_section.river_reach_rs] = cross_section
 
-        return xs
+        return cross_sections
 
     @property
     def gdf(self):
@@ -165,9 +168,9 @@ class Reach:
                 "river": [self.river],
                 "reach": [self.reach],
                 "river_reach": [self.river_reach],
-                "number_of_coords": [self.number_of_coords],
-                "coords": [self.coords],
-                "ras_data": [self.ras_data],
+                # "number_of_coords": [self.number_of_coords],
+                # "coords": [self.coords],
+                "ras_data": ["\n".join(self.ras_data)],
             },
             crs=self.projection,
             geometry="geometry",
@@ -175,4 +178,49 @@ class Reach:
 
     @property
     def xs_gdf(self):
-        return pd.concat([xs.gdf for xs in self.cross_sections])
+        return pd.concat([xs.gdf for xs in self.cross_sections.values()])
+
+
+class Junction:
+
+    @classmethod
+    def from_text(cls, ras_data: List[str], junct: str, projection: str):
+        inst = cls()
+        inst.projeciton = projection
+        inst.name = junct
+        inst.ras_data = text_block_from_start_str_to_empty_line(f"Junct Name={junct}", ras_data)
+        return inst
+
+    @classmethod
+    def from_gpkg(cls, gpkg_path: str):
+        raise NotImplementedError
+        # inst=cls()
+        # gdf=gpd.read_file(gpkg_path,layer="Junction",driver="GPKG")
+        # return inst
+
+    def split_line(line: str, token: str, idx: int):
+        return line.split(token)[idx]
+
+    @property
+    def x(self):
+        return self.split_line(search_contents(self.ras_data, "Junct XY & Text X Y"), ",", 0)
+
+    @property
+    def y(self):
+        return self.split_line(search_contents(self.ras_data, "Junct XY & Text X Y"), ",", 1)
+
+    @property
+    def point(self):
+        return Point(self.x, self.y)
+
+    @property
+    def upstream_river_reaches(self):
+        return search_contents(self.ras_data, "Up River,Reach", expect_one=False)
+
+    @property
+    def downstream_river_reaches(self):
+        return search_contents(self.ras_data, "Dn River,Reach", expect_one=False)
+
+    @property
+    def junction_lengths(self):
+        return search_contents(self.ras_data, "Junc L&A", expect_one=False)
