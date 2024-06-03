@@ -7,7 +7,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from ripple import consts
 from ripple.exe import make_ras_terrain
-from ripple.ripple_logger import init_log
+from ripple.ripple_logger import configure_logging
 
 load_dotenv(find_dotenv())
 
@@ -31,5 +31,5 @@ def main():
 
 
 if __name__ == "__main__":
-    init_log()
+    configure_logging()
     main()

@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pandas as pd
@@ -10,15 +11,18 @@ from ripple.conflate.rasfim import (
     ras_reaches_metadata,
     walk_network,
 )
+from ripple.ripple_logger import configure_logging
 
 
 def main(
     rfc: RasFimConflater,
     low_flows: pd.DataFrame,
 ):
+
+    configure_logging(logging.DEBUG)
     metadata = {}
     for river_reach_name in rfc.ras_river_reach_names:
-        logging.info(f"Processing {river_reach_name}")
+        # logging.info(f"Processing {river_reach_name}")
         ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
         us_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_start_point)
         ds_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_stop_point)
@@ -52,15 +56,19 @@ def main(
     return metadata
 
 
-# if __name__ == "__main__":
-#     wkdir = "/Users/user-name/repos/ripple"
-#     ras_gpkg_path = f"{wkdir}/tests/ras-data/Baxter/Baxter.gpkg"
-#     nwm_pq_path = f"{wkdir}/tests/nwm/flow_paths.parquet"
-#     low_flows = pd.read_parquet(f"{wkdir}/tests/nwm/high_water_threshold.parquet")
+if __name__ == "__main__":
+    wkdir = "/Users/slawler/repos/ripple"
+    ras_gpkg_path = f"{wkdir}/tests/ras-data/Baxter/Baxter.gpkg"
+    nwm_pq_path = f"{wkdir}/tests/nwm-data/flow_paths.parquet"
+    low_flows = pd.read_parquet(f"{wkdir}/tests/nwm-data/high_water_threshold.parquet")
+    conflation_output = f"{wkdir}/tests/ras-data/baxter-ripple-params.json"
 
-#     rfc = RasFimConflater(
-#         nwm_pq_path,
-#         ras_gpkg_path,
-#     )
+    rfc = RasFimConflater(
+        nwm_pq_path,
+        ras_gpkg_path,
+    )
 
-#     results = main(rfc, low_flows)
+    results = main(rfc, low_flows)
+
+    with open(conflation_output, "w") as f:
+        f.write(json.dumps(results))

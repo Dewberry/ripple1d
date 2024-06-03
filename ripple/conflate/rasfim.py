@@ -163,7 +163,7 @@ class RasFimConflater:
             river_reach_name = kwargs.get("river_reach_name", None)
 
             if river_reach_name:
-                logging.debug("river_reach_name", river_reach_name)
+                logging.debug(f"check_centerline river_reach_name: {river_reach_name}")
                 centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
             else:
                 if self.ras_centerlines.shape[0] == 1:
@@ -294,7 +294,7 @@ def calculate_conflation_metrics(
             total_hits += xs_hits.shape[0]
             xs_hits_ids.extend(xs_hits.id.tolist())
 
-            logging.debug(total_hits, xs_group.shape[0])
+            logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
 
     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
 
@@ -359,8 +359,8 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):
     us_data = ras_xs_geometry_data(rfc, up_xs)
     ds_data = ras_xs_geometry_data(rfc, ds_xs)
 
-    us_data["xs_id"] = up_xs
-    ds_data["xs_id"] = ds_xs
+    us_data["xs_id"] = str(up_xs)
+    ds_data["xs_id"] = str(ds_xs)
     return {
         "up_xs": us_data,
         "ds_xs": ds_data,
@@ -376,7 +376,7 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
             reach_metadata[reach.ID] = ras_xs_data
         else:
             # pass dictionary with up_xs and xs_id for sorting purposes
-            reach_metadata[reach.ID] = {"up_xs": {"xs_id": -9999}}
+            reach_metadata[reach.ID] = {"up_xs": {"xs_id": str(-9999)}}
 
     for k in reach_metadata.keys():
         low_flow = low_flow_df[low_flow_df.feature_id == k]
@@ -398,11 +398,11 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
         return dict(
             sorted(
                 reach_metadata.items(),
-                key=lambda item: int(item[1]["up_xs"]["xs_id"]),
+                key=lambda item: item[1]["up_xs"]["xs_id"],
                 reverse=True,
             )
         )
     except ValueError as e:
         # Occurs where stations are floats and not integers
-        logging.debug(f"warning 2: error {e}")
+        logging.debug(f"warning 2: error {json.dumps(e)}")
         return reach_metadata
