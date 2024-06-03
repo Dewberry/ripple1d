@@ -16,14 +16,12 @@ from process import (
     run_rating_curves,
 )
 from sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
-from utils import (
-    derive_input_from_stac_item,
-)
+from utils import derive_input_from_stac_item
 
 
 def main(
     ras_directory: str,
-    nwm_dict: dict,
+    conflation_params: dict,
     bucket: str,
     s3_resource: boto3.resources.factory.ServiceResource,
     s3_client: botocore.client.BaseClient,
@@ -39,10 +37,10 @@ def main(
     """
 
     # read stac item, download ras model, load nwm conflation parameters
-    r = read_ras(ras_directory, nwm_dict, terrain_name, bucket, s3_client, postprocessed_output_s3_path)
+    r = read_ras(ras_directory, conflation_params, terrain_name, bucket, s3_client, postprocessed_output_s3_path)
 
     # increment flows based on min and max flows specified in conflation parameters
-    r.nwm_dict = increment_rc_flows(r.nwm_dict, number_of_discharges_for_rating_curve)
+    r.conflation_params = increment_rc_flows(r.conflation_params, number_of_discharges_for_rating_curve)
 
     # write and compute initial flows/plans to develop rating curves
     run_rating_curves(r)
@@ -93,13 +91,13 @@ if __name__ == "__main__":
     resource = session.resource("s3")
 
     # derive input from stac item
-    terrain_name, nwm_dict, postprocessed_output_s3_path = derive_input_from_stac_item(
+    terrain_name, conflation_params, postprocessed_output_s3_path = derive_input_from_stac_item(
         ras_model_stac_href, ras_directory, client, bucket
     )
 
     main(
         ras_directory,
-        nwm_dict,
+        conflation_params,
         bucket,
         resource,
         client,

@@ -100,7 +100,7 @@ class Ras:
     def __init__(
         self,
         path: str,
-        nwm_dict: dict,
+        conflation_params: dict,
         terrain_name: str,
         s3_client: boto3.client = None,
         s3_bucket: str = None,
@@ -112,7 +112,7 @@ class Ras:
 
         Args:
             path (str): directory/s3 location where the ras model will be placed
-            nwm_dict (dict): nwm conflation parameters
+            conflation_params (dict): nwm conflation parameters
             terrain_name (str): name of the terrain
             s3_client (boto3.client, optional): s3 client if reading from s3. Defaults to None.
             s3_bucket (str, optional): s3 bucket if treading from s3. Defaults to None.
@@ -131,7 +131,7 @@ class Ras:
         self.default_epsg = default_epsg
         self.check_version_installed(version)
 
-        self.nwm_dict = nwm_dict
+        self.conflation_params = conflation_params
 
         self.projection_file = None
         self.projection = ""

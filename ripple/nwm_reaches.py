@@ -9,13 +9,13 @@ import rasterio
 from rasterio.enums import Resampling
 
 
-def increment_rc_flows(nwm_dict: dict, increments: int = 10) -> dict:
+def increment_rc_flows(conflation_params: dict, increments: int = 10) -> dict:
     """
     Determine flows to apply to the model for an initial rating
     curve incremented between flow_2_yr_minus and flow_100_yr_plus
 
     Args:
-        nwm_dict (dict): National Water Model conflation data
+        conflation_params (dict): National Water Model conflation data
         increments (int,optional): Number of flow increments
         between flow_2_yr_minus and flow_100_yr_plus
 
@@ -23,7 +23,7 @@ def increment_rc_flows(nwm_dict: dict, increments: int = 10) -> dict:
         dict: _description_
     """
 
-    for branch_id, branch_data in nwm_dict.items():
+    for branch_id, branch_data in conflation_params.items():
 
         flow = np.linspace(
             branch_data["flows"]["flow_2_yr_minus"], branch_data["flows"]["flow_100_yr_plus"], increments
@@ -31,9 +31,9 @@ def increment_rc_flows(nwm_dict: dict, increments: int = 10) -> dict:
 
         flow.sort()
 
-        nwm_dict[branch_id]["flows_rc"] = flow
+        conflation_params[branch_id]["flows_rc"] = flow
 
-    return nwm_dict
+    return conflation_params
 
 
 def clip_depth_grid(

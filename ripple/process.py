@@ -14,7 +14,7 @@ from utils import create_flow_depth_array
 
 def read_ras(
     ras_directory: str,
-    nwm_dict: dict,
+    conflation_params: dict,
     terrain_name: str,
     bucket: str,
     client: boto3.session.Session.client,
@@ -22,10 +22,15 @@ def read_ras(
     default_epsg: int = DEFAULT_EPSG,
 ) -> Ras:
     """ """
-
     # initialize ras class
     r = Ras(
-        ras_directory, nwm_dict, terrain_name, client, bucket, postprocessed_output_s3_path, default_epsg=default_epsg
+        ras_directory,
+        conflation_params,
+        terrain_name,
+        client,
+        bucket,
+        postprocessed_output_s3_path,
+        default_epsg=default_epsg,
     )
 
     # read ras files
@@ -43,7 +48,7 @@ def run_rating_curves(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     discharges are applied incremented evenly between flow_2_yr_minus and  flow_100_yr_plus
     specified in the NWM conflation stac item.
     """
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
         logging.info(f"Handling initial (rating curve) run for branch_id={branch_id}")
 
         id = branch_id + "_rc"
@@ -95,7 +100,7 @@ def determine_flow_increments(r: Ras, default_depths: list[float], depth_increme
     """
     Detemine flow increments corresponding to 0.5 ft depth increments using the rating-curve-run results
     """
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
 
         r.plan = r.plans[str(branch_id) + "_rc"]
 
@@ -108,9 +113,11 @@ def determine_flow_increments(r: Ras, default_depths: list[float], depth_increme
         # get new depth for downstream branch
         ds_node = str(branch_data["downstream_data"]["node_id"])
 
-        if ds_node in r.nwm_dict.keys():
+        if ds_node in r.conflation_params.keys():
             r.plan = r.plans[str(ds_node) + "_rc"]
-            depth_from_ds_branch, flow_from_ds_branch = get_flow_depth_arrays(r, r.nwm_dict[ds_node], "upstream")
+            depth_from_ds_branch, flow_from_ds_branch = get_flow_depth_arrays(
+                r, r.conflation_params[ds_node], "upstream"
+            )
 
             # get new flow/depth incremented every x ft
             _, new_depth_from_ds_branch = create_flow_depth_array(flow_us, depth_us, depth_increment)
@@ -119,14 +126,14 @@ def determine_flow_increments(r: Ras, default_depths: list[float], depth_increme
             new_depth_from_ds_branch[new_depth_from_ds_branch < MINDEPTH] = MINDEPTH
         else:
             # logging.debug("using default depths")
-            # logging.debug(ds_node, r.nwm_dict.keys())
+            # logging.debug(ds_node, r.conflation_params.keys())
             new_depth_from_ds_branch = default_depths
         # get thalweg for the downstream cross section
         thalweg = branch_data["downstream_data"]["min_elevation"]
 
-        r.nwm_dict[branch_id]["us_flows"] = new_flow_us
-        r.nwm_dict[branch_id]["ds_depths"] = new_depth_from_ds_branch
-        r.nwm_dict[branch_id]["ds_wses"] = [i + thalweg for i in new_depth_from_ds_branch]
+        r.conflation_params[branch_id]["us_flows"] = new_flow_us
+        r.conflation_params[branch_id]["ds_depths"] = new_depth_from_ds_branch
+        r.conflation_params[branch_id]["ds_wses"] = [i + thalweg for i in new_depth_from_ds_branch]
 
     return r
 
@@ -136,7 +143,7 @@ def run_normal_depth_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     Write and compute the normal depth run plans using the flow increments determined from the
     initial rating-curve-runs.
     """
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
         logging.info(f"Handling normal depth run for branch_id={branch_id}")
 
         branch_id = branch_id + "_nd"
@@ -195,13 +202,13 @@ def update_rasmapper_for_mapping(r: Ras):
 
 
 def filter_ds_depths(r: Ras):
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
 
         r.plan = r.plans[str(branch_id) + "_nd"]
 
         # get ds wses resulting from normal depth runs
         nd_depth, nd_flow = get_flow_depth_arrays(r, branch_data, "downstream")
-        r.nwm_dict[branch_id]["nd_depth"] = nd_depth
+        r.conflation_params[branch_id]["nd_depth"] = nd_depth
 
     return r
 
@@ -211,7 +218,7 @@ def run_kwse_runs(r: Ras, normal_depth: float = NORMAL_DEPTH) -> Ras:
     Write and compute the production run plans using the flow/wse increments determined from the
     initial rating-curve-runs.
     """
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
         logging.info(f"Handling production run for branch_id={branch_id}")
 
         branch_id = branch_id + "_kwse"
@@ -254,7 +261,7 @@ def post_process_depth_grids(r: Ras, except_missing_grid: bool = False, dest_dir
         raise FileExistsError(dest_directory)
 
     # iterate thorugh the flow change locations
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
 
         for prefix in ["_kwse", "_nd"]:
             id = branch_id + prefix

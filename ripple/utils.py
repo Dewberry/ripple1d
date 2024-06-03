@@ -238,15 +238,17 @@ def derive_input_from_stac_item(
     terrain_name = download_model(stac_item, ras_directory, client, bucket)
 
     # get nwm conflation parameters
-    nwm_dict = create_nwm_dict_from_stac_item(stac_item, client, bucket)
+    conflation_params = create_conflation_params_from_stac_item(stac_item, client, bucket)
 
     # directory for post processed depth grids/sqlite db. The default is None which will not upload to s3
     postprocessed_output_s3_path = s3_get_output_s3path(bucket, ras_model_stac_href)
 
-    return terrain_name, nwm_dict, postprocessed_output_s3_path
+    return terrain_name, conflation_params, postprocessed_output_s3_path
 
 
-def create_nwm_dict_from_stac_item(stac_item: pystac.Item, client: boto3.session.Session.client, bucket: str) -> dict:
+def create_conflation_params_from_stac_item(
+    stac_item: pystac.Item, client: boto3.session.Session.client, bucket: str
+) -> dict:
 
     # create nwm dictionary
     for _, asset in stac_item.get_assets(role="ripple-params").items():

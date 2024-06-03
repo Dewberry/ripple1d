@@ -67,7 +67,7 @@ def zero_depth_to_sqlite(r: Ras):
     database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
     table = r.ras_project_basename
 
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
 
         # set the plan
         r.plan = r.plans[str(branch_id) + "_nd"]
@@ -107,7 +107,7 @@ def rating_curves_to_sqlite(r: Ras):
     create_db_and_table(database_path, table)
 
     # df_list = []
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.conflation_params.items():
 
         # set the plan
         r.plan = r.plans[str(branch_id) + "_kwse"]
