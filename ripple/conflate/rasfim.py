@@ -286,7 +286,8 @@ def calculate_conflation_metrics(
     total_hits = 0
     for i in candidate_reaches.index:
         candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
-        if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 2000:
+        # TODO: Evaluate this constant.
+        if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
             next_round_candidates.append(candidate_reaches.loc[i]["ID"])
             gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
             xs_hits = count_intersecting_lines(xs_group, gdftmp)
@@ -306,20 +307,24 @@ def calculate_conflation_metrics(
         conlfation_notes = "Probable Conflation, no dangling xs"
         manual_check_required = False
 
-    elif dangling_xs_interesects.shape[0] == 0:
-        conlfation_notes = f"Probable Conflation. Score = {conflation_score}% with {dangling_xs.shape[0]} dangling xs"
+    # elif dangling_xs_interesects.shape[0] == 0:
+    #     conlfation_notes = f"Probable Conflation..."
+    #     manual_check_required = False
+
+    elif conflation_score >= 0.95:
+        conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = False
 
     elif conflation_score >= 0.25:
-        conlfation_notes = "Possible Conflation: partial nwm reach coverage"
+        conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = True
 
     elif conflation_score < 0.25:
-        conlfation_notes = "Unable to conflate: potential disconnected reaches"
+        conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = True
 
     elif conflation_score > 1:
-        conlfation_notes = "Unable to conflate: potential diverging reaches"
+        conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = True
 
     else:
@@ -349,6 +354,7 @@ def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
 
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):
     intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach)]
+
     if intersected_xs.empty:
         return None
     start, end = endpoints_from_multiline(reach)
@@ -370,6 +376,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):
 def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candidate_reaches: gpd.GeoDataFrame):
     reach_metadata = OrderedDict()
     for reach in candidate_reaches.itertuples():
+        # logging.debug(f"REACH: {reach.ID}")
         reach_geom = reach.geometry
         ras_xs_data = map_reach_xs(rfc, reach_geom)
         if ras_xs_data:

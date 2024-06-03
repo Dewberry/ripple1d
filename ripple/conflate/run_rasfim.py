@@ -26,6 +26,9 @@ def main(
         ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
         us_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_start_point)
         ds_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_stop_point)
+        logging.debug(
+            f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
+        )
 
         potential_reach_path = walk_network(rfc.local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
 
@@ -37,7 +40,6 @@ def main(
 
         rfc.ras_xs.fields.loc[0]
         xs_group = rfc.xs_by_river_reach_name(river_reach_name)
-
         metrics = calculate_conflation_metrics(
             rfc,
             candidate_reaches,
@@ -71,4 +73,4 @@ if __name__ == "__main__":
     results = main(rfc, low_flows)
 
     with open(conflation_output, "w") as f:
-        f.write(json.dumps(results))
+        f.write(json.dumps(results, indent=4))
