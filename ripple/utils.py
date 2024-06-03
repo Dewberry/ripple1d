@@ -30,30 +30,6 @@ from .errors import (
 
 load_dotenv(find_dotenv())
 
-LOGGER = None  # modified by function init_log() the first time it is called.
-
-
-def init_log():
-    """Should be called only once by executable script, calling subsequent times has no effect."""
-    global LOGGER
-    if LOGGER is not None:
-        return
-
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-
-    assert LOGGER is None
-    LOGGER = logger
-    assert LOGGER is not None
-
 
 def get_sessioned_s3_client():
     """Use env variables to establish a boto3 (AWS) session and return that session's S3 client handle."""

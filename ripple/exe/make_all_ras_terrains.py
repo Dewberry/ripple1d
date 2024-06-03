@@ -7,7 +7,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from ripple import consts
 from ripple.exe import make_ras_terrain
-from ripple.utils import init_log
+from ripple.ripple_logger import init_log
 
 load_dotenv(find_dotenv())
 

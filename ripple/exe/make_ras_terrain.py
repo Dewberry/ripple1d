@@ -19,7 +19,8 @@ from ripple.consts import (
     METERS_PER_FOOT,
 )
 from ripple.ras import Ras
-from ripple.utils import clip_raster, get_sessioned_s3_client, init_log, xs_concave_hull
+from ripple.ripple_logger import init_log
+from ripple.utils import clip_raster, get_sessioned_s3_client, xs_concave_hull
 
 
 def regex_extract_group_assert_one_group(pattern: str, s: str) -> str:
