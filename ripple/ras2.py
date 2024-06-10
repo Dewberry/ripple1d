@@ -231,65 +231,20 @@ class RasManager:
         if title in self.flows.keys():
             raise FlowTitleAlreadyExistsError(f"The specified flow title {title} already exists")
 
-        # get a new extension number for the new flow file
-        new_extension_number = self.get_new_extension_number(self.flows)
-        text_file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
 
-        # create new flow
-        flow = RasFlowText(text_file, new_file=True)
+    def new_geom_from_gpkg(
+        self,
+        ras_gpkg_file_path: str,
+        title: str,
+    ):
+        new_extension_number = get_new_extension_number(self.geoms)
+        text_file = self.ras_project._ras_root_path + f".g{new_extension_number}"
+        geom_text_file = RasGeomText.from_gpkg(ras_gpkg_file_path, title, self.version, text_file)
+        geom_text_file.write_contents()
+        self.geoms[geom_text_file.title] = geom_text_file
+        self.ras_project.contents.append(f"Geom File=g{new_extension_number}")
 
-        # populate new flow
-        flow.write_initial_normal_depth_flow_file(
-            title,
-            branch_data["flows_rc"],
-            normal_depth,
-            branch_data["upstream_data"]["river"],
-            branch_data["upstream_data"]["reach"],
-            branch_data["upstream_data"]["xs_id"],
-            branch_data["downstream_data"]["river"],
-            branch_data["downstream_data"]["reach"],
-        )
-
-        # add new flow to the ras class
-        self.flows[title] = flow
-
-    def write_new_flow_file_for_kwses_run(self, title: str, branch_data: dict):
-        """
-        Write a new flow file contaning the specified title and branch_data.
-
-        Args:
-            title (str): Title of the flow file
-            branch_data (pd.dict) dictionary containing information for boundary conditions
-        """
-        if title in self.flows.keys():
-            raise FlowTitleAlreadyExistsError(f"The specified flow title {title} already exists")
-
-        # get a new extension number for the new flow file
-        new_extension_number = self.get_new_extension_number(self.flows)
-        text_file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
-
-        # create new flow class
-        flow = RasFlowText(text_file, new_file=True)
-
-        # populate new flow
-        flow.write_kwses_flow_file(
-            title,
-            branch_data["ds_depths"],
-            branch_data["ds_wses"],
-            branch_data["us_flows"],
-            branch_data["nd_depths"],
-            branch_data["upstream_data"]["river"],
-            branch_data["upstream_data"]["reach"],
-            branch_data["upstream_data"]["xs_id"],
-            branch_data["downstream_data"]["river"],
-            branch_data["downstream_data"]["reach"],
-            branch_data["downstream_data"]["xs_id"],
-        )
-
-        # add new flow to the ras manager
-        self.flows[title] = flow
-
-    def write_new_plan(self, geom, flow, title: str, short_id: str):
+    def update_rasmapper_for_mapping(self):
         """
         Write a new plan file with the given geom, flow, tite. and short ID.
 
@@ -493,11 +448,15 @@ class RasGeomText(RasTextFile):
         return f"RasGeomText({self._ras_text_file_path})"
 
     @classmethod
-    def from_gpkg(cls, gpkg_path, version: str):
 
-        inst = cls("", projection=gpd.read_file(gpkg_path).crs, new_file=True)
+    @classmethod
+    def from_gpkg(cls, gpkg_path, title: str, version: str, ras_text_file_path: str = ""):
+        
+        
+        inst = cls(ras_text_file_path, projection=gpd.read_file(gpkg_path).crs, new_file=True)
         inst._gpkg_path = gpkg_path
         inst._version = version
+        inst._title = title
 
         inst.contents = inst._content_from_gpkg
         return inst
@@ -514,12 +473,18 @@ class RasGeomText(RasTextFile):
 
         self._check_layers()
 
-        title = os.path.splitext(os.path.basename(self._gpkg_path))[0]
-
         xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
 
+
         # headers
-        gpkg_data = f"Geom Title={title}\nProgram Version={self._version}\nViewing Rectangle={self._bbox(xs_gdf)}\n\n"
+        gpkg_data = (
+            f"Geom Title={self._title}\nProgram Version={self._version}\nViewing Rectangle={self._bbox(xs_gdf)}\n\n"
+        )
+
+        #junction data
+        if "Junction" in fiona.listlayers(self._gpkg_path):
+            junction_gdf = gpd.read_file(self._gpkg_path, layer="Junction", driver="GPKG")
+            junction_gdf["ras_data"].str.cat(sep="\n")
 
         # river reach data
         gpkg_data += self._river_reach_data_from_gpkg
@@ -535,7 +500,7 @@ class RasGeomText(RasTextFile):
         centroid = river_gdf.geometry.centroid
 
         coords = river_gdf["geometry"].coords
-        data = f"River Reach={river_gdf['river'].ljust(16)}{river_gdf['reach'].ljust(16)}\n"
+        data = f"River Reach={river_gdf['river'].ljust(16)},{river_gdf['reach'].ljust(16)}\n"
         data += f"Reach XY= {len(coords)} \n"
 
         for i, (x, y) in enumerate(coords):

@@ -133,3 +133,22 @@ def post_process_depth_grids(
                     dst.update_tags(ns="rio_overview", resampling="nearest")
 
 
+def initialize_new_ras_project_from_gpkg(
+    ras_project_dir: str, nwm_id, ras_gpkg_file_path: str, version: str = "631", terrain_name: str = TERRAIN_NAME
+):
+
+    ras_project_text_file = os.path.join(ras_project_dir, f"{nwm_id}.prj")
+
+    rm = RasManager(
+        ras_project_text_file,
+        version,
+        terrain_name=terrain_name,
+        projection=gpd.read_file(ras_gpkg_file_path).crs,
+        new_project=True,
+    )
+
+    rm.new_geom_from_gpkg(ras_gpkg_file_path, nwm_id)
+    rm.ras_project.write_contents()
+    return rm, ras_project_text_file
+
+
