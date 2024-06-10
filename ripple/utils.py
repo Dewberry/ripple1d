@@ -66,35 +66,6 @@ def get_sessioned_s3_client():
     return s3_client
 
 
-def clip_raster(src_path: str, dst_path: str, mask: Polygon):
-    if os.path.exists(dst_path):
-        raise FileExistsError(dst_path)
-    if not isinstance(mask, Polygon):
-        raise TypeError(mask)
-    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-
-    logging.info(f"Reading: {src_path}")
-    with rasterio.open(src_path) as src:
-        out_meta = src.meta
-        out_image, out_transform = rasterio.mask.mask(src, [mask], all_touched=True, crop=True)
-
-    out_meta.update(
-        {
-            "driver": "GTiff",
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform,
-            "compress": "LZW",
-            "predictor": 3,
-            "tiled": True,
-        }
-    )
-
-    logging.info(f"Writing as masked: {dst_path}")
-    with rasterio.open(dst_path, "w", **out_meta) as dest:
-        dest.write(out_image)
-
-
 def decode(df: pd.DataFrame):
     for c in df.columns:
         df[c] = df[c].str.decode("utf-8")
@@ -108,27 +79,7 @@ def create_flow_depth_array(flow: list[float], depth: list[float], increment: fl
     new_depth = np.arange(start_depth, max_depth + increment, increment)
     new_flow = np.interp(new_depth, np.sort(depth), np.sort(flow))
 
-    return new_flow, new_depth
-
-
-def get_terrain_exe_path(ras_ver: str) -> str:
-    """Return Windows path to RasProcess.exe exposing CreateTerrain subroutine, compatible with provided RAS version."""
-    # 5.0.7 version of RasProcess.exe does not expose CreateTerrain subroutine.
-    # Testing shows that RAS 5.0.7 accepts Terrain created by 6.1 version of RasProcess.exe, so use that for 5.0.7.
-    d = {
-        "507": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
-        "5.07": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
-        "600": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
-        "6.00": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
-        "610": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
-        "6.10": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
-        "631": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
-        "6.3.1": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
-    }
-    try:
-        return d[ras_ver]
-    except KeyError as e:
-        raise ValueError(f"Unsupported ras_ver: {ras_ver}. choices: {sorted(d)}") from e
+    return new_depth, new_flow
 
 
 def s3_upload_dir_recursively(local_src_dir: str, tgt_dir: str, s3_client: botocore.client.BaseClient):
@@ -262,15 +213,17 @@ def derive_input_from_stac_item(
     terrain_name = download_model(stac_item, ras_directory, client, bucket)
 
     # get nwm conflation parameters
-    nwm_dict = create_nwm_dict_from_stac_item(stac_item, client, bucket)
+    ripple_parameters = create_ripple_parameters_from_stac_item(stac_item, client, bucket)
 
     # directory for post processed depth grids/sqlite db. The default is None which will not upload to s3
     postprocessed_output_s3_path = s3_get_output_s3path(bucket, ras_model_stac_href)
 
-    return terrain_name, nwm_dict, postprocessed_output_s3_path
+    return terrain_name, ripple_parameters, postprocessed_output_s3_path
 
 
-def create_nwm_dict_from_stac_item(stac_item: pystac.Item, client: boto3.session.Session.client, bucket: str) -> dict:
+def create_ripple_parameters_from_stac_item(
+    stac_item: pystac.Item, client: boto3.session.Session.client, bucket: str
+) -> dict:
 
     # create nwm dictionary
     for _, asset in stac_item.get_assets(role="ripple-params").items():
