@@ -846,7 +846,7 @@ class RasMap:
 
     """
 
-    def __init__(self, path: str, version: str = 631):
+    def __init__(self, path: str, geom,version: str = 631):
         """
         Args:
             path (str): file path to the plan text file
@@ -858,7 +858,7 @@ class RasMap:
         if os.path.exists(path):
             self.read_contents()
         else:
-            self.new_rasmap_content()
+            self.new_rasmap_content(geom)
 
     def __repr__(self):
         return f"RasMap({self.path})"
@@ -876,12 +876,12 @@ class RasMap:
         else:
             raise FileNotFoundError(f"could not find {self.text_file}")
 
-    def new_rasmap_content(self):
+    def new_rasmap_content(self,geom):
         """
         Populate the contents with boiler plate contents
         """
         if self.version in ["631", "6.31", "6.3.1", "63.1"]:
-            self.contents = RASMAP_631
+            self.contents = RASMAP_631.replace("geom_hdf_placeholder",os.path.basename(geom.hdf_file)).replace("geom_name_placeholder",geom.title)
         else:
             raise ValueError(f"model version '{self.version}' is not supported")
 

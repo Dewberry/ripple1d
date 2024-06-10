@@ -10,7 +10,7 @@ RASMAP_631 = """<RASMapper>
     </Layer>
   </Features>
   <Geometries>
-    <Layer Name="Existing Conditions" Type="RASGeometry" Expanded="True" Filename=".\geom_hdf_placeholder">
+    <Layer Name="geom_name_placeholder" Type="RASGeometry" Expanded="True" Filename=".\geom_hdf_placeholder">
       <Layer Type="RASXS" UnitsRiverStation="Feet" RiverStationDecimalPlaces="0" />
       <Layer Type="FinalNValueLayer">
         <ResampleMethod>near</ResampleMethod>
