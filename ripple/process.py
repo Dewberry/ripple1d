@@ -231,3 +231,59 @@ def subset_gpkg(
 
     return dest_gpkg_path
 
+
+def update_river_station(ras_data, river_station):
+    lines = ras_data.splitlines()
+    data = lines[0].split(",")
+    data[1] = str(float(lines[0].split(",")[1]) + river_station).rstrip("0").ljust(8)
+    lines[0] = ",".join(data)
+    return "\n".join(lines) + "\n"
+
+
+def junction_length_to_reach_lengths():
+    # TODO adjust reach lengths using junction lengths
+    raise NotImplementedError
+    # for row in junction_gdf.iterrows():
+    #     if us_river in row["us_rivers"] and us_reach in row["us_reach"]:
+
+
+def create_flow_depth_combinations(
+    ds_depths: list, ds_wses: list, input_flows: np.array, min_depths: pd.Series
+) -> tuple:
+    """
+    Create flow-depth-wse combinations
+
+    Args:
+        ds_depths (list): downstream depths
+        ds_wses (list): downstream water surface elevations
+        input_flows (np.array): Flows to create profiles names from. Combine with incremental depths
+            of the downstream cross section of the reach
+        min_depths (pd.Series): minimum depth to be included. (typically derived from a previous noraml depth run)
+
+    Returns:
+        tuple: tuple of depths, flows, and wses
+    """
+
+    depths, flows, wses = [], [], []
+    for wse, depth in zip(ds_wses, ds_depths):
+
+        for flow in input_flows:
+            if depth >= min_depths.loc[str(int(flow))]:
+
+                depths.append(depth)
+                flows.append(flow)
+                wses.append(wse)
+
+    return (depths, flows, wses)
+
+
+def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str):
+    rm = RasManager(ds_nwm_ras_project_file, projection=DEFAULT_EPSG)
+    rm.plan = rm.plans[ds_nwm_id + "_nd"]
+
+    xs_gdf = rm.geoms[ds_nwm_id].xs_gdf
+
+    river_station = xs_gdf["river_station"].max()
+
+    thalweg = xs_gdf.loc[xs_gdf["river_station"] == river_station, "thalweg"]
+    return get_flow_depth_arrays(rm, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
