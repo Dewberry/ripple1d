@@ -300,18 +300,33 @@ class RasManager:
                 RC.Project_Close()
                 RC.QuitRas()
 
-    def write_new_flow_initial_normal_depth(self, title: str, branch_data: dict, normal_depth: float):
-        """
-        Write a new flow file contaning the specified title, branch_data, and normal depth.
+    @write_new_plan_text_file
+    @write_new_flow_text_file
+    def normal_depth_run(
+        self,
+        flow_text_file,
+        title: str,
+        geom_title:str,
+        flows: list[float],
+        river: str,
+        reach: str,
+        us_river_station: float,
+        normal_depth: float=NORMAL_DEPTH,
+        write_depth_grids:bool=False
+    ):
 
-        Args:
-            title (str): Title of the flow file
-            branch_data (pd.DataFrame) dataframe containing rows for each flow change location
-                and columns for river,reach,us_rs,ds_rs, and flows.
-            normal_depth (float): normal_depth to apply
-        """
-        if title in self.flows.keys():
-            raise FlowTitleAlreadyExistsError(f"The specified flow title {title} already exists")
+        flows = [int(i) for i in flows]
+
+        # write headers
+        flow_text_file.contents += flow_text_file.write_headers(title, flows)
+
+        # write discharges
+        flow_text_file.contents += flow_text_file.write_discharges(flows, river, reach, us_river_station)
+
+        # write normal depth
+        flow_text_file.contents += flow_text_file.write_ds_normal_depth(len(flows), normal_depth, river, reach)
+
+        return flow_text_file
 
 
     def new_geom_from_gpkg(
