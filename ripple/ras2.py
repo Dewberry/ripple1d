@@ -397,6 +397,7 @@ class RasManager:
 class RasTextFile:
     def __init__(self, ras_text_file_path, new_file=False):
         self._ras_text_file_path = ras_text_file_path
+
         if not new_file and not os.path.exists(ras_text_file_path):
             raise FileNotFoundError(f"could not find {ras_text_file_path}")
         else:
@@ -405,6 +406,8 @@ class RasTextFile:
 
         if not new_file:
             self.read_contents()
+        else:
+            self.contents = []
 
     def __repr__(self):
         return f"RasTextFile({self._ras_text_file_path})"
@@ -415,10 +418,20 @@ class RasTextFile:
         with open(self._ras_text_file_path) as f:
             self.contents = f.read().splitlines()
 
-    def write_contents(self, file_path):
-        if os.path.exists(file_path):
-            raise FileExistsError(f"The specified file already exists {file_path}")
-        with open(file_path, "w") as f:
+    def write_contents(self):
+        if os.path.exists(self._ras_text_file_path):
+            raise FileExistsError(f"The specified file already exists {self._ras_text_file_path}")
+
+        logging.info(f"writing: {self._ras_text_file_path}")
+        with open(self._ras_text_file_path, "w") as f:
+            f.write("\n".join(self.contents))
+
+    def write_updated_contents(self):
+        if not os.path.exists(self._ras_text_file_path):
+            raise FileNotFoundError(f"The specified file doesn't exists {self._ras_text_file_path}")
+
+        logging.info(f"updating: {self._ras_text_file_path}")
+        with open(self._ras_text_file_path, "w") as f:
             f.write("\n".join(self.contents))
 
     @property
