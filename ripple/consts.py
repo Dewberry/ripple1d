@@ -11,8 +11,6 @@ MAP_DEM_VERT_UNITS = "Feet"
 
 METERS_PER_FOOT = 1200.0 / 3937.0
 
-STAC_API_URL = "https://stac.dewberryanalytics.com"
-
 MINDEPTH = 0.1
 
 DEFAULT_EPSG = 4269

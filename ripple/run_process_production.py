@@ -38,10 +38,10 @@ def main(
     """
 
     # read stac item, download ras model, load nwm conflation parameters
-    r = read_ras(ras_directory, nwm_dict, terrain_name, bucket, s3_client, postprocessed_output_s3_path)
+    r = read_ras(ras_directory, conflation_params, terrain_name, bucket, s3_client, postprocessed_output_s3_path)
 
     # increment flows based on min and max flows specified in conflation parameters
-    r.nwm_dict = increment_rc_flows(r.nwm_dict, number_of_discharges_for_rating_curve)
+    r.conflation_params = increment_rc_flows(r.conflation_params, number_of_discharges_for_rating_curve)
 
     # write and compute initial flows/plans to develop rating curves
     run_rating_curves(r)
@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 ras_directory = os.path.realpath(ras_directory)
 
                 # derive input from stac item
-                terrain_name, nwm_dict, postprocessed_output_s3_path = derive_input_from_stac_item(
+                terrain_name, conflation_params, postprocessed_output_s3_path = derive_input_from_stac_item(
                     ras_model_stac_href, ras_directory, client, bucket
                 )
 

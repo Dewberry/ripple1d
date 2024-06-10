@@ -16,7 +16,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pystac
-import rasterio
 from dotenv import find_dotenv, load_dotenv
 from requests.utils import requote_uri
 from shapely.geometry import Point, Polygon
@@ -29,30 +28,6 @@ from .errors import (
 )
 
 load_dotenv(find_dotenv())
-
-LOGGER = None  # modified by function init_log() the first time it is called.
-
-
-def init_log():
-    """Should be called only once by executable script, calling subsequent times has no effect."""
-    global LOGGER
-    if LOGGER is not None:
-        return
-
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-
-    assert LOGGER is None
-    LOGGER = logger
-    assert LOGGER is not None
 
 
 def get_sessioned_s3_client():

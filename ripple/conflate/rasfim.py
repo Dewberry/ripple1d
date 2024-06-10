@@ -163,7 +163,7 @@ class RasFimConflater:
             river_reach_name = kwargs.get("river_reach_name", None)
 
             if river_reach_name:
-                logging.debug("river_reach_name", river_reach_name)
+                logging.debug(f"check_centerline river_reach_name: {river_reach_name}")
                 centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
             else:
                 if self.ras_centerlines.shape[0] == 1:
@@ -286,7 +286,8 @@ def calculate_conflation_metrics(
     total_hits = 0
     for i in candidate_reaches.index:
         candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
-        if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 2000:
+        # TODO: Evaluate this constant.
+        if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
             next_round_candidates.append(candidate_reaches.loc[i]["ID"])
             gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
             xs_hits = count_intersecting_lines(xs_group, gdftmp)
@@ -294,7 +295,7 @@ def calculate_conflation_metrics(
             total_hits += xs_hits.shape[0]
             xs_hits_ids.extend(xs_hits.id.tolist())
 
-            logging.debug(total_hits, xs_group.shape[0])
+            logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
 
     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
 
@@ -306,20 +307,24 @@ def calculate_conflation_metrics(
         conlfation_notes = "Probable Conflation, no dangling xs"
         manual_check_required = False
 
-    elif dangling_xs_interesects.shape[0] == 0:
-        conlfation_notes = f"Probable Conflation. Score = {conflation_score}% with {dangling_xs.shape[0]} dangling xs"
+    # elif dangling_xs_interesects.shape[0] == 0:
+    #     conlfation_notes = f"Probable Conflation..."
+    #     manual_check_required = False
+
+    elif conflation_score >= 0.95:
+        conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = False
 
     elif conflation_score >= 0.25:
-        conlfation_notes = "Possible Conflation: partial nwm reach coverage"
+        conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = True
 
     elif conflation_score < 0.25:
-        conlfation_notes = "Unable to conflate: potential disconnected reaches"
+        conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = True
 
     elif conflation_score > 1:
-        conlfation_notes = "Unable to conflate: potential diverging reaches"
+        conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
         manual_check_required = True
 
     else:
@@ -349,6 +354,7 @@ def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
 
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):
     intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach)]
+
     if intersected_xs.empty:
         return None
     start, end = endpoints_from_multiline(reach)
@@ -359,8 +365,8 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):
     us_data = ras_xs_geometry_data(rfc, up_xs)
     ds_data = ras_xs_geometry_data(rfc, ds_xs)
 
-    us_data["xs_id"] = up_xs
-    ds_data["xs_id"] = ds_xs
+    us_data["xs_id"] = str(up_xs)
+    ds_data["xs_id"] = str(ds_xs)
     return {
         "up_xs": us_data,
         "ds_xs": ds_data,
@@ -370,13 +376,14 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString):
 def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candidate_reaches: gpd.GeoDataFrame):
     reach_metadata = OrderedDict()
     for reach in candidate_reaches.itertuples():
+        # logging.debug(f"REACH: {reach.ID}")
         reach_geom = reach.geometry
         ras_xs_data = map_reach_xs(rfc, reach_geom)
         if ras_xs_data:
             reach_metadata[reach.ID] = ras_xs_data
         else:
             # pass dictionary with up_xs and xs_id for sorting purposes
-            reach_metadata[reach.ID] = {"up_xs": {"xs_id": -9999}}
+            reach_metadata[reach.ID] = {"up_xs": {"xs_id": str(-9999)}}
 
     for k in reach_metadata.keys():
         low_flow = low_flow_df[low_flow_df.feature_id == k]
@@ -398,11 +405,11 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
         return dict(
             sorted(
                 reach_metadata.items(),
-                key=lambda item: int(item[1]["up_xs"]["xs_id"]),
+                key=lambda item: item[1]["up_xs"]["xs_id"],
                 reverse=True,
             )
         )
     except ValueError as e:
         # Occurs where stations are floats and not integers
-        logging.debug(f"warning 2: error {e}")
+        logging.debug(f"warning 2: error {json.dumps(e)}")
         return reach_metadata

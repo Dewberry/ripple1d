@@ -73,8 +73,8 @@ class TestGeom(unittest.TestCase):
         self.assertEqual(self.ras_geom.version, "5.00")
 
     def test_parser(self):
-        self.assertEqual(len(self.ras_geom.river_reaches), 5)
-        self.assertEqual(self.ras_geom.reaches[0].river_reach, "Baxter River    ,Upper Reach     ")
+        self.assertEqual(len(self.ras_geom.reaches), 3)
+        self.assertIn("Baxter River    ,Upper Reach     ", self.ras_geom.reaches.keys())
 
 
 # RasFlowText
