@@ -171,23 +171,42 @@ def check_windows(func):
 
     return wrapper
 
-
+#classes
 class RasManager:
-    def __init__(self, ras_text_file_path: str, version: str = "631", projection: str = None):
-        self._ras_text_file_path = ras_text_file_path
+    def __init__(
+        self,
+        ras_text_file_path: str,
+        version: str = "631",
+        terrain_name:str=TERRAIN_NAME,
+        projection: CRS = None,
+        new_project: bool = False,
+    ):
 
-        self._ras_project_basename = os.path.splitext(os.path.basename(self._ras_text_file_path))[0]
-        self._ras_dir = os.path.dirname(self._ras_text_file_path)
+        self.version = version
+        self.terrain_name=terrain_name
+        self.ras_project = RasProject(ras_text_file_path, new_file=new_project)
 
-        self.ras_project = RasProject(self._ras_text_file_path)
-        self.projection = "EPSG:4269"
+        self.projection = CRS(projection)
         self.plans = self.get_plans()
         self.geoms = self.get_geoms()
         self.flows = self.get_flows()
-        # self.get_active_plan()
+        self.plan=self.current_plan
 
     def __repr__(self):
-        return f"RasManager(project={self.ras_text_file_path} ras-version={self.version})"
+        return f"RasManager(project={self.ras_project._ras_text_file_path} ras-version={self.version})"
+
+    @property
+    def current_plan(self):
+        for plan in self.plans.values():
+            if plan.file_extension==self.ras_project.current_plan:
+                return plan
+    
+    @property
+    def projection_file(self):
+        projection_file=os.path.join(self.ras_project._ras_dir,"projection.prj")
+        with open(projection_file,"w") as f:
+            f.write(self.projection.to_wkt("WKT1_ESRI"))
+        return projection_file
 
     def get_plans(self):
         """
@@ -196,7 +215,7 @@ class RasManager:
         plans = {}
         for plan_file in self.ras_project.plans:
             try:
-                plan = RasPlanText(plan_file)
+                plan = RasPlanText(plan_file,self.projection)
                 plans[plan.title] = plan
             except FileNotFoundError:
                 logging.info(f"Could not find plan file: {plan_file}")
@@ -229,25 +248,6 @@ class RasManager:
                 logging.warning(f"Could not find flow file: {flow_file}")
         return flows
 
-    def set_active_plan_for_ras_manager(self):
-        """
-        Reads the content of the RAS project file to determine what the current
-            plan is and sets the asociated plans,geoms,and flows as active.
-        """
-        current_plan_extension = search_contents(self.ras_project.contents, "Current Plan")
-
-        for plan in self.plans.values():
-            if plan.file_extension == f".{current_plan_extension}":
-                self.plan = plan
-                self.geom = plan.geom
-                self.flow = plan.flow
-
-    def update_content(self):
-        pass
-
-    def write_to_new_file(self):
-        pass
-
     @check_windows
     @check_version_installed("631")
     def run_sim(
@@ -271,7 +271,7 @@ class RasManager:
 
         RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER")
         try:
-            RC.Project_Open(self._ras_text_file_path)
+            RC.Project_Open(self.ras_project._ras_text_file_path)
             if show_ras:
                 RC.ShowRas()
 
@@ -280,7 +280,7 @@ class RasManager:
             while not RC.Compute_Complete():
                 if time.time() > deadline:
                     raise RASComputeTimeoutError(
-                        f"timed out computing current plan for RAS project: {self._ras_text_file_path}"
+                        f"timed out computing current plan for RAS project: {self.ras_project._ras_text_file_path}"
                     )
                 # must keep checking for mesh errors while RAS is running
                 # because mesh error will cause blocking popup message
@@ -438,12 +438,17 @@ class RasTextFile:
     def file_extension(self):
         return Path(self._ras_text_file_path).suffix
 
-
 class RasProject(RasTextFile):
-    def __init__(self, ras_text_file_path: str):
-        super().__init__(ras_text_file_path)
+    def __init__(self, ras_text_file_path: str, new_file: bool = False):
+        super().__init__(ras_text_file_path, new_file)
         if self.file_extension != ".prj":
             raise TypeError(f"Plan extenstion must be .prj, not {self.file_extension}")
+
+        self._ras_project_basename = os.path.splitext(os.path.basename(self._ras_text_file_path))[0]
+        self._ras_dir = os.path.dirname(self._ras_text_file_path)
+
+        if new_file:
+            self.contents = [f"Proj Title={self._ras_project_basename}", "Current Plan="]
 
     def __repr__(self):
         return f"RasProject({self._ras_text_file_path})"
@@ -472,26 +477,28 @@ class RasProject(RasTextFile):
     def steady_flows(self):
         return search_contents(self.contents, "Flow File", expect_one=False)
 
+    @property
+    def current_plan(self):
+        return search_contents(self.contents,"Current Plan")
+
     def set_current_plan(self, plan_ext):
         """
-        Update the current RAS plan in the RAS project content.
-        This does not update the actual file; use the 'write' method to do this.
+        Return new contents with the specified plan as the current RAS plan.
 
         Args:
             plan_ext: The plan extension to set as the current plan
         """
         new_contents = self.contents
-        if f".{plan_ext}" not in VALID_PLANS:
+        if f"{plan_ext}" not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {plan_ext}")
         else:
             new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext)
 
         # TODO: Update this to put it with the other plans
-        if f"Plan File=.{plan_ext}" not in new_contents:
+        if f"Plan File={plan_ext}" not in new_contents:
             new_contents.append(f"Plan File={plan_ext}")
         logging.info("set plan!")
         return new_contents
-
 
 class RasPlanText(RasTextFile):
     def __init__(self, ras_text_file_path: str, projection: str = None, new_file: bool = False):
@@ -499,7 +506,7 @@ class RasPlanText(RasTextFile):
         if self.file_extension not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
         self.projection = projection
-
+        self.hdf_file=self._ras_text_file_path+".hdf"
     def __repr__(self):
         return f"RasPlanText({self._ras_text_file_path})"
 
@@ -813,113 +820,13 @@ class RasFlowText(RasTextFile):
     def n_profiles(self):
         return int(search_contents(self.contents, "Number of Profiles"))
 
-    def parse_attrs(self):
-        raise NotImplementedError
+    @property
+    def profile_names(self):
+        return search_contents(self.contents, "Profile Names").split(",")
 
-    def parse_flows(self):
-        raise NotImplementedError
-
-    def max_flow_applied(self):
-        raise NotImplementedError
-
-    # TODO: Should these be functions outside of the class?
-    def write_initial_normal_depth_flow_file(
-        self,
-        title: str,
-        us_flows: list[float],
-        normal_depth: float,
-        us_river: str,
-        us_reach: str,
-        us_river_station: float,
-        ds_river: str,
-        ds_reach: str,
-    ):
-        self.content = ""
-
-        flows = [int(i) for i in us_flows]
-
-        # write headers
-        self.write_headers(title, flows)
-
-        self.profile_names = flows
-        self.profile_count = len(self.profile_names)
-        self.title = title
-
-        # write discharges
-        self.write_discharges(flows, us_river, us_reach, us_river_station)
-
-        # write normal depth
-        self.write_ds_normal_depth(len(flows), normal_depth, ds_river, ds_reach)
-
-        # write flow file content
-        self.write()
-
-    # TODO: Should these be functions outside of the class?
-    def write_kwses_flow_file(
-        self,
-        title: str,
-        ds_depths: List[float],
-        ds_wses: List[float],
-        us_flows: List[float],
-        min_depths: pd.Series,
-        us_river: str,
-        us_reach: str,
-        us_river_station: float,
-        ds_river: str,
-        ds_reach: str,
-        ds_river_station: float,
-    ):
-        # create profile names
-        depths, flows, wses = self.create_flow_depth_combinations(ds_depths, ds_wses, us_flows, min_depths)
-
-        self.profile_names = [f"f_{int(flow)}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
-        self.profile_count = len(self.profile_names)
-        self.title = title
-
-        self.contents = ""
-
-        # write headers
-        self.contents += self.write_headers(title, self.profile_names)
-
-        # write discharges
-        self.contents += self.write_discharges(flows, us_river, us_reach, us_river_station)
-
-        # write DS boundary conditions
-        self.contents += self.write_ds_known_ws(ds_wses, len(us_flows), ds_river, ds_reach, ds_river_station)
-
-        # write flow file content
-        self.write()
-
-    def create_flow_depth_combinations(
-        self, ds_depths: list, ds_wses: list, input_flows: np.array, min_depths: pd.Series
-    ) -> tuple:
-        """
-        Create flow-depth-wse combinations
-
-        Args:
-            ds_depths (list): downstream depths
-            ds_wses (list): downstream water surface elevations
-            input_flows (np.array): Flows to create profiles names from. Combine with incremental depths
-                of the downstream cross section of the reach
-            min_depths (pd.Series): minimum depth to be included. (typically derived from a previous noraml depth run)
-
-        Returns:
-            tuple: tuple of profile_names, flows, and wses
-        """
-
-        depths, flows, wses = [], [], []
-
-        for wse, depth in zip(ds_wses, ds_depths):
-
-            for flow in input_flows:
-
-                if depth > min_depths.loc[str(int(flow))]:
-
-                    depths.append()
-                    flows.append(flow)
-                    wses.append(wse)
-
-        return (depths, flows, wses)
+    @property
+    def flow_change_locations(self):
+        search_contents(self.contents, "Boundary for River Rch & Prof#",expect_one=False)
 
     def write_headers(self, title: str, profile_names: list[str]):
         """
@@ -937,7 +844,7 @@ class RasFlowText(RasTextFile):
             f"Number of Profiles= {len(profile_names)}",
             f"Profile Names={','.join([str(pn) for pn in profile_names])}",
         ]
-        return "\n".join(lines)
+        return lines
 
     def write_discharges(self, flows: list, river: str, reach: str, river_station: float):
         """
@@ -963,7 +870,7 @@ class RasFlowText(RasTextFile):
 
         if (i + 1) % 10 != 0:
             lines.append(line)
-        return "\n" + "\n".join(lines)
+        return lines
 
     def write_ds_known_ws(
         self, ds_wses: list[float], number_of_flows: float, river: str, reach: str, river_station: float
@@ -988,7 +895,7 @@ class RasFlowText(RasTextFile):
                 lines.append("Dn Type= 1 ")
                 lines.append(f"Dn Known WS={wse}")
 
-        return "\n" + "\n".join(lines)
+        return lines
 
     def write_ds_normal_depth(self, number_of_profiles: int, normal_depth: float, river: str, reach: str):
         """
@@ -1007,32 +914,7 @@ class RasFlowText(RasTextFile):
             lines.append("Dn Type= 3 ")
             lines.append(f"Dn Slope={normal_depth}")
 
-        return "\n" + "\n".join(lines)
-
-
-def read_rating_curves(self):
-    pass
-
-
-def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
-    """
-    Determines the next numeric extension that should be used when creating a new plan, flow, or geom;
-    e.g., if you are adding a new plan and .p01, and .p02 already exists then the new plan
-    will have a .p03 extension.
-
-    Args:
-        dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys
-            and objects plan/geom/flow as values.
-
-    Returns:
-        new file extension (str): The new file exension.
-    """
-    extension_number = []
-    for val in dict_of_ras_subclasses.values():
-        extension_number.append(int(val.extension[2:]))
-
-    return f"{(max(extension_number)+1):02d}"
-
+        return lines
 
 class RasMap:
     """
@@ -1197,7 +1079,7 @@ class RasMap:
         with open(self.text_file + ".backup", "w") as f:
             f.write(self.contents)
 
-
+#functions
 def search_for_ras_projection(search_dir: str):
     rasmap_files = glob.glob(f"{search_dir}/*.rasmap")
     if rasmap_files:
@@ -1213,6 +1095,7 @@ def search_for_ras_projection(search_dir: str):
                 if os.path.exists(abs_path):
                     with open(abs_path) as src:
                         projection = src.read()
-                        return projection
+                        return projection,abs_path
                 else:
                     raise FileNotFoundError(f"Could not find projection file in {search_dir}")
+
