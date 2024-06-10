@@ -189,45 +189,59 @@ class Reach:
 
 
 class Junction:
+    def __init__(self, ras_data: List[str], junct: str, projection: str):
 
-    @classmethod
-    def from_text(cls, ras_data: List[str], junct: str, projection: str):
-        inst = cls()
-        inst.projeciton = projection
-        inst.name = junct
-        inst.ras_data = text_block_from_start_str_to_empty_line(f"Junct Name={junct}", ras_data)
-        return inst
+        self.projection = projection
+        self.name = junct
+        self.ras_data = text_block_from_start_str_to_empty_line(f"Junct Name={junct}", ras_data)
 
-    @classmethod
-    def from_gpkg(cls, gpkg_path: str):
-        raise NotImplementedError
-        # inst=cls()
-        # gdf=gpd.read_file(gpkg_path,layer="Junction",driver="GPKG")
-        # return inst
-
-    def split_line(line: str, token: str, idx: int):
-        return line.split(token)[idx]
+    def split_lines(self, lines: str, token: str, idx: int):
+        return list(map(lambda line: line.split(token)[idx].rstrip(), lines))
 
     @property
     def x(self):
-        return self.split_line(search_contents(self.ras_data, "Junct XY & Text X Y"), ",", 0)
+        return self.split_lines([search_contents(self.ras_data, "Junct X Y & Text X Y")], ",", 0)
 
     @property
     def y(self):
-        return self.split_line(search_contents(self.ras_data, "Junct XY & Text X Y"), ",", 1)
+        return self.split_lines([search_contents(self.ras_data, "Junct X Y & Text X Y")], ",", 1)
 
     @property
     def point(self):
         return Point(self.x, self.y)
 
     @property
-    def upstream_river_reaches(self):
-        return search_contents(self.ras_data, "Up River,Reach", expect_one=False)
+    def upstream_rivers(self):
+        return ",".join(self.split_lines(search_contents(self.ras_data, "Up River,Reach", expect_one=False), ",", 0))
 
     @property
-    def downstream_river_reaches(self):
-        return search_contents(self.ras_data, "Dn River,Reach", expect_one=False)
+    def downstream_rivers(self):
+        return ",".join(self.split_lines(search_contents(self.ras_data, "Dn River,Reach", expect_one=False), ",", 0))
+
+    @property
+    def upstream_reaches(self):
+        return ",".join(self.split_lines(search_contents(self.ras_data, "Up River,Reach", expect_one=False), ",", 1))
+
+    @property
+    def downstream_reaches(self):
+        return ",".join(self.split_lines(search_contents(self.ras_data, "Dn River,Reach", expect_one=False), ",", 1))
 
     @property
     def junction_lengths(self):
-        return search_contents(self.ras_data, "Junc L&A", expect_one=False)
+        return ",".join(self.split_lines(search_contents(self.ras_data, "Junc L&A", expect_one=False), ",", 0))
+
+    @property
+    def gdf(self):
+        return gpd.GeoDataFrame(
+            {
+                "geometry": [self.point],
+                "junction_lengths": [self.junction_lengths],
+                "us_rivers": [self.upstream_rivers],
+                "ds_rivers": [self.downstream_rivers],
+                "us_reaches": [self.upstream_reaches],
+                "ds_reaches": [self.downstream_reaches],
+                "ras_data": ["\n".join(self.ras_data)],
+            },
+            geometry="geometry",
+            crs=self.projection,
+        )
