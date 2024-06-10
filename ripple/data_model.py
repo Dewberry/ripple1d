@@ -69,8 +69,13 @@ class XS:
 
     @property
     def thalweg(self):
-        x, y = list(zip(*self.station_elevation_points))
+        _, y = list(zip(*self.station_elevation_points))
         return min(y)
+    
+    @property
+    def xs_max_elevation(self):
+        _, y = list(zip(*self.station_elevation_points))
+        return max(y)
 
     @property
     def coords(self):
