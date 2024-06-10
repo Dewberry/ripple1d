@@ -2,17 +2,27 @@ import glob
 import logging
 import os
 import platform
+import re
 import time
 from pathlib import Path
 from typing import List
 
 import fiona
 import geopandas as gpd
+import h5py
 import numpy as np
 import pandas as pd
 from pyproj import CRS
 
-from .consts import SUPPORTED_LAYERS, TERRAIN_NAME
+from .consts import (
+    FLOW_HDF_PATH,
+    NORMAL_DEPTH,
+    PROFILE_NAMES_HDF_PATH,
+    SUPPORTED_LAYERS,
+    TERRAIN_NAME,
+    WSE_HDF_PATH,
+    XS_NAMES_HDF_PATH,
+)
 from .data_model import Junction, Reach
 from .errors import (
     FlowTitleAlreadyExistsError,
@@ -28,6 +38,7 @@ from .utils import (
     assert_no_ras_compute_error_message,
     assert_no_ras_geometry_error,
     assert_no_store_all_maps_error_message,
+    decode,
     replace_line_in_contents,
     search_contents,
 )
@@ -47,6 +58,52 @@ VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
 
 
 # Decorator Functions
+def write_new_plan_text_file(func):
+    def wrapper(self, *args, **kwargs):
+        
+        title = args[0]
+        geom_title=args[1]
+        if title in self.plans.keys():
+            raise PlanTitleAlreadyExistsError(f"The specified plan title {title} already exists")
+
+        func(self, *args, **kwargs)
+
+        # get a new extension number for the new plan
+        new_extension_number = get_new_extension_number(self.plans)
+
+        text_file = self.ras_project._ras_root_path + f".p{new_extension_number}"
+
+        # create plan
+        plan_text_file = RasPlanText(text_file, self.projection, new_file=True)
+
+        # populate new plan info
+        plan_text_file.new_plan_contents(title, title, self.flows[title], self.geoms[geom_title])
+
+        # write content
+        plan_text_file.write_contents()
+
+        # add new plan to the ras class
+        self.plans[title] = plan_text_file
+        self.plan=plan_text_file
+
+        # add to ras project contents
+        self.ras_project.contents.append(f"Plan File=p{new_extension_number}")
+
+        # update the content of the RAS project file
+        self.contents = self.ras_project.set_current_plan(self.plans[title].file_extension)
+
+        # write the update RAS project file content
+        self.ras_project.write_updated_contents()
+        
+        if "write_depth_grids" in kwargs:
+            if kwargs["write_depth_grids"]:
+                self.update_rasmapper_for_mapping()
+
+        # run the RAS plan
+        self.run_sim(close_ras=True, show_ras=True, ignore_store_all_maps_error=True)
+
+    return wrapper
+
 def check_projection(func):
     def wrapper(self, *args, **kwargs):
         if self.projection is None:
