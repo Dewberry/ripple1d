@@ -373,34 +373,26 @@ class RasManager:
 
     def update_rasmapper_for_mapping(self):
         """
-        Write a new plan file with the given geom, flow, tite. and short ID.
-
-        Args:
-            geom (Geom): Geometry to set for this new plan.
-            flow (Flow): Flow to set for this new plan.
-            title (str): Title of this new plan.
-            short_id (str): Short ID to set for this new plan.
+        Write a rasmapper file to output depth grids for the current plan
         """
-        if title in self.plans.keys():
-            raise PlanTitleAlreadyExistsError(f"The specified plan title {title} already exists")
 
-        # get a new extension number for the new plan
-        new_extension_number = self.get_new_extension_number(self.plans)
+        # manage rasmapper
+        map_file =f"{self.ras_project._ras_root_path}.rasmap"
 
-        text_file = self.ras_project_file.rstrip(".prj") + f".p{new_extension_number}"
+        if os.path.exists(map_file):
+            os.remove(map_file)
 
-        # create plan
-        plan = RasPlanText(text_file, self.projection, new_file=True)
+        if os.path.exists(map_file + ".backup"):
+            os.remove(map_file + ".backup")
 
-        # populate new plan info
-        plan.new_plan(geom, flow, title, short_id)
+        rasmap = RasMap(map_file, self.plan.geom,self.version)
+        rasmap.update_projection(self.projection_file)
+        rasmap.add_terrain(self.terrain_name)
+        rasmap.add_plan_layer(self.plan.title, os.path.basename(self.plan.hdf_file), self.plan.flow.profile_names)
+        rasmap.add_result_layers(self.plan.title, self.plan.flow.profile_names, "Depth")
+        rasmap.write()
 
-        # write content
-        plan.write()
-
-        # add new plan to the ras class
-        self.plans[title] = plan
-
+        return self
 
 class RasTextFile:
     def __init__(self, ras_text_file_path, new_file=False):
