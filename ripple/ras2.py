@@ -104,6 +104,34 @@ def write_new_plan_text_file(func):
 
     return wrapper
 
+def write_new_flow_text_file(func):
+    def wrapper(self, *args, **kwargs):
+        title = args[0]
+        if title in self.flows.keys():
+            raise FlowTitleAlreadyExistsError(f"The specified flow title {title} already exists")
+
+        # get a new extension number for the new flow file
+        new_extension_number = get_new_extension_number(self.flows)
+        text_file = self.ras_project._ras_root_path + f".f{new_extension_number}"
+
+        # create new flow
+        flow_text_file = RasFlowText(text_file, new_file=True)
+
+        # call function
+        flow_text_file=func(self, flow_text_file, *args, **kwargs)
+
+        # write flow file content
+        flow_text_file.write_contents()
+
+        # add new flow to the ras class
+        self.flows[title] = flow_text_file
+        self.flow = flow_text_file
+
+        # add to ras project contents
+        self.ras_project.contents.append(f"Flow File=f{new_extension_number}")
+
+    return wrapper
+
 def check_projection(func):
     def wrapper(self, *args, **kwargs):
         if self.projection is None:
@@ -112,14 +140,12 @@ def check_projection(func):
 
     return wrapper
 
-
 def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         return [self._ras_root_path + "." + extension for extension in extensions]
 
     return wrapper
-
 
 def check_version_installed(version: str):
     def decorator(func):
@@ -136,7 +162,6 @@ def check_version_installed(version: str):
         return wrapper
 
     return decorator
-
 
 def check_windows(func):
     def wrapper(self, *args, **kwargs):
