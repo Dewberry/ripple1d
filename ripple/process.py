@@ -81,20 +81,55 @@ def post_process_depth_grids(
         id = nwm_id + prefix
 
         for profile_name in rm.plans[id].flow.profile_names:
+            # construct the default path to the depth grid for this plan/profile
+            src_path = os.path.join(rm.ras_folder, str(id), f"Depth ({profile_name}).vrt")
 
-                # if the depth grid path does not exists print a warning then continue to the next profile
-                if not os.path.exists(depth_file):
-                    if except_missing_grid:
-                        logging.warning(f"depth raster does not exists: {depth_file}")
-                        continue
-                    else:
-                        raise DepthGridNotFoundError(f"depth raster does not exists: {depth_file}")
+            # if the depth grid path does not exists print a warning then continue to the next profile
+            if not os.path.exists(src_path):
+                if except_missing_grid:
+                    logging.warning(f"depth raster does not exists: {src_path}")
+                    continue
+                else:
+                    raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
 
-                # clip the depth grid naming it with with branch_id, downstream depth, and flow
-                clip_depth_grid(
-                    depth_file,
-                    xs_hull,
-                    id,
-                    profile_name,
-                    dest_directory,
-                )
+            if "_kwse" in id:
+                flow, depth = profile_name.split("-")
+            elif "_nd" in id:
+                flow = f"f_{profile_name}"
+                depth = "z_0_0"
+
+            dest_directory = os.path.join(dest_directory, id, depth)
+            if not os.path.exists(dest_directory):
+                os.makedirs(dest_directory)
+            dest_path = os.path.join(dest_directory, f"{flow}.tif")
+
+            # open the src raster the cross section concave hull as a mask
+            with rasterio.open(src_path) as src:
+                dataset = src.read(1)
+                transform = src.transform
+                out_meta = src.meta
+
+            # update metadata
+            out_meta.update(
+                {
+                    "driver": "GTiff",
+                    "height": dataset.shape[1],
+                    "width": dataset.shape[2],
+                    "transform": transform,
+                    "compress": "LZW",
+                    "predictor": 3,
+                    "tiled": True,
+                }
+            )
+
+            # write dest raster
+            logging.info(f"Writing: {dest_path}")
+            with rasterio.open(dest_path, "w", **out_meta) as dest:
+                dest.write(dataset)
+            # logging.debug(f"Building overviews for: {dest_path}")
+            with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
+                with rasterio.open(dest_path, "r+") as dst:
+                    dst.build_overviews([4, 8, 16], Resampling.nearest)
+                    dst.update_tags(ns="rio_overview", resampling="nearest")
+
+
