@@ -68,6 +68,11 @@ class XS:
         return int(search_contents(self.ras_data, "XS GIS Cut Line", expect_one=True))
 
     @property
+    def thalweg(self):
+        x, y = list(zip(*self.station_elevation_points))
+        return min(y)
+
+    @property
     def coords(self):
         lines = text_block_from_start_str_length(
             f"XS GIS Cut Line={self.number_of_coords}", math.ceil(self.number_of_coords / 2), self.ras_data
@@ -99,7 +104,9 @@ class XS:
                 "geometry": [LineString(self.coords)],
                 "river": [self.river],
                 "reach": [self.reach],
-                # "river_station": [self.river_station],
+                "river_reach": [self.river_reach],
+                "river_station": [self.river_station],
+                "thalweg": [self.thalweg],
                 # "left_reach_length": [self.left_reach_length],
                 # "right_reach_length": [self.right_reach_length],
                 # "channel_reach_length": [self.channel_reach_length],
@@ -117,7 +124,7 @@ class XS:
 
 class Reach:
     def __init__(self, ras_data: list, river_reach: str, projection: str):
-        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", "River Reach", ras_data)[:-1]
+        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", "River Reach", ras_data)
         self.ras_data = reach_lines
         self.projection = projection
         self.river_reach = river_reach
