@@ -568,6 +568,43 @@ class RasPlanText(RasTextFile):
         return new_contents
 
 
+    def read_rating_curves(self) -> dict:
+        """
+        Read the flow and water surface elevations resulting from the computed plan
+
+        Raises:
+            FileNotFoundError: _description_
+
+        Returns:
+            dict: A dictionary containing "wse" and "flow" keys whose values are pandas dataframes
+        """
+
+        # check if the hdf file exists; raise error if it does not
+        if not self.hdf_file:
+            self.hdf_file = self.text_file + ".hdf"
+
+            if not os.path.exists(self.hdf_file):
+                raise FileNotFoundError(f'The file "{self.hdf_file}" does not exists')
+
+        def remove_multiple_spaces(x):
+            return re.sub(" +", " ", x)
+
+        # read the hdf file
+        with h5py.File(self.hdf_file) as hdf:
+
+            # get columns and indexes for the wse and flow arrays
+            columns = decode(pd.DataFrame(hdf[XS_NAMES_HDF_PATH]))
+            index = decode(pd.DataFrame(hdf[PROFILE_NAMES_HDF_PATH]))
+
+            # remove multiple spaces in between the river-reach-riverstation ids.
+            columns[0] = columns[0].apply(remove_multiple_spaces)
+
+            # create dataframes for the wse and flow results
+            wse = pd.DataFrame(hdf.get(WSE_HDF_PATH), columns=columns[0].values, index=index[0].values).T
+            flow = pd.DataFrame(hdf.get(FLOW_HDF_PATH), columns=columns[0].values, index=index[0].values).T
+
+        return wse, flow
+
 class RasGeomText(RasTextFile):
     def __init__(self, ras_text_file_path: str, projection: str = None, new_file=False):
         super().__init__(ras_text_file_path, new_file)
