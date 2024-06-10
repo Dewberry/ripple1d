@@ -98,11 +98,11 @@ def main(
     """
     collection = create_collection(new_collection_items, collection_id, description, title)
     r = upsert_collection(API_URL, collection)
-    print(r)
+    logging.info(f"response: {r}")
 
     for item in new_collection_items:
         r = upsert_item(API_URL, collection_id, item)
-        print(item.id, r)
+        logging.info(f"item_id: {item.id},response: {r}")
 
 
 if __name__ == "__main__":
@@ -127,19 +127,19 @@ if __name__ == "__main__":
     i = 0
     for item in fc.collection.get_all_items():
         i += 1
-        print(i, item.id)
+        logging.info(f"{i} : {item.id}")
         try:
             model_branches = item.properties["FIM:Branch Metadata"].keys()
-            # print(f"{len(model_branches)} branches in FIM:Branch Metadata for {item.id}")
+            # logging.debug(f"{len(model_branches)} branches in FIM:Branch Metadata for {item.id}")
         except KeyError:
-            print(f"FIM:Branch Metadata does not exist for {item.id}")
+            logging.error(f"FIM:Branch Metadata does not exist for {item.id}")
 
         prefix = f"mip/dev/ripple/output/collections/{ras_collection_id}/items/{item.id}"
         model_db = f"{prefix}/{item.id}.db"
         ripple_succeed = f"{prefix}/ripple-succeed.json"
 
         if check_s3_key_exists("fim", ripple_succeed):
-            # print(f"Model database exists for {item.id}")
+            # logging.debug(f"Model database exists for {item.id}")
             fim_dict = map_output_fims(bucket_name, f"{prefix}/", s3_client)
             fci = FIMCollectionRasItem(API_URL, ras_collection_id, item.id)
 

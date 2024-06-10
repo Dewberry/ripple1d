@@ -6,7 +6,27 @@ class NoDefaultEPSGError(Exception):
     pass
 
 
-class ModelNotDownloadedError(Exception):
+class ModelNotFoundError(Exception):
+    pass
+
+
+class HECRASVersionNotInstalledError(Exception):
+    pass
+
+
+class NoRiverLayerError(Exception):
+    pass
+
+
+class NoCrossSectionLayerError(Exception):
+    pass
+
+
+class FlowTitleAlreadyExistsError(Exception):
+    pass
+
+
+class PlanTitleAlreadyExistsError(Exception):
     pass
 
 

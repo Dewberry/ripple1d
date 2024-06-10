@@ -36,9 +36,7 @@ def href_to_vsis(href: str, bucket: str) -> str:
     return href.replace(f"https://{bucket}.s3.amazonaws.com", f"/vsis3/{bucket}")
 
 
-def main(
-    item, client, bucket, s3_prefix, collection_id, rfc, low_flows, river_reach_name
-):
+def main(item, client, bucket, s3_prefix, collection_id, rfc, low_flows, river_reach_name):
     conflation_results = conflate_main(rfc, low_flows)
 
     if conflation_results["metrics"]["conflation_score"] == 0:
@@ -49,18 +47,12 @@ def main(
 
         # item.properties["NWM_FIM:Upstream_Branch_ID"] = us_most_branch_id
         # item.properties["NWM_FIM:Downstream_Branch_ID"] = ds_most_branch_id
-        ids = [
-            r
-            for r in conflation_results.keys()
-            if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]
-        ]
+        ids = [r for r in conflation_results.keys() if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]]
 
         fim_stream = rfc.local_nwm_reaches[rfc.local_nwm_reaches["ID"].isin(ids)]
 
         ripple_parameters_key = f"{s3_prefix}/ripple_parameters.json"
-        ripple_parameters_href = (
-            f"https://{bucket}.s3.amazonaws.com/{ripple_parameters_key}"
-        )
+        ripple_parameters_href = f"https://{bucket}.s3.amazonaws.com/{ripple_parameters_key}"
 
         client.put_object(
             Body=json.dumps(conflation_results).encode(),
@@ -83,17 +75,11 @@ def main(
         )
 
         for asset in item.get_assets():
-            item.assets[asset].href = item.assets[asset].href.replace(
-                "https:/fim", "https://fim"
-            )
+            item.assets[asset].href = item.assets[asset].href.replace("https:/fim", "https://fim")
         limit_plot = True
 
-    conflation_thumbnail_key = (
-        f"stac/{collection_id}/thumbnails/{item.id}-conflation.png".replace(" ", "")
-    )
-    conflation_thumbnail_href = (
-        f"https://{bucket}.s3.amazonaws.com/{conflation_thumbnail_key}"
-    )
+    conflation_thumbnail_key = f"stac/{collection_id}/thumbnails/{item.id}-conflation.png".replace(" ", "")
+    conflation_thumbnail_href = f"https://{bucket}.s3.amazonaws.com/{conflation_thumbnail_key}"
 
     item.properties["NWM_FIM:Conflation_Results"] = conflation_results
 
@@ -121,7 +107,7 @@ def main(
     )
 
     r = upsert_item(STAC_API_URL, collection_id, item)
-    print(collection_id, item.id, r)
+    logging.info(f"collection_id {collection_id}, item_id, {item.id}, response {r}")
 
 
 if __name__ == "__main__":
@@ -129,9 +115,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, filename="conflate_with_stac-v1.log")
 
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument(
-        "--collection_id", type=str, required=True, help="Collection ID"
-    )
+    parser.add_argument("--collection_id", type=str, required=True, help="Collection ID")
 
     args = parser.parse_args()
     collection_id = args.collection_id
@@ -148,7 +132,7 @@ if __name__ == "__main__":
 
     # branches_s3_key = collection.assets["conflation-ref-v1"].extra_fields["s3_key"]
     # nwm_gpkg = f"/vsis3/{branches_s3_key}"
-    # print("nwm_gpkg", branches_s3_key)
+    # logging.debug("nwm_gpkg", branches_s3_key)
 
     nwm_pq = "nwm_flows.parquet"
 
@@ -164,20 +148,18 @@ if __name__ == "__main__":
     # Get all items in the collection
     items = collection.get_all_items()
     for item in items:
-        print(item.id)
+        logging.info(item.id)
         for asset in item.get_assets(role="ras-geometry-gpkg"):
             gpkg_name = Path(item.assets[asset].href).name
             s3_prefix = (
-                item.assets[asset]
-                .href.replace(f"https://{bucket}.s3.amazonaws.com/", "")
-                .replace(f"/{gpkg_name}", "")
+                item.assets[asset].href.replace(f"https://{bucket}.s3.amazonaws.com/", "").replace(f"/{gpkg_name}", "")
             )
             ras_gpkg = href_to_vsis(item.assets[asset].href, bucket="fim")
 
         rfc = RasFimConflater(nwm_pq, ras_gpkg)
 
         for river_reach_name in rfc.ras_river_reach_names:
-            print(item.id, river_reach_name)
+            logging.info(f"item_id {item.id}, river_reach {river_reach_name}")
 
         try:
             main(

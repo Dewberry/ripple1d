@@ -1,4 +1,5 @@
 import argparse
+import logging
 
 from .fim_collection import FIMCollection, FIMCollectionRasItem
 from .s3_utils import read_json_from_s3
@@ -8,16 +9,14 @@ if __name__ == "__main__":
     API_URL = "https://stac2.dewberryanalytics.com"
 
     parser = argparse.ArgumentParser(description="Process some integers.")
-    parser.add_argument(
-        "--collection_id", type=str, required=True, help="Collection ID"
-    )
+    parser.add_argument("--collection_id", type=str, required=True, help="Collection ID")
 
     args = parser.parse_args()
     collection_id = args.collection_id
 
     fc = FIMCollection(API_URL, collection_id)
     for item in fc.collection.get_all_items():
-        print(item.id)
+        logging.info(f"item_id: {item.id}")
 
         fci = FIMCollectionRasItem(API_URL, collection_id, item.id)
 
@@ -32,13 +31,11 @@ if __name__ == "__main__":
         fci.ensure_asset_roles_unique()
 
         if conflated:
-            params_json = fci.item.assets["ripple_parameters.json"].extra_fields[
-                "s3_key"
-            ]
+            params_json = fci.item.assets["ripple_parameters.json"].extra_fields["s3_key"]
             data = read_json_from_s3("fim", params_json)
 
             fci.item.properties["FIM:Branch Metadata"] = data
         else:
-            print(f"Failed to add ripple params for {fci.item.id}")
+            logging.error(f"Failed to add ripple params for {fci.item.id}")
 
         fci.post_item_updates()

@@ -163,5 +163,8 @@ test.py
 *sqlite.py
 *process.ipynb
 *.db
+tests/ras-data/Baxter/test
+tests/ras-data/Baxter/Terrain
 
 /ripple/models/
+.vscode/settings.json

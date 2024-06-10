@@ -2,26 +2,25 @@ from __future__ import annotations
 
 import datetime
 import glob
-import json
+import logging
 import os
 import re
 import subprocess
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 import boto3
 import geopandas as gpd
 import h5py
 import numpy as np
 import pandas as pd
-import pystac
 import rasterio
 import rasterio.mask
 import win32com.client
 from consts import TERRAIN_NAME
 from errors import (
-    ModelNotDownloadedError,
+    HECRASVersionNotInstalledError,
+    ModelNotFoundError,
     NoDefaultEPSGError,
     ProjectionNotFoundError,
     RASComputeError,
@@ -31,10 +30,10 @@ from errors import (
     RASStoreAllMapsError,
 )
 from pyproj import CRS
+from pythoncom import com_error
 from rasmap import PLAN, RASMAP_631, TERRAIN
-from requests.utils import requote_uri
 from shapely.geometry import LineString, Point, Polygon
-from utils import decode, get_terrain_exe_path, s3_get_output_s3path
+from utils import decode, get_terrain_exe_path
 
 
 @dataclass
@@ -79,8 +78,6 @@ class Ras:
 
     Attributes:
     ----------
-    stac_href : href for the stac item representation of the HEC-RAS model
-    stac_item : stac item representing the HEC-RAS model
     client : s3 client if reading from s3 (default=None)
     bucket : s3 bucket if treading from s3 (default=None)
     ras_folder : directory/s3 location where the ras model will be placed
@@ -103,9 +100,11 @@ class Ras:
     def __init__(
         self,
         path: str,
-        stac_href: str,
+        conflation_params: dict,
+        terrain_name: str,
         s3_client: boto3.client = None,
         s3_bucket: str = None,
+        postprocessed_output_s3_path: str = None,
         version: str = "631",
         default_epsg: int = None,
     ):
@@ -113,9 +112,11 @@ class Ras:
 
         Args:
             path (str): directory/s3 location where the ras model will be placed
-            stac_href (str): href for the stac item representation of the HEC-RAS model
+            conflation_params (dict): nwm conflation parameters
+            terrain_name (str): name of the terrain
             s3_client (boto3.client, optional): s3 client if reading from s3. Defaults to None.
             s3_bucket (str, optional): s3 bucket if treading from s3. Defaults to None.
+            postprocessed_output_s3_path: (str): s3 path for output rasters/sqlite
             version (str, optional): HEC-RAS version. Defaults to "631".
             default_epsg (int, optional): EPSG to default to if a projection cannot be found. Defaults to None.
         """
@@ -124,12 +125,13 @@ class Ras:
         self.bucket = s3_bucket
 
         self.ras_folder = path
+        self.terrain_name = terrain_name
         self.postprocessed_output_folder = os.path.join(self.ras_folder, "output")
-        self.postprocessed_output_s3_path = s3_get_output_s3path(s3_bucket, stac_href)
+        self.postprocessed_output_s3_path = postprocessed_output_s3_path
         self.default_epsg = default_epsg
-        self.version = version
-        self.stac_href = stac_href
-        self.stac_item = pystac.Item.from_file(requote_uri(self.stac_href))
+        self.check_version_installed(version)
+
+        self.conflation_params = conflation_params
 
         self.projection_file = None
         self.projection = ""
@@ -141,15 +143,18 @@ class Ras:
         self.plan = None
         self.geom = None
         self.flow = None
-        self.terrain_name = None
+
+    def check_version_installed(self, version: str):
+
+        try:
+            assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER")
+            self.version = version
+        except com_error:
+            raise HECRASVersionNotInstalledError(
+                f"Could not find the specified RAS version; please ensure it is installed. Version provided: {version}."
+            )
 
     def read_ras(self):
-
-        if not self.model_downloaded:
-
-            raise ModelNotDownloadedError(
-                "The RAS model must be downloaded from STAC prior to reading. Try Ras.download_model() "
-            )
 
         self.get_ras_project_file()
         self.get_ras_projection()
@@ -165,50 +170,9 @@ class Ras:
 
         self.terrain_exe = get_terrain_exe_path(self.version)
 
-    def create_nwm_dict(self):
-
-        # create nwm dataframe
-        for _, asset in self.stac_item.get_assets(role="ripple-params").items():
-
-            response = self.client.get_object(
-                Bucket=self.bucket, Key=asset.href.replace(f"https://{self.bucket}.s3.amazonaws.com/", "")
-            )
-            json_data = response["Body"].read()
-            self.nwm_dict = json.loads(json_data)
-
-    def download_model(self):
-        """
-        Download HEC-RAS model from stac href
-        """
-
-        # make RAS directory if it does not exists
-        if not os.path.exists(self.ras_folder):
-            os.makedirs(self.ras_folder)
-
-        # download HEC-RAS model files
-        for _, asset in self.stac_item.get_assets(role="ras-file").items():
-
-            s3_key = asset.extra_fields["s3_key"]
-
-            file = os.path.join(self.ras_folder, Path(s3_key).name)
-            self.client.download_file(self.bucket, s3_key, file)
-
-        # download HEC-RAS topo files
-        for _, asset in self.stac_item.get_assets(role="ras-topo").items():
-
-            s3_key = asset.extra_fields["s3_key"]
-
-            file = os.path.join(self.ras_folder, Path(s3_key).name)
-            self.client.download_file(self.bucket, s3_key, file)
-
-            if ".hdf" in Path(s3_key).name:
-                self.terrain_name = Path(s3_key).name.rstrip(".hdf")
-
-        self.model_downloaded = True
-
     def read_content(self):
         """
-        Attempt to read content of the RAS project text file. Checks both locally and on s3
+        Attempt to read content of the RAS project text file.
 
         Raises:
             FileNotFoundError:
@@ -219,17 +183,7 @@ class Ras:
             with open(self.ras_project_file) as f:
                 self.content = f.read()
         else:
-
-            try:
-
-                response = self.client.get_object(Bucket=self.bucket, Key=self.ras_project_file)
-                self.content = response["Body"].read().decode()
-
-            except Exception as E:
-
-                print(E)
-
-                raise FileNotFoundError(f"could not find {self.ras_project_file} locally nor on s3")
+            raise FileNotFoundError(f"could not find {self.ras_project_file} locally nor on s3")
 
     def update_content(self):
         """
@@ -285,16 +239,12 @@ class Ras:
         if not ras_project_file:
             ras_project_file = self.ras_project_file
 
-        print(f"writing: {ras_project_file}")
+        logging.debug(f"writing: {ras_project_file}")
 
         if os.path.exists(ras_project_file):
 
             with open(ras_project_file, "w") as f:
                 f.write(self.content)
-
-        else:
-
-            self.client.put_object(Body=self.content, Bucket=self.bucket, Key=ras_project_file)
 
     def write_new_flow_rating_curves(self, title: str, branch_data: pd.DataFrame, normal_depth: float):
         """
@@ -337,7 +287,9 @@ class Ras:
         # add new flow to the ras class
         self.flows[title] = flow
 
-    def write_new_flow_production_runs(self, title: str, branch_data: pd.Series, normal_depth: float):
+    def write_new_flow_production_runs(
+        self, title: str, branch_data: pd.Series, normal_depth: float, intermediate_known_wse: bool = False
+    ):
         """
         Write a new flow file contaning the specified title, branch_data, and normal depth.
 
@@ -346,17 +298,24 @@ class Ras:
             branch_data (pd.DataFrame) dataframe containing rows for each flow change location and columns for
             river,reach,us_rs,ds_rs, and flows.
             normal_depth (np.array): normal depth to apply at the downstream terminus of the reach.
+            intermediate_known_wse (bool): indicates if intermediate known wse should be applied. defaults to False
         """
 
         # get a new extension number for the new flow file
         new_extension_number = self.get_new_extension_number(self.flows)
         text_file = self.ras_project_file.rstrip(".prj") + f".f{new_extension_number}"
 
-        # create new flow
+        # create new flow class
         flow = Flow(text_file)
 
         # create profile names
-        profile_names, flows, wses = flow.create_profile_names(branch_data, branch_data["us_flows"])
+        if intermediate_known_wse:
+            profile_names, flows, wses = flow.create_profile_names_kwse(
+                branch_data["ds_depths"], branch_data["ds_wses"], branch_data["us_flows"], branch_data["nd_depth"]
+            )
+        else:
+            flows = branch_data["us_flows"]
+            profile_names = [str(int(flow)) for flow in flows]
 
         flow.profile_names = profile_names
         flow.profile_count = len(flow.profile_names)
@@ -373,8 +332,9 @@ class Ras:
         # write DS boundary conditions
         flow.write_ds_known_ws(branch_data, normal_depth, self)
 
-        # add intermediate known wses
-        flow.add_intermediate_known_wse(branch_data, wses)
+        if intermediate_known_wse:
+            # add intermediate known wses
+            flow.add_intermediate_known_wse(branch_data, wses)
 
         # write flow file content
         flow.write()
@@ -452,7 +412,7 @@ class Ras:
                     current_plan_code = line[len("Current Plan=") :].strip()
         compute_message_file = os.path.splitext(self.ras_project_file)[0] + f".{current_plan_code}.computeMsgs.txt"
 
-        RC = win32com.client.Dispatch("RAS631.HECRASCONTROLLER")
+        RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER")
         try:
             RC.Project_Open(self.ras_project_file)
             if show_ras:
@@ -574,7 +534,7 @@ class Ras:
         ]
         # add list of input rasters from which to build the Terrain
         subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
-        print(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
+        logging.debug(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
         subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
 
         # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
@@ -615,7 +575,7 @@ class Ras:
                 plan = Plan(plan_file, self.projection)
                 self.plans[plan.title] = plan
             except FileExistsError as E:
-                print(E)
+                logging.debug(E)
 
     def get_geoms(self):
         """
@@ -684,11 +644,11 @@ class Ras:
 
         except ProjectionNotFoundError as e:
 
-            print(e)
+            logging.debug(e)
 
             if self.default_epsg:
 
-                print(f"Attempting to use specified default projection: EPSG:{self.default_epsg}")
+                logging.debug(f"Attempting to use specified default projection: EPSG:{self.default_epsg}")
 
                 self.projection = self.default_epsg
 
@@ -711,6 +671,10 @@ class Ras:
                 if "Proj Title=" in lines[0]:
                     self.ras_project_file = prj
                     break
+
+        if not self.ras_project_file:
+
+            raise ModelNotFoundError(f"Could  not find a HEC-RAS project in the specified directory: {self.path}")
 
     def get_ras_files(self, file_type: str) -> list[str]:
         """
@@ -769,7 +733,7 @@ class BaseFile:
         self.program_version = self.content.splitlines()[1].split("=")[-1].rstrip("\n")
 
         if not os.path.exists(self.hdf_file):
-            print(f'The file "{self.hdf_file}" does not exists')
+            logging.debug(f'The file "{self.hdf_file}" does not exists')
             self.hdf_file = None
 
     def read_content(self):
@@ -787,7 +751,7 @@ class BaseFile:
                 response = self.client.get_object(Bucket=self.bucket, Key=self.text_file)
                 self.content = response["Body"].read().decode()
             except Exception as E:
-                print(E)
+                logging.debug(E)
                 raise FileNotFoundError(f"could not find {self.text_file} locally nor on s3")
 
     def write(self):
@@ -795,7 +759,7 @@ class BaseFile:
         Write the content to file
         """
 
-        print(f"writing: {self.text_file}")
+        logging.debug(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as src:
             src.write(self.content)
@@ -828,7 +792,7 @@ class Plan(BaseFile):
             self.parse_attrs()
 
         except FileExistsError:
-            print(f"The plan file provided does not exists: {path}")
+            logging.debug(f"The plan file provided does not exists: {path}")
 
         self.short_id = None
 
@@ -1317,7 +1281,7 @@ class Flow(BaseFile):
 
         except FileExistsError:
 
-            print(f"The flow file provided does not exists: {path}")
+            logging.debug(f"The flow file provided does not exists: {path}")
 
     def parse_attrs(self):
         """
@@ -1374,14 +1338,18 @@ class Flow(BaseFile):
 
         self.max_flow_applied = max([max(flow.flows) for flow in self.flow_change_locations])
 
-    def create_profile_names(self, branch_data: dict, input_flows: np.array) -> tuple:
+    def create_profile_names_kwse(
+        self, ds_depths: list, ds_wses: list, input_flows: np.array, min_depths: pd.Series
+    ) -> tuple:
         """
         Create profile names from flows and ds_depths specified in the branch_data
 
         Args:
-            branch_data (dict): NWM reach data
+            ds_depths (list): downstream depths
+            ds_wses (list): downstream water surface elevations
             input_flows (np.array): Flows to create profiles names from. Combine with incremental depths
             of the downstream cross section of the reach
+            min_depths (pd.Series): minimum depth to be included
 
         Returns:
             tuple: tuple of profile_names, flows, and wses
@@ -1389,14 +1357,19 @@ class Flow(BaseFile):
 
         profile_names, flows, wses = [], [], []
 
-        for e, depth in enumerate(branch_data["ds_depths"]):
+        for e, depth in enumerate(ds_depths):
 
             for flow in input_flows:
 
-                profile_names.append(f"f_{int(flow)}-z_{str(depth).replace('.','_')}")
+                if depth > min_depths.loc[str(int(flow))]:
+                    profile_names.append(f"f_{int(flow)}-z_{str(depth).replace('.','_')}")
 
-                flows.append(flow)
-                wses.append(branch_data["ds_wses"][e])
+                    flows.append(flow)
+                    wses.append(ds_wses[e])
+                else:
+                    logging.debug(
+                        f"excluding flow: {int(flow)} | depth {depth} | min depth: {round(min_depths.loc[str(int(flow))],2)}"
+                    )
 
         return (profile_names, flows, wses)
 
@@ -1586,7 +1559,7 @@ class RasMap:
                 response = self.client.get_object(Bucket=self.bucket, Key=self.text_file)
                 self.content = response["Body"].read().decode()
             except Exception as E:
-                print(E)
+                logging.debug(E)
                 raise FileNotFoundError(f"could not find {self.text_file} locally nor on s3")
 
     def new_rasmap_content(self):
@@ -1701,7 +1674,7 @@ class RasMap:
         write Ras Map content to file
         """
 
-        print(f"writing: {self.text_file}")
+        logging.debug(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as f:
             f.write(self.content)

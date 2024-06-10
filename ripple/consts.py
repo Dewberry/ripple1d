@@ -11,11 +11,9 @@ MAP_DEM_VERT_UNITS = "Feet"
 
 METERS_PER_FOOT = 1200.0 / 3937.0
 
-STAC_API_URL = "https://stac.dewberryanalytics.com"
-
 MINDEPTH = 0.1
 
-DEFAULT_EPSG = 2277
+DEFAULT_EPSG = 4269
 NORMAL_DEPTH = 0.001
 
 MIN_FLOW_FACTOR = 0.85
@@ -23,4 +21,10 @@ MAX_FLOW_FACTOR = 1.5
 
 STAC_API_URL = "https://stac2.dewberryanalytics.com"
 
-TERRAIN_NAME = "MampTerrain"
+TERRAIN_NAME = "MapTerrain"
+SUPPORTED_LAYERS = ["River", "XS"]
+
+WSE_HDF_PATH = "/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Water Surface"
+FLOW_HDF_PATH = "/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Flow"
+XS_NAMES_HDF_PATH = "/Results/Steady/Output/Geometry Info/Cross Section Only"
+PROFILE_NAMES_HDF_PATH = "/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Profile Names"
