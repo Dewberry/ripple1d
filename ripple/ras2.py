@@ -442,12 +442,17 @@ class RasGeomText(RasTextFile):
         if not new_file and self.file_extension not in VALID_GEOMS:
             raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {self.file_extension}")
 
-        self.projection = projection
+        self.projection = CRS(projection)
+        self.hdf_file=self._ras_text_file_path+".hdf"
 
     def __repr__(self):
         return f"RasGeomText({self._ras_text_file_path})"
 
     @classmethod
+    def from_str(cls, text_string:str,projection, ras_text_file_path: str = ""):
+        inst = cls("", projection, new_file=True)
+        inst.contents=text_string.splitlines()
+        return inst
 
     @classmethod
     def from_gpkg(cls, gpkg_path, title: str, version: str, ras_text_file_path: str = ""):
@@ -547,9 +552,8 @@ class RasGeomText(RasTextFile):
     def junctions(self) -> dict:
         juncts = search_contents(self.contents, "Junct Name", expect_one=False)
         junctions = {}
-        for junction in juncts:
-            junctions[junction] = Junction.from_text(self.contents, juncts, self.projection)
-
+        for junct in juncts:
+            junctions[junct] = Junction(self.contents, junct, self.projection)
         return junctions
 
     @property
@@ -563,8 +567,13 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_projection
-    def reaches_gdf(self):
+    def reach_gdf(self):
         return pd.concat([reach.gdf for reach in self.reaches.values()])
+
+    @property
+    @check_projection
+    def junction_gdf(self):
+        return pd.concat([junction.gdf for junction in self.junctions.values()])
 
     @property
     @check_projection
@@ -574,6 +583,11 @@ class RasGeomText(RasTextFile):
         """
         return pd.concat([xs.gdf for xs in self.cross_sections.values()])
 
+    def to_gpkg(self,gpkg_path:str):
+        self.xs_gdf.to_file(gpkg_path,driver="GPKG",layer="XS")
+        self.reach_gdf.to_file(gpkg_path,driver="GPKG",layer="River")
+        if self.junctions:
+            self.junction_gdf.to_file(gpkg_path,diver="GPKG",layer="Junction")
 
 class RasFlowText(RasTextFile):
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
