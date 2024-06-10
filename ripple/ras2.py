@@ -328,6 +328,36 @@ class RasManager:
 
         return flow_text_file
 
+    @write_new_plan_text_file
+    @write_new_flow_text_file
+    def kwses_run(
+        self,
+        flow_text_file,
+        title: str,
+        geom_title:str,
+        depths: List[float],
+        wses: List[float],
+        flows: List[float],
+        river: str,
+        reach: str,
+        us_river_station: float,
+        ds_river_station: float,
+        write_depth_grids:bool=False
+    ):
+        profile_names = [f"f_{int(flow)}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
+
+        # write headers
+        flow_text_file.contents += flow_text_file.write_headers(title,profile_names)
+
+        # write discharges
+        flow_text_file.contents += flow_text_file.write_discharges(flows, river, reach, us_river_station)
+
+        # write DS boundary conditions
+        flow_text_file.contents += flow_text_file.write_ds_known_ws(
+            wses, len(flows), river,reach,ds_river_station
+        )
+
+        return flow_text_file
 
     def new_geom_from_gpkg(
         self,
