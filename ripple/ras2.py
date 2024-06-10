@@ -567,6 +567,37 @@ class RasPlanText(RasTextFile):
 
         return new_contents
 
+    def new_plan_contents(self, title: str, short_id: str, flow, geom):
+        """
+        populate the content of the plan with basic attributes (title, short_id, flow, and geom)
+
+        Raises:
+            RuntimeError: raise run time error if the plan already has content associated with it
+        """
+
+        if self.contents:
+            raise RuntimeError(f"content already exists for this plan: {self._ras_text_file_path}")
+
+        # create necessary lines for the content of the plan text file.
+        if len(title) > 80:
+            raise ValueError("Short Identifier must be less than 80 characters")
+        else:
+            self.contents.append(f"Plan Title={title}")
+        if len(short_id) > 80:
+            raise ValueError("Short Identifier must be less than 80 characters")
+        else:
+            self.contents.append(f"Short Identifier={short_id}")
+
+        if f"{geom.file_extension}" not in VALID_GEOMS:
+            raise TypeError(f"Geometry extenstion must be one of g01-g99, not {geom.file_extension}")
+        else:
+            self.contents.append(f"Geom File={geom.file_extension.lstrip(".")}")
+
+        if f"{flow.file_extension}" not in VALID_STEADY_FLOWS:
+            raise TypeError(f"Flow extenstion must be one of f01-f99, not {flow.file_extension}")
+        else:
+            self.contents.append(f"Flow File={flow.file_extension.lstrip(".")}")
+        self.contents.append("Run RASMapper=-1 ")
 
     def read_rating_curves(self) -> dict:
         """
