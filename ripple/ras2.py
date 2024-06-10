@@ -598,12 +598,12 @@ class RasPlanText(RasTextFile):
         if f"{geom.file_extension}" not in VALID_GEOMS:
             raise TypeError(f"Geometry extenstion must be one of g01-g99, not {geom.file_extension}")
         else:
-            self.contents.append(f"Geom File={geom.file_extension.lstrip(".")}")
+            self.contents.append(f"Geom File={geom.file_extension.lstrip('.')}")
 
         if f"{flow.file_extension}" not in VALID_STEADY_FLOWS:
             raise TypeError(f"Flow extenstion must be one of f01-f99, not {flow.file_extension}")
         else:
-            self.contents.append(f"Flow File={flow.file_extension.lstrip(".")}")
+            self.contents.append(f"Flow File={flow.file_extension.lstrip('.')}")
         self.contents.append("Run RASMapper=-1 ")
 
     def read_rating_curves(self) -> dict:
