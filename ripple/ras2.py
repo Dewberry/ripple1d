@@ -1099,3 +1099,23 @@ def search_for_ras_projection(search_dir: str):
                 else:
                     raise FileNotFoundError(f"Could not find projection file in {search_dir}")
 
+def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
+    """
+    Determines the next numeric extension that should be used when creating a new plan, flow, or geom;
+    e.g., if you are adding a new plan and .p01, and .p02 already exists then the new plan
+    will have a .p03 extension.
+
+    Args:
+        dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys
+            and objects plan/geom/flow as values.
+
+    Returns:
+        new file extension (str): The new file exension.
+    """
+    extension_number = []
+    if not dict_of_ras_subclasses:
+        return "01"
+    for val in dict_of_ras_subclasses.values():
+        extension_number.append(int(val.file_extension[2:]))
+
+    return f"{(max(extension_number)+1):02d}"
