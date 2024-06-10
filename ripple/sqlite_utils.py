@@ -2,7 +2,8 @@ import os
 import sqlite3
 
 import pandas as pd
-from ras import Ras
+
+from .ras2 import RasManager
 
 
 def create_db_and_table(db_name: str, table_name: str):
@@ -62,12 +63,12 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     return wses_t
 
 
-def zero_depth_to_sqlite(r: Ras):
+def zero_depth_to_sqlite(r: RasManager):
 
     database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
     table = r.ras_project_basename
 
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.ripple_parameters.items():
 
         # set the plan
         r.plan = r.plans[str(branch_id) + "_nd"]
@@ -98,7 +99,7 @@ def zero_depth_to_sqlite(r: Ras):
             insert_data(database_path, table, df)
 
 
-def rating_curves_to_sqlite(r: Ras):
+def rating_curves_to_sqlite(r: RasManager):
     """Export rating curves to sqlite"""
     # create dabase and table
     database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
@@ -107,7 +108,7 @@ def rating_curves_to_sqlite(r: Ras):
     create_db_and_table(database_path, table)
 
     # df_list = []
-    for branch_id, branch_data in r.nwm_dict.items():
+    for branch_id, branch_data in r.ripple_parameters.items():
 
         # set the plan
         r.plan = r.plans[str(branch_id) + "_kwse"]
