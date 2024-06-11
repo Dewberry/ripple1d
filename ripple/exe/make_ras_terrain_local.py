@@ -44,11 +44,11 @@ def write_projection_file(crs: CRS, terrain_directory: str):
     return projection_file
 
 
-def main(terrain_hdf_filename: str, gpkg_path: str):
+def main(terrain_hdf_filepath: str, gpkg_path: str):
     """Requires Windows with geospatial libs, so typically run using OSGeo4W shell."""
 
     # terrain directory
-    terrain_directory = os.path.dirname(terrain_hdf_filename)
+    terrain_directory = os.path.dirname(terrain_hdf_filepath)
     os.makedirs(terrain_directory, exist_ok=True)
 
     # get geometry mask
@@ -67,18 +67,18 @@ def main(terrain_hdf_filename: str, gpkg_path: str):
     create_terrain(
         [src_dem_clipped_localfile],
         projection_file,
-        terrain_hdf_filename=terrain_hdf_filename,
+        terrain_hdf_filepath=terrain_hdf_filepath,
         vertical_units=MAP_DEM_VERT_UNITS,
     )
 
 
 if __name__ == "__main__":
 
-    nwm_id = "2823932"
+    nwm_id = "2821866"
 
-    terrain_hdf_filename = (
+    terrain_hdf_filepath = (
         rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\Terrain.hdf"
     )
     gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
 
-    main(terrain_hdf_filename, gpkg_path)
+    main(terrain_hdf_filepath, gpkg_path)

@@ -618,7 +618,7 @@ class RasPlanText(RasTextFile):
 
         return new_contents
 
-    def new_plan_contents(self, title: str, short_id: str, flow, geom):
+    def new_plan_contents(self, title: str, short_id: str, flow, geom, run_rasmapper: bool = False):
         """
         populate the content of the plan with basic attributes (title, short_id, flow, and geom)
 
@@ -1179,7 +1179,7 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
 def create_terrain(
     src_terrain_filepaths: list[str],
     projection_file: str,
-    terrain_hdf_filename: str,
+    terrain_hdf_filepath: str,
     vertical_units: str = "Feet",
     version: str = "631",
 ) -> str:
@@ -1220,7 +1220,7 @@ def create_terrain(
         f"units={vertical_units}",  # vertical units
         "stitch=true",
         f"prj={projection_file}",
-        f"out={terrain_hdf_filename}",
+        f"out={terrain_hdf_filepath}",
     ]
     # add list of input rasters from which to build the Terrain
     subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
