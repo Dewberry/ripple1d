@@ -214,6 +214,22 @@ class RasManager:
     def __repr__(self):
         return f"RasManager(project={self.ras_project._ras_text_file_path} ras-version={self.version})"
 
+    @classmethod
+    def from_gpkg(
+        cls, ras_project_text_file: str, nwm_id, ras_gpkg_file_path: str, version: str = "631", terrain_path: str = None
+    ):
+        inst = cls(
+            ras_project_text_file,
+            version,
+            terrain_path=terrain_path,
+            projection=gpd.read_file(ras_gpkg_file_path).crs,
+            new_project=True,
+        )
+
+        inst.new_geom_from_gpkg(ras_gpkg_file_path, nwm_id)
+        inst.ras_project.write_contents()
+        return inst
+
     @property
     def current_plan(self):
         for plan in self.plans.values():
