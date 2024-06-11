@@ -392,7 +392,7 @@ class RasManager:
         flow_text_file.contents += flow_text_file.write_discharges(flows, river, reach, us_river_station)
 
         # write DS boundary conditions
-        flow_text_file.contents += flow_text_file.write_ds_known_ws(wses, len(flows), river, reach, ds_river_station)
+        flow_text_file.contents += flow_text_file.write_ds_known_wse(wses, river, reach, ds_river_station)
 
         return flow_text_file
 
@@ -923,28 +923,22 @@ class RasFlowText(RasTextFile):
             lines.append(line)
         return lines
 
-    def write_ds_known_ws(
-        self, ds_wses: list[float], number_of_flows: float, river: str, reach: str, river_station: float
-    ):
+    def write_ds_known_wse(self, ds_wses: list[float], river: str, reach: str, river_station: float):
         """
         Write downstream known water surface elevations to flow content
 
         Args:
             ds_wses (list): downstream known water surface elevations
-            number_of_flows (float): number of flows that are applied
             river (str): Ras river
             reach (str): Ras reach
             river_station (float): Ras river station
         """
-        count = 0
         lines = []
-        for wse in ds_wses:
-            for _ in range(number_of_flows):
-                count += 1
-                lines.append(f"Boundary for River Rch & Prof#={river},{reach.ljust(16,' ')}, {count}")
-                lines.append("Up Type= 0 ")
-                lines.append("Dn Type= 1 ")
-                lines.append(f"Dn Known WS={wse}")
+        for count, wse in enumerate(ds_wses):
+            lines.append(f"Boundary for River Rch & Prof#={river},{reach.ljust(16,' ')}, {count+1}")
+            lines.append("Up Type= 0 ")
+            lines.append("Dn Type= 1 ")
+            lines.append(f"Dn Known WS={wse}")
 
         return lines
 
