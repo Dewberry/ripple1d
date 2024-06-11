@@ -18,8 +18,7 @@ def main(
     rfc: RasFimConflater,
     low_flows: pd.DataFrame,
 ):
-
-    configure_logging(logging.DEBUG)
+    configure_logging(logging.CRITICAL)
     metadata = {}
     for river_reach_name in rfc.ras_river_reach_names:
         # logging.info(f"Processing {river_reach_name}")
@@ -34,33 +33,33 @@ def main(
 
         candidate_reaches = rfc.local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-        ras_points = convert_linestring_to_points(
-            rfc.ras_centerlines.loc[0].geometry, crs=rfc.common_crs, point_spacing=10
-        )
+        # ras_points = convert_linestring_to_points(
+        #     rfc.ras_centerlines.loc[0].geometry, crs=rfc.common_crs, point_spacing=10
+        # )
 
-        rfc.ras_xs.fields.loc[0]
-        xs_group = rfc.xs_by_river_reach_name(river_reach_name)
-        metrics = calculate_conflation_metrics(
-            rfc,
-            candidate_reaches,
-            xs_group,
-            ras_points,
-        )
+        # rfc.ras_xs.fields.loc[0]
+        # xs_group = rfc.xs_by_river_reach_name(river_reach_name)
+        # metrics = calculate_conflation_metrics(
+        #     rfc,
+        #     candidate_reaches,
+        #     xs_group,
+        #     ras_points,
+        # )
 
-        ras_to_fim_length_ratio = rfc.ras_centerlines.loc[0].geometry.length / candidate_reaches.geometry.length.sum()
+        # ras_to_fim_length_ratio = rfc.ras_centerlines.loc[0].geometry.length / candidate_reaches.geometry.length.sum()
 
         reach_metadata = ras_reaches_metadata(rfc, low_flows, candidate_reaches)
-        reach_metadata["ras_river_to_nwm_reaches_ratio"] = ras_to_fim_length_ratio
-        reach_metadata["metrics"] = metrics
+        # reach_metadata["ras_river_to_nwm_reaches_ratio"] = ras_to_fim_length_ratio
+        # reach_metadata["metrics"] = metrics
 
-        metadata[river_reach_name] = reach_metadata
+        metadata.update(reach_metadata)
 
     return metadata
 
 
 if __name__ == "__main__":
     wkdir = "/Users/slawler/repos/ripple"
-    ras_gpkg_path = f"{wkdir}/tests/ras-data/Baxter/Baxter.gpkg"
+    ras_gpkg_path = f"{wkdir}/tests/ras-data/Baxter/new.gpkg"
     nwm_pq_path = f"{wkdir}/tests/nwm-data/flow_paths.parquet"
     low_flows = pd.read_parquet(f"{wkdir}/tests/nwm-data/high_water_threshold.parquet")
     conflation_output = f"{wkdir}/tests/ras-data/baxter-ripple-params.json"
