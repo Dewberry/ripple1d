@@ -15,11 +15,11 @@ def create_db_and_table(db_name: str, table_name: str):
 
     sql_query = f"""
         CREATE TABLE {[table_name]}(
-            control_by_node_stage REAL,
+            control_by_reach_stage REAL,
             flow REAL,
             stage REAL,
-            node_id INTEGER,
-            UNIQUE(flow, node_id, control_by_node_stage)
+            reach_id INTEGER,
+            UNIQUE(flow, reach_id, control_by_reach_stage)
         )
     """
     conn = sqlite3.connect(db_name)
@@ -40,10 +40,10 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame):
 
         c.execute(
             f"""
-            INSERT OR REPLACE INTO {[table_name]} (control_by_node_stage, flow, stage,node_id)
+            INSERT OR REPLACE INTO {[table_name]} (control_by_reach_stage, flow, stage,reach_id)
             VALUES ( ?, ?, ?, ?)
         """,
-            (float(row.control_by_node_stage), float(row.flow), float(row.stage), int(row.node_id)),
+            (float(row.control_by_reach_stage), float(row.flow), float(row.stage), int(row.reach_id)),
         )
 
     conn.commit()
@@ -54,106 +54,76 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     """Parse flow and control by stage from profile names"""
     wses_t = wses.T
     wses_t.reset_index(inplace=True)
-    wses_t[["flow", "control_by_node_stage"]] = wses_t["index"].str.split("-", expand=True)
+    wses_t[["flow", "control_by_reach_stage"]] = wses_t["index"].str.split("-", expand=True)
     wses_t.drop(columns="index", inplace=True)
     wses_t["flow"] = wses_t["flow"].str.lstrip("f_").astype(float)
-    wses_t["control_by_node_stage"] = wses_t["control_by_node_stage"].str.lstrip("z_")
-    wses_t["control_by_node_stage"] = wses_t["control_by_node_stage"].str.replace("_", ".").astype(float)
+    wses_t["control_by_reach_stage"] = wses_t["control_by_reach_stage"].str.lstrip("z_")
+    wses_t["control_by_reach_stage"] = wses_t["control_by_reach_stage"].str.replace("_", ".").astype(float)
 
     return wses_t
 
 
-def zero_depth_to_sqlite(r: RasManager):
+def zero_depth_to_sqlite(rm: RasManager, nwm_id: str):
 
-    database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
-    table = r.ras_project_basename
+    database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
+    table = rm.ras_project._ras_project_basename
 
-    for branch_id, branch_data in r.ripple_parameters.items():
+    # set the plan
+    rm.plan = rm.plans[str(nwm_id) + "_nd"]
 
-        # set the plan
-        r.plan = r.plans[str(branch_id) + "_nd"]
+    # read in flow/wse
+    wses, flows = rm.plan.read_rating_curves()
 
-        # read in flow/wse
-        rc = r.plan.read_rating_curves()
-        wses, flows = rc.values()
+    # get river-reach-rs
+    xs_gdf = rm.plan.geom.xs_gdf
+    rs = xs_gdf["river_station"].max()
+    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0")
 
-        # create rating curve for each  node:
-        node_data = branch_data["intermediate_data"] + [branch_data["upstream_data"]]
+    wses_t = wses.T
+    wses_t["flow"] = wses_t.index
+    wses_t["control_by_reach_stage"] = 0
+    df = wses_t.loc[:, [river_reach_rs, "flow", "control_by_reach_stage"]]
+    df.rename(columns={river_reach_rs: "stage"}, inplace=True)
 
-        for nd in node_data:
-            # get river-reach-rs id for the intermediate node
-            river = nd["river"]
-            reach = nd["reach"]
-            rs = nd["xs_id"]
-            river_reach_rs = f"{river} {reach} {rs}"
+    # add control id
+    df["reach_id"] = [nwm_id] * len(df)
 
-            wses_t = wses.T
-            wses_t["flow"] = wses_t.index
-            wses_t["control_by_node_stage"] = 0
-            df = wses_t.loc[:, [river_reach_rs, "flow", "control_by_node_stage"]]
-            df.rename(columns={river_reach_rs: "stage"}, inplace=True)
-
-            # add control id
-            df["node_id"] = [nd["node_id"]] * len(df)
-
-            insert_data(database_path, table, df)
+    insert_data(database_path, table, df)
 
 
-def rating_curves_to_sqlite(r: RasManager):
+def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, nwm_data: dict):
     """Export rating curves to sqlite"""
     # create dabase and table
-    database_path = os.path.join(r.postprocessed_output_folder, r.ras_project_basename + ".db")
-    table = r.ras_project_basename
+    database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
+    table = rm.ras_project._ras_project_basename
 
     create_db_and_table(database_path, table)
 
-    # df_list = []
-    for branch_id, branch_data in r.ripple_parameters.items():
+    # set the plan
+    rm.plan = rm.plans[str(nwm_id) + "_kwse"]
 
-        # set the plan
-        r.plan = r.plans[str(branch_id) + "_kwse"]
+    # read in flow/wse
+    wses, flows = rm.plan.read_rating_curves()
 
-        # read in flow/wse
-        rc = r.plan.read_rating_curves()
-        wses, flows = rc.values()
+    # parse applied stage and flow from profile names
+    wses = parse_stage_flow(wses)
 
-        # parse applied stage and flow from profile names
-        wses = parse_stage_flow(wses)
+    # get river-reach-rs id
+    xs_gdf = rm.plan.geom.xs_gdf
+    rs = xs_gdf["river_station"].max()
+    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0")
 
-        # create rating curve for each  node:
-        node_data = branch_data["intermediate_data"] + [branch_data["upstream_data"]]
+    # get subset of results for this cross section
+    df = wses[["flow", "control_by_reach_stage", river_reach_rs]].copy()
 
-        for nd in node_data:
+    # rename columns
+    df.rename(columns={river_reach_rs: "stage"}, inplace=True)
 
-            # get river-reach-rs id for the intermediate node
-            river = nd["river"]
-            reach = nd["reach"]
-            rs = nd["xs_id"]
-            river_reach_rs = f"{river} {reach} {rs}"
+    # add control id
+    df["reach_id"] = [nwm_id] * len(df)
 
-            # get subset of results for this cross section
-            df = wses[["flow", "control_by_node_stage", river_reach_rs]].copy()
+    # convert elevation to stage
+    thalweg = xs_gdf.loc[xs_gdf["river_station"] == rs, "thalweg"][0]
+    df.loc[:, "stage"] = df["stage"] - thalweg
 
-            # rename columns
-            df.rename(columns={river_reach_rs: "stage"}, inplace=True)
-
-            # add control id
-            df["node_id"] = [nd["node_id"]] * len(df)
-
-            # convert elevation to stage
-            thalweg = nd["min_elevation"]
-            df.loc[:, "stage"] = df["stage"] - thalweg
-
-            insert_data(database_path, table, df)
-    #         df_list.append(df)
-
-    # if df_list:
-
-    #     # combine dataframes into one
-    #     if len(df_list) > 1:
-    #         combined_df = pd.concat(df_list)
-    #     else:
-    #         combined_df = df_list[0]
-
-    # # write to sqlite db
-    # insert_data(database_path, table, combined_df)
+    insert_data(database_path, table, df)
