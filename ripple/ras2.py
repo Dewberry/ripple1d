@@ -81,9 +81,6 @@ def write_new_plan_text_file(func):
         plan_text_file = RasPlanText(text_file, self.projection, new_file=True)
 
         if "write_depth_grids" in kwargs:
-            if kwargs["write_depth_grids"]:
-                self.update_rasmapper_for_mapping()
-
             # populate new plan info
             plan_text_file.new_plan_contents(
                 title, title, self.flows[title], self.geoms[geom_title], kwargs["write_depth_grids"]
@@ -104,6 +101,10 @@ def write_new_plan_text_file(func):
 
         # write the update RAS project file content
         self.ras_project.write_updated_contents()
+
+        if "write_depth_grids" in kwargs:
+            if kwargs["write_depth_grids"]:
+                self.update_rasmapper_for_mapping()
 
         # run the RAS plan
         self.run_sim(close_ras=True, show_ras=True, ignore_store_all_maps_error=True)
