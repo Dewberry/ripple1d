@@ -21,7 +21,8 @@ MAX_FLOW_FACTOR = 1.5
 
 STAC_API_URL = "https://stac2.dewberryanalytics.com"
 
-TERRAIN_NAME = "MapTerrain"
+TERRAIN_NAME = "Terrain_Name"
+TERRAIN_PATH = "Terrain_Path"
 SUPPORTED_LAYERS = ["River", "XS"]
 
 WSE_HDF_PATH = "/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Water Surface"

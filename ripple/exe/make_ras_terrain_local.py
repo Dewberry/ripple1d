@@ -74,9 +74,11 @@ def main(terrain_hdf_filename: str, gpkg_path: str):
 
 if __name__ == "__main__":
 
+    nwm_id = "2823932"
+
     terrain_hdf_filename = (
-        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\2826228\Terrain.hdf"
+        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\Terrain.hdf"
     )
-    gpkg_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\2826228.gpkg"
+    gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
 
     main(terrain_hdf_filename, gpkg_path)

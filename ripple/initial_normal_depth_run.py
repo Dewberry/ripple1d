@@ -12,7 +12,7 @@ def main(
     nwm_data: dict,
     ras_project_directory: str,
     subset_gpkg_path: str,
-    terrain_name: str,
+    terrain_path: str = None,
     number_of_discharges_for_initial_normal_depth_runs: int = 10,
     version: str = "631",
 ):
@@ -20,7 +20,7 @@ def main(
 
     # create new ras manager class
     rm, ras_project_text_file = initialize_new_ras_project_from_gpkg(
-        ras_project_directory, nwm_id, subset_gpkg_path, version, terrain_name
+        ras_project_directory, nwm_id, subset_gpkg_path, version, terrain_path
     )
 
     # increment flows based on min and max flows specified in conflation parameters
@@ -41,15 +41,12 @@ def main(
 
 
 if __name__ == "__main__":
-    nwm_id = "2826228"
+    nwm_id = "2823932"
     ras_project_directory = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}"
     subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
-    terrain_name = "Terrain"
-    json_path = (
-        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params copy.json"
-    )
+    json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
 
     with open(json_path) as f:
         ripple_parameters = json.load(f)
 
-    main(nwm_id, ripple_parameters[nwm_id], ras_project_directory, subset_gpkg_path, terrain_name)
+    main(nwm_id, ripple_parameters[nwm_id], ras_project_directory, subset_gpkg_path)

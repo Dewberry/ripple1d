@@ -21,6 +21,7 @@ from .consts import (
     PROFILE_NAMES_HDF_PATH,
     SUPPORTED_LAYERS,
     TERRAIN_NAME,
+    TERRAIN_PATH,
     WSE_HDF_PATH,
     XS_NAMES_HDF_PATH,
 )
@@ -62,9 +63,9 @@ VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
 # Decorator Functions
 def write_new_plan_text_file(func):
     def wrapper(self, *args, **kwargs):
-        
+
         title = args[0]
-        geom_title=args[1]
+        geom_title = args[1]
         if title in self.plans.keys():
             raise PlanTitleAlreadyExistsError(f"The specified plan title {title} already exists")
 
@@ -86,7 +87,7 @@ def write_new_plan_text_file(func):
 
         # add new plan to the ras class
         self.plans[title] = plan_text_file
-        self.plan=plan_text_file
+        self.plan = plan_text_file
 
         # add to ras project contents
         self.ras_project.contents.append(f"Plan File=p{new_extension_number}")
@@ -96,7 +97,7 @@ def write_new_plan_text_file(func):
 
         # write the update RAS project file content
         self.ras_project.write_updated_contents()
-        
+
         if "write_depth_grids" in kwargs:
             if kwargs["write_depth_grids"]:
                 self.update_rasmapper_for_mapping()
@@ -105,6 +106,7 @@ def write_new_plan_text_file(func):
         self.run_sim(close_ras=True, show_ras=True, ignore_store_all_maps_error=True)
 
     return wrapper
+
 
 def write_new_flow_text_file(func):
     def wrapper(self, *args, **kwargs):
@@ -120,7 +122,7 @@ def write_new_flow_text_file(func):
         flow_text_file = RasFlowText(text_file, new_file=True)
 
         # call function
-        flow_text_file=func(self, flow_text_file, *args, **kwargs)
+        flow_text_file = func(self, flow_text_file, *args, **kwargs)
 
         # write flow file content
         flow_text_file.write_contents()
@@ -134,6 +136,7 @@ def write_new_flow_text_file(func):
 
     return wrapper
 
+
 def check_projection(func):
     def wrapper(self, *args, **kwargs):
         if self.projection is None:
@@ -142,12 +145,14 @@ def check_projection(func):
 
     return wrapper
 
+
 def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         return [self._ras_root_path + "." + extension for extension in extensions]
 
     return wrapper
+
 
 def check_version_installed(version: str):
     def decorator(func):
@@ -165,6 +170,7 @@ def check_version_installed(version: str):
 
     return decorator
 
+
 def check_windows(func):
     def wrapper(self, *args, **kwargs):
         if platform.system() != "Windows":
@@ -173,33 +179,36 @@ def check_windows(func):
 
     return wrapper
 
+
 def add_fid_index(func):
     def wrapper(*args, **kwargs):
         gdf = func(*args, **kwargs)
         gdf.index.name = "ID"
         return gdf
+
     return wrapper
 
-#classes
+
+# classes
 class RasManager:
     def __init__(
         self,
         ras_text_file_path: str,
         version: str = "631",
-        terrain_name:str=TERRAIN_NAME,
+        terrain_path: str = None,
         projection: CRS = None,
         new_project: bool = False,
     ):
 
         self.version = version
-        self.terrain_name=terrain_name
+        self.terrain_path = terrain_path
         self.ras_project = RasProject(ras_text_file_path, new_file=new_project)
 
         self.projection = CRS(projection)
         self.plans = self.get_plans()
         self.geoms = self.get_geoms()
         self.flows = self.get_flows()
-        self.plan=self.current_plan
+        self.plan = self.current_plan
 
     def __repr__(self):
         return f"RasManager(project={self.ras_project._ras_text_file_path} ras-version={self.version})"
@@ -207,13 +216,13 @@ class RasManager:
     @property
     def current_plan(self):
         for plan in self.plans.values():
-            if plan.file_extension==self.ras_project.current_plan:
+            if plan.file_extension == self.ras_project.current_plan:
                 return plan
-    
+
     @property
     def projection_file(self):
-        projection_file=os.path.join(self.ras_project._ras_dir,"projection.prj")
-        with open(projection_file,"w") as f:
+        projection_file = os.path.join(self.ras_project._ras_dir, "projection.prj")
+        with open(projection_file, "w") as f:
             f.write(self.projection.to_wkt("WKT1_ESRI"))
         return projection_file
 
@@ -224,7 +233,7 @@ class RasManager:
         plans = {}
         for plan_file in self.ras_project.plans:
             try:
-                plan = RasPlanText(plan_file,self.projection)
+                plan = RasPlanText(plan_file, self.projection)
                 plans[plan.title] = plan
             except FileNotFoundError:
                 logging.info(f"Could not find plan file: {plan_file}")
@@ -315,13 +324,13 @@ class RasManager:
         self,
         flow_text_file,
         title: str,
-        geom_title:str,
+        geom_title: str,
         flows: list[float],
         river: str,
         reach: str,
         us_river_station: float,
-        normal_depth: float=NORMAL_DEPTH,
-        write_depth_grids:bool=False
+        normal_depth: float = NORMAL_DEPTH,
+        write_depth_grids: bool = False,
     ):
 
         flows = [int(i) for i in flows]
@@ -343,7 +352,7 @@ class RasManager:
         self,
         flow_text_file,
         title: str,
-        geom_title:str,
+        geom_title: str,
         depths: List[float],
         wses: List[float],
         flows: List[float],
@@ -351,20 +360,18 @@ class RasManager:
         reach: str,
         us_river_station: float,
         ds_river_station: float,
-        write_depth_grids:bool=False
+        write_depth_grids: bool = False,
     ):
         profile_names = [f"f_{int(flow)}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
 
         # write headers
-        flow_text_file.contents += flow_text_file.write_headers(title,profile_names)
+        flow_text_file.contents += flow_text_file.write_headers(title, profile_names)
 
         # write discharges
         flow_text_file.contents += flow_text_file.write_discharges(flows, river, reach, us_river_station)
 
         # write DS boundary conditions
-        flow_text_file.contents += flow_text_file.write_ds_known_ws(
-            wses, len(flows), river,reach,ds_river_station
-        )
+        flow_text_file.contents += flow_text_file.write_ds_known_ws(wses, len(flows), river, reach, ds_river_station)
 
         return flow_text_file
 
@@ -386,7 +393,7 @@ class RasManager:
         """
 
         # manage rasmapper
-        map_file =f"{self.ras_project._ras_root_path}.rasmap"
+        map_file = f"{self.ras_project._ras_root_path}.rasmap"
 
         if os.path.exists(map_file):
             os.remove(map_file)
@@ -394,14 +401,18 @@ class RasManager:
         if os.path.exists(map_file + ".backup"):
             os.remove(map_file + ".backup")
 
-        rasmap = RasMap(map_file, self.plan.geom,self.version)
+        terrain_relative_path = os.path.relpath(self.terrain_path, self.ras_project._ras_dir)
+        terrain_name = os.path.splitext(os.path.basename(self.terrain_path))[0]
+
+        rasmap = RasMap(map_file, self.plan.geom, self.version)
         rasmap.update_projection(self.projection_file)
-        rasmap.add_terrain(self.terrain_name)
+        rasmap.add_terrain(terrain_name, terrain_relative_path)
         rasmap.add_plan_layer(self.plan.title, os.path.basename(self.plan.hdf_file), self.plan.flow.profile_names)
         rasmap.add_result_layers(self.plan.title, self.plan.flow.profile_names, "Depth")
         rasmap.write()
 
         return self
+
 
 class RasTextFile:
     def __init__(self, ras_text_file_path, new_file=False):
@@ -447,6 +458,7 @@ class RasTextFile:
     def file_extension(self):
         return Path(self._ras_text_file_path).suffix
 
+
 class RasProject(RasTextFile):
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
@@ -455,7 +467,7 @@ class RasProject(RasTextFile):
 
         self._ras_project_basename = os.path.splitext(os.path.basename(self._ras_text_file_path))[0]
         self._ras_dir = os.path.dirname(self._ras_text_file_path)
-        os.makedirs(self._ras_dir,exist_ok=True)
+        os.makedirs(self._ras_dir, exist_ok=True)
 
         if new_file:
             self.contents = [f"Proj Title={self._ras_project_basename}", "Current Plan="]
@@ -489,7 +501,7 @@ class RasProject(RasTextFile):
 
     @property
     def current_plan(self):
-        return search_contents(self.contents,"Current Plan")
+        return search_contents(self.contents, "Current Plan")
 
     def set_current_plan(self, plan_ext):
         """
@@ -510,13 +522,15 @@ class RasProject(RasTextFile):
         logging.info("set plan!")
         return new_contents
 
+
 class RasPlanText(RasTextFile):
     def __init__(self, ras_text_file_path: str, projection: str = None, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
         self.projection = projection
-        self.hdf_file=self._ras_text_file_path+".hdf"
+        self.hdf_file = self._ras_text_file_path + ".hdf"
+
     def __repr__(self):
         return f"RasPlanText({self._ras_text_file_path})"
 
@@ -653,6 +667,7 @@ class RasPlanText(RasTextFile):
 
         return wse, flow
 
+
 class RasGeomText(RasTextFile):
     def __init__(self, ras_text_file_path: str, projection: str = None, new_file=False):
         super().__init__(ras_text_file_path, new_file)
@@ -660,21 +675,20 @@ class RasGeomText(RasTextFile):
             raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {self.file_extension}")
 
         self.projection = CRS(projection)
-        self.hdf_file=self._ras_text_file_path+".hdf"
+        self.hdf_file = self._ras_text_file_path + ".hdf"
 
     def __repr__(self):
         return f"RasGeomText({self._ras_text_file_path})"
 
     @classmethod
-    def from_str(cls, text_string:str,projection, ras_text_file_path: str = ""):
+    def from_str(cls, text_string: str, projection, ras_text_file_path: str = ""):
         inst = cls("", projection, new_file=True)
-        inst.contents=text_string.splitlines()
+        inst.contents = text_string.splitlines()
         return inst
 
     @classmethod
     def from_gpkg(cls, gpkg_path, title: str, version: str, ras_text_file_path: str = ""):
-        
-        
+
         inst = cls(ras_text_file_path, projection=gpd.read_file(gpkg_path).crs, new_file=True)
         inst._gpkg_path = gpkg_path
         inst._version = version
@@ -697,13 +711,12 @@ class RasGeomText(RasTextFile):
 
         xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
 
-
         # headers
         gpkg_data = (
             f"Geom Title={self._title}\nProgram Version={self._version}\nViewing Rectangle={self._bbox(xs_gdf)}\n\n"
         )
 
-        #junction data
+        # junction data
         if "Junction" in fiona.listlayers(self._gpkg_path):
             junction_gdf = gpd.read_file(self._gpkg_path, layer="Junction", driver="GPKG")
             junction_gdf["ras_data"].str.cat(sep="\n")
@@ -792,7 +805,7 @@ class RasGeomText(RasTextFile):
     @check_projection
     @add_fid_index
     def junction_gdf(self):
-        return pd.concat([junction.gdf for junction in self.junctions.values()],ignore_index=True)
+        return pd.concat([junction.gdf for junction in self.junctions.values()], ignore_index=True)
 
     @property
     @check_projection
@@ -801,13 +814,14 @@ class RasGeomText(RasTextFile):
         """
         Geodataframe of all cross sections in the geometry text file.
         """
-        return pd.concat([xs.gdf for xs in self.cross_sections.values()],ignore_index=True)
+        return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
 
-    def to_gpkg(self,gpkg_path:str):
-        self.xs_gdf.to_file(gpkg_path,driver="GPKG",layer="XS")
-        self.reach_gdf.to_file(gpkg_path,driver="GPKG",layer="River")
+    def to_gpkg(self, gpkg_path: str):
+        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
+        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
-            self.junction_gdf.to_file(gpkg_path,diver="GPKG",layer="Junction")
+            self.junction_gdf.to_file(gpkg_path, diver="GPKG", layer="Junction")
+
 
 class RasFlowText(RasTextFile):
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
@@ -839,7 +853,7 @@ class RasFlowText(RasTextFile):
 
     @property
     def flow_change_locations(self):
-        search_contents(self.contents, "Boundary for River Rch & Prof#",expect_one=False)
+        search_contents(self.contents, "Boundary for River Rch & Prof#", expect_one=False)
 
     def write_headers(self, title: str, profile_names: list[str]):
         """
@@ -929,6 +943,7 @@ class RasFlowText(RasTextFile):
 
         return lines
 
+
 class RasMap:
     """
     Represents a single RasMapper file.
@@ -941,7 +956,7 @@ class RasMap:
 
     """
 
-    def __init__(self, path: str, geom,version: str = 631):
+    def __init__(self, path: str, geom, version: str = 631):
         """
         Args:
             path (str): file path to the plan text file
@@ -971,12 +986,14 @@ class RasMap:
         else:
             raise FileNotFoundError(f"could not find {self.text_file}")
 
-    def new_rasmap_content(self,geom):
+    def new_rasmap_content(self, geom):
         """
         Populate the contents with boiler plate contents
         """
         if self.version in ["631", "6.31", "6.3.1", "63.1"]:
-            self.contents = RASMAP_631.replace("geom_hdf_placeholder",os.path.basename(geom.hdf_file)).replace("geom_name_placeholder",geom.title)
+            self.contents = RASMAP_631.replace("geom_hdf_placeholder", os.path.basename(geom.hdf_file)).replace(
+                "geom_name_placeholder", geom.title
+            )
         else:
             raise ValueError(f"model version '{self.version}' is not supported")
 
@@ -1061,7 +1078,7 @@ class RasMap:
 
         self.contents = "\n".join(lines)
 
-    def add_terrain(self, terrain_name: str):
+    def add_terrain(self, terrain_name: str, terrain_path: str):
         """
         Add Terrain to RasMap content
         """
@@ -1071,7 +1088,7 @@ class RasMap:
 
             if line == "  <Terrains />":
 
-                lines.append(TERRAIN.replace(TERRAIN_NAME, terrain_name))
+                lines.append(TERRAIN.replace(TERRAIN_NAME, terrain_name).replace(TERRAIN_PATH, terrain_path))
                 continue
 
             lines.append(line)
@@ -1092,7 +1109,8 @@ class RasMap:
         with open(self.text_file + ".backup", "w") as f:
             f.write(self.contents)
 
-#functions
+
+# functions
 def search_for_ras_projection(search_dir: str):
     rasmap_files = glob.glob(f"{search_dir}/*.rasmap")
     if rasmap_files:
@@ -1108,9 +1126,10 @@ def search_for_ras_projection(search_dir: str):
                 if os.path.exists(abs_path):
                     with open(abs_path) as src:
                         projection = src.read()
-                        return projection,abs_path
+                        return projection, abs_path
                 else:
                     raise FileNotFoundError(f"Could not find projection file in {search_dir}")
+
 
 def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
     """
@@ -1136,10 +1155,10 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
 
 def create_terrain(
     src_terrain_filepaths: list[str],
-    projection_file:str,
+    projection_file: str,
     terrain_hdf_filename: str,
     vertical_units: str = "Feet",
-    version:str="631"
+    version: str = "631",
 ) -> str:
     r"""
     Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
@@ -1171,7 +1190,7 @@ def create_terrain(
         raise FileNotFoundError(terrain_exe)
 
     exe_parent_dir = os.path.split(terrain_exe)[0]
-    
+
     subproc_args = [
         terrain_exe,
         "CreateTerrain",
@@ -1195,5 +1214,3 @@ def create_terrain(
     # for tif in output_tifs:
     #     utils.recompress_tif(tif)
     #     utils.build_tif_overviews(tif)
-
-    
