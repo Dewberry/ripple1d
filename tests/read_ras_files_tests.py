@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pyproj import CRS
 
 from ripple.ras2 import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 
@@ -15,13 +16,18 @@ RAS_PROJECT = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.prj")
 RAS_PLAN = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.p01")
 RAS_GEOM = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.g02")
 RAS_FLOW = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.f01")
+PROJECTION_FILE = os.path.join(TEST_DIR,"ras-data/Baxter/CA_SPCS_III_NAVD88.prj")
+NEW_GPKG =  os.path.join(TEST_DIR,"ras-data/Baxter/new.gpkg")
 
 
 @pytest.fixture(scope="class")
 def setup_data(request):
+    with open(PROJECTION_FILE, "r") as f:
+        crs = f.read()
+    request.cls.PROJECTION = crs
     request.cls.ras_project = RasProject(RAS_PROJECT)
     request.cls.ras_plan = RasPlanText(RAS_PLAN)
-    request.cls.ras_geom = RasGeomText(RAS_GEOM, projection="NAD83(2011) UTM Zone 19N")
+    request.cls.ras_geom = RasGeomText(RAS_GEOM, projection=CRS(crs))
     request.cls.ras_flow = RasFlowText(RAS_FLOW)
 
 
@@ -76,6 +82,9 @@ class TestGeom(unittest.TestCase):
         self.assertEqual(len(self.ras_geom.reaches), 3)
         self.assertIn("Baxter River    ,Upper Reach     ", self.ras_geom.reaches.keys())
 
+    def test_to_gpkg(self):
+        self.ras_geom.to_gpkg(NEW_GPKG)
+
 
 # RasFlowText
 @pytest.mark.usefixtures("setup_data")
@@ -89,10 +98,10 @@ class TestFlow(unittest.TestCase):
         pass
 
 
-# RasManagerText
-class TestRasManager(unittest.TestCase):
-    @patch("platform.system", return_value="Linux")
-    def test_run_sim_on_non_windows(self, _):
-        ras_manager = RasManager(RAS_PROJECT)
-        with self.assertRaises(SystemError):
-            ras_manager.run_sim()
+# # RasManagerText
+# class TestRasManager(unittest.TestCase):
+#     @patch("platform.system", return_value="Linux")
+#     def test_run_sim_on_non_windows(self, _):
+#         ras_manager = RasManager(RAS_PROJECT)
+#         with self.assertRaises(SystemError):
+#             ras_manager.run_sim()

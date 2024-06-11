@@ -173,6 +173,13 @@ def check_windows(func):
 
     return wrapper
 
+def add_fid_index(func):
+    def wrapper(*args, **kwargs):
+        gdf = func(*args, **kwargs)
+        gdf.index.name = "ID"
+        return gdf
+    return wrapper
+
 #classes
 class RasManager:
     def __init__(
@@ -601,12 +608,12 @@ class RasPlanText(RasTextFile):
         if f"{geom.file_extension}" not in VALID_GEOMS:
             raise TypeError(f"Geometry extenstion must be one of g01-g99, not {geom.file_extension}")
         else:
-            self.contents.append(f"Geom File={geom.file_extension.lstrip(".")}")
+            self.contents.append(f"Geom File={geom.file_extension.lstrip('.')}")
 
         if f"{flow.file_extension}" not in VALID_STEADY_FLOWS:
             raise TypeError(f"Flow extenstion must be one of f01-f99, not {flow.file_extension}")
         else:
-            self.contents.append(f"Flow File={flow.file_extension.lstrip(".")}")
+            self.contents.append(f"Flow File={flow.file_extension.lstrip('.')}")
         self.contents.append("Run RASMapper=-1 ")
 
     def read_rating_curves(self) -> dict:
@@ -777,21 +784,24 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_projection
+    @add_fid_index
     def reach_gdf(self):
-        return pd.concat([reach.gdf for reach in self.reaches.values()])
+        return pd.concat([reach.gdf for reach in self.reaches.values()], ignore_index=True)
 
     @property
     @check_projection
+    @add_fid_index
     def junction_gdf(self):
-        return pd.concat([junction.gdf for junction in self.junctions.values()])
+        return pd.concat([junction.gdf for junction in self.junctions.values()],ignore_index=True)
 
     @property
     @check_projection
+    @add_fid_index
     def xs_gdf(self):
         """
         Geodataframe of all cross sections in the geometry text file.
         """
-        return pd.concat([xs.gdf for xs in self.cross_sections.values()])
+        return pd.concat([xs.gdf for xs in self.cross_sections.values()],ignore_index=True)
 
     def to_gpkg(self,gpkg_path:str):
         self.xs_gdf.to_file(gpkg_path,driver="GPKG",layer="XS")
