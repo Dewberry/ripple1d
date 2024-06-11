@@ -218,7 +218,7 @@ def get_terrain_exe_path(ras_ver: str) -> str:
 def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
 
-    points = xs.boundary.explode().unstack()
+    points = xs.boundary.explode(index_parts=True).unstack()
     points_last_xs = [Point(coord) for coord in xs["geometry"].iloc[-1].coords]
     points_first_xs = [Point(coord) for coord in xs["geometry"].iloc[0].coords[::-1]]
 
