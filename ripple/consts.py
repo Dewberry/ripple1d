@@ -11,13 +11,11 @@ MAP_DEM_VERT_UNITS = "Feet"
 
 METERS_PER_FOOT = 1200.0 / 3937.0
 
-MINDEPTH = 0.1
+MINDEPTH = 0.1  # ft
+MIN_FLOW = 1  # cfs
 
 DEFAULT_EPSG = 4269
 NORMAL_DEPTH = 0.001
-
-MIN_FLOW_FACTOR = 0.85
-MAX_FLOW_FACTOR = 1.5
 
 STAC_API_URL = "https://stac2.dewberryanalytics.com"
 

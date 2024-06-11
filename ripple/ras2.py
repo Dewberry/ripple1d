@@ -17,6 +17,7 @@ from pyproj import CRS
 
 from .consts import (
     FLOW_HDF_PATH,
+    MIN_FLOW,
     NORMAL_DEPTH,
     PROFILE_NAMES_HDF_PATH,
     SUPPORTED_LAYERS,
@@ -890,7 +891,7 @@ class RasFlowText(RasTextFile):
         )
         line = ""
         for i, flow in enumerate(flows):
-            line += f"{str(int(flow)).rjust(8,' ')}"
+            line += f"{str(min([int(flow),MIN_FLOW])).rjust(8,' ')}"
             if (i + 1) % 10 == 0:
                 lines.append(line)
                 line = ""
