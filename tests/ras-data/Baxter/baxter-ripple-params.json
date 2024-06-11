@@ -1,231 +1,220 @@
-{"2826228": {
+{
+    "2826228": {
         "us_xs": {
             "min_elevation": 33.4,
             "max_elevation": 125.0,
-            "xs_id": "84816.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach"
+            "xs_id": 84816.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "ds_xs": {
             "min_elevation": 55.0,
             "max_elevation": 120.02,
-            "xs_id": "84000.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach",
-            "nwm_id":"2823932"
+            "xs_id": 84000.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
-        "low_flow_cfs": 200,
-        "high_flow_cfs":4000
+        "low_flow_cfs": -9999,
+        "high_flow_cfs": 10000
     },
     "2823932": {
         "us_xs": {
             "min_elevation": 55.0,
             "max_elevation": 120.02,
-            "xs_id": "84000.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach"
+            "xs_id": 84000.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "ds_xs": {
-            "min_elevation": 45.0,
-            "max_elevation": 120.0,
-            "xs_id": "82599.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach",
-            "nwm_id":"2826230"
+            "min_elevation": 35.1,
+            "max_elevation": 120.06,
+            "xs_id": 81920.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "low_flow_cfs": 4724.75,
-        "high_flow_cfs":10000
+        "high_flow_cfs": 10000
     },
     "2826230": {
         "us_xs": {
-            "min_elevation": 45.0,
-            "max_elevation": 120.0,
-            "xs_id": "82599.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach"
-        },
-        "ds_xs": {
-            "min_elevation": 45.0,
-            "max_elevation": 112.4,
-            "xs_id": "81236.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach",
-            "nwm_id":"2826234"
-        },
-        "low_flow_cfs": 4726.16,
-        "high_flow_cfs":10000
-    },
-    "2823934": {
-        "us_xs": {
-            "min_elevation": 45.0,
-            "max_elevation": 112.4,
-            "xs_id": "81236.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach"
+            "min_elevation": 35.1,
+            "max_elevation": 120.06,
+            "xs_id": 81920.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "ds_xs": {
             "min_elevation": 55.0,
-            "max_elevation": 110.01,
-            "xs_id": "80377.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach",
-            "nwm_id":"2826224"
+            "max_elevation": 110.29,
+            "xs_id": 80916.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
+        },
+        "low_flow_cfs": 4726.16,
+        "high_flow_cfs": 10000
+    },
+    "2823934": {
+        "us_xs": {
+            "min_elevation": 55.0,
+            "max_elevation": 110.29,
+            "xs_id": 80916.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
+        },
+        "ds_xs": {
+            "min_elevation": 50.0,
+            "max_elevation": 110.0,
+            "xs_id": 79577.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "low_flow_cfs": 4726.87,
-        "high_flow_cfs":10000
+        "high_flow_cfs": 10000
     },
     "2826224": {
         "us_xs": {
             "min_elevation": 50.0,
             "max_elevation": 110.0,
-            "xs_id": "80377.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach"
+            "xs_id": 79577.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "ds_xs": {
-            "min_elevation": 35.1,
-            "max_elevation": 107.8,
-            "xs_id": "79082.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach",
-            "nwm_id":"2823960"
+            "min_elevation": 50.0,
+            "max_elevation": 105.42,
+            "xs_id": 78658.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "low_flow_cfs": 4727.93,
-        "high_flow_cfs":10000
+        "high_flow_cfs": 10000
     },
     "2823960": {
         "us_xs": {
-            "min_elevation": 35.1,
-            "max_elevation": 107.8,
-            "xs_id": "79082.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Upper Reach"
+            "min_elevation": 50.0,
+            "max_elevation": 105.42,
+            "xs_id": 78658.0,
+            "river": "Baxter River",
+            "reach": "Upper Reach"
         },
         "ds_xs": {
-            "min_elevation": 33.59,
-            "max_elevation": 85.84,
-            "xs_id": "47694.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach",
-            "nwm_id":"2823972"
+            "min_elevation": 38.0,
+            "max_elevation": 95.84,
+            "xs_id": 10982.0,
+            "river": "Tule Creek",
+            "reach": "Tributary"
         },
         "low_flow_cfs": 4745.59,
-        "high_flow_cfs":10000
+        "high_flow_cfs": 10000
+    },
+    "2823972": {
+        "us_xs": {
+            "min_elevation": 33.59,
+            "max_elevation": 85.84,
+            "xs_id": 47694.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
+        },
+        "ds_xs": {
+            "min_elevation": 31.9,
+            "max_elevation": 85.84,
+            "xs_id": 38312.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
+        },
+        "low_flow_cfs": 4774.55,
+        "high_flow_cfs": 10000,
+        "gage": "11290000",
+        "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=11290000&legacy=1"
     },
     "2823920": {
         "us_xs": {
             "min_elevation": 38.0,
             "max_elevation": 95.84,
-            "xs_id": "10982.",
-            "ras_river":"Tule Creek",
-            "ras_reach":"Tributary"
+            "xs_id": 10982.0,
+            "river": "Tule Creek",
+            "reach": "Tributary"
         },
         "ds_xs": {
             "min_elevation": 33.59,
             "max_elevation": 85.84,
-            "xs_id": "47694.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach",
-            "nwm_id":"2823972"
+            "xs_id": 47694.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
         },
-        "low_flow_cfs": 20,
-        "high_flow_cfs":4000
-    },
-
-    "2823972": {
-        "us_xs": {
-            "min_elevation": 33.59,
-            "max_elevation": 85.84,
-            "xs_id": "47694.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach"
-        },
-        "ds_xs": {
-            "min_elevation": 29.61,
-            "max_elevation": 79.84,
-            "xs_id": "39012.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach",
-            "nwm_id":"2820002"
-        },
-        "low_flow_cfs": 4774.55,
-        "high_flow_cfs":10000,
-        "gage": "11290000",
-        "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=11290000&legacy=1"
+        "low_flow_cfs": -9999,
+        "high_flow_cfs": 10000
     },
     "2820002": {
         "us_xs": {
-            "min_elevation": 29.61,
-            "max_elevation": 79.84,
-            "xs_id": "39012.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach"
+            "min_elevation": 31.9,
+            "max_elevation": 85.84,
+            "xs_id": 38312.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
         },
         "ds_xs": {
-            "min_elevation": 25.5,
+            "min_elevation": 25.8,
             "max_elevation": 65.0,
-            "xs_id": "14214.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach",
-            "nwm_id":"2820006"
+            "xs_id": 13617.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
         },
         "low_flow_cfs": 4756.18,
-        "high_flow_cfs":10000
+        "high_flow_cfs": 10000
+    },
+    "2820006": {
+        "us_xs": {
+            "min_elevation": 25.8,
+            "max_elevation": 65.0,
+            "xs_id": 13617.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
+        },
+        "ds_xs": {
+            "min_elevation": 26.9,
+            "max_elevation": 61.62,
+            "xs_id": 12789.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
+        },
+        "low_flow_cfs": 4756.18,
+        "high_flow_cfs": 10000
+    },
+    "2820012": {
+        "us_xs": {
+            "min_elevation": 26.9,
+            "max_elevation": 61.62,
+            "xs_id": 12789.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
+        },
+        "ds_xs": {
+            "min_elevation": 23.5,
+            "max_elevation": 58.28,
+            "xs_id": 2877.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
+        },
+        "low_flow_cfs": 4756.18,
+        "high_flow_cfs": 10000
     },
     "2821866": {
         "us_xs": {
-            "min_elevation": 23.0,
-            "max_elevation": 58.45,
-            "xs_id": "3552.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach"
+            "min_elevation": 23.5,
+            "max_elevation": 58.28,
+            "xs_id": 2877.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
         },
         "ds_xs": {
             "min_elevation": 20.6,
             "max_elevation": 58.0,
-            "xs_id": "1192.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach",
-            "nwm_id":"2820026"
+            "xs_id": 1192.0,
+            "river": "Baxter River",
+            "reach": "Lower Reach"
         },
-        "low_flow_cfs": 5000,
-        "high_flow_cfs":10000
-    },
-    "2820006": {
-        "us_xs": {
-            "min_elevation": 25.5,
-            "max_elevation": 65.0,
-            "xs_id": "14214.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach"
-        },
-        "ds_xs": {
-            "min_elevation": 25.8,
-            "max_elevation": 61.03,
-            "xs_id": "13104.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach",
-            "nwm_id":"2820012"
-        },
-        "low_flow_cfs": 4756.18,
-        "high_flow_cfs":10000
-    },
-    "2820012": {
-        "us_xs": {
-            "min_elevation": 25.8,
-            "max_elevation": 61.03,
-            "xs_id": "13104.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach"
-        },
-        "ds_xs": {
-            "min_elevation": 23.0,
-            "max_elevation": 58.45,
-            "xs_id": "3552.",
-            "ras_river":"Baxter River",
-            "ras_reach":"Lower Reach",
-            "nwm_id":"2821866"
-        },
-        "low_flow_cfs": 4756.18,
-        "high_flow_cfs":10000
-    }}
+        "low_flow_cfs": -9999,
+        "high_flow_cfs": 10000
+    }
+}
