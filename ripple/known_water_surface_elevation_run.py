@@ -15,7 +15,7 @@ def main(
     nwm_data: dict,
     ras_project_text_file: str,
     subset_gpkg_path: str,
-    terrain_name: str,
+    terrain_path: str,
     known_water_surface_elevations: list,
 ):
 
@@ -24,7 +24,7 @@ def main(
     projection = gpd.read_file(subset_gpkg_path).crs
 
     # write and compute flow/plans for known water surface elevation runs
-    rm = RasManager(ras_project_text_file, version="631", terrain_name=terrain_name, projection=projection)
+    rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, projection=projection)
 
     # get resulting depths from the second normal depth runs_nd
     rm.plan = rm.plans[nwm_id + "_nd"]
@@ -57,15 +57,13 @@ def main(
 
 
 if __name__ == "__main__":
-    nwm_id = "2826228"
+    nwm_id = "2820002"
     ras_project_text_file = (
         rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\{nwm_id}.prj"
     )
     subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
-    terrain_name = "Terrain"
-    json_path = (
-        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params copy.json"
-    )
+    terrain_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\Terrain.hdf"
+    json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
 
     ds_nwm_id = "2823932"
     ds_nwm_ras_project_file = (
@@ -85,6 +83,6 @@ if __name__ == "__main__":
         ripple_parameters[nwm_id],
         ras_project_text_file,
         subset_gpkg_path,
-        terrain_name,
+        terrain_path,
         known_water_surface_elevations,
     )
