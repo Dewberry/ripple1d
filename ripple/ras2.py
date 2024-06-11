@@ -3,6 +3,7 @@ import logging
 import os
 import platform
 import re
+import subprocess
 import time
 from pathlib import Path
 from typing import List
@@ -39,6 +40,7 @@ from .utils import (
     assert_no_ras_geometry_error,
     assert_no_store_all_maps_error_message,
     decode,
+    get_terrain_exe_path,
     replace_line_in_contents,
     search_contents,
 )
@@ -446,6 +448,7 @@ class RasProject(RasTextFile):
 
         self._ras_project_basename = os.path.splitext(os.path.basename(self._ras_text_file_path))[0]
         self._ras_dir = os.path.dirname(self._ras_text_file_path)
+        os.makedirs(self._ras_dir,exist_ok=True)
 
         if new_file:
             self.contents = [f"Proj Title={self._ras_project_basename}", "Current Plan="]
@@ -1119,3 +1122,68 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
         extension_number.append(int(val.file_extension[2:]))
 
     return f"{(max(extension_number)+1):02d}"
+
+
+def create_terrain(
+    src_terrain_filepaths: list[str],
+    projection_file:str,
+    terrain_hdf_filename: str,
+    vertical_units: str = "Feet",
+    version:str="631"
+) -> str:
+    r"""
+    Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
+    Default location is {model_directory}\Terrain\Terrain.hdf.
+
+    Returns the full path to the local directory containing the output files.
+
+    Parameters
+    ----------
+    src_terrain_filepaths : list[str]
+        a list of terrain raster filepaths, typically tifs, to use when creating the terrain HDF
+        can be a list of 1 filepath
+    terrain_dirname : str (default="Terrain")
+        the name of the directory to put the terrain HDF into
+    hdf_filename : str (default="Terrain")
+        the filename of the output HDF terrain file, with the extension
+    vertical_units : str (default="Feet")
+        vertical units to be used, must be one of ["Feet", "Meters"]
+    """
+    if vertical_units not in ["Feet", "Meters"]:
+        raise ValueError(f"vertical_units must be either 'Feet' or 'Meters'; got: '{vertical_units}'")
+
+    missing_files = [x for x in src_terrain_filepaths if not os.path.exists(x)]
+    if missing_files:
+        raise FileNotFoundError(str(missing_files))
+
+    terrain_exe = get_terrain_exe_path(version)
+    if not os.path.isfile(terrain_exe):
+        raise FileNotFoundError(terrain_exe)
+
+    exe_parent_dir = os.path.split(terrain_exe)[0]
+    
+    subproc_args = [
+        terrain_exe,
+        "CreateTerrain",
+        f"units={vertical_units}",  # vertical units
+        "stitch=true",
+        f"prj={projection_file}",
+        f"out={terrain_hdf_filename}",
+    ]
+    # add list of input rasters from which to build the Terrain
+    subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
+    logging.debug(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
+    subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
+
+    # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
+    # # compress the output tif(s) that RasProcess.exe created (otherwise could be 1+ GB at HUC12 size)
+    # layer_name = os.path.splitext(hdf_filename)[0]  # hdf file without extension
+    # tif_pattern = rf"^{layer_name}\..+\.tif$"
+    # output_tifs = [
+    #     os.path.join(terrain_dir_fp, fn) for fn in os.listdir(terrain_dir_fp) if re.fullmatch(tif_pattern, fn)
+    # ]
+    # for tif in output_tifs:
+    #     utils.recompress_tif(tif)
+    #     utils.build_tif_overviews(tif)
+
+    
