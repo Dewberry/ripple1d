@@ -32,7 +32,7 @@ def main(
         rm, nwm_id, nwm_id, rm.geoms[nwm_id].xs_gdf["river_station"].min(), nwm_data["ds_xs"]["min_elevation"]
     )
 
-    known_depths = known_water_surface_elevations - float(nwm_data["ds_xs"]["min_elevation"])
+    known_depths = [i - float(nwm_data["ds_xs"]["min_elevation"]) for i in known_water_surface_elevations]
 
     # filter known water surface elevations less than depths resulting from the second normal depth run
     depths, flows, wses = create_flow_depth_combinations(
@@ -43,7 +43,7 @@ def main(
     )
 
     rm.kwses_run(
-        f"{nwm_id}_kwse1",
+        f"{nwm_id}_kwse",
         nwm_id,
         depths,
         wses,
@@ -57,23 +57,22 @@ def main(
 
 
 if __name__ == "__main__":
-    nwm_id = "2820002"
+    nwm_id = "2826228"
     ras_project_text_file = (
         rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\{nwm_id}.prj"
     )
     subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
-    terrain_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\Terrain.hdf"
+    terrain_path = (
+        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\Terrain.hdf"
+    )
     json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
 
     ds_nwm_id = "2823932"
     ds_nwm_ras_project_file = (
-        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\2823932\2823932.prj"
+        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{ds_nwm_id}\{ds_nwm_id}.prj"
     )
 
-    known_water_surface_elevations = get_kwse_from_ds_model(
-        ds_nwm_id,
-        ds_nwm_ras_project_file,
-    )
+    known_water_surface_elevations = get_kwse_from_ds_model(ds_nwm_id, ds_nwm_ras_project_file, f"{ds_nwm_id}_nd")
 
     with open(json_path) as f:
         ripple_parameters = json.load(f)
