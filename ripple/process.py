@@ -11,9 +11,10 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.enums import Resampling
+from rasterio.shutil import copy as copy_raster
 from shapely.geometry import LineString
 
-from .consts import DEFAULT_EPSG, MINDEPTH, NORMAL_DEPTH, TERRAIN_NAME
+from .consts import DEFAULT_EPSG, MIN_FLOW
 from .errors import DepthGridNotFoundError
 from .ras2 import RasManager, RasMap
 from .utils import create_flow_depth_array
@@ -71,18 +72,12 @@ def post_process_depth_grids(
 
     """
 
-    if not dest_directory:
-        dest_directory = rm.postprocessed_output_folder
-
-    if os.path.exists(dest_directory):
-        raise FileExistsError(dest_directory)
-
     for prefix in ["_kwse", "_nd"]:
         id = nwm_id + prefix
 
         for profile_name in rm.plans[id].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
-            src_path = os.path.join(rm.ras_folder, str(id), f"Depth ({profile_name}).vrt")
+            src_path = os.path.join(rm.ras_project._ras_dir, str(id), f"Depth ({profile_name}).vrt")
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(src_path):
@@ -98,34 +93,12 @@ def post_process_depth_grids(
                 flow = f"f_{profile_name}"
                 depth = "z_0_0"
 
-            dest_directory = os.path.join(dest_directory, id, depth)
-            if not os.path.exists(dest_directory):
-                os.makedirs(dest_directory)
+            dest_directory = os.path.join(rm.ras_project._ras_dir, "output", nwm_id, depth)
+            os.makedirs(dest_directory, exist_ok=True)
             dest_path = os.path.join(dest_directory, f"{flow}.tif")
 
-            # open the src raster the cross section concave hull as a mask
-            with rasterio.open(src_path) as src:
-                dataset = src.read(1)
-                transform = src.transform
-                out_meta = src.meta
+            copy_raster(src_path, dest_path)
 
-            # update metadata
-            out_meta.update(
-                {
-                    "driver": "GTiff",
-                    "height": dataset.shape[1],
-                    "width": dataset.shape[2],
-                    "transform": transform,
-                    "compress": "LZW",
-                    "predictor": 3,
-                    "tiled": True,
-                }
-            )
-
-            # write dest raster
-            logging.info(f"Writing: {dest_path}")
-            with rasterio.open(dest_path, "w", **out_meta) as dest:
-                dest.write(dataset)
             # logging.debug(f"Building overviews for: {dest_path}")
             with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
                 with rasterio.open(dest_path, "r+") as dst:
@@ -251,20 +224,21 @@ def create_flow_depth_combinations(
         for flow in input_flows:
             if depth >= min_depths.loc[str(int(flow))]:
 
-                depths.append(depth)
-                flows.append(flow)
-                wses.append(wse)
-
+                depths.append(round(depth, 1))
+                flows.append(int(max([flow, MIN_FLOW])))
+                wses.append(round(wse, 1))
     return (depths, flows, wses)
 
 
-def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str):
+def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_name: str):
     rm = RasManager(ds_nwm_ras_project_file, projection=DEFAULT_EPSG)
-    rm.plan = rm.plans[ds_nwm_id + "_nd"]
+    rm.plan = rm.plans[plan_name]
 
     xs_gdf = rm.geoms[ds_nwm_id].xs_gdf
-
     river_station = xs_gdf["river_station"].max()
+    thalweg = xs_gdf.loc[xs_gdf["river_station"] == river_station, "thalweg"][0]
 
-    thalweg = xs_gdf.loc[xs_gdf["river_station"] == river_station, "thalweg"]
-    return get_flow_depth_arrays(rm, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
+    if plan_name.endswith("_ind"):
+        return determine_flow_increments(rm, ds_nwm_id, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
+    elif plan_name.endswith("_nd"):
+        return get_flow_depth_arrays(rm, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]

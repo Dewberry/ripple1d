@@ -382,7 +382,6 @@ class RasManager:
         ds_river_station: float,
         write_depth_grids: bool = False,
     ):
-        flows = [int(max([i, MIN_FLOW])) for i in flows]
         profile_names = [f"f_{flow}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
 
         # write headers
@@ -914,7 +913,7 @@ class RasFlowText(RasTextFile):
         )
         line = ""
         for i, flow in enumerate(flows):
-            line += f"{str(max([int(flow),MIN_FLOW])).rjust(8,' ')}"
+            line += f"{str(flow).rjust(8,' ')}"
             if (i + 1) % 10 == 0:
                 lines.append(line)
                 line = ""
