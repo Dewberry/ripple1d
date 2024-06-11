@@ -2,14 +2,19 @@ import os
 import shutil
 import sys
 import tempfile
-
+from pyproj import CRS
 import boto3
 from dotenv import find_dotenv, load_dotenv
 
 from .ras2 import RasGeomText
 
+def main(ras_text_file_path: str, projection: str, gpkg_path: str):
+    with open(projection, "r") as f:
+        crs = f.read()
+    ras_geom = RasGeomText(ras_text_file_path, projection=CRS(crs))
+    ras_geom.to_gpkg(gpkg_path)
 
-def main(ras_text_file_path: str, projection: str, gpkg_path: str, bucket: str):
+def main_s3(ras_text_file_path: str, projection: str, gpkg_path: str, bucket: str):
     # load s3 credentials
     load_dotenv(find_dotenv())
 

@@ -91,7 +91,10 @@ class RasFimConflater:
         self._nwm_reaches = self.load_pq(self.nwm_pq)
         self._ras_centerlines = self.load_gpkg_layer(self.ras_gpkg, "River")
         self._ras_xs = self.load_gpkg_layer(self.ras_gpkg, "XS")
-        self._ras_junctions = self.load_gpkg_layer(self.ras_gpkg, "Junction")
+        try:
+            self._ras_junctions = self.load_gpkg_layer(self.ras_gpkg, "Junction")
+        except ValueError:
+            logging.warning("No junctions found")
 
     def ensure_data_loaded(func):
         def wrapper(self, *args, **kwargs):
@@ -123,7 +126,10 @@ class RasFimConflater:
     @property
     @ensure_data_loaded
     def ras_junctions(self) -> gpd.GeoDataFrame:
-        return self._ras_junctions.to_crs(self.common_crs)
+        try:
+            return self._ras_junctions.to_crs(self.common_crs)
+        except ValueError:
+            return None
 
     @property
     def ras_xs_bbox(self) -> Polygon:
@@ -427,17 +433,21 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
             reach_metadata[reach.ID] = {"us_xs": {"xs_id": str(-9999)}}
 
     for k in reach_metadata.keys():
-        low_flow = low_flow_df[low_flow_df.feature_id == k]
-        
+
         try:
-            reach_metadata[k]["low_flow_cfs"] = round(low_flow.iloc[0]["discharge_cfs"], 2)
-        except IndexError as e:
-            logging.warning(f"no low flow data for reach {k}: error {e}")
+            low_flow = low_flow_df[low_flow_df.feature_id == k]
+            try:
+                reach_metadata[k]["low_flow_cfs"] = round(low_flow.iloc[0]["discharge_cfs"], 2)
+            except IndexError as e:
+                logging.warning(f"no low flow data for reach {k}: error {e}")
+                reach_metadata[k]["low_flow_cfs"] = -9999
+
+            except TypeError as e:
+                logging.warning(f"no low flow data for reach {k}: error {e}")
+
+        except AttributeError as e:
             reach_metadata[k]["low_flow_cfs"] = -9999
-
-        except TypeError as e:
-            logging.warning(f"no low flow data for reach {k}: error {e}")
-
+            logging.warning(f"low_flow_error:{e}")
 
         high_flow = 10000
         logging.warning(f"hardcoded high flow data for reach {k}")
@@ -458,11 +468,11 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
 
     try:
         return dict(
-            sorted(
+            # sorted(
                 reach_metadata.items(),
-                key=lambda item: item[1]["us_xs"]["xs_id"],
+                # key=lambda item: item[1]["us_xs"]["xs_id"],
                 reverse=True,
-            )
+            # )
         )
     except ValueError as e:
         # Occurs where stations are floats and not integers
