@@ -16,7 +16,9 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pystac
+import rasterio
 from dotenv import find_dotenv, load_dotenv
+from rasterio.mask import mask
 from requests.utils import requote_uri
 from shapely.geometry import Point, Polygon
 
@@ -162,6 +164,55 @@ def s3_get_ripple_status_file_key_names(
 
 def s3_get_output_s3path(s3_bucket: str, stac_href: str) -> str:
     return f"s3://{s3_bucket}/mip/dev/ripple/output{urlparse(stac_href).path}/"
+
+
+def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon):
+    if os.path.exists(dst_path):
+        raise FileExistsError(dst_path)
+    if not isinstance(mask_polygon, Polygon):
+        raise TypeError(mask_polygon)
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+
+    logging.info(f"Reading: {src_path}")
+    with rasterio.open(src_path) as src:
+        out_meta = src.meta
+        out_image, out_transform = mask(src, [mask_polygon], all_touched=True, crop=True)
+
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform,
+            "compress": "LZW",
+            "predictor": 3,
+            "tiled": True,
+        }
+    )
+
+    logging.info(f"Writing as masked: {dst_path}")
+    with rasterio.open(dst_path, "w", **out_meta) as dest:
+        dest.write(out_image)
+
+
+def get_terrain_exe_path(ras_ver: str) -> str:
+    """Return Windows path to RasProcess.exe exposing CreateTerrain subroutine, compatible with provided RAS version."""
+    # 5.0.7 version of RasProcess.exe does not expose CreateTerrain subroutine.
+    # Testing shows that RAS 5.0.7 accepts Terrain created by 6.1 version of RasProcess.exe, so use that for 5.0.7.
+    d = {
+        "507": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "5.07": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "600": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
+        "6.00": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
+        "610": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "6.10": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "631": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
+        "6.3.1": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
+    }
+    try:
+        return d[ras_ver]
+    except KeyError as e:
+        raise ValueError(f"Unsupported ras_ver: {ras_ver}. choices: {sorted(d)}") from e
 
 
 def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
