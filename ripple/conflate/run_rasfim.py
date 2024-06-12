@@ -23,6 +23,7 @@ def main(
     for river_reach_name in rfc.ras_river_reach_names:
         # logging.info(f"Processing {river_reach_name}")
         ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
+        # TODO: Add check / alt method for when ras_start_point is associated  with the wrong reach
         us_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_start_point)
         ds_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_stop_point)
         logging.debug(
