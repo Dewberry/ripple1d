@@ -16,7 +16,7 @@ from shapely.geometry import LineString
 
 from .consts import DEFAULT_EPSG, MIN_FLOW
 from .errors import DepthGridNotFoundError
-from .ras2 import RasManager, RasMap
+from .ras import RasManager, RasMap
 from .utils import create_flow_depth_array
 
 
@@ -41,6 +41,7 @@ def get_flow_depth_arrays(rm: RasManager, river: str, reach: str, river_station:
 
 def determine_flow_increments(
     rm: RasManager,
+    plan_name: str,
     river: str,
     reach: str,
     nwm_id: str,
@@ -51,7 +52,7 @@ def determine_flow_increments(
     """
     Detemine flow increments corresponding to 0.5 ft depth increments using the rating-curve-run results
     """
-    rm.plan = rm.plans[str(nwm_id) + "_ind"]
+    rm.plan = rm.plans[plan_name]
 
     # get new flow/depth for current branch
     flows, depths, _ = get_flow_depth_arrays(rm, river, reach, river_station, thalweg)
@@ -180,6 +181,7 @@ def subset_gpkg(
         return None
 
     # write data
+    os.makedirs(ras_project_dir, exist_ok=True)
     xs_subset_gdf.to_file(dest_gpkg_path, layer="XS", driver="GPKG")
     river_subset_gdf.to_file(dest_gpkg_path, layer="River", driver="GPKG")
 
@@ -230,15 +232,16 @@ def create_flow_depth_combinations(
     return (depths, flows, wses)
 
 
-def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_name: str):
+def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_name: str) -> list:
     rm = RasManager(ds_nwm_ras_project_file, projection=DEFAULT_EPSG)
+
+    if plan_name not in rm.plans.keys():
+        print(f"{plan_name} is not an existing plan in the specified HEC-RAS model")
+        return []
     rm.plan = rm.plans[plan_name]
 
     xs_gdf = rm.geoms[ds_nwm_id].xs_gdf
     river_station = xs_gdf["river_station"].max()
     thalweg = xs_gdf.loc[xs_gdf["river_station"] == river_station, "thalweg"][0]
 
-    if plan_name.endswith("_ind"):
-        return determine_flow_increments(rm, ds_nwm_id, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
-    elif plan_name.endswith("_nd"):
-        return get_flow_depth_arrays(rm, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
+    return determine_flow_increments(rm, plan_name, ds_nwm_id, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
