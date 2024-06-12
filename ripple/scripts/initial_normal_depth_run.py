@@ -2,13 +2,13 @@ import json
 
 import numpy as np
 
-from .ras2 import RasManager
+from ripple.ras import RasManager
 
 
 def main(
     nwm_id: str,
     nwm_data: dict,
-    ras_project_text_file: str,
+    new_ras_project_text_file: str,
     subset_gpkg_path: str,
     terrain_path: str = None,
     number_of_discharges_for_initial_normal_depth_runs: int = 10,
@@ -17,7 +17,7 @@ def main(
     print(f"working on initial normal depth run for nwm_id: {nwm_id}")
 
     # create new ras manager class
-    rm = RasManager.from_gpkg(ras_project_text_file, nwm_id, subset_gpkg_path, version, terrain_path)
+    rm = RasManager.from_gpkg(new_ras_project_text_file, nwm_id, subset_gpkg_path, version, terrain_path)
 
     # increment flows based on min and max flows specified in conflation parameters
     initial_flows = np.linspace(
@@ -39,14 +39,13 @@ def main(
 
 
 if __name__ == "__main__":
-    nwm_id = "2821866"
-    ras_project_text_file = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\{nwm_id}.prj"
+    conflation_json_path = (
+        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
     )
-    subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
-    json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
+    with open(conflation_json_path) as f:
+        conflation_parameters = json.load(f)
 
-    with open(json_path) as f:
-        ripple_parameters = json.load(f)
-
-    main(nwm_id, ripple_parameters[nwm_id], ras_project_text_file, subset_gpkg_path)
+    for nwm_id in conflation_parameters.keys():
+        new_ras_project_text_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.prj"
+        subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.gpkg"
+        main(nwm_id, conflation_parameters[nwm_id], new_ras_project_text_file, subset_gpkg_path)

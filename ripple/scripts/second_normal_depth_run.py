@@ -2,10 +2,10 @@ import json
 
 import geopandas as gpd
 
-from .process import (
+from ripple.process import (
     determine_flow_increments,
 )
-from .ras2 import RasManager
+from ripple.ras import RasManager
 
 
 def main(
@@ -45,17 +45,16 @@ def main(
 
 
 if __name__ == "__main__":
-    nwm_id = "2823932"
-    ras_project_text_file = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\{nwm_id}.prj"
+    conflation_json_path = (
+        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
     )
-    subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
-    terrain_path = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\Terrain.hdf"
-    )
-    json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
 
-    with open(json_path) as f:
-        ripple_parameters = json.load(f)
+    with open(conflation_json_path) as f:
+        conflation_parameters = json.load(f)
 
-    main(nwm_id, ripple_parameters[nwm_id], ras_project_text_file, subset_gpkg_path, terrain_path)
+    for nwm_id in conflation_parameters.keys():
+        ras_project_text_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.prj"
+        subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.gpkg"
+        terrain_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\Terrain.hdf"
+
+        main(nwm_id, conflation_parameters[nwm_id], ras_project_text_file, subset_gpkg_path, terrain_path)

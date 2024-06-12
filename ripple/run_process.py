@@ -17,7 +17,7 @@ from .process import (
     post_process_depth_grids,
     subset_gpkg,
 )
-from .ras2 import RasManager
+from .ras import RasManager
 from .sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 from .utils import (
     derive_input_from_stac_item,

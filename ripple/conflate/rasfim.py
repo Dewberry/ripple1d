@@ -36,7 +36,7 @@ class RasFimConflater:
 
     Args:
         nwm_parquet (str): Path to the NWM Parquet file converted to parquet from:
-            s3://noaa-nws-owp-fim/ras2fim/inputs/X-National_Datasets/nwm_flows.gpkg
+            s3://noaa-nws-owp-fim/rasfim/inputs/X-National_Datasets/nwm_flows.gpkg
         ras_gpkg (str): Path to the RAS GeoPackage
         load_data (bool, optional): Load the data on initialization. Defaults to True.
         bucket (str, optional): S3 bucket to read data from. Defaults to "fim".
@@ -119,7 +119,7 @@ class RasFimConflater:
     @ensure_data_loaded
     def ras_xs(self) -> gpd.GeoDataFrame:
         return self._ras_xs.to_crs(self.common_crs)
-    
+
     @property
     @ensure_data_loaded
     def ras_junctions(self) -> gpd.GeoDataFrame:
@@ -194,8 +194,8 @@ class RasFimConflater:
         return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
 
     def xs_by_river_reach_name(self, river_reach_name: str) -> gpd.GeoDataFrame:
-        return self.ras_xs[self.ras_xs["river_reach"]== river_reach_name]
-    
+        return self.ras_xs[self.ras_xs["river_reach"] == river_reach_name]
+
     def river_reach_name_by_xs(self, xs_id: str) -> Tuple[str, str]:
         data = self.ras_xs[self.ras_xs["ID"] == int(xs_id)]
         if data.empty:
@@ -204,7 +204,7 @@ class RasFimConflater:
             raise ValueError(f"Multiple XS found with ID = {xs_id}")
         else:
             return data.iloc[0]["river"], data.iloc[0]["reach"]
-        
+
 
 # general geospatial functions
 def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
@@ -363,12 +363,12 @@ def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
     xs = rfc.ras_xs[rfc.ras_xs["ID"] == xs_id]
     if xs.shape[0] > 1:
         raise ValueError(f"Multiple XS found with ID = {xs_id}")
-    
+
     elif xs.shape[0] == 0:
         raise ValueError(f"No XS found with ID = {xs_id}")
     else:
         xs = xs.iloc[0]
-    
+
     return {"min_elevation": xs["thalweg"], "max_elevation": xs["xs_max_elevation"]}
 
 
@@ -393,13 +393,12 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: boo
         logging.warning(f"error: {e}")
         ds_data = ras_xs_geometry_data(rfc, ds_xs)
 
-
     us_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0]
     ds_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0]
 
     us_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0]
     ds_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0]
-    
+
     us_data["river"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river"].iloc[0]
     us_data["reach"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["reach"].iloc[0]
 
@@ -412,14 +411,13 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: boo
     }
 
 
-
 def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candidate_reaches: gpd.GeoDataFrame):
     reach_metadata = OrderedDict()
     for reach in candidate_reaches.itertuples():
         # logging.debug(f"REACH: {reach.ID}")
         reach_geom = reach.geometry
         ras_xs_data = map_reach_xs(rfc, reach_geom)
-        
+
         if ras_xs_data:
             reach_metadata[reach.ID] = ras_xs_data
         else:
@@ -428,7 +426,7 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
 
     for k in reach_metadata.keys():
         low_flow = low_flow_df[low_flow_df.feature_id == k]
-        
+
         try:
             reach_metadata[k]["low_flow_cfs"] = round(low_flow.iloc[0]["discharge_cfs"], 2)
         except IndexError as e:
@@ -437,7 +435,6 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
 
         except TypeError as e:
             logging.warning(f"no low flow data for reach {k}: error {e}")
-
 
         high_flow = 10000
         logging.warning(f"hardcoded high flow data for reach {k}")
@@ -449,7 +446,6 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
 
         except TypeError as e:
             logging.warning(f"no high flow data for reach {k}: error {e}")
-
 
         if k in rfc.local_gages.keys():
             gage_id = rfc.local_gages[k].replace(" ", "")
@@ -468,4 +464,3 @@ def ras_reaches_metadata(rfc: RasFimConflater, low_flow_df: pd.DataFrame, candid
         # Occurs where stations are floats and not integers
         logging.debug(f"warning 2: error {json.dumps(e)}")
         return reach_metadata
-

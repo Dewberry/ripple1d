@@ -3,7 +3,7 @@ import sqlite3
 
 import pandas as pd
 
-from .ras2 import RasManager
+from .ras import RasManager
 
 
 def create_db_and_table(db_name: str, table_name: str):

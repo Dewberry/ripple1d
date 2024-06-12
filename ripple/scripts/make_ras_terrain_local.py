@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 
@@ -10,15 +11,12 @@ from pyproj import CRS
 from ripple.consts import (
     MAP_DEM_BUFFER_DIST_FT,
     MAP_DEM_CLIPPED_BASENAME,
-    MAP_DEM_HDF_NAME,
     MAP_DEM_UNCLIPPED_SRC_URL,
     MAP_DEM_VERT_UNITS,
     METERS_PER_FOOT,
 )
-
-from ..ras2 import create_terrain
-from ..ripple_logger import configure_logging
-from ..utils import clip_raster, xs_concave_hull
+from ripple.ras import create_terrain
+from ripple.utils import clip_raster, xs_concave_hull
 
 
 def get_geometry_mask(gdf_xs: str, MAP_DEM_UNCLIPPED_SRC_URL: str):
@@ -44,11 +42,11 @@ def write_projection_file(crs: CRS, terrain_directory: str):
     return projection_file
 
 
-def main(terrain_hdf_filepath: str, gpkg_path: str):
+def main(output_terrain_hdf_filepath: str, gpkg_path: str):
     """Requires Windows with geospatial libs, so typically run using OSGeo4W shell."""
-
+    print(f"Processing: {output_terrain_hdf_filepath}")
     # terrain directory
-    terrain_directory = os.path.dirname(terrain_hdf_filepath)
+    terrain_directory = os.path.dirname(output_terrain_hdf_filepath)
     os.makedirs(terrain_directory, exist_ok=True)
 
     # get geometry mask
@@ -67,18 +65,22 @@ def main(terrain_hdf_filepath: str, gpkg_path: str):
     create_terrain(
         [src_dem_clipped_localfile],
         projection_file,
-        terrain_hdf_filepath=terrain_hdf_filepath,
+        terrain_hdf_filepath=output_terrain_hdf_filepath,
         vertical_units=MAP_DEM_VERT_UNITS,
     )
 
 
 if __name__ == "__main__":
-
-    nwm_id = "2821866"
-
-    terrain_hdf_filepath = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\Terrain.hdf"
+    conflation_json_path = (
+        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
     )
-    gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
 
-    main(terrain_hdf_filepath, gpkg_path)
+    with open(conflation_json_path) as f:
+        conflation_parameters = json.load(f)
+
+    for nwm_id in conflation_parameters.keys():
+
+        output_terrain_hdf_filepath = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\Terrain.hdf"
+        gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.gpkg"
+
+        main(output_terrain_hdf_filepath, gpkg_path)

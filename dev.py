@@ -5,7 +5,7 @@ from ripple.ripple_logger import configure_logging
 
 configure_logging(logging.DEBUG)
 
-from ripple.ras2 import RasGeomText, RasManager, RasPlanText, RasProject
+from ripple.ras import RasGeomText, RasManager, RasPlanText, RasProject
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/baxter.json"

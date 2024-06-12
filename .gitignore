@@ -164,6 +164,7 @@ test.py
 *process.ipynb
 *.db
 tests/ras-data/Baxter/test
+tests/ras-data/Baxter/nwm_models
 tests/ras-data/Baxter/Terrain
 
 /ripple/models/

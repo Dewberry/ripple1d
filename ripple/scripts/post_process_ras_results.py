@@ -3,7 +3,7 @@ import json
 import geopandas as gpd
 
 from .process import post_process_depth_grids
-from .ras2 import RasManager
+from .ras import RasManager
 from .sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
