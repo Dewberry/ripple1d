@@ -71,7 +71,7 @@ class XS:
     def thalweg(self):
         _, y = list(zip(*self.station_elevation_points))
         return min(y)
-    
+
     @property
     def xs_max_elevation(self):
         _, y = list(zip(*self.station_elevation_points))
@@ -111,6 +111,7 @@ class XS:
                 "reach": [self.reach],
                 "river_reach": [self.river_reach],
                 "river_station": [self.river_station],
+                "river_reach_rs": [self.river_reach_rs],
                 "thalweg": [self.thalweg],
                 "xs_max_elevation": [self.xs_max_elevation],
                 # "left_reach_length": [self.left_reach_length],
@@ -140,9 +141,21 @@ class Reach:
         us_connection: str = None
         ds_connection: str = None
 
-        us_cross_section: str = None
-        ds_cross_section: str = None
-        number_of_cross_sections: int = None
+    @property
+    def us_xs(self):
+        return self.cross_sections[
+            self.xs_gdf.loc[self.xs_gdf["river_station"] == self.xs_gdf["river_station"].max(), "river_reach_rs"][0]
+        ]
+
+    @property
+    def ds_xs(self):
+        return self.cross_sections[
+            self.xs_gdf.loc[self.xs_gdf["river_station"] == self.xs_gdf["river_station"].min(), "river_reach_rs"][0]
+        ]
+
+    @property
+    def number_of_cross_sections(self):
+        return len(self.cross_sections)
 
     @property
     def number_of_coords(self):
