@@ -63,7 +63,7 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     return wses_t
 
 
-def zero_depth_to_sqlite(rm: RasManager, nwm_id: str):
+def zero_depth_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_nd: list):
 
     database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
     table = rm.ras_project._ras_project_basename
@@ -73,11 +73,14 @@ def zero_depth_to_sqlite(rm: RasManager, nwm_id: str):
 
     # read in flow/wse
     wses, flows = rm.plan.read_rating_curves()
+    if missing_grids_nd:
+        wses.drop(columns=missing_grids_nd, inplace=True)
+        flows.drop(columns=missing_grids_nd, inplace=True)
 
     # get river-reach-rs
     xs_gdf = rm.plan.geom.xs_gdf
     rs = xs_gdf["river_station"].max()
-    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0")
+    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0").rstrip(".")
 
     wses_t = wses.T
     wses_t["flow"] = wses_t.index
@@ -91,7 +94,7 @@ def zero_depth_to_sqlite(rm: RasManager, nwm_id: str):
     insert_data(database_path, table, df)
 
 
-def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, nwm_data: dict):
+def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, nwm_data: dict, missing_grids_kwse: list):
     """Export rating curves to sqlite"""
     # create dabase and table
     database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
@@ -100,10 +103,15 @@ def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, nwm_data: dict):
     create_db_and_table(database_path, table)
 
     # set the plan
+    if str(nwm_id) + "_kwse" not in rm.plans:
+        return
     rm.plan = rm.plans[str(nwm_id) + "_kwse"]
 
     # read in flow/wse
     wses, flows = rm.plan.read_rating_curves()
+    if missing_grids_kwse:
+        wses.drop(columns=missing_grids_kwse, inplace=True)
+        flows.drop(columns=missing_grids_kwse, inplace=True)
 
     # parse applied stage and flow from profile names
     wses = parse_stage_flow(wses)
@@ -111,7 +119,7 @@ def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, nwm_data: dict):
     # get river-reach-rs id
     xs_gdf = rm.plan.geom.xs_gdf
     rs = xs_gdf["river_station"].max()
-    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0")
+    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0").rstrip(".")
 
     # get subset of results for this cross section
     df = wses[["flow", "control_by_reach_stage", river_reach_rs]].copy()

@@ -72,16 +72,22 @@ def post_process_depth_grids(
     Clip depth grids based on their associated NWM branch and respective cross sections.
 
     """
-
+    missing_grids_kwse, missing_grids_nd = [], []
     for prefix in ["_kwse", "_nd"]:
         id = nwm_id + prefix
 
+        if id not in rm.plans:
+            continue
         for profile_name in rm.plans[id].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
             src_path = os.path.join(rm.ras_project._ras_dir, str(id), f"Depth ({profile_name}).vrt")
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(src_path):
+                if prefix == "_kwse":
+                    missing_grids_kwse.append(profile_name)
+                elif prefix == "_nd":
+                    missing_grids_nd.append(profile_name)
                 if except_missing_grid:
                     logging.warning(f"depth raster does not exists: {src_path}")
                     continue
@@ -105,6 +111,7 @@ def post_process_depth_grids(
                 with rasterio.open(dest_path, "r+") as dst:
                     dst.build_overviews([4, 8, 16], Resampling.nearest)
                     dst.update_tags(ns="rio_overview", resampling="nearest")
+    return missing_grids_kwse, missing_grids_nd
 
 
 def subset_gpkg(
