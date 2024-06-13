@@ -13,7 +13,7 @@ from ripple.ras import RasManager
 
 def main(
     nwm_id: str,
-    nwm_data: dict,
+    plan_name: str,
     ras_project_text_file: str,
     subset_gpkg_path: str,
     terrain_path: str,
@@ -30,10 +30,16 @@ def main(
     # get resulting depths from the second normal depth runs_nd
     rm.plan = rm.plans[nwm_id + "_nd"]
     ds_flows, ds_depths, _ = get_flow_depth_arrays(
-        rm, nwm_id, nwm_id, rm.geoms[nwm_id].xs_gdf["river_station"].min(), nwm_data["ds_xs"]["min_elevation"]
+        rm,
+        nwm_id,
+        nwm_id,
+        rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.river_station,
+        rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.thalweg,
     )
 
-    known_depths = [i - float(nwm_data["ds_xs"]["min_elevation"]) for i in known_water_surface_elevations]
+    known_depths = [
+        i - float(rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.thalweg) for i in known_water_surface_elevations
+    ]
 
     # filter known water surface elevations less than depths resulting from the second normal depth run
     depths, flows, wses = create_flow_depth_combinations(
@@ -63,22 +69,18 @@ def main(
 
 
 if __name__ == "__main__":
-    nwm_id = "2826228"
+    nwm_id = "1468434"
     ras_project_text_file = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.prj"
+        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\{nwm_id}.prj"
     )
-    subset_gpkg_path = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.gpkg"
-    )
+    subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\{nwm_id}.gpkg"
     terrain_path = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\Terrain.hdf"
+        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\Terrain.hdf"
     )
-    conflation_json_path = (
-        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
-    )
+    conflation_json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJ Main.json"
 
-    ds_nwm_id = "2823932"
-    ds_nwm_ras_project_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{ds_nwm_id}\{ds_nwm_id}.prj"
+    ds_nwm_id = "1468442"
+    ds_nwm_ras_project_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{ds_nwm_id}\{ds_nwm_id}.prj"
 
     known_water_surface_elevations = get_kwse_from_ds_model(ds_nwm_id, ds_nwm_ras_project_file, f"{ds_nwm_id}_nd")
     known_water_surface_elevations += get_kwse_from_ds_model(ds_nwm_id, ds_nwm_ras_project_file, f"{ds_nwm_id}_kwse")
@@ -88,7 +90,7 @@ if __name__ == "__main__":
 
     main(
         nwm_id,
-        conflation_parameters[nwm_id],
+        f"{nwm_id}_kwse2",
         ras_project_text_file,
         subset_gpkg_path,
         terrain_path,
