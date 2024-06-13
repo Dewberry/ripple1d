@@ -379,7 +379,6 @@ class RasManager:
         river: str,
         reach: str,
         us_river_station: float,
-        ds_river_station: float,
         write_depth_grids: bool = False,
     ):
         profile_names = [f"f_{flow}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
@@ -391,7 +390,7 @@ class RasManager:
         flow_text_file.contents += flow_text_file.write_discharges(flows, river, reach, us_river_station)
 
         # write DS boundary conditions
-        flow_text_file.contents += flow_text_file.write_ds_known_wse(wses, river, reach, ds_river_station)
+        flow_text_file.contents += flow_text_file.write_ds_known_wse(wses, river, reach)
 
         return flow_text_file
 
@@ -802,6 +801,15 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_projection
+    def rivers(self) -> dict:
+        rivers = {}
+        for reach in self.reaches.values():
+            rivers[reach.river] = {}
+            rivers[reach.river].update({reach.reach: reach})
+        return rivers
+
+    @property
+    @check_projection
     def junctions(self) -> dict:
         juncts = search_contents(self.contents, "Junct Name", expect_one=False)
         junctions = {}
@@ -908,9 +916,7 @@ class RasFlowText(RasTextFile):
         """
 
         lines = []
-        lines.append(
-            f"River Rch & RM={river},{reach.ljust(16,' ')},{str(river_station).rstrip('0').rstrip('.').ljust(8,' ')}"
-        )
+        lines.append(f"River Rch & RM={river},{reach.ljust(16,' ')},{str(river_station).ljust(8,' ')}")
         line = ""
         for i, flow in enumerate(flows):
             line += f"{str(flow).rjust(8,' ')}"
@@ -922,7 +928,7 @@ class RasFlowText(RasTextFile):
             lines.append(line)
         return lines
 
-    def write_ds_known_wse(self, ds_wses: list[float], river: str, reach: str, river_station: float):
+    def write_ds_known_wse(self, ds_wses: list[float], river: str, reach: str):
         """
         Write downstream known water surface elevations to flow content
 
@@ -930,7 +936,6 @@ class RasFlowText(RasTextFile):
             ds_wses (list): downstream known water surface elevations
             river (str): Ras river
             reach (str): Ras reach
-            river_station (float): Ras river station
         """
         lines = []
         for count, wse in enumerate(ds_wses):

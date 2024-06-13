@@ -182,6 +182,9 @@ def subset_gpkg(
     river_subset_gdf["river"] = nwm_id
     river_subset_gdf["reach"] = nwm_id
 
+    # clean river stations
+    xs_subset_gdf["ras_data"] = xs_subset_gdf["ras_data"].apply(lambda ras_data: clean_river_stations(ras_data))
+
     # check if only 1 cross section for nwm_reach
     if len(xs_subset_gdf) <= 1:
         shutil.rmtree(ras_project_dir)
@@ -196,10 +199,18 @@ def subset_gpkg(
     return dest_gpkg_path
 
 
+def clean_river_stations(ras_data):
+    lines = ras_data.splitlines()
+    data = lines[0].split(",")
+    data[1] = str(float(lines[0].split(",")[1])).ljust(8)
+    lines[0] = ",".join(data)
+    return "\n".join(lines) + "\n"
+
+
 def update_river_station(ras_data, river_station):
     lines = ras_data.splitlines()
     data = lines[0].split(",")
-    data[1] = str(float(lines[0].split(",")[1]) + river_station).rstrip("0").ljust(8)
+    data[1] = str(float(lines[0].split(",")[1]) + river_station).ljust(8)
     lines[0] = ",".join(data)
     return "\n".join(lines) + "\n"
 
@@ -248,8 +259,7 @@ def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_na
         return []
     rm.plan = rm.plans[plan_name]
 
-    xs_gdf = rm.geoms[ds_nwm_id].xs_gdf
-    river_station = xs_gdf["river_station"].max()
-    thalweg = xs_gdf.loc[xs_gdf["river_station"] == river_station, "thalweg"][0]
+    river_station = rm.geoms[ds_nwm_id].rivers[ds_nwm_id][ds_nwm_id].us_xs.river_station
+    thalweg = rm.geoms[ds_nwm_id].rivers[ds_nwm_id][ds_nwm_id].us_xs.thalweg
 
     return determine_flow_increments(rm, plan_name, ds_nwm_id, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
