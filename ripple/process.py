@@ -20,7 +20,7 @@ from .ras import RasManager, RasMap
 from .utils import create_flow_depth_array
 
 
-def get_flow_depth_arrays(rm: RasManager, river: str, reach: str, river_station: float, thalweg: float) -> tuple:
+def get_flow_depth_arrays(rm: RasManager, river: str, reach: str, river_station: str, thalweg: float) -> tuple:
     """
     Create new flow, depth,wse arrays from rating curve-plans results.
     """
@@ -28,15 +28,16 @@ def get_flow_depth_arrays(rm: RasManager, river: str, reach: str, river_station:
     wses, flows = rm.plan.read_rating_curves()
 
     # get the river_reach_rs for the cross section representing the upstream end of this reach
-    river_reach_rs = f"{river} {reach} {str(river_station).rstrip('0')}"
+    river_reach_rs = f"{river} {reach} {str(river_station)}"
 
     wse = wses.loc[river_reach_rs, :]
     flow = flows.loc[river_reach_rs, :]
+    df = pd.DataFrame({"wse": wse.astype(int), "flow": flow.round(1)}).drop_duplicates()
 
     # convert wse to depth
-    depth = wse - thalweg
+    depth = df["wse"] - thalweg
 
-    return (flow, depth, wse)
+    return (df["flow"], depth, df["wse"])
 
 
 def determine_flow_increments(
