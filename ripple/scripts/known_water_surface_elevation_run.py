@@ -43,18 +43,23 @@ def main(
         ds_depths,
     )
 
-    rm.kwses_run(
-        f"{nwm_id}_kwse3",
-        nwm_id,
-        depths,
-        wses,
-        flows,
-        nwm_id,
-        nwm_id,
-        rm.geoms[nwm_id].xs_gdf["river_station"].max(),
-        rm.geoms[nwm_id].xs_gdf["river_station"].min(),
-        write_depth_grids=True,
-    )
+    if not flows:
+        print(
+            f"No contoling known water surface elevations were identified for {nwm_id}; i.e., the depth of flooding\
+ for the normal depth run for a given flow was alway higher than the known water surface elevations of the downstream reach"
+        )
+    else:
+        rm.kwses_run(
+            plan_name,
+            nwm_id,
+            depths,
+            wses,
+            flows,
+            nwm_id,
+            nwm_id,
+            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
+            write_depth_grids=True,
+        )
 
 
 if __name__ == "__main__":
