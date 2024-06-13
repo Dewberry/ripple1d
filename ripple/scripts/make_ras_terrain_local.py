@@ -42,45 +42,47 @@ def write_projection_file(crs: CRS, terrain_directory: str):
     return projection_file
 
 
-def main(output_terrain_hdf_filepath: str, gpkg_path: str):
+def main(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict):
     """Requires Windows with geospatial libs, so typically run using OSGeo4W shell."""
-    print(f"Processing: {output_terrain_hdf_filepath}")
-    # terrain directory
-    terrain_directory = os.path.dirname(output_terrain_hdf_filepath)
-    os.makedirs(terrain_directory, exist_ok=True)
 
-    # get geometry mask
-    gdf_xs = gpd.read_file(gpkg_path, layer="XS", driver="GPKG").explode(ignore_index=True)
-    mask = get_geometry_mask(gdf_xs, MAP_DEM_UNCLIPPED_SRC_URL)
+    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
+        print(f"skipping {nwm_id}; no cross sections conflated.")
+    else:
+        print(f"Processing: {nwm_id}")
+        # terrain directory
+        terrain_directory = os.path.dirname(output_terrain_hdf_filepath)
+        os.makedirs(terrain_directory, exist_ok=True)
 
-    # clip dem
-    src_dem_clipped_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
-    logging.info(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
-    clip_raster(src_path=MAP_DEM_UNCLIPPED_SRC_URL, dst_path=src_dem_clipped_localfile, mask_polygon=mask)
+        # get geometry mask
+        gdf_xs = gpd.read_file(gpkg_path, layer="XS", driver="GPKG").explode(ignore_index=True)
+        mask = get_geometry_mask(gdf_xs, MAP_DEM_UNCLIPPED_SRC_URL)
 
-    # write projection file
-    projection_file = write_projection_file(gdf_xs.crs, terrain_directory)
+        # clip dem
+        src_dem_clipped_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
+        logging.info(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
+        clip_raster(src_path=MAP_DEM_UNCLIPPED_SRC_URL, dst_path=src_dem_clipped_localfile, mask_polygon=mask)
 
-    # Make the RAS mapping terrain locally
-    create_terrain(
-        [src_dem_clipped_localfile],
-        projection_file,
-        terrain_hdf_filepath=output_terrain_hdf_filepath,
-        vertical_units=MAP_DEM_VERT_UNITS,
-    )
+        # write projection file
+        projection_file = write_projection_file(gdf_xs.crs, terrain_directory)
+
+        # Make the RAS mapping terrain locally
+        create_terrain(
+            [src_dem_clipped_localfile],
+            projection_file,
+            terrain_hdf_filepath=output_terrain_hdf_filepath,
+            vertical_units=MAP_DEM_VERT_UNITS,
+        )
 
 
 if __name__ == "__main__":
-    conflation_json_path = (
-        r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
-    )
+    conflation_json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJ Main.json"
 
     with open(conflation_json_path) as f:
         conflation_parameters = json.load(f)
 
     for nwm_id in conflation_parameters.keys():
 
-        output_terrain_hdf_filepath = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\Terrain.hdf"
-        gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\nwm_models\{nwm_id}\{nwm_id}.gpkg"
+        output_terrain_hdf_filepath = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\Terrain.hdf"
+        gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\{nwm_id}.gpkg"
 
-        main(output_terrain_hdf_filepath, gpkg_path)
+        main(output_terrain_hdf_filepath, gpkg_path, conflation_parameters[nwm_id])
