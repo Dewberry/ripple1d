@@ -166,6 +166,6 @@ test.py
 tests/ras-data/Baxter/test
 tests/ras-data/Baxter/nwm_models
 tests/ras-data/Baxter/Terrain
-
+tests/ras-data/WFSJMAIN/
 /ripple/models/
 .vscode/settings.json
