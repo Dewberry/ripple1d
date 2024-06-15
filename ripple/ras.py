@@ -26,7 +26,7 @@ from .consts import (
     WSE_HDF_PATH,
     XS_NAMES_HDF_PATH,
 )
-from .data_model import Junction, Reach
+from .data_model import Junction, Reach,FlowChangeLocation
 from .errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
@@ -728,9 +728,7 @@ class RasGeomText(RasTextFile):
             raise FileNotFoundError(f"Could not find the specified gpkg_path {self._gpkg_path}")
 
         self._check_layers()
-
         xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
-
         # headers
         gpkg_data = (
             f"Geom Title={self._title}\nProgram Version={self._version}\nViewing Rectangle={self._bbox(xs_gdf)}\n\n"
@@ -744,26 +742,31 @@ class RasGeomText(RasTextFile):
         # river reach data
         gpkg_data += self._river_reach_data_from_gpkg
 
-        # cross section data
-        gpkg_data += xs_gdf["ras_data"].str.cat(sep="\n")
-
         return gpkg_data.splitlines()
 
     @property
     def _river_reach_data_from_gpkg(self):
-        river_gdf = gpd.read_file(self._gpkg_path, layer="River", driver="GPKG").iloc[0]
-        centroid = river_gdf.geometry.centroid
+        river_gdf = gpd.read_file(self._gpkg_path, layer="River", driver="GPKG")
+        xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
+        data = ""
+        for _, row in river_gdf.iterrows():
 
-        coords = river_gdf["geometry"].coords
-        data = f"River Reach={river_gdf['river'].ljust(16)},{river_gdf['reach'].ljust(16)}\n"
-        data += f"Reach XY= {len(coords)} \n"
+            centroid = row.geometry.centroid
 
-        for i, (x, y) in enumerate(coords):
-            data += str(x).rjust(16) + str(y).rjust(16)
-            if i % 2 != 0:
-                data += "\n"
+            coords = row["geometry"].coords
 
-        data += f"\nRch Text X Y={centroid.x},{centroid.y}\nReverse River Text= 0 \n\n"
+            data += f"River Reach={row['river'].ljust(16)},{row['reach'].ljust(16)}\n"
+            data += f"Reach XY= {len(coords)} \n"
+
+            for i, (x, y) in enumerate(coords):
+                data += str(x).rjust(16) + str(y).rjust(16)
+                if i % 2 != 0:
+                    data += "\n"
+
+            data += f"\nRch Text X Y={centroid.x},{centroid.y}\nReverse River Text= 0 \n\n"
+
+            # cross section data
+            data += xs_gdf.loc[xs_gdf["river_reach"] == row["river_reach"], "ras_data"].str.cat(sep="\n")
 
         return data
 

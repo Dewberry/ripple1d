@@ -49,7 +49,7 @@ def decode(df: pd.DataFrame):
     return df
 
 
-def create_flow_depth_array(flow: list[float], depth: list[float], increment: float = 0.5):
+def create_flow_depth_array(flow: list[float], depth: list[float], increment: float = 0.5) -> tuple(np.array):
     min_depth = np.min(depth)
     max_depth = np.max(depth)
     start_depth = np.floor(min_depth * 2) / 2  # round down to nearest .0 or .5
