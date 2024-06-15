@@ -2,6 +2,8 @@ import json
 
 import numpy as np
 
+from ripple.consts import MIN_FLOW
+from ripple.data_model import FlowChangeLocation
 from ripple.ras import RasManager
 
 
@@ -26,19 +28,21 @@ def main(
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
-            conflation_parameters["low_flow_cfs"],
+            max([conflation_parameters["low_flow_cfs"], MIN_FLOW]),
             conflation_parameters["high_flow_cfs"],
             number_of_discharges_for_initial_normal_depth_runs,
-        )
+        ).astype(int)
 
         # # write and compute initial normal depth runs to develop rating curves
+        fcl = FlowChangeLocation(
+            nwm_id, nwm_id, rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station, initial_flows
+        )
+
         rm.normal_depth_run(
             plan_name,
             nwm_id,
-            initial_flows,
-            nwm_id,
-            nwm_id,
-            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
+            [fcl],
+            initial_flows.astype(str),
             write_depth_grids=False,
         )
 
@@ -50,6 +54,6 @@ if __name__ == "__main__":
 
     for nwm_id in conflation_parameters.keys():
         print(nwm_id)
-        new_ras_project_text_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\{nwm_id}.prj"
-        subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\{nwm_id}.gpkg"
+        new_ras_project_text_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.prj"
+        subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.gpkg"
         main(nwm_id, f"{nwm_id}_ind", conflation_parameters[nwm_id], new_ras_project_text_file, subset_gpkg_path)

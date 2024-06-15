@@ -24,7 +24,6 @@ class FlowChangeLocation:
     river: str = None
     reach: str = None
     rs: float = None
-    rs_str: str = None
     flows: list[float] = None
 
 

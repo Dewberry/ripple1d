@@ -343,26 +343,24 @@ class RasManager:
     def normal_depth_run(
         self,
         flow_text_file,
-        title: str,
+        plan_flow_title: str,
         geom_title: str,
-        flows: list[float],
-        river: str,
-        reach: str,
-        us_river_station: float,
+        flow_change_locations:list[FlowChangeLocation],
+        profile_names:list[str],
         normal_depth: float = NORMAL_DEPTH,
         write_depth_grids: bool = False,
     ):
 
-        flows = [int(max([i, MIN_FLOW])) for i in flows]
-
         # write headers
-        flow_text_file.contents += flow_text_file.write_headers(title, flows)
+        flow_text_file.contents += flow_text_file.write_headers(plan_flow_title, profile_names)
 
-        # write discharges
-        flow_text_file.contents += flow_text_file.write_discharges(flows, river, reach, us_river_station)
+        for fcl in flow_change_locations:
+            # write discharges
+            flow_text_file.contents += flow_text_file.write_discharges(fcl.flows, fcl.river, fcl.reach, fcl.rs)
 
-        # write normal depth
-        flow_text_file.contents += flow_text_file.write_ds_normal_depth(len(flows), normal_depth, river, reach)
+        for fcl in flow_change_locations:
+            # write normal depth
+            flow_text_file.contents += flow_text_file.write_ds_normal_depth(len(fcl.flows), normal_depth, fcl.river, fcl.reach)
 
         return flow_text_file
 
