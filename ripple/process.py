@@ -20,7 +20,9 @@ from .ras import RasManager, RasMap
 from .utils import create_flow_depth_array
 
 
-def get_flow_depth_arrays(rm: RasManager, river: str, reach: str, river_station: str, thalweg: float) -> tuple:
+def get_flow_depth_arrays(
+    rm: RasManager, river: str, reach: str, river_station: str, thalweg: float
+) -> tuple(pd.Series):
     """
     Create new flow, depth,wse arrays from rating curve-plans results.
     """
@@ -46,14 +48,15 @@ def determine_flow_increments(
     river: str,
     reach: str,
     nwm_id: str,
-    river_station: float,
-    thalweg: float,
     depth_increment: float = 0.5,
-) -> RasManager:
+) -> tuple(np.array):
     """
     Detemine flow increments corresponding to 0.5 ft depth increments using the rating-curve-run results
     """
     rm.plan = rm.plans[plan_name]
+
+    river_station = rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station
+    thalweg = rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.thalweg
 
     # get new flow/depth for current branch
     flows, depths, _ = get_flow_depth_arrays(rm, river, reach, river_station, thalweg)
@@ -61,14 +64,14 @@ def determine_flow_increments(
     # get new flow/depth incremented every x ft
     new_depths, new_flows = create_flow_depth_array(flows, depths, depth_increment)
 
-    new_wse = [i + thalweg for i in new_depths]
+    new_wse = new_depths + thalweg  # [i + thalweg for i in new_depths]
 
-    return new_flows, new_depths, new_wse
+    return new_flows.astype(int), new_depths, new_wse
 
 
 def post_process_depth_grids(
     rm: RasManager, nwm_id: str, nwm_data: dict, except_missing_grid: bool = False, dest_directory=None
-):
+) -> tuple(list[str]):
     """
     Clip depth grids based on their associated NWM branch and respective cross sections.
 
@@ -112,6 +115,7 @@ def post_process_depth_grids(
                 with rasterio.open(dest_path, "r+") as dst:
                     dst.build_overviews([4, 8, 16], Resampling.nearest)
                     dst.update_tags(ns="rio_overview", resampling="nearest")
+
     return missing_grids_kwse, missing_grids_nd
 
 
@@ -125,7 +129,7 @@ def subset_gpkg(
     us_reach: str,
     ds_river: str,
     ds_reach: str,
-):
+) -> tuple:
     # TODO add logic for junctions/multiple river-reaches
 
     dest_gpkg_path = os.path.join(ras_project_dir, f"{nwm_id}.gpkg")
@@ -199,7 +203,7 @@ def subset_gpkg(
     return dest_gpkg_path
 
 
-def clean_river_stations(ras_data):
+def clean_river_stations(ras_data: str) -> str:
     lines = ras_data.splitlines()
     data = lines[0].split(",")
     data[1] = str(float(lines[0].split(",")[1])).ljust(8)
@@ -207,7 +211,7 @@ def clean_river_stations(ras_data):
     return "\n".join(lines) + "\n"
 
 
-def update_river_station(ras_data, river_station):
+def update_river_station(ras_data: str, river_station: str) -> str:
     lines = ras_data.splitlines()
     data = lines[0].split(",")
     data[1] = str(float(lines[0].split(",")[1]) + river_station).ljust(8)
@@ -256,10 +260,9 @@ def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_na
 
     if plan_name not in rm.plans.keys():
         print(f"{plan_name} is not an existing plan in the specified HEC-RAS model")
-        return []
+        return np.array([])
     rm.plan = rm.plans[plan_name]
 
-    river_station = rm.geoms[ds_nwm_id].rivers[ds_nwm_id][ds_nwm_id].us_xs.river_station
-    thalweg = rm.geoms[ds_nwm_id].rivers[ds_nwm_id][ds_nwm_id].us_xs.thalweg
+    return determine_flow_increments(rm, plan_name, ds_nwm_id, ds_nwm_id, ds_nwm_id)[2]
 
-    return determine_flow_increments(rm, plan_name, ds_nwm_id, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
+
