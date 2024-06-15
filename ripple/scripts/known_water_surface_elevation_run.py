@@ -1,10 +1,11 @@
 import json
 
 import geopandas as gpd
-import pandas as pd
+import numpy as np
 
 from ripple.process import (
     create_flow_depth_combinations,
+    establish_order_of_nwm_ids,
     get_flow_depth_arrays,
     get_kwse_from_ds_model,
 )
@@ -37,9 +38,7 @@ def main(
         rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.thalweg,
     )
 
-    known_depths = [
-        i - float(rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.thalweg) for i in known_water_surface_elevations
-    ]
+    known_depths = known_water_surface_elevations - rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.thalweg
 
     # filter known water surface elevations less than depths resulting from the second normal depth run
     depths, flows, wses = create_flow_depth_combinations(
@@ -69,30 +68,40 @@ def main(
 
 
 if __name__ == "__main__":
-    nwm_id = "1468434"
-    ras_project_text_file = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\{nwm_id}.prj"
-    )
-    subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\{nwm_id}.gpkg"
-    terrain_path = (
-        rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMAIN\nwm_models\{nwm_id}\Terrain.hdf"
-    )
+
     conflation_json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJ Main.json"
-
-    ds_nwm_id = "1468442"
-    ds_nwm_ras_project_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{ds_nwm_id}\{ds_nwm_id}.prj"
-
-    known_water_surface_elevations = get_kwse_from_ds_model(ds_nwm_id, ds_nwm_ras_project_file, f"{ds_nwm_id}_nd")
-    known_water_surface_elevations += get_kwse_from_ds_model(ds_nwm_id, ds_nwm_ras_project_file, f"{ds_nwm_id}_kwse")
 
     with open(conflation_json_path) as f:
         conflation_parameters = json.load(f)
+    ordered_ids = establish_order_of_nwm_ids(conflation_parameters)
 
-    main(
-        nwm_id,
-        f"{nwm_id}_kwse2",
-        ras_project_text_file,
-        subset_gpkg_path,
-        terrain_path,
-        known_water_surface_elevations,
-    )
+    for e, nwm_id in enumerate(ordered_ids):
+        ds_nwm_id = ordered_ids[e - 1]
+        print(f"nwm_id={nwm_id} | ds_nwm_id={ds_nwm_id}")
+
+        ds_nwm_ras_project_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{ds_nwm_id}\{ds_nwm_id}.prj"
+
+        ras_project_text_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.prj"
+        subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.gpkg"
+        terrain_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\Terrain.hdf"
+
+        if e == 0:
+            known_water_surface_elevations = np.arange(42, 55, 0.5)
+        elif "messages" in conflation_parameters[nwm_id]:
+            continue
+        else:
+            known_water_surface_elevations = np.concatenate(
+                [
+                    get_kwse_from_ds_model(ds_nwm_id, ds_nwm_ras_project_file, f"{ds_nwm_id}_nd"),
+                    get_kwse_from_ds_model(ds_nwm_id, ds_nwm_ras_project_file, f"{ds_nwm_id}_kwse"),
+                ]
+            )
+
+        main(
+            nwm_id,
+            f"{nwm_id}_kwse",
+            ras_project_text_file,
+            subset_gpkg_path,
+            terrain_path,
+            known_water_surface_elevations,
+        )

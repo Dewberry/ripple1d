@@ -269,3 +269,12 @@ def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_na
     return determine_flow_increments(rm, plan_name, ds_nwm_id, ds_nwm_id, ds_nwm_id)[2]
 
 
+def establish_order_of_nwm_ids(conflation_parameters: dict):
+    order = []
+    for id, data in conflation_parameters.items():
+        if conflation_parameters[id]["us_xs"]["xs_id"] == "-9999":
+            print(f"skipping {IndentationError}; no cross sections conflated.")
+        else:
+            order.append((float(data["us_xs"]["xs_id"]), id))
+    order.sort()
+    return [i[1] for i in order]
