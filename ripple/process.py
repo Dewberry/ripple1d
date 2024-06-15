@@ -183,15 +183,18 @@ def subset_gpkg(
     # rename river reach
     xs_subset_gdf["river"] = nwm_id
     xs_subset_gdf["reach"] = nwm_id
+    xs_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
+
     river_subset_gdf["river"] = nwm_id
     river_subset_gdf["reach"] = nwm_id
+    river_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
 
     # clean river stations
     xs_subset_gdf["ras_data"] = xs_subset_gdf["ras_data"].apply(lambda ras_data: clean_river_stations(ras_data))
 
     # check if only 1 cross section for nwm_reach
     if len(xs_subset_gdf) <= 1:
-        shutil.rmtree(ras_project_dir)
+        # shutil.rmtree(ras_project_dir)
         logging.warning(f"Only 1 cross section conflated to NWM reach {nwm_id}. Skipping this reach.")
         return None
 
@@ -200,7 +203,7 @@ def subset_gpkg(
     xs_subset_gdf.to_file(dest_gpkg_path, layer="XS", driver="GPKG")
     river_subset_gdf.to_file(dest_gpkg_path, layer="River", driver="GPKG")
 
-    return dest_gpkg_path
+    return dest_gpkg_path, xs_subset_gdf.crs.to_epsg()
 
 
 def clean_river_stations(ras_data: str) -> str:
