@@ -26,14 +26,16 @@ from .consts import (
     WSE_HDF_PATH,
     XS_NAMES_HDF_PATH,
 )
-from .data_model import Junction, Reach,FlowChangeLocation
+from .data_model import FlowChangeLocation, Junction, Reach
 from .errors import (
+    CouldNotFindAnyPlansError,
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
     NoCrossSectionLayerError,
     NoRiverLayerError,
     PlanTitleAlreadyExistsError,
     RASComputeTimeoutError,
+    ToManyPlansError,
 )
 from .rasmap import PLAN, RASMAP_631, TERRAIN
 from .utils import (
@@ -45,6 +47,7 @@ from .utils import (
     get_terrain_exe_path,
     replace_line_in_contents,
     search_contents,
+    text_block_from_start_end_str,
 )
 
 if platform.system() == "Windows":
@@ -577,6 +580,18 @@ class RasProject(RasTextFile):
     @combine_root_extension
     def steady_flows(self):
         return search_contents(self.contents, "Flow File", expect_one=False)
+
+    @property
+    def n_geoms(self):
+        return len(self.geoms)
+
+    @property
+    def n_plans(self):
+        return len(self.plans)
+
+    @property
+    def n_flows(self):
+        return len(self.stead_flows)
 
     @property
     def current_plan(self):

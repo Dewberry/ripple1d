@@ -30,6 +30,14 @@ class PlanTitleAlreadyExistsError(Exception):
     pass
 
 
+class CouldNotFindAnyPlansError(Exception):
+    pass
+
+
+class ToManyPlansError(Exception):
+    pass
+
+
 class RASComputeTimeoutError(Exception):
     """Raised on timeout of API call to Compute_CurrentPlan."""
 
