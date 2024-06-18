@@ -345,8 +345,8 @@ class RasManager:
         flow_text_file,
         plan_flow_title: str,
         geom_title: str,
-        flow_change_locations:list[FlowChangeLocation],
-        profile_names:list[str],
+        flow_change_locations: list[FlowChangeLocation],
+        profile_names: list[str],
         normal_depth: float = NORMAL_DEPTH,
         write_depth_grids: bool = False,
     ):
@@ -360,7 +360,9 @@ class RasManager:
 
         for fcl in flow_change_locations:
             # write normal depth
-            flow_text_file.contents += flow_text_file.write_ds_normal_depth(len(fcl.flows), normal_depth, fcl.river, fcl.reach)
+            flow_text_file.contents += flow_text_file.write_ds_normal_depth(
+                len(fcl.flows), normal_depth, fcl.river, fcl.reach
+            )
 
         return flow_text_file
 
@@ -962,6 +964,32 @@ class RasFlowText(RasTextFile):
             lines.append(f"Dn Slope={normal_depth}")
 
         return lines
+
+    @property
+    def n_flow_change_locations(self):
+        return len(search_contents(self.contents, "River Rch & RM", expect_one=False))
+
+    @property
+    def flow_change_locations(self):
+        flow_change_locations = []
+        for location in search_contents(self.contents, "River Rch & RM", expect_one=False):
+
+            # parse river, reach, and river station for the flow change location
+            river, reach, rs = location.split(",")
+            lines = text_block_from_start_end_str(f"River Rch & RM={location}", "River Rch & RM", self.contents)
+            flows = []
+
+            for line in lines[1:]:
+
+                for i in range(0, len(line), 8):
+                    flows.append(float(line[i : i + 8].lstrip(" ")))
+                    if len(flows) == self.n_profiles:
+                        flow_change_locations.append(
+                            FlowChangeLocation(river, reach.rstrip(" "), float(rs), flows, self.profile_names)
+                        )
+
+                    if len(flow_change_locations) == self.n_flow_change_locations:
+                        return flow_change_locations
 
 
 class RasMap:
