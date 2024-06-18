@@ -10,6 +10,22 @@ class ModelNotFoundError(Exception):
     pass
 
 
+class DuplicateKeyEntriesError(Exception):
+    pass
+
+
+class NoKeyEntriesError(Exception):
+    pass
+
+
+class NotAPrjFile(Exception):
+    pass
+
+
+class NoCRSInferredError(Exception):
+    pass
+
+
 class HECRASVersionNotInstalledError(Exception):
     pass
 
