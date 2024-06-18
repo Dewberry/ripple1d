@@ -259,7 +259,7 @@ def create_flow_depth_combinations(
 
 
 def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_name: str) -> list:
-    rm = RasManager(ds_nwm_ras_project_file, projection=DEFAULT_EPSG)
+    rm = RasManager(ds_nwm_ras_project_file, crs=DEFAULT_EPSG)
 
     if plan_name not in rm.plans.keys():
         print(f"{plan_name} is not an existing plan in the specified HEC-RAS model")

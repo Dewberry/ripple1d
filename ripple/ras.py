@@ -78,7 +78,7 @@ def write_new_plan_text_file(func):
         text_file = self.ras_project._ras_root_path + f".p{new_extension_number}"
 
         # create plan
-        plan_text_file = RasPlanText(text_file, self.projection, new_file=True)
+        plan_text_file = RasPlanText(text_file, self.crs, new_file=True)
 
         if "write_depth_grids" in kwargs:
             # populate new plan info
@@ -141,9 +141,9 @@ def write_new_flow_text_file(func):
     return wrapper
 
 
-def check_projection(func):
+def check_crs(func):
     def wrapper(self, *args, **kwargs):
-        if self.projection is None:
+        if self.crs is None:
             raise ValueError("Projection cannot be None")
         return func(self, *args, **kwargs)
 
@@ -200,7 +200,7 @@ class RasManager:
         ras_text_file_path: str,
         version: str = "631",
         terrain_path: str = None,
-        projection: CRS = None,
+        crs: CRS = None,
         new_project: bool = False,
     ):
 
@@ -208,7 +208,7 @@ class RasManager:
         self.terrain_path = terrain_path
         self.ras_project = RasProject(ras_text_file_path, new_file=new_project)
 
-        self.projection = CRS(projection)
+        self.crs = CRS(crs)
         self.plans = self.get_plans()
         self.geoms = self.get_geoms()
         self.flows = self.get_flows()
@@ -225,7 +225,7 @@ class RasManager:
             ras_project_text_file,
             version,
             terrain_path=terrain_path,
-            projection=gpd.read_file(ras_gpkg_file_path).crs,
+            crs=gpd.read_file(ras_gpkg_file_path).crs,
             new_project=True,
         )
 
@@ -241,9 +241,9 @@ class RasManager:
 
     @property
     def projection_file(self):
-        projection_file = os.path.join(self.ras_project._ras_dir, "projection.prj")
+        projection_file = os.path.join(self.ras_project._ras_dir, "crs.prj")
         with open(projection_file, "w") as f:
-            f.write(self.projection.to_wkt("WKT1_ESRI"))
+            f.write(self.crs.to_wkt("WKT1_ESRI"))
         return projection_file
 
     def get_plans(self):
@@ -253,13 +253,13 @@ class RasManager:
         plans = {}
         for plan_file in self.ras_project.plans:
             try:
-                plan = RasPlanText(plan_file, self.projection)
+                plan = RasPlanText(plan_file, self.crs)
                 plans[plan.title] = plan
             except FileNotFoundError:
                 logging.info(f"Could not find plan file: {plan_file}")
         return plans
 
-    @check_projection
+    @check_crs
     def get_geoms(self):
         """
         Create geom objects for each geom.
@@ -267,7 +267,7 @@ class RasManager:
         geoms = {}
         for geom_file in self.ras_project.geoms:
             try:
-                geom = RasGeomText(geom_file, self.projection)
+                geom = RasGeomText(geom_file, self.crs)
                 geoms[geom.title] = geom
             except FileNotFoundError:
                 logging.warning(f"Could not find geom file: {geom_file}")
@@ -422,7 +422,7 @@ class RasManager:
         terrain_name = os.path.splitext(os.path.basename(self.terrain_path))[0]
 
         rasmap = RasMap(map_file, self.plan.geom, self.version)
-        rasmap.update_projection(self.projection_file)
+        rasmap.update_crs(self.projection_file)
         rasmap.add_terrain(terrain_name, terrain_relative_path)
         rasmap.add_plan_layer(self.plan.title, os.path.basename(self.plan.hdf_file), self.plan.flow.profile_names)
         rasmap.add_result_layers(self.plan.title, self.plan.flow.profile_names, "Depth")
@@ -541,11 +541,11 @@ class RasProject(RasTextFile):
 
 
 class RasPlanText(RasTextFile):
-    def __init__(self, ras_text_file_path: str, projection: str = None, new_file: bool = False):
+    def __init__(self, ras_text_file_path: str, crs: str = None, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
-        self.projection = projection
+        self.crs = crs
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
     def __repr__(self):
@@ -572,11 +572,11 @@ class RasPlanText(RasTextFile):
         return search_contents(self.contents, "Flow File")
 
     @property
-    @check_projection
+    @check_crs
     def geom(self):
         return RasGeomText(
             f"{os.path.splitext(self._ras_text_file_path)[0]}.{self.plan_geom_file}",
-            self.projection,
+            self.crs,
         )
 
     @property
@@ -689,27 +689,27 @@ class RasPlanText(RasTextFile):
 
 
 class RasGeomText(RasTextFile):
-    def __init__(self, ras_text_file_path: str, projection: str = None, new_file=False):
+    def __init__(self, ras_text_file_path: str, crs: str = None, new_file=False):
         super().__init__(ras_text_file_path, new_file)
         if not new_file and self.file_extension not in VALID_GEOMS:
             raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {self.file_extension}")
 
-        self.projection = CRS(projection)
+        self.crs = CRS(crs)
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
     def __repr__(self):
         return f"RasGeomText({self._ras_text_file_path})"
 
     @classmethod
-    def from_str(cls, text_string: str, projection, ras_text_file_path: str = ""):
-        inst = cls("", projection, new_file=True)
+    def from_str(cls, text_string: str, crs, ras_text_file_path: str = ""):
+        inst = cls("", crs, new_file=True)
         inst.contents = text_string.splitlines()
         return inst
 
     @classmethod
     def from_gpkg(cls, gpkg_path, title: str, version: str, ras_text_file_path: str = ""):
 
-        inst = cls(ras_text_file_path, projection=gpd.read_file(gpkg_path).crs, new_file=True)
+        inst = cls(ras_text_file_path, crs=gpd.read_file(gpkg_path).crs, new_file=True)
         inst._gpkg_path = gpkg_path
         inst._version = version
         inst._title = title
@@ -792,16 +792,16 @@ class RasGeomText(RasTextFile):
         return search_contents(self.contents, "Program Version")
 
     @property
-    @check_projection
+    @check_crs
     def reaches(self) -> dict:
         river_reaches = search_contents(self.contents, "River Reach", expect_one=False)
         reaches = {}
         for river_reach in river_reaches:
-            reaches[river_reach] = Reach(self.contents, river_reach, self.projection)
+            reaches[river_reach] = Reach(self.contents, river_reach, self.crs)
         return reaches
 
     @property
-    @check_projection
+    @check_crs
     def rivers(self) -> dict:
         rivers = {}
         for reach in self.reaches.values():
@@ -810,16 +810,16 @@ class RasGeomText(RasTextFile):
         return rivers
 
     @property
-    @check_projection
+    @check_crs
     def junctions(self) -> dict:
         juncts = search_contents(self.contents, "Junct Name", expect_one=False)
         junctions = {}
         for junct in juncts:
-            junctions[junct] = Junction(self.contents, junct, self.projection)
+            junctions[junct] = Junction(self.contents, junct, self.crs)
         return junctions
 
     @property
-    @check_projection
+    @check_crs
     def cross_sections(self) -> dict:
         cross_sections = {}
         for reach in self.reaches.values():
@@ -828,19 +828,20 @@ class RasGeomText(RasTextFile):
         return cross_sections
 
     @property
-    @check_projection
+    @check_crs
     @add_fid_index
     def reach_gdf(self):
         return pd.concat([reach.gdf for reach in self.reaches.values()], ignore_index=True)
 
     @property
-    @check_projection
+    @check_crs
     @add_fid_index
     def junction_gdf(self):
-        return pd.concat([junction.gdf for junction in self.junctions.values()], ignore_index=True)
+        if self.junctions:
+            return pd.concat([junction.gdf for junction in self.junctions.values()], ignore_index=True)
 
     @property
-    @check_projection
+    @check_crs
     @add_fid_index
     def xs_gdf(self):
         """
@@ -882,10 +883,6 @@ class RasFlowText(RasTextFile):
     @property
     def profile_names(self):
         return search_contents(self.contents, "Profile Names").split(",")
-
-    @property
-    def flow_change_locations(self):
-        search_contents(self.contents, "Boundary for River Rch & Prof#", expect_one=False)
 
     def write_headers(self, title: str, profile_names: list[str]):
         """
@@ -1020,9 +1017,9 @@ class RasMap:
         else:
             raise ValueError(f"model version '{self.version}' is not supported")
 
-    def update_projection(self, projection_file: str):
+    def update_crs(self, projection_file: str):
         """
-        Add/update the projection file to the RAS Mapper contents
+        Add/update the crs file to the RAS Mapper contents
 
         Args:
             projection_file (str): path to projeciton file containing the coordinate system (.prj)
@@ -1032,15 +1029,15 @@ class RasMap:
         """
 
         directory = os.path.dirname(self.text_file)
-        projection_base = os.path.basename(projection_file)
+        crs_base = os.path.basename(projection_file)
 
-        if projection_base not in os.listdir(directory):
+        if crs_base not in os.listdir(directory):
             raise FileNotFoundError(
-                f"Expected projection file to be in RAS directory: {directory}. Provided location is: {projection_file}"
+                f"Expected crs file to be in RAS directory: {directory}. Provided location is: {projection_file}"
             )
 
         lines = self.contents.splitlines()
-        lines.insert(2, rf'  <RASProjectionFilename Filename=".\{projection_base}" />')
+        lines.insert(2, rf'  <RASProjectionFilename Filename=".\{crs_base}" />')
 
         self.contents = "\n".join(lines)
 
@@ -1134,7 +1131,7 @@ class RasMap:
 
 
 # functions
-def search_for_ras_projection(search_dir: str):
+def search_for_ras_crs(search_dir: str):
     rasmap_files = glob.glob(f"{search_dir}/*.rasmap")
     if rasmap_files:
         rm = rasmap_files[0]
@@ -1148,10 +1145,10 @@ def search_for_ras_projection(search_dir: str):
                 abs_path = f"{search_dir}/{relative_path}"
                 if os.path.exists(abs_path):
                     with open(abs_path) as src:
-                        projection = src.read()
-                        return projection, abs_path
+                        crs = src.read()
+                        return crs, abs_path
                 else:
-                    raise FileNotFoundError(f"Could not find projection file in {search_dir}")
+                    raise FileNotFoundError(f"Could not find crs file in {search_dir}")
 
 
 def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
@@ -1184,7 +1181,7 @@ def create_terrain(
     version: str = "631",
 ) -> str:
     r"""
-    Uses the projection file and a list of terrain file paths to make the RAS terrain HDF file.
+    Uses the crs file and a list of terrain file paths to make the RAS terrain HDF file.
     Default location is {model_directory}\Terrain\Terrain.hdf.
 
     Returns the full path to the local directory containing the output files.

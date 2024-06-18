@@ -11,8 +11,8 @@ from ripple.ras import RasGeomText
 
 def geom_to_gpkg_local(ras_text_file_path: str, projection_file_path: str, output_gpkg_path: str):
     with open(projection_file_path, "r") as f:
-        projection = f.read()
-    geom = RasGeomText(ras_text_file_path, projection)
+        crs = f.read()
+    geom = RasGeomText(ras_text_file_path, crs)
     geom.to_gpkg(output_gpkg_path)
 
 
@@ -27,16 +27,16 @@ def geom_to_gpkg_s3(ras_text_file_path: str, projection_file_path: str, output_g
     response = client.get_object(Bucket=bucket, Key=ras_text_file_path)
     geom_string = response["Body"].read().decode("utf-8")
 
-    # get projection
+    # get crs
     response = client.get_object(Bucket=bucket, Key=projection_file_path)
-    projection = response["Body"].read().decode("utf-8")
+    crs = response["Body"].read().decode("utf-8")
 
     # make temp directory
     temp_dir = tempfile.mkdtemp()
     temp_path = os.path.join(temp_dir, "temp.gpkg")
 
     # read geom string and write geopackage
-    geom = RasGeomText.from_str(geom_string, projection)
+    geom = RasGeomText.from_str(geom_string, crs)
     geom.to_gpkg(output_gpkg_path)
 
     # move geopackage to s3

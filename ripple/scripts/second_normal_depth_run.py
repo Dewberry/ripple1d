@@ -23,9 +23,9 @@ def main(
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
         print(f"skipping {nwm_id}; no cross sections conflated.")
     else:
-        projection = gpd.read_file(subset_gpkg_path).crs
+        crs = gpd.read_file(subset_gpkg_path).crs
 
-        rm = RasManager(ras_project_text_file, version=version, terrain_path=terrain_path, projection=projection)
+        rm = RasManager(ras_project_text_file, version=version, terrain_path=terrain_path, crs=crs)
 
         # determine flow increments
         flows, depths, wses = determine_flow_increments(

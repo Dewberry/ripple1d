@@ -9,9 +9,9 @@ from .sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 
 def main(nwm_id: str, nwm_data: dict, ras_project_text_file: str, terrain_path: str, subset_gpkg_path: str):
 
-    projection = gpd.read_file(subset_gpkg_path).crs
+    crs = gpd.read_file(subset_gpkg_path).crs
 
-    rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, projection=projection)
+    rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, crs=crs)
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(rm, nwm_id, nwm_data, except_missing_grid=True)
 
     rating_curves_to_sqlite(rm, nwm_id, nwm_data, missing_grids_kwse)

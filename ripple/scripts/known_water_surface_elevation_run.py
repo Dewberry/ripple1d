@@ -23,10 +23,10 @@ def main(
 
     print(f"working on known water surface elevation run for nwm_id: {nwm_id}")
 
-    projection = gpd.read_file(subset_gpkg_path).crs
+    crs = gpd.read_file(subset_gpkg_path).crs
 
     # write and compute flow/plans for known water surface elevation runs
-    rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, projection=projection)
+    rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, crs=crs)
 
     # get resulting depths from the second normal depth runs_nd
     rm.plan = rm.plans[nwm_id + "_nd"]
