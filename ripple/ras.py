@@ -432,6 +432,13 @@ class RasManager:
 
         return self
 
+    def geom_flow_to_gpkg(self, gpkg_file: str):
+        if self.primary_plan.geom.cross_sections:
+            self.geom_flow_xs_gdf.to_file(gpkg_file, driver="GPKG", layer="XS")
+        if self.primary_plan.geom.reaches:
+            self.primary_plan.geom.reach_gdf.to_file(gpkg_file, driver="GPKG", layer="River")
+        if self.primary_plan.geom.junctions:
+            self.primary_plan.geom.junction_gdf.to_file(gpkg_file, driver="GPKG", layer="Junction")
 
     @property
     def geom_flow_xs_gdf(self):
