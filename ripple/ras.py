@@ -432,6 +432,40 @@ class RasManager:
 
         return self
 
+
+    @property
+    def geom_flow_xs_gdf(self):
+        xs_gdf = self.primary_plan.geom.xs_gdf
+        xs_gdf[["flows","profile_names"]] = None,None
+
+        fcls = pd.DataFrame(self.primary_plan.flow.flow_change_locations)
+        fcls["river_reach"] = fcls["river"] + fcls["reach"]
+
+        for river_reach in fcls["river_reach"].unique():
+            # get flow change locations for this reach
+            fcls_rr = fcls.loc[fcls["river_reach"] == river_reach, :].sort_values(by="rs", ascending=False)
+
+            # iterate through this reaches flow change locations and set cross section flows/profile names
+            for _, row in fcls_rr.iterrows():
+
+                # add flows to xs_gdf
+                xs_gdf.loc[
+                    (xs_gdf["river"] == row["river"])
+                    & (xs_gdf["reach"] == row["reach"])
+                    & (xs_gdf["river_station"] <= row["rs"]),
+                    "flows",
+                ] = "\n".join([str(f) for f in row["flows"]])
+
+                # add profile names to xs_gdf
+                xs_gdf.loc[
+                    (xs_gdf["river"] == row["river"])
+                    & (xs_gdf["reach"] == row["reach"])
+                    & (xs_gdf["river_station"] <= row["rs"]),
+                    "profile_names",
+                ] = "\n".join(row["profile_names"])
+
+        return xs_gdf
+
     @property
     def primary_plan(self):
         """
