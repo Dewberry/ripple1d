@@ -432,6 +432,25 @@ class RasManager:
 
         return self
 
+    @property
+    def primary_plan(self):
+        """
+        Attempt to narrow down which plan should be used by elimnating the floodway plan for a MIP model.
+        """
+        potential_plans = []
+
+        for plan_title, plan in self.plans.items():
+            if not search_contents(plan.contents, "Encroach Node", expect_one=False):
+                potential_plans.append(plan_title)
+        if len(potential_plans) == 1:
+            return self.plans[potential_plans[0]]
+        elif len(potential_plans) > 1:
+            raise ToManyPlansError(
+                f"Can not detemine the correct plan to use. The HEC-RAS project contains too many plans. | {self.ras_project._ras_text_file_path}"
+            )
+        else:
+            raise CouldNotFindAnyPlansError(f"Could not find any plans for: {self.ras_project._ras_text_file_path}")
+
 
 class RasTextFile:
     def __init__(self, ras_text_file_path, new_file=False):
