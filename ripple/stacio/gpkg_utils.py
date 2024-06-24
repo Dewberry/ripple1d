@@ -78,7 +78,7 @@ def create_thumbnail_from_gpkg(gdfs: dict, png_s3_path: str, s3_client: boto3.Se
     s3_client.put_object(Bucket=bucket, Key=key, Body=buf, ContentType="image/png")
 
 
-def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float]):
+def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float], ripple_version: str):
     """
     This function creates a PySTAC Item for a gpkg file stored in an AWS S3 bucket.
 
@@ -102,7 +102,7 @@ def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float]):
         geometry=json.loads(to_geojson(footprint)),
         bbox=bbox.tolist(),
         datetime=start_time,
-        properties={"ripple: version": "0.0.1"},
+        properties={"ripple: version": ripple_version},
     )
 
     return item

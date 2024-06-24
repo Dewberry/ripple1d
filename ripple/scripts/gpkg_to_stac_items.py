@@ -1,12 +1,11 @@
 import logging
 import os
 import tempfile
-from pathlib import PurePosixPath
 
 import pandas as pd
 import pystac
 
-from ripple.stacio.gpkg_plot import (
+from ripple.stacio.gpkg_utils import (
     create_geom_item,
     create_thumbnail_from_gpkg,
     get_asset_info,
@@ -36,6 +35,7 @@ def new_gpkg_item(
     gpkg_s3_path: str,
     new_gpkg_item_s3_path: str,
     thumbnail_png_s3_path: str,
+    ripple_version: str,
     dev_mode: bool = False,
 ):
     logging.info("Creating item from gpkg")
@@ -63,14 +63,14 @@ def new_gpkg_item(
         # Create item
         bbox = pd.concat(gdfs).total_bounds
         footprint = bbox_to_polygon(bbox)
-        item = create_geom_item(gpkg_key, bbox, footprint)
+        item = create_geom_item(gpkg_key, bbox, footprint, ripple_version)
 
         asset_list = asset_list + [thumbnail_png_s3_path, gpkg_s3_path]
         for asset_file in asset_list:
             _, asset_key = split_s3_key(asset_file)
             obj = bucket.Object(asset_key)
             metadata = get_basic_object_metadata(obj)
-            asset_info = get_asset_info(asset_file)
+            asset_info = get_asset_info(asset_file, bucket_name)
             asset = pystac.Asset(
                 s3_key_public_url_converter(asset_file, dev_mode),
                 extra_fields=metadata,
@@ -84,15 +84,16 @@ def new_gpkg_item(
         logging.info("Program completed successfully")
 
 
-def main(gpkg_s3_path: str, new_gpkg_item_s3_path: str, thumbnail_png_s3_path: str):
-    new_gpkg_item(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path)
+def main(gpkg_s3_path: str, new_gpkg_item_s3_path: str, thumbnail_png_s3_path: str, ripple_version: str):
+    new_gpkg_item(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path, ripple_version)
 
 
 if __name__ == "__main__":
-    ras_project_key = "s3://fim/mip/dev2/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.prj"
+    ras_project_key = "s3://fim/mip/cases/02-NT-00125/02-NT-00125_22bab4a4899d250f530f94066beccecd11383540/SENECA_RIVER_131/seneca.prj"
     root = os.path.splitext(ras_project_key)[0]
     gpkg_s3_path = f"{root}.gpkg"
     thumbnail_png_s3_path = f"{root}.png"
-    new_gpkg_item_s3_path = f"{root}.json"
-    main(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path)
+    new_gpkg_item_s3_path = "s3://fim/stac/SENECA_RIVER_131.json"  # f"{root}.json"
+    ripple_version = "0.0.1"
+    main(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path, ripple_version)
 # s3://fim/mip/dev/
