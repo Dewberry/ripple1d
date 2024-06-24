@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import OrderedDict
+
 MAP_DEM_UNCLIPPED_SRC_URL = (
     "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
 )
@@ -27,3 +29,19 @@ WSE_HDF_PATH = "/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles
 FLOW_HDF_PATH = "/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Cross Sections/Flow"
 XS_NAMES_HDF_PATH = "/Results/Steady/Output/Geometry Info/Cross Section Only"
 PROFILE_NAMES_HDF_PATH = "/Results/Steady/Output/Output Blocks/Base Output/Steady Profiles/Profile Names"
+
+LAYER_COLORS = OrderedDict(
+    {
+        "Banks": "red",
+        "Junction": "red",
+        "BCLines": "brown",
+        "BreakLines": "black",
+        "Connections": "cyan",
+        "HydraulicStructures": "magenta",
+        "Mesh": "yellow",
+        "River": "blue",
+        "StorageAreas": "orange",
+        "TwoDAreas": "purple",
+        "XS": "green",
+    }
+)

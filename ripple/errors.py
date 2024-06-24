@@ -10,11 +10,7 @@ class ModelNotFoundError(Exception):
     pass
 
 
-class DuplicateKeyEntriesError(Exception):
-    pass
-
-
-class NoKeyEntriesError(Exception):
+class CouldNotIdentifyPrimaryPlanError(Exception):
     pass
 
 
