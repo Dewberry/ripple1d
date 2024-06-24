@@ -169,3 +169,5 @@ tests/ras-data/Baxter/Terrain
 tests/ras-data/WFSJMAIN/
 /ripple/models/
 .vscode/settings.json
+mip_models
+tests/ras-data/combined
