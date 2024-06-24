@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from datetime import datetime
@@ -5,16 +6,21 @@ from io import BytesIO
 from pathlib import Path
 from typing import Dict
 
+import boto3
 import contextily as ctx
 import fiona
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 import pystac
-from utils.s3_utils import split_s3_key
+from shapely import Polygon, to_geojson
+
+from ripple.consts import LAYER_COLORS
+
+from .utils.s3_utils import split_s3_key
 
 
-def gpkg_to_geodataframe(gpkg_local_path: str, crs: str = "EPSG:4326") -> gpd.GeoDataFrame:
+def gpkg_to_geodataframe(gpkg_local_path: str) -> dict:
     """
     Converts a local geopackage file to a GeoDataFrame.
 
@@ -22,54 +28,39 @@ def gpkg_to_geodataframe(gpkg_local_path: str, crs: str = "EPSG:4326") -> gpd.Ge
         gpkg_local_path (str): Path of locally saved geopackage.
 
     Returns:
-        gpkg_gdf (gpd.GeoDataFrame): GeoDataFrame of geopackage file.
+        gpkg_gdf (dict): dictionary of GeoDataFrame.
 
     """
     layers = fiona.listlayers(gpkg_local_path)
-    gdf_list = []
+    gdfs = {}
 
     for layer in layers:
-        gdf = gpd.read_file(gpkg_local_path, layer=layer)
-        gdf["layer_name"] = layer
-        gdf_list.append(gdf)
+        gdfs[layer] = gpd.read_file(gpkg_local_path, layer=layer).to_crs(4326)  # reproject to WSG 84
 
-    gpkg_gdf = pd.concat(gdf_list, ignore_index=True)
-    gpkg_gdf.crs = crs
-    return gpkg_gdf
+    return gdfs
 
 
-def create_thumbnail_from_gpkg(gdf, png_s3_path, s3_client):
+def create_thumbnail_from_gpkg(gdfs: dict, png_s3_path: str, s3_client: boto3.Session.client):
     """
     Generates a PNG thumbnail for a geopandas dataframe and uploads it to AWS S3.
 
     Parameters:
-    - gdf (GeoDataFrame): The geopandas dataframe containing the geometries to plot.
+    - gdf (dict): A dictionary of geopandas dataframes containing the geometries to plot.
     - png_s3_path (str): The S3 path where the generated PNG thumbnail is to be stored.
     - s3_client: The AWS S3 client instance used for uploading the PNG.
     """
 
     # Define colors for each layer type
-    layer_colors = {
-        "Banks": "red",
-        "BCLines": "brown",
-        "BreakLines": "black",
-        "Connections": "cyan",
-        "HydraulicStructures": "magenta",
-        "Mesh": "yellow",
-        "Rivers": "blue",
-        "StorageAreas": "orange",
-        "TwoDAreas": "purple",
-        "XS": "green",
-    }
+
     # Plotting
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 
-    for layer in gdf["layer_name"].unique():
-        if layer in layer_colors:
-            gdf_subset = gdf[gdf["layer_name"] == layer]
-            gdf_subset.plot(ax=ax, color=layer_colors[layer], linewidth=1, label=layer)
+    for layer, color in LAYER_COLORS.items():
+        if layer in gdfs.keys():
+            gdfs[layer].plot(ax=ax, color=LAYER_COLORS[layer], linewidth=1, label=layer)
+            crs = gdfs[layer].crs
     # Add openstreetmap basemap
-    ctx.add_basemap(ax, crs="EPSG:4326")
+    ctx.add_basemap(ax, crs=crs)
 
     ax.legend()
     # Hide all axis text ticks or tick labels
@@ -86,7 +77,7 @@ def create_thumbnail_from_gpkg(gdf, png_s3_path, s3_client):
     s3_client.put_object(Bucket=bucket, Key=key, Body=buf, ContentType="image/png")
 
 
-def create_geom_item(gpkg_key: str, bbox, footprint):
+def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float]):
     """
     This function creates a PySTAC Item for a gpkg file stored in an AWS S3 bucket.
 
@@ -105,8 +96,9 @@ def create_geom_item(gpkg_key: str, bbox, footprint):
 
     # TODO: Adjust start_time selection for item
     start_time = datetime.utcnow()
-
-    item = pystac.Item(id=item_id, geometry=footprint, bbox=bbox.tolist(), datetime=start_time, properties={})
+    item = pystac.Item(
+        id=item_id, geometry=json.loads(to_geojson(footprint)), bbox=bbox.tolist(), datetime=start_time, properties={}
+    )
 
     return item
 
@@ -278,16 +270,24 @@ def get_asset_info(asset_file):
     description = ""
     roles = []
     if re.match("f[0-9]{2}", file_extension):
-        roles.extend(["forcing-file", pystac.MediaType.TEXT])
+        roles.extend(["forcing-file", "ras-file", pystac.MediaType.TEXT])
         description = """Forcing file for ras."""
 
     elif re.match("g[0-9]{2}", file_extension):
-        roles.extend(["geometry-file", pystac.MediaType.TEXT])
+        roles.extend(["geometry-file", "ras-file", pystac.MediaType.TEXT])
         description = """Geometry file for ras."""
 
     elif re.match("p[0-9]{2}", file_extension):
-        roles.extend(["plan-file", pystac.MediaType.TEXT])
+        roles.extend(["plan-file", "ras-file", pystac.MediaType.TEXT])
         description = """Plan file for ras."""
+
+    elif re.match("o[0-9]{2}", file_extension):
+        roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Output file for ras."""
+
+    elif re.match("r[0-9]{2}", file_extension):
+        roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Run file for ras."""
 
     elif re.match("png", file_extension):
         roles.extend(["thumbnail", pystac.MediaType.PNG])
@@ -295,9 +295,17 @@ def get_asset_info(asset_file):
         title = "Thumbnail"
 
     elif re.match("gpkg", file_extension):
-        roles.extend(["data", pystac.MediaType.GEOPACKAGE])
-        description = """GeoPackage file with ___ data."""
+        roles.extend(["ras-geometry-gpkg", pystac.MediaType.GEOPACKAGE])
+        description = """GeoPackage file with geometry data extracted from .gxx file."""
         title = "GeoPackage_file"
+
+    elif file_extension == "hdf":
+        roles.extend(["hdf-file", pystac.MediaType.HDF])
+
+    elif file_extension == "prj":
+        # TODO verify ras .prj
+        roles.extend(["project-file", "ras-file", pystac.MediaType.TEXT])
+        description = """Project file for ras."""
 
     return {"roles": roles, "description": description, "title": title}
 
