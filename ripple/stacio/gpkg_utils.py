@@ -16,6 +16,7 @@ import pystac
 from shapely import Polygon, to_geojson
 
 from ripple.consts import LAYER_COLORS
+from ripple.utils import get_sessioned_s3_client, str_from_s3
 
 from .utils.s3_utils import split_s3_key
 
@@ -97,7 +98,11 @@ def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float]):
     # TODO: Adjust start_time selection for item
     start_time = datetime.utcnow()
     item = pystac.Item(
-        id=item_id, geometry=json.loads(to_geojson(footprint)), bbox=bbox.tolist(), datetime=start_time, properties={}
+        id=item_id,
+        geometry=json.loads(to_geojson(footprint)),
+        bbox=bbox.tolist(),
+        datetime=start_time,
+        properties={"ripple: version": "0.0.1"},
     )
 
     return item
@@ -255,7 +260,7 @@ def parse_metadata(json_data, metadata_to_remove):
     return comprehensive_data
 
 
-def get_asset_info(asset_file):
+def get_asset_info(asset_file: str, bucket: str):
     """This function generates information for an asset based on its file extension.
 
     Parameters:
@@ -281,7 +286,7 @@ def get_asset_info(asset_file):
         roles.extend(["plan-file", "ras-file", pystac.MediaType.TEXT])
         description = """Plan file for ras."""
 
-    elif re.match("o[0-9]{2}", file_extension):
+    elif re.match("O[0-9]{2}", file_extension):
         roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
         description = """Output file for ras."""
 
@@ -303,9 +308,11 @@ def get_asset_info(asset_file):
         roles.extend(["hdf-file", pystac.MediaType.HDF])
 
     elif file_extension == "prj":
-        # TODO verify ras .prj
-        roles.extend(["project-file", "ras-file", pystac.MediaType.TEXT])
-        description = """Project file for ras."""
+        client = get_sessioned_s3_client()
+        string = str_from_s3(asset_file.replace(f"s3://{bucket}/", ""), client, bucket)
+        if "Proj Title=" in string:
+            roles.extend(["project-file", "ras-file", pystac.MediaType.TEXT])
+            description = """Project file for ras."""
 
     return {"roles": roles, "description": description, "title": title}
 
