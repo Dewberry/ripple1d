@@ -156,7 +156,10 @@ def check_crs(func):
 def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
-        return [self._ras_root_path + "." + extension for extension in extensions]
+        if isinstance(extensions, list):
+            return [self._ras_root_path + "." + extension for extension in extensions]
+        else:
+            return self._ras_root_path + "." + extensions
 
     return wrapper
 
@@ -435,66 +438,6 @@ class RasManager:
 
         return self
 
-    def geom_flow_to_gpkg(self, gpkg_file: str):
-        if self.primary_plan.geom.cross_sections:
-            self.geom_flow_xs_gdf.to_file(gpkg_file, driver="GPKG", layer="XS")
-        if self.primary_plan.geom.reaches:
-            self.primary_plan.geom.reach_gdf.to_file(gpkg_file, driver="GPKG", layer="River")
-        if self.primary_plan.geom.junctions:
-            self.primary_plan.geom.junction_gdf.to_file(gpkg_file, driver="GPKG", layer="Junction")
-
-    @property
-    def geom_flow_xs_gdf(self):
-        xs_gdf = self.primary_plan.geom.xs_gdf
-        xs_gdf[["flows","profile_names"]] = None,None
-
-        fcls = pd.DataFrame(self.primary_plan.flow.flow_change_locations)
-        fcls["river_reach"] = fcls["river"] + fcls["reach"]
-
-        for river_reach in fcls["river_reach"].unique():
-            # get flow change locations for this reach
-            fcls_rr = fcls.loc[fcls["river_reach"] == river_reach, :].sort_values(by="rs", ascending=False)
-
-            # iterate through this reaches flow change locations and set cross section flows/profile names
-            for _, row in fcls_rr.iterrows():
-
-                # add flows to xs_gdf
-                xs_gdf.loc[
-                    (xs_gdf["river"] == row["river"])
-                    & (xs_gdf["reach"] == row["reach"])
-                    & (xs_gdf["river_station"] <= row["rs"]),
-                    "flows",
-                ] = "\n".join([str(f) for f in row["flows"]])
-
-                # add profile names to xs_gdf
-                xs_gdf.loc[
-                    (xs_gdf["river"] == row["river"])
-                    & (xs_gdf["reach"] == row["reach"])
-                    & (xs_gdf["river_station"] <= row["rs"]),
-                    "profile_names",
-                ] = "\n".join(row["profile_names"])
-
-        return xs_gdf
-
-    @property
-    def primary_plan(self):
-        """
-        Attempt to narrow down which plan should be used by elimnating the floodway plan for a MIP model.
-        """
-        potential_plans = []
-
-        for plan_title, plan in self.plans.items():
-            if not search_contents(plan.contents, "Encroach Node", expect_one=False):
-                potential_plans.append(plan_title)
-        if len(potential_plans) == 1:
-            return self.plans[potential_plans[0]]
-        elif len(potential_plans) > 1:
-            raise ToManyPlansError(
-                f"Can not detemine the correct plan to use. The HEC-RAS project contains too many plans. | {self.ras_project._ras_text_file_path}"
-            )
-        else:
-            raise CouldNotFindAnyPlansError(f"Could not find any plans for: {self.ras_project._ras_text_file_path}")
-
 
 class RasTextFile:
     def __init__(self, ras_text_file_path, new_file=False):
@@ -544,8 +487,9 @@ class RasTextFile:
 class RasProject(RasTextFile):
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
+
         if self.file_extension != ".prj":
-            raise TypeError(f"Plan extenstion must be .prj, not {self.file_extension}")
+            raise TypeError(f"Project extenstion must be .prj, not {self.file_extension}")
 
         self._ras_project_basename = os.path.splitext(os.path.basename(self._ras_text_file_path))[0]
         self._ras_dir = os.path.dirname(self._ras_text_file_path)
@@ -556,6 +500,12 @@ class RasProject(RasTextFile):
 
     def __repr__(self):
         return f"RasProject({self._ras_text_file_path})"
+
+    @classmethod
+    def from_str(cls, text_string: str, ras_text_file_path: str = ""):
+        inst = cls(ras_text_file_path, new_file=True)
+        inst.contents = text_string.splitlines()
+        return inst
 
     @property
     def title(self):
@@ -628,6 +578,12 @@ class RasPlanText(RasTextFile):
     def __repr__(self):
         return f"RasPlanText({self._ras_text_file_path})"
 
+    @classmethod
+    def from_str(cls, text_string: str, crs, ras_text_file_path: str = ""):
+        inst = cls(ras_text_file_path, crs, new_file=True)
+        inst.contents = text_string.splitlines()
+        return inst
+
     @property
     def title(self):
         return search_contents(self.contents, "Plan Title")
@@ -637,28 +593,40 @@ class RasPlanText(RasTextFile):
         return search_contents(self.contents, "Program Version")
 
     @property
+    @combine_root_extension
     def plan_geom_file(self):
+        return self.plan_geom_extension
+
+    @property
+    @combine_root_extension
+    def plan_unsteady_flow_file(self):
+        return self.plan_unsteady_extension
+
+    @property
+    @combine_root_extension
+    def plan_steady_file(self):
+        return self.plan_steady_extension
+
+    @property
+    def plan_geom_extension(self):
         return search_contents(self.contents, "Geom File")
 
     @property
-    def plan_unsteady_flow(self):
+    def plan_unsteady_extension(self):
         return search_contents(self.contents, "Unsteady File")
 
     @property
-    def plan_steady_flow(self):
+    def plan_steady_extension(self):
         return search_contents(self.contents, "Flow File")
 
     @property
     @check_crs
     def geom(self):
-        return RasGeomText(
-            f"{os.path.splitext(self._ras_text_file_path)[0]}.{self.plan_geom_file}",
-            self.crs,
-        )
+        return RasGeomText(self.plan_geom_file, self.crs)
 
     @property
     def flow(self):
-        return RasFlowText(f"{os.path.splitext(self._ras_text_file_path)[0]}.{self.plan_steady_flow}")
+        return RasFlowText(self.plan_steady_file)
 
     def new_plan_from_existing(self, title, short_id, geom_ext, flow_ext):
         """
@@ -779,7 +747,7 @@ class RasGeomText(RasTextFile):
 
     @classmethod
     def from_str(cls, text_string: str, crs, ras_text_file_path: str = ""):
-        inst = cls("", crs, new_file=True)
+        inst = cls(ras_text_file_path, crs, new_file=True)
         inst.contents = text_string.splitlines()
         return inst
 
@@ -944,6 +912,12 @@ class RasFlowText(RasTextFile):
 
     def __repr__(self):
         return f"RasFlowText({self._ras_text_file_path})"
+
+    @classmethod
+    def from_str(cls, text_string: str, ras_text_file_path: str = ""):
+        inst = cls(ras_text_file_path, new_file=True)
+        inst.contents = text_string.splitlines()
+        return inst
 
     @property
     def title(self):
