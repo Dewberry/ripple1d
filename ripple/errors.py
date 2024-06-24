@@ -10,6 +10,18 @@ class ModelNotFoundError(Exception):
     pass
 
 
+class CouldNotIdentifyPrimaryPlanError(Exception):
+    pass
+
+
+class NotAPrjFile(Exception):
+    pass
+
+
+class NoCRSInferredError(Exception):
+    pass
+
+
 class HECRASVersionNotInstalledError(Exception):
     pass
 
@@ -27,6 +39,14 @@ class FlowTitleAlreadyExistsError(Exception):
 
 
 class PlanTitleAlreadyExistsError(Exception):
+    pass
+
+
+class CouldNotFindAnyPlansError(Exception):
+    pass
+
+
+class ToManyPlansError(Exception):
     pass
 
 

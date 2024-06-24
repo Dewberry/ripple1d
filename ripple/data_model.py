@@ -24,15 +24,15 @@ class FlowChangeLocation:
     river: str = None
     reach: str = None
     rs: float = None
-    rs_str: str = None
     flows: list[float] = None
+    profile_names: list[str] = None
 
 
 class XS:
-    def __init__(self, ras_data: list, river_reach: str, river: str, reach: str, projection: str):
+    def __init__(self, ras_data: list, river_reach: str, river: str, reach: str, crs: str):
 
         self.ras_data = ras_data
-        self.projection = projection
+        self.crs = crs
         self.river = river
         self.reach = reach
         self.river_reach = river_reach
@@ -71,7 +71,7 @@ class XS:
     def thalweg(self):
         _, y = list(zip(*self.station_elevation_points))
         return min(y)
-    
+
     @property
     def xs_max_elevation(self):
         _, y = list(zip(*self.station_elevation_points))
@@ -111,6 +111,7 @@ class XS:
                 "reach": [self.reach],
                 "river_reach": [self.river_reach],
                 "river_station": [self.river_station],
+                "river_reach_rs": [self.river_reach_rs],
                 "thalweg": [self.thalweg],
                 "xs_max_elevation": [self.xs_max_elevation],
                 # "left_reach_length": [self.left_reach_length],
@@ -123,16 +124,16 @@ class XS:
                 # "number_of_coords": [self.number_of_coords],
                 # "coords": [self.coords],
             },
-            crs=self.projection,
+            crs=self.crs,
             geometry="geometry",
         )
 
 
 class Reach:
-    def __init__(self, ras_data: list, river_reach: str, projection: str):
+    def __init__(self, ras_data: list, river_reach: str, crs: str):
         reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", "River Reach", ras_data)
         self.ras_data = reach_lines
-        self.projection = projection
+        self.crs = crs
         self.river_reach = river_reach
         self.river = river_reach.split(",")[0].rstrip()
         self.reach = river_reach.split(",")[1].rstrip()
@@ -140,9 +141,21 @@ class Reach:
         us_connection: str = None
         ds_connection: str = None
 
-        us_cross_section: str = None
-        ds_cross_section: str = None
-        number_of_cross_sections: int = None
+    @property
+    def us_xs(self):
+        return self.cross_sections[
+            self.xs_gdf.loc[self.xs_gdf["river_station"] == self.xs_gdf["river_station"].max(), "river_reach_rs"][0]
+        ]
+
+    @property
+    def ds_xs(self):
+        return self.cross_sections[
+            self.xs_gdf.loc[self.xs_gdf["river_station"] == self.xs_gdf["river_station"].min(), "river_reach_rs"][0]
+        ]
+
+    @property
+    def number_of_cross_sections(self):
+        return len(self.cross_sections)
 
     @property
     def number_of_coords(self):
@@ -163,11 +176,12 @@ class Reach:
     def cross_sections(self):
         cross_sections = {}
         for header in self.reach_nodes:
-            type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")
+
+            type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")[:5]
             if type != " 1 ":
                 continue
             xs_lines = text_block_from_start_str_to_empty_line(f"Type RM Length L Ch R ={header}", self.ras_data)
-            cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.projection)
+            cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
             cross_sections[cross_section.river_reach_rs] = cross_section
 
         return cross_sections
@@ -185,7 +199,7 @@ class Reach:
                 # "coords": [self.coords],
                 "ras_data": ["\n".join(self.ras_data)],
             },
-            crs=self.projection,
+            crs=self.crs,
             geometry="geometry",
         )
 
@@ -195,9 +209,9 @@ class Reach:
 
 
 class Junction:
-    def __init__(self, ras_data: List[str], junct: str, projection: str):
+    def __init__(self, ras_data: List[str], junct: str, crs: str):
 
-        self.projection = projection
+        self.crs = crs
         self.name = junct
         self.ras_data = text_block_from_start_str_to_empty_line(f"Junct Name={junct}", ras_data)
 
@@ -249,5 +263,5 @@ class Junction:
                 "ras_data": ["\n".join(self.ras_data)],
             },
             geometry="geometry",
-            crs=self.projection,
+            crs=self.crs,
         )

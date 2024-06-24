@@ -11,15 +11,18 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.enums import Resampling
+from rasterio.shutil import copy as copy_raster
 from shapely.geometry import LineString
 
-from .consts import DEFAULT_EPSG, MINDEPTH, NORMAL_DEPTH, TERRAIN_NAME
+from .consts import DEFAULT_EPSG, MIN_FLOW
 from .errors import DepthGridNotFoundError
-from .ras2 import RasManager, RasMap
+from .ras import RasManager, RasMap
 from .utils import create_flow_depth_array
 
 
-def get_flow_depth_arrays(rm: RasManager, river: str, reach: str, river_station: float, thalweg: float) -> tuple:
+def get_flow_depth_arrays(
+    rm: RasManager, river: str, reach: str, river_station: str, thalweg: float
+) -> tuple(pd.Series):
     """
     Create new flow, depth,wse arrays from rating curve-plans results.
     """
@@ -27,30 +30,33 @@ def get_flow_depth_arrays(rm: RasManager, river: str, reach: str, river_station:
     wses, flows = rm.plan.read_rating_curves()
 
     # get the river_reach_rs for the cross section representing the upstream end of this reach
-    river_reach_rs = f"{river} {reach} {str(river_station).rstrip('0')}"
+    river_reach_rs = f"{river} {reach} {str(river_station)}"
 
     wse = wses.loc[river_reach_rs, :]
     flow = flows.loc[river_reach_rs, :]
+    df = pd.DataFrame({"wse": wse.astype(int), "flow": flow.round(1)}).drop_duplicates()
 
     # convert wse to depth
-    depth = wse - thalweg
+    depth = df["wse"] - thalweg
 
-    return (flow, depth, wse)
+    return (df["flow"], depth, df["wse"])
 
 
 def determine_flow_increments(
     rm: RasManager,
+    plan_name: str,
     river: str,
     reach: str,
     nwm_id: str,
-    river_station: float,
-    thalweg: float,
     depth_increment: float = 0.5,
-) -> RasManager:
+) -> tuple(np.array):
     """
     Detemine flow increments corresponding to 0.5 ft depth increments using the rating-curve-run results
     """
-    rm.plan = rm.plans[str(nwm_id) + "_ind"]
+    rm.plan = rm.plans[plan_name]
+
+    river_station = rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station
+    thalweg = rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.thalweg
 
     # get new flow/depth for current branch
     flows, depths, _ = get_flow_depth_arrays(rm, river, reach, river_station, thalweg)
@@ -58,34 +64,34 @@ def determine_flow_increments(
     # get new flow/depth incremented every x ft
     new_depths, new_flows = create_flow_depth_array(flows, depths, depth_increment)
 
-    new_wse = [i + thalweg for i in new_depths]
+    new_wse = new_depths + thalweg  # [i + thalweg for i in new_depths]
 
-    return new_flows, new_depths, new_wse
+    return new_flows.astype(int), new_depths, new_wse
 
 
 def post_process_depth_grids(
     rm: RasManager, nwm_id: str, nwm_data: dict, except_missing_grid: bool = False, dest_directory=None
-):
+) -> tuple(list[str]):
     """
     Clip depth grids based on their associated NWM branch and respective cross sections.
 
     """
-
-    if not dest_directory:
-        dest_directory = rm.postprocessed_output_folder
-
-    if os.path.exists(dest_directory):
-        raise FileExistsError(dest_directory)
-
+    missing_grids_kwse, missing_grids_nd = [], []
     for prefix in ["_kwse", "_nd"]:
         id = nwm_id + prefix
 
+        if id not in rm.plans:
+            continue
         for profile_name in rm.plans[id].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
-            src_path = os.path.join(rm.ras_folder, str(id), f"Depth ({profile_name}).vrt")
+            src_path = os.path.join(rm.ras_project._ras_dir, str(id), f"Depth ({profile_name}).vrt")
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(src_path):
+                if prefix == "_kwse":
+                    missing_grids_kwse.append(profile_name)
+                elif prefix == "_nd":
+                    missing_grids_nd.append(profile_name)
                 if except_missing_grid:
                     logging.warning(f"depth raster does not exists: {src_path}")
                     continue
@@ -98,39 +104,19 @@ def post_process_depth_grids(
                 flow = f"f_{profile_name}"
                 depth = "z_0_0"
 
-            dest_directory = os.path.join(dest_directory, id, depth)
-            if not os.path.exists(dest_directory):
-                os.makedirs(dest_directory)
+            dest_directory = os.path.join(rm.ras_project._ras_dir, "output", nwm_id, depth)
+            os.makedirs(dest_directory, exist_ok=True)
             dest_path = os.path.join(dest_directory, f"{flow}.tif")
 
-            # open the src raster the cross section concave hull as a mask
-            with rasterio.open(src_path) as src:
-                dataset = src.read(1)
-                transform = src.transform
-                out_meta = src.meta
+            copy_raster(src_path, dest_path)
 
-            # update metadata
-            out_meta.update(
-                {
-                    "driver": "GTiff",
-                    "height": dataset.shape[1],
-                    "width": dataset.shape[2],
-                    "transform": transform,
-                    "compress": "LZW",
-                    "predictor": 3,
-                    "tiled": True,
-                }
-            )
-
-            # write dest raster
-            logging.info(f"Writing: {dest_path}")
-            with rasterio.open(dest_path, "w", **out_meta) as dest:
-                dest.write(dataset)
             # logging.debug(f"Building overviews for: {dest_path}")
             with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
                 with rasterio.open(dest_path, "r+") as dst:
                     dst.build_overviews([4, 8, 16], Resampling.nearest)
                     dst.update_tags(ns="rio_overview", resampling="nearest")
+
+    return missing_grids_kwse, missing_grids_nd
 
 
 def subset_gpkg(
@@ -143,7 +129,7 @@ def subset_gpkg(
     us_reach: str,
     ds_river: str,
     ds_reach: str,
-):
+) -> tuple:
     # TODO add logic for junctions/multiple river-reaches
 
     dest_gpkg_path = os.path.join(ras_project_dir, f"{nwm_id}.gpkg")
@@ -197,26 +183,41 @@ def subset_gpkg(
     # rename river reach
     xs_subset_gdf["river"] = nwm_id
     xs_subset_gdf["reach"] = nwm_id
+    xs_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
+
     river_subset_gdf["river"] = nwm_id
     river_subset_gdf["reach"] = nwm_id
+    river_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
+
+    # clean river stations
+    xs_subset_gdf["ras_data"] = xs_subset_gdf["ras_data"].apply(lambda ras_data: clean_river_stations(ras_data))
 
     # check if only 1 cross section for nwm_reach
     if len(xs_subset_gdf) <= 1:
-        shutil.rmtree(ras_project_dir)
+        # shutil.rmtree(ras_project_dir)
         logging.warning(f"Only 1 cross section conflated to NWM reach {nwm_id}. Skipping this reach.")
         return None
 
     # write data
+    os.makedirs(ras_project_dir, exist_ok=True)
     xs_subset_gdf.to_file(dest_gpkg_path, layer="XS", driver="GPKG")
     river_subset_gdf.to_file(dest_gpkg_path, layer="River", driver="GPKG")
 
-    return dest_gpkg_path
+    return dest_gpkg_path, xs_subset_gdf.crs.to_epsg()
 
 
-def update_river_station(ras_data, river_station):
+def clean_river_stations(ras_data: str) -> str:
     lines = ras_data.splitlines()
     data = lines[0].split(",")
-    data[1] = str(float(lines[0].split(",")[1]) + river_station).rstrip("0").ljust(8)
+    data[1] = str(float(lines[0].split(",")[1])).ljust(8)
+    lines[0] = ",".join(data)
+    return "\n".join(lines) + "\n"
+
+
+def update_river_station(ras_data: str, river_station: str) -> str:
+    lines = ras_data.splitlines()
+    data = lines[0].split(",")
+    data[1] = str(float(lines[0].split(",")[1]) + river_station).ljust(8)
     lines[0] = ",".join(data)
     return "\n".join(lines) + "\n"
 
@@ -251,20 +252,29 @@ def create_flow_depth_combinations(
         for flow in input_flows:
             if depth >= min_depths.loc[str(int(flow))]:
 
-                depths.append(depth)
-                flows.append(flow)
-                wses.append(wse)
-
+                depths.append(round(depth, 1))
+                flows.append(int(max([flow, MIN_FLOW])))
+                wses.append(round(wse, 1))
     return (depths, flows, wses)
 
 
-def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str):
-    rm = RasManager(ds_nwm_ras_project_file, projection=DEFAULT_EPSG)
-    rm.plan = rm.plans[ds_nwm_id + "_nd"]
+def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_name: str) -> list:
+    rm = RasManager(ds_nwm_ras_project_file, crs=DEFAULT_EPSG)
 
-    xs_gdf = rm.geoms[ds_nwm_id].xs_gdf
+    if plan_name not in rm.plans.keys():
+        print(f"{plan_name} is not an existing plan in the specified HEC-RAS model")
+        return np.array([])
+    rm.plan = rm.plans[plan_name]
 
-    river_station = xs_gdf["river_station"].max()
+    return determine_flow_increments(rm, plan_name, ds_nwm_id, ds_nwm_id, ds_nwm_id)[2]
 
-    thalweg = xs_gdf.loc[xs_gdf["river_station"] == river_station, "thalweg"]
-    return get_flow_depth_arrays(rm, ds_nwm_id, ds_nwm_id, river_station, thalweg)[2]
+
+def establish_order_of_nwm_ids(conflation_parameters: dict):
+    order = []
+    for id, data in conflation_parameters.items():
+        if conflation_parameters[id]["us_xs"]["xs_id"] == "-9999":
+            print(f"skipping {IndentationError}; no cross sections conflated.")
+        else:
+            order.append((float(data["us_xs"]["xs_id"]), id))
+    order.sort()
+    return [i[1] for i in order]

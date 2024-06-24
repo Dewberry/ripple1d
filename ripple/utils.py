@@ -43,13 +43,19 @@ def get_sessioned_s3_client():
     return s3_client
 
 
+def str_from_s3(ras_text_file_path, client, bucket):
+    logging.debug(f"reading: {ras_text_file_path}")
+    response = client.get_object(Bucket=bucket, Key=ras_text_file_path)
+    return response["Body"].read().decode("utf-8")
+
+
 def decode(df: pd.DataFrame):
     for c in df.columns:
         df[c] = df[c].str.decode("utf-8")
     return df
 
 
-def create_flow_depth_array(flow: list[float], depth: list[float], increment: float = 0.5):
+def create_flow_depth_array(flow: list[float], depth: list[float], increment: float = 0.5) -> tuple(np.array):
     min_depth = np.min(depth)
     max_depth = np.max(depth)
     start_depth = np.floor(min_depth * 2) / 2  # round down to nearest .0 or .5
