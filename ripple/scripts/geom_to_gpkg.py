@@ -16,6 +16,7 @@ from ripple.errors import (
 )
 from ripple.ras import RasFlowText, RasGeomText, RasPlanText, RasProject
 from ripple.ripple_logger import configure_logging
+from ripple.utils import get_sessioned_s3_client, str_from_s3
 
 
 def geom_flow_to_gpkg(geom, flow, plan_title: str, project_title: str, gpkg_file: str):
@@ -64,19 +65,15 @@ def geom_flow_xs_gdf(geom, flow, plan_title: str, project_title: str):
     return xs_gdf
 
 
-def str_from_s3(ras_text_file_path, client):
-    logging.debug(f"reading: {ras_text_file_path}")
-    response = client.get_object(Bucket=bucket, Key=ras_text_file_path)
-    return response["Body"].read().decode("utf-8")
-
-
-def detemine_primary_plan(ras_project, client, crs, ras_text_file_path):
+def detemine_primary_plan(
+    ras_project: str, client: boto3.session.Session.client, crs: CRS, ras_text_file_path: str, bucket: str
+):
     if len(ras_project.plans) == 1:
         plan_path = ras_project.plans[0]
-        string = str_from_s3(plan_path, client)
+        string = str_from_s3(plan_path, client, bucket)
         return RasPlanText.from_str(string, crs, plan_path)
     for plan_path in ras_project.plans:
-        string = str_from_s3(plan_path, client)
+        string = str_from_s3(plan_path, client, bucket)
         candidate_plans = []
         if not string.__contains__("Encroach Node"):
             candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
@@ -87,29 +84,25 @@ def detemine_primary_plan(ras_project, client, crs, ras_text_file_path):
 
 
 def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
-    # load s3 credentials
-    load_dotenv(find_dotenv())
-
-    session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-    client = session.client("s3")
+    client = get_sessioned_s3_client()
 
     # make temp directory
     temp_dir = tempfile.mkdtemp()
     temp_path = os.path.join(temp_dir, "temp.gpkg")
 
     # read ras project file get list of plans
-    string = str_from_s3(ras_text_file_path, client)
+    string = str_from_s3(ras_text_file_path, client, bucket)
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
     # determine primary plan
-    plan = detemine_primary_plan(ras_project, client, crs, ras_text_file_path)
+    plan = detemine_primary_plan(ras_project, client, crs, ras_text_file_path, bucket)
 
     # read flow string and write geopackage
-    string = str_from_s3(plan.plan_steady_file, client)
+    string = str_from_s3(plan.plan_steady_file, client, bucket)
     flow = RasFlowText.from_str(string, " .f01")
 
     # read geom string and write geopackage
-    string = str_from_s3(plan.plan_geom_file, client)
+    string = str_from_s3(plan.plan_geom_file, client, bucket)
     geom = RasGeomText.from_str(string, crs, " .g01")
 
     geom_flow_to_gpkg(geom, flow, plan.title, ras_project.title, temp_path)
@@ -161,6 +154,7 @@ def add_columns(cases_db_path: str, table_name: str, columns: list[str]):
 
 
 def insert_data(cases_db_path: str, table_name: str, data):
+    print(f"""INSERT OR REPLACE INTO {table_name} (exc, tb, gpkg, crs, key) VALUES (?, ?, ?, ?, ?)""")
     with sqlite3.connect(cases_db_path) as connection:
         cursor = connection.cursor()
         for key, val in data.items():
@@ -185,34 +179,36 @@ def create_table(cases_db_path: str, table_name: str):
 
 def main(cases_db_path: str, table_name: str, bucket: str = None):
     configure_logging(level=logging.ERROR, logfile="geom_to_gpkg.log")
-    create_table(cases_db_path, "geom_gpkg_A")
+    out_table=f"geom_gpkg_{table_name.split("_")[-1]}"
+    create_table(cases_db_path, out_table)
     data = {}
 
     for key, crs in read_case_db(cases_db_path, table_name):
         key = key.replace("s3://fim/", "")
         gpkg_path, exc, tb = ["null"] * 3
 
-        if key == "mip/dev2/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.prj":
-            logging.info(f"working on {key}")
-            try:
-                gpkg_path = process_one_geom(key, crs, bucket)
+        #if key == "mip/cases/06-05-B026S/06-05-B026S_2f2f15b551888158be423671a7bbe32215e3f26f/TSDNfy05/5_Misc Ref Materials/USACE_Floodway2004/St Louis District/HEC-RAS Models/MissFldwy.prj":
+        logging.info(f"working on {key}")
+        try:
+            gpkg_path = process_one_geom(key, crs, bucket)
 
-            except Exception as e:
-                exc = e
-                tb = traceback.format_exc()
-                logging.Error(exc)
-            data[key] = {"crs": crs, "gpkg": gpkg_path, "exc": str(exc), "tb": tb}
+        except Exception as e:
+            exc = e
+            tb = traceback.format_exc()
+            logging.Error(exc)
+        data[key] = {"crs": crs, "gpkg": gpkg_path, "exc": str(exc), "tb": tb}
 
-    insert_data(cases_db_path, table_name, data)
+    insert_data(cases_db_path, out_table, data)
 
 
 if __name__ == "__main__":
 
     cases_db_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\mip_models\cases.db"
-    table_name = "texas_ble"
+    table_name = "inferred_crs_A"
     bucket = "fim"  # "fim"
-    # main(cases_db_path, table_name, bucket)
+    main(cases_db_path, table_name, bucket)
 
-    prescribed_crs = 2277
-    key = "mip/dev2/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.prj"
-    process_one_geom(key, prescribed_crs, bucket)
+    #for running 1 key with a prescribed_crs
+    # prescribed_crs = 2277
+    # key = "mip/dev2/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.prj"
+    # process_one_geom(key, prescribed_crs, bucket)

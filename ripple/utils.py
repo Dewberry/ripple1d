@@ -43,6 +43,12 @@ def get_sessioned_s3_client():
     return s3_client
 
 
+def str_from_s3(ras_text_file_path, client, bucket):
+    logging.debug(f"reading: {ras_text_file_path}")
+    response = client.get_object(Bucket=bucket, Key=ras_text_file_path)
+    return response["Body"].read().decode("utf-8")
+
+
 def decode(df: pd.DataFrame):
     for c in df.columns:
         df[c] = df[c].str.decode("utf-8")
