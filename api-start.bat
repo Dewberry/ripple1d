@@ -5,7 +5,7 @@ set huey_consumer_full_path=
 for /f "delims=" %%i in ('where huey_consumer.py') do set huey_consumer_full_path=%%i
 
 :: Set up logs dir
-set logs_dir="api\logs\foo\bar"
+set logs_dir="api\logs\"
 echo "Deleting logs dir if exists: %logs_dir%"
 rmdir /s /q %logs_dir%
 if exist %logs_dir% (
