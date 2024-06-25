@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-import logging
 import os
-import traceback
 import typing
 
 from huey import SqliteHuey
@@ -19,13 +16,11 @@ from huey.signals import (
     SIGNAL_REVOKED,
 )
 
-from api import log
+from api.log import LOG_DIR, initialize_log
 from api.utils import tracerbacker
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-LOG = log.initialize_log(
-    os.path.join(LOG_DIR, f"ripple-{datetime.now(tz=timezone.utc).isoformat().replace(':','-')}.log")
-)
+
+LOG = initialize_log()
 
 # huey = SqliteHuey(filename="huey.db", results=True, strict_fifo=True)
 huey = SqliteHuey(filename=os.path.join(LOG_DIR, "huey.db"), results=True)

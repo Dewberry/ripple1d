@@ -1,5 +1,7 @@
 @echo off
 
+set thread_count=1
+
 :: Identify the full path to huey_consumer.py (ships with huey library)
 set huey_consumer_full_path=
 for /f "delims=" %%i in ('where huey_consumer.py') do set huey_consumer_full_path=%%i
@@ -25,7 +27,7 @@ if %errorlevel% neq 0 (
 
 :: Launch huey consumer in separate terminal
 echo "Starting ripple-huey"
-start "ripple-huey" cmd /k "python -u %huey_consumer_full_path% api.tasks.huey -w 1 -l api\logs\huey-consumer.log"
+start "ripple-huey" cmd /k "python -u %huey_consumer_full_path% api.tasks.huey -w %thread_count%"
 
 :: Launch Flask app in a separate terminal
 echo "Starting ripple-flask"

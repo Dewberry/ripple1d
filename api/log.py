@@ -1,20 +1,25 @@
-
 from __future__ import annotations
 
+from datetime import datetime, timezone
+import inspect
 import logging
 import os
 
-LOGS: dict[str, logging.RootLogger] = {}
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+LOGS: dict[str, logging.RootLogger] = {}  # global that is modified by initialize_log()
 
-def initialize_log(filename: str = None) -> None:
+
+def initialize_log() -> None:
     """Initialize log with json-style formatting and throttled level for AWS libs.
     By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead."""
     global LOGS
 
+    filename = os.path.join(LOG_DIR, f"{get_log_filename_prefix()}-{get_log_filename_prefix()}.log")
+
     # If this log has already been initialized, just return it
     if filename in LOGS:
         return LOGS[filename]
-    
+
     logging.getLogger("boto3").setLevel(logging.WARNING)
     logging.getLogger("botocore").setLevel(logging.WARNING)
 
@@ -40,3 +45,17 @@ def initialize_log(filename: str = None) -> None:
 
     LOGS[filename] = log
     return log
+
+
+def get_log_filename_prefix():
+    return f"{datetime.now(tz=timezone.utc).isoformat().replace(':','-')}-ripple"
+
+
+def get_log_filename_suffix():
+    stack_filenames = [frame.filename for frame in inspect.stack()]
+    if stack_filenames[-1].endswith("huey_consumer.py"):
+        return "huey"
+    for fn in stack_filenames:
+        if "flask.exe" in fn:
+            return "flask"
+    raise ValueError(f"Could not determine if process invoked by huey or by flask. Stack filenames: {stack_filenames}")
