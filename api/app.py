@@ -15,6 +15,11 @@ app = Flask(__name__)
 
 @app.route("/ping", methods=["GET"])
 def ping():
+    return jsonify({"status": "healthy"}), HTTPStatus.OK
+
+
+@app.route("/processes/test/execution", methods=["POST"])
+def test():
     response, http_status = process_async_request(tasks.noop)
     if http_status != HTTPStatus.CREATED:
         return jsonify(response.json, HTTPStatus.INTERNAL_SERVER_ERROR)
