@@ -9,7 +9,9 @@ from ripple.stacio.gpkg_utils import (
     create_geom_item,
     create_thumbnail_from_gpkg,
     get_asset_info,
+    get_river_miles,
     gpkg_to_geodataframe,
+    reproject,
 )
 from ripple.stacio.s3_utils import list_keys
 from ripple.stacio.utils.dg_utils import bbox_to_polygon
@@ -36,6 +38,7 @@ def new_gpkg_item(
     new_gpkg_item_s3_path: str,
     thumbnail_png_s3_path: str,
     ripple_version: str,
+    mip_case_no: str,
     dev_mode: bool = False,
 ):
     logging.info("Creating item from gpkg")
@@ -56,6 +59,10 @@ def new_gpkg_item(
         s3_client.download_file(Bucket=bucket_name, Key=gpkg_key, Filename=gpkg_local_path)
         # Convert gpkg to geodataframe for easy handling
         gdfs = gpkg_to_geodataframe(gpkg_local_path)
+        river_miles = get_river_miles(gdfs["River"])
+        crs = gdfs["River"].crs
+        gdfs = reproject(gdfs)
+        print(gdfs["River"].crs)
 
         logging.info("Creating png thumbnail")
         create_thumbnail_from_gpkg(gdfs, thumbnail_png_s3_path, s3_client)
@@ -63,7 +70,9 @@ def new_gpkg_item(
         # Create item
         bbox = pd.concat(gdfs).total_bounds
         footprint = bbox_to_polygon(bbox)
-        item = create_geom_item(gpkg_key, bbox, footprint, ripple_version)
+        item = create_geom_item(
+            gpkg_key, bbox, footprint, ripple_version, gdfs["XS"].iloc[0], river_miles, crs, mip_case_no
+        )
 
         asset_list = asset_list + [thumbnail_png_s3_path, gpkg_s3_path]
         for asset_file in asset_list:
@@ -84,16 +93,20 @@ def new_gpkg_item(
         logging.info("Program completed successfully")
 
 
-def main(gpkg_s3_path: str, new_gpkg_item_s3_path: str, thumbnail_png_s3_path: str, ripple_version: str):
-    new_gpkg_item(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path, ripple_version)
+def main(
+    gpkg_s3_path: str, new_gpkg_item_s3_path: str, thumbnail_png_s3_path: str, ripple_version: str, mip_case_no: str
+):
+    new_gpkg_item(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path, ripple_version, mip_case_no)
 
 
 if __name__ == "__main__":
-    ras_project_key = "s3://fim/mip/cases/02-NT-00125/02-NT-00125_22bab4a4899d250f530f94066beccecd11383540/SENECA_RIVER_131/seneca.prj"
+
+    ras_project_key = "s3://fim/mip/dev2/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.prj"
+    mip_case_no = "ble_test"
     root = os.path.splitext(ras_project_key)[0]
     gpkg_s3_path = f"{root}.gpkg"
     thumbnail_png_s3_path = f"{root}.png"
-    new_gpkg_item_s3_path = "s3://fim/stac/SENECA_RIVER_131.json"  # f"{root}.json"
+    new_gpkg_item_s3_path = "s3://fim/stac/BUMS CREEK test.json"  # f"{root}.json"
     ripple_version = "0.0.1"
-    main(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path, ripple_version)
+    main(gpkg_s3_path, new_gpkg_item_s3_path, thumbnail_png_s3_path, ripple_version, mip_case_no)
 # s3://fim/mip/dev/

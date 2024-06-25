@@ -22,6 +22,10 @@ class NoCRSInferredError(Exception):
     pass
 
 
+class UnkownCRSUnitsError(Exception):
+    pass
+
+
 class HECRASVersionNotInstalledError(Exception):
     pass
 
