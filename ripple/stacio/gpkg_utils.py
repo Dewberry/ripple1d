@@ -13,12 +13,28 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 import pystac
+from pyproj import CRS
 from shapely import Polygon, to_geojson
 
 from ripple.consts import LAYER_COLORS
+from ripple.errors import UnkownCRSUnitsError
 from ripple.utils import get_sessioned_s3_client, str_from_s3
 
 from .utils.s3_utils import split_s3_key
+
+
+def get_river_miles(river_gdf: gpd.GeoDataFrame):
+
+    if "units" not in river_gdf.crs.to_dict().keys():
+        raise UnkownCRSUnitsError("No units specified. The coordinate system may be Geographic.")
+    units = river_gdf.crs.to_dict()["units"]
+    if units in ["ft-us", "ft", "us-ft"]:
+        conversion_factor = 1 / 5280
+    elif units in ["m", "meters"]:
+        conversion_factor = 1 / 1609
+    else:
+        raise UnkownCRSUnitsError(f"Expected feet or meters; got: {units}")
+    return round(river_gdf.length.sum() * conversion_factor, 2)
 
 
 def gpkg_to_geodataframe(gpkg_local_path: str) -> dict:
@@ -36,8 +52,15 @@ def gpkg_to_geodataframe(gpkg_local_path: str) -> dict:
     gdfs = {}
 
     for layer in layers:
-        gdfs[layer] = gpd.read_file(gpkg_local_path, layer=layer).to_crs(4326)  # reproject to WSG 84
 
+        gdfs[layer] = gpd.read_file(gpkg_local_path, layer=layer)
+
+    return gdfs
+
+
+def reproject(gdfs: dict, crs=4326) -> dict:
+    for layer, gdf in gdfs.items():
+        gdfs[layer] = gdf.to_crs(4326)  # reproject to WSG 84
     return gdfs
 
 
@@ -78,7 +101,16 @@ def create_thumbnail_from_gpkg(gdfs: dict, png_s3_path: str, s3_client: boto3.Se
     s3_client.put_object(Bucket=bucket, Key=key, Body=buf, ContentType="image/png")
 
 
-def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float], ripple_version: str):
+def create_geom_item(
+    gpkg_key: str,
+    bbox: Polygon,
+    footprint: list[float],
+    ripple_version: str,
+    xs: gpd.GeoDataFrame,
+    river_miles: float,
+    crs: CRS,
+    mip_case_no: str,
+):
     """
     This function creates a PySTAC Item for a gpkg file stored in an AWS S3 bucket.
 
@@ -93,7 +125,7 @@ def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float], rippl
 
     gpkg_name = gpkg_key.split("/")[-1].replace(".gpkg", "")
 
-    item_id = gpkg_name + " Geometry"
+    item_id = gpkg_name
 
     # TODO: Adjust start_time selection for item
     start_time = datetime.utcnow()
@@ -102,7 +134,19 @@ def create_geom_item(gpkg_key: str, bbox: Polygon, footprint: list[float], rippl
         geometry=json.loads(to_geojson(footprint)),
         bbox=bbox.tolist(),
         datetime=start_time,
-        properties={"ripple: version": ripple_version},
+        properties={
+            "ripple: version": ripple_version,
+            "ras version": xs["version"],
+            "project title": xs["project_title"],
+            "plan title": xs["plan_title"],
+            "geom title": xs["geom_title"],
+            "flow title": xs["flow_title"],
+            "profile names": xs["profile_names"],
+            "mip:case_id": mip_case_no,
+            "river miles": str(river_miles),
+            "proj:wkt2": crs.to_wkt(),
+            "proj:epsg": crs.to_epsg(),
+        },
     )
 
     return item
