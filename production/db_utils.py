@@ -23,7 +23,7 @@ class PGFim:
         conn_string = f"dbname='{self.dbname}' user='{self.dbuser}' password='{self.dbpass}' host='{self.dbhost}' port='{self.dbport}'"
         return conn_string
 
-    def create_table(self, table: str, fields: list[tuple]):
+    def create_table(self, table: str, fields: list[str]):
         with psycopg2.connect(self.__conn_string()) as connection:
             fields_string = ""
             for field, data_type in fields:
@@ -31,10 +31,16 @@ class PGFim:
             cursor = connection.cursor()
             cursor.execute(sql.SQL(f"CREATE TABLE cases.{table} ({fields_string})"))
 
-    def read_cases(self, table: str):
+    def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition=""):
         with psycopg2.connect(self.__conn_string()) as connection:
             cursor = connection.cursor()
-            cursor.execute(sql.SQL(f"SELECT mip_case, key, crs FROM cases.{table}"))
+            fields_str = ""
+            for field in fields:
+                fields_str += f"{field}, "
+            sql_query = sql.SQL(
+                f"SELECT {fields_str.rstrip(', ')} FROM cases.{table} WHERE mip_group='{mip_group}' {optional_condition};"
+            )
+            cursor.execute(sql_query)
             return cursor.fetchall()
 
     def update_table(self, table: str, fields: tuple, values: tuple):
@@ -46,24 +52,26 @@ class PGFim:
                 VALUES ({tuple("%s" for i in range(len(fields)))})
                 """
             )
-            cursor.exectue(insert_query, values)
+            cursor.execute(insert_query, values)
             connection.commit()
 
-    def update_case_status(self, mip_group, mip_case, key, status, exc, traceback):
+    def update_case_status(
+        self, mip_group: str, mip_case: str, key: str, status: bool, exc: str, traceback: str, process: str
+    ):
         with psycopg2.connect(self.__conn_string()) as connection:
             cursor = connection.cursor()
             insert_query = sql.SQL(
-                """
-                INSERT INTO cases.processing(mip_group, mip_case, s3_key, gpkg_complete, gpkg_exc, gpkg_traceback) 
+                f"""
+                INSERT INTO cases.processing(s3_key,mip_group, case_id, {process}_complete, {process}_exc, {process}_traceback) 
                 VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (mip_group, mip_case, s3_key)
+                ON CONFLICT (s3_key)
                 DO UPDATE SET
-                gpkg_complete = EXCLUDED.gpkg_complete,
-                gpkg_exc = EXCLUDED.gpgk_exc
-                gpkg_traceback = EXCLUDED.gpkg_traceback
+                {process}_complete = EXCLUDED.{process}_complete,
+                {process}_exc = EXCLUDED.{process}_exc,
+                {process}_traceback = EXCLUDED.{process}_traceback
                 """
             )
-            cursor.execute(insert_query, (mip_group, mip_case, key, status, exc, traceback))
+            cursor.execute(insert_query, (key, mip_group, mip_case, status, exc, traceback))
             connection.commit()
 
 

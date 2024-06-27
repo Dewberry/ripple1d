@@ -86,11 +86,11 @@ class RasFimConflater:
     def load_gpkg(self, gpkg: str):
         layers = fiona.listlayers(gpkg)
         if "River" in layers:
-            self._ras_centerlines = gpd.read_file(self.ras_gpkg, "River")
+            self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
         if "XS" in layers:
-            self._ras_xs = gpd.read_file(self.ras_gpkg, "XS")
+            self._ras_xs = gpd.read_file(self.ras_gpkg, layer="XS")
         if "Junciton" in layers:
-            self._ras_junctions = gpd.read_file(self.ras_gpkg, "Junction")
+            self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
 
     def load_pq(self, nwm_pq: str):
         try:

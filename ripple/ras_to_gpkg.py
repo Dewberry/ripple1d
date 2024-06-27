@@ -133,7 +133,7 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     shutil.rmtree(temp_dir)
 
 
-def new_gpkg_item_s3(
+def new_stac_item_s3(
     gpkg_s3_key: str,
     new_stac_item_s3_key: str,
     thumbnail_png_s3_key: str,
