@@ -19,6 +19,7 @@ classifiers = [
 version = "0.0.1"
 dependencies = [
     "boto3",
+    "python-dotenv",
     "flask",
     "fiona",
     "h5py",
