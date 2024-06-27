@@ -17,7 +17,20 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 version = "0.0.1"
-dependencies = ["boto3", "h5py", "geopandas>=1.0.0", "matplotlib", "mypy_boto3_s3", "pystac>=1.10.0","pyarrow", "xarray"]
+dependencies = [
+    "boto3",
+    "flask",
+    "fiona",
+    "h5py",
+    "huey",
+    "geopandas>=1.0.0",
+    "matplotlib",
+    "mypy_boto3_s3",
+    "pystac>=1.10.0",
+    "pyarrow",
+    "rasterio",
+    "xarray",
+]
 
 [project.optional-dependencies]
 dev = ["pre-commit", "ruff", "pytest", "pytest-cov"]
