@@ -405,12 +405,11 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: boo
     us_data = ras_xs_geometry_data(rfc, us_xs)
     if extend_ds_xs:
         ds_xs += 1
-
     try:
         ds_data = ras_xs_geometry_data(rfc, ds_xs)
     except ValueError as e:
         ds_xs -= 1
-        logging.warning(f"error: {e}")
+        # logging.warning(f"No downstream XS's")
         ds_data = ras_xs_geometry_data(rfc, ds_xs)
 
     us_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0]

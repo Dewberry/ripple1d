@@ -1,7 +1,9 @@
 import json
 import logging
 from datetime import datetime
+from urllib.parse import urlencode
 
+import boto3
 import pystac
 
 from ripple.conflate.plotter import plot_conflation_results
@@ -18,11 +20,17 @@ logging.getLogger("botocore").setLevel(logging.ERROR)
 
 
 def href_to_vsis(href: str, bucket: str) -> str:
+    """Convert public aws href to a virtual ref for gdal read."""
     return href.replace(f"https://{bucket}.s3.amazonaws.com", f"/vsis3/{bucket}")
 
 
-def conflate(rfc: RasFimConflater):
+def s3_public_href(bucket: str, key: str) -> str:
+    """Convert bucket and key to public href."""
+    return urlencode(f"https://{bucket}.s3.amazonaws.com/{key}")
 
+
+def conflate(rfc: RasFimConflater):
+    """Conflate a HEC-RAS model with NWM reaches."""
     metadata = {}
     for river_reach_name in rfc.ras_river_reach_names:
         # logging.info(f"Processing {river_reach_name}")
@@ -41,11 +49,13 @@ def conflate(rfc: RasFimConflater):
     return metadata
 
 
-def conflate_s3_model(item, client, bucket, stac_item_s3_key, rfc, river_reach_name):
-
+def conflate_s3_model(
+    item: pystac.Item, client: boto3.client, bucket: str, stac_item_s3_key: str, rfc: RasFimConflater
+):
+    """Conflate a model from s3."""
     # build conflation key and href
     nwm_conflation_key = stac_item_s3_key.replace(".json", "-nwm_conflation.json")
-    nwm_conflation_href = f"https://{bucket}.s3.amazonaws.com/{nwm_conflation_key}"
+    nwm_conflation_href = s3_public_href(bucket, nwm_conflation_key)
 
     # conflate the mip ras model to nwm reaches
     conflation_results = conflate(rfc)
@@ -74,7 +84,7 @@ def conflate_s3_model(item, client, bucket, stac_item_s3_key, rfc, river_reach_n
     limit_plot = True
 
     conflation_thumbnail_key = nwm_conflation_key.replace("json", "png")
-    conflation_thumbnail_href = f"https://{bucket}.s3.amazonaws.com/{conflation_thumbnail_key}"
+    conflation_thumbnail_href = s3_public_href(bucket, conflation_thumbnail_key)
 
     ids = [r for r in conflation_results.keys() if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]]
 
