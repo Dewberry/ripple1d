@@ -14,10 +14,12 @@ def get_basic_object_metadata(obj: ObjectSummary) -> dict:
     """
     This function retrieves basic metadata of an AWS S3 object.
 
-    Parameters:
+    Parameters
+    ----------
         obj (ObjectSummary): The AWS S3 object.
 
-    Returns:
+    Returns
+    -------
         dict: A dictionary with the size, ETag, last modified date, storage platform, region, and storage tier of the object.
     """
     try:
@@ -38,7 +40,8 @@ def copy_item_to_s3(item, s3_key, s3client):
     """
     This function copies an item to an AWS S3 bucket.
 
-    Parameters:
+    Parameters
+    ----------
         item: The item to copy. It must have a `to_dict` method that returns a dictionary representation of it.
         s3_key (str): The file path in the S3 bucket to copy the item to.
 
@@ -56,10 +59,12 @@ def split_s3_key(s3_key: str) -> tuple[str, str]:
     """
     This function splits an S3 key into the bucket name and the key.
 
-    Parameters:
+    Parameters
+    ----------
         s3_key (str): The S3 key to split. It should be in the format 's3://bucket/key'.
 
-    Returns:
+    Returns
+    -------
         tuple: A tuple containing the bucket name and the key. If the S3 key does not contain a key, the second element
           of the tuple will be None.
 
@@ -79,10 +84,12 @@ def s3_key_public_url_converter(url: str, dev_mode: bool = False) -> str:
     """
     This function converts an S3 URL to an HTTPS URL and vice versa.
 
-    Parameters:
+    Parameters
+    ----------
         url (str): The URL to convert. It should be in the format 's3://bucket/' or 'https://bucket.s3.amazonaws.com/'.
 
-    Returns:
+    Returns
+    -------
         str: The converted URL. If the input URL is an S3 URL, the function returns an HTTPS URL. If the input URL is
         an HTTPS URL, the function returns an S3 URL.
 
@@ -91,7 +98,6 @@ def s3_key_public_url_converter(url: str, dev_mode: bool = False) -> str:
         2. If the input URL is an S3 URL, it converts it to an HTTPS URL.
         3. If the input URL is an HTTPS URL, it converts it to an S3 URL.
     """
-
     if url.startswith("s3"):
         bucket = url.replace("s3://", "").split("/")[0]
         key = url.replace(f"s3://{bucket}", "")[1:]

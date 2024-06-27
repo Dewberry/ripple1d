@@ -42,9 +42,8 @@ def write_projection_file(crs: CRS, terrain_directory: str):
     return projection_file
 
 
-def main(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict):
+def new_ras_terrain(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict):
     """Requires Windows with geospatial libs, so typically run using OSGeo4W shell."""
-
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
         print(f"skipping {nwm_id}; no cross sections conflated.")
     else:
@@ -60,7 +59,11 @@ def main(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters
         # clip dem
         src_dem_clipped_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
         logging.info(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
-        clip_raster(src_path=MAP_DEM_UNCLIPPED_SRC_URL, dst_path=src_dem_clipped_localfile, mask_polygon=mask)
+        clip_raster(
+            src_path=MAP_DEM_UNCLIPPED_SRC_URL,
+            dst_path=src_dem_clipped_localfile,
+            mask_polygon=mask,
+        )
 
         # write projection file
         projection_file = write_projection_file(gdf_xs.crs, terrain_directory)
@@ -74,15 +77,15 @@ def main(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters
         )
 
 
-if __name__ == "__main__":
-    conflation_json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJ Main.json"
+# if __name__ == "__main__":
+#     conflation_json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJ Main.json"
 
-    with open(conflation_json_path) as f:
-        conflation_parameters = json.load(f)
+#     with open(conflation_json_path) as f:
+#         conflation_parameters = json.load(f)
 
-    for nwm_id in conflation_parameters.keys():
+#     for nwm_id in conflation_parameters.keys():
 
-        output_terrain_hdf_filepath = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\Terrain.hdf"
-        gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.gpkg"
+#         output_terrain_hdf_filepath = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\Terrain.hdf"
+#         gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.gpkg"
 
-        main(output_terrain_hdf_filepath, gpkg_path, conflation_parameters[nwm_id])
+#         main(output_terrain_hdf_filepath, gpkg_path, conflation_parameters[nwm_id])

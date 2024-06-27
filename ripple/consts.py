@@ -45,3 +45,5 @@ LAYER_COLORS = OrderedDict(
         "XS": "green",
     }
 )
+
+RIPPLE_VERSION = "0.0.1"

@@ -9,15 +9,15 @@ from pyproj import CRS
 from ripple.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 
 TEST_DIR = os.path.dirname(__file__)
-TEST_ITEM_FILE = "ras-data/baxter.json"
+TEST_ITEM_FILE = "ras-data\\baxter.json"
 TEST_ITEM_PATH = os.path.join(TEST_DIR, TEST_ITEM_FILE)
 
-RAS_PROJECT = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.prj")
-RAS_PLAN = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.p01")
-RAS_GEOM = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.g02")
-RAS_FLOW = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.f01")
-PROJECTION_FILE = os.path.join(TEST_DIR, "ras-data/Baxter/CA_SPCS_III_NAVD88.prj")
-NEW_GPKG = os.path.join(TEST_DIR, "ras-data/Baxter/new.gpkg")
+RAS_PROJECT = os.path.join(TEST_DIR, "ras-data\\Baxter\\Baxter.prj")
+RAS_PLAN = os.path.join(TEST_DIR, "ras-data\\Baxter\\Baxter.p01")
+RAS_GEOM = os.path.join(TEST_DIR, "ras-data\\Baxter\\Baxter.g02")
+RAS_FLOW = os.path.join(TEST_DIR, "ras-data\\Baxter\\Baxter.f01")
+PROJECTION_FILE = os.path.join(TEST_DIR, "ras-data\\Baxter\\CA_SPCS_III_NAVD88.prj")
+NEW_GPKG = os.path.join(TEST_DIR, "ras-data\\Baxter\\new.gpkg")
 
 
 @pytest.fixture(scope="class")
@@ -27,7 +27,7 @@ def setup_data(request):
     request.cls.PROJECTION = crs
     request.cls.ras_project = RasProject(RAS_PROJECT)
     request.cls.ras_plan = RasPlanText(RAS_PLAN)
-    request.cls.ras_geom = RasGeomText(RAS_GEOM, projection=CRS(crs))
+    request.cls.ras_geom = RasGeomText(RAS_GEOM, crs=CRS(crs))
     request.cls.ras_flow = RasFlowText(RAS_FLOW)
 
 
@@ -43,11 +43,11 @@ class TestProject(unittest.TestCase):
 
         for geom in self.ras_project.geoms:
             extension = Path(geom).suffix
-            self.assertEqual(extension, ".g02")
+            self.assertIn(extension, [".g02"])
 
         for steady_flow in self.ras_project.steady_flows:
             extension = Path(steady_flow).suffix
-            self.assertEqual(extension, ".f01")
+            self.assertIn(extension, [".f01"])
 
         for unsteady_flow in self.ras_project.unsteady_flows:
             extension = Path(unsteady_flow).suffix
@@ -64,8 +64,8 @@ class TestPlan(unittest.TestCase):
         self.assertEqual(len(self.ras_plan.contents), 171)
         self.assertEqual(self.ras_plan.title, "Steady Flows")
         self.assertEqual(self.ras_plan.version, "5.00")
-        self.assertEqual(self.ras_plan.plan_geom_file, "g02")
-        self.assertEqual(self.ras_plan.plan_steady_flow, "f01")
+        self.assertEqual(self.ras_plan.plan_geom_extension, "g02")
+        self.assertEqual(self.ras_plan.plan_steady_extension, "f01")
 
     def test_new_plan(self):
         pass

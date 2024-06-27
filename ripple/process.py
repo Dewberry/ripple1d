@@ -70,7 +70,11 @@ def determine_flow_increments(
 
 
 def post_process_depth_grids(
-    rm: RasManager, nwm_id: str, nwm_data: dict, except_missing_grid: bool = False, dest_directory=None
+    rm: RasManager,
+    nwm_id: str,
+    nwm_data: dict,
+    except_missing_grid: bool = False,
+    dest_directory=None,
 ) -> tuple(list[str]):
     """
     Clip depth grids based on their associated NWM branch and respective cross sections.
@@ -242,10 +246,10 @@ def create_flow_depth_combinations(
             of the downstream cross section of the reach
         min_depths (pd.Series): minimum depth to be included. (typically derived from a previous noraml depth run)
 
-    Returns:
+    Returns
+    -------
         tuple: tuple of depths, flows, and wses
     """
-
     depths, flows, wses = [], [], []
     for wse, depth in zip(ds_wses, ds_depths):
 

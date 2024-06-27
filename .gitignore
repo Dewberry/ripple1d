@@ -163,6 +163,8 @@ test.py
 *sqlite.py
 *process.ipynb
 *.db
+*.db-shm
+*.db-wal
 tests/ras-data/Baxter/test
 tests/ras-data/Baxter/nwm_models
 tests/ras-data/Baxter/Terrain
@@ -171,3 +173,5 @@ tests/ras-data/WFSJMAIN/
 .vscode/settings.json
 mip_models
 tests/ras-data/combined
+dev
+/api/logs/*.log

@@ -1,0 +1,63 @@
+[project]
+name = "ripple"
+description = "HEC-RAS model automation"
+readme = "README.md"
+maintainers = [
+    { name = "Seth Lawler", email = "slawler@dewberry.com" },
+    { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" }
+]
+classifiers = [
+    "Development Status :: 1 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+version = "0.0.1"
+dependencies = [
+    "boto3",
+    "python-dotenv",
+    "flask",
+    "fiona",
+    "h5py",
+    "huey",
+    "geopandas>=1.0.0",
+    "matplotlib",
+    "mypy_boto3_s3",
+    "pystac>=1.10.0",
+    "pyarrow",
+    "rasterio",
+    "requests",
+    "pywin32",
+    "xarray",
+]
+
+[project.optional-dependencies]
+dev = ["pre-commit", "ruff", "pytest", "pytest-cov"]
+docs = ["sphinx", "numpydoc", "sphinx_rtd_theme"]
+
+[project.urls]
+repository = "https://github.com/dewberry/ripple"
+
+[project.scripts]
+rashdf = "cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = "ripple"
+testpaths = "tests"
+
+[tool.ruff.lint]
+select = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"docs/**" = ["D"]
+
+[tool.setuptools]
+packages = ["ripple"]

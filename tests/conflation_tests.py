@@ -1,11 +1,13 @@
 import json
+import logging
 import os
 import unittest
-import logging 
+
 import geopandas as gpd
 import pandas as pd
 import pytest
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
+
 from ripple.conflate.rasfim import (
     RasFimConflater,
     cacl_avg_nearest_points,
@@ -14,7 +16,7 @@ from ripple.conflate.rasfim import (
     filter_gdf,
     nearest_line_to_point,
 )
-from ripple.conflate.run_rasfim import main
+from ripple.ops.conflate_ras_model import conflate
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/baxter.json"
@@ -28,10 +30,14 @@ RAS_XS = 173
 GAGES = 1
 
 # Other expected data
-RIVER_REACHES = ["Baxter River, Upper Reach", "Tule Creek, Tributary", "Baxter River, Lower Reach"]
-LOW_FLOW_DATA = "high_water_threshold.parquet"
-NWM_REACHES_DATA = "flow_paths.parquet"
-NWM_REACHE_IDS=[2826228]
+RIVER_REACHES = [
+    "Baxter River, Upper Reach",
+    "Tule Creek, Tributary",
+    "Baxter River, Lower Reach",
+]
+
+NWM_REACHES_DATA = "flows.parquet"
+NWM_REACHE_IDS = [2826228]
 RAS_DIR = "Baxter"
 RAS_GEOMETRY_GPKG = "Baxter.gpkg"
 
@@ -115,17 +121,13 @@ class TestRasFimConflater(unittest.TestCase):
 class TestConflationExample(unittest.TestCase):
     def setUp(self):
         self.conflater.load_data()
-        self.low_flows = pd.read_parquet(os.path.join(TEST_DIR, "nwm-data", LOW_FLOW_DATA))
 
     def test_main_function(self):
-        metadata = main(self.conflater, self.low_flows)
+        metadata = conflate(self.conflater)
         for reach in NWM_REACHE_IDS:
             self.assertIn(reach, metadata.keys())
 
-
-        test_data_results = os.path.join(
-            TEST_DIR, "ras-data", RAS_DIR, "baxter-ripple-params.json"
-        )
+        test_data_results = os.path.join(TEST_DIR, "ras-data", RAS_DIR, "baxter-ripple-params.json")
         with open(test_data_results, "r") as f:
             expected_metadata = f.read()
             self.assertEqual(json.dumps(metadata, indent=4), expected_metadata)

@@ -6,6 +6,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString, Point
 
+from .errors import NotGeoreferencedError
 from .utils import (
     data_pairs_from_text_block,
     search_contents,
@@ -65,7 +66,11 @@ class XS:
 
     @property
     def number_of_coords(self):
-        return int(search_contents(self.ras_data, "XS GIS Cut Line", expect_one=True))
+        try:
+            return int(search_contents(self.ras_data, "XS GIS Cut Line", expect_one=True))
+        except ValueError as e:
+            return 0
+            # raise NotGeoreferencedError(f"No coordinates found for cross section: {self.river_reach_rs} ")
 
     @property
     def thalweg(self):
@@ -80,9 +85,12 @@ class XS:
     @property
     def coords(self):
         lines = text_block_from_start_str_length(
-            f"XS GIS Cut Line={self.number_of_coords}", math.ceil(self.number_of_coords / 2), self.ras_data
+            f"XS GIS Cut Line={self.number_of_coords}",
+            math.ceil(self.number_of_coords / 2),
+            self.ras_data,
         )
-        return data_pairs_from_text_block(lines, 32)
+        if lines:
+            return data_pairs_from_text_block(lines, 32)
 
     @property
     def number_of_station_elevation_points(self):
@@ -103,7 +111,6 @@ class XS:
 
     @property
     def gdf(self):
-
         return gpd.GeoDataFrame(
             {
                 "geometry": [LineString(self.coords)],
@@ -144,13 +151,19 @@ class Reach:
     @property
     def us_xs(self):
         return self.cross_sections[
-            self.xs_gdf.loc[self.xs_gdf["river_station"] == self.xs_gdf["river_station"].max(), "river_reach_rs"][0]
+            self.xs_gdf.loc[
+                self.xs_gdf["river_station"] == self.xs_gdf["river_station"].max(),
+                "river_reach_rs",
+            ][0]
         ]
 
     @property
     def ds_xs(self):
         return self.cross_sections[
-            self.xs_gdf.loc[self.xs_gdf["river_station"] == self.xs_gdf["river_station"].min(), "river_reach_rs"][0]
+            self.xs_gdf.loc[
+                self.xs_gdf["river_station"] == self.xs_gdf["river_station"].min(),
+                "river_reach_rs",
+            ][0]
         ]
 
     @property
@@ -164,7 +177,9 @@ class Reach:
     @property
     def coords(self):
         lines = text_block_from_start_str_length(
-            f"Reach XY= {self.number_of_coords} ", math.ceil(self.number_of_coords / 2), self.ras_data
+            f"Reach XY= {self.number_of_coords} ",
+            math.ceil(self.number_of_coords / 2),
+            self.ras_data,
         )
         return data_pairs_from_text_block(lines, 32)
 
@@ -180,7 +195,12 @@ class Reach:
             type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")[:5]
             if type != " 1 ":
                 continue
-            xs_lines = text_block_from_start_str_to_empty_line(f"Type RM Length L Ch R ={header}", self.ras_data)
+            xs_lines = text_block_from_start_end_str(
+                f"Type RM Length L Ch R ={header}",
+                "Exp/Cntr=",
+                self.ras_data,
+                include_end_line=True,
+            )
             cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
             cross_sections[cross_section.river_reach_rs] = cross_section
 
@@ -232,19 +252,43 @@ class Junction:
 
     @property
     def upstream_rivers(self):
-        return ",".join(self.split_lines(search_contents(self.ras_data, "Up River,Reach", expect_one=False), ",", 0))
+        return ",".join(
+            self.split_lines(
+                search_contents(self.ras_data, "Up River,Reach", expect_one=False),
+                ",",
+                0,
+            )
+        )
 
     @property
     def downstream_rivers(self):
-        return ",".join(self.split_lines(search_contents(self.ras_data, "Dn River,Reach", expect_one=False), ",", 0))
+        return ",".join(
+            self.split_lines(
+                search_contents(self.ras_data, "Dn River,Reach", expect_one=False),
+                ",",
+                0,
+            )
+        )
 
     @property
     def upstream_reaches(self):
-        return ",".join(self.split_lines(search_contents(self.ras_data, "Up River,Reach", expect_one=False), ",", 1))
+        return ",".join(
+            self.split_lines(
+                search_contents(self.ras_data, "Up River,Reach", expect_one=False),
+                ",",
+                1,
+            )
+        )
 
     @property
     def downstream_reaches(self):
-        return ",".join(self.split_lines(search_contents(self.ras_data, "Dn River,Reach", expect_one=False), ",", 1))
+        return ",".join(
+            self.split_lines(
+                search_contents(self.ras_data, "Dn River,Reach", expect_one=False),
+                ",",
+                1,
+            )
+        )
 
     @property
     def junction_lengths(self):

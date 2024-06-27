@@ -120,21 +120,21 @@ class FIMCollectionRasItem(FIMCollection):
         for asset_name in self.item.get_assets(role="forcing-file"):
             asset = self.item.assets[asset_name]
             try:
-                asset.roles.append("ras-file")
+                asset.roles.append("hec-ras")
             except Exception:
                 logging.warning(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="geometry-file"):
             asset = self.item.assets[asset_name]
             try:
-                asset.roles.append("ras-file")
+                asset.roles.append("hec-ras")
             except Exception:
                 logging.warning(f"no data role: {asset.href}")
 
         for asset_name in self.item.get_assets(role="plan-file"):
             asset = self.item.assets[asset_name]
             try:
-                asset.roles.append("ras-file")
+                asset.roles.append("hec-ras")
             except Exception:
                 logging.warning(f"no data role: {asset.href}")
 
@@ -142,7 +142,7 @@ class FIMCollectionRasItem(FIMCollection):
             asset = self.item.assets[asset_name]
             try:
                 asset.roles.remove("projection")
-                asset.roles.append("ras-file")
+                asset.roles.append("hec-ras")
                 asset.roles.append("project-file")
             except Exception:
                 logging.warning(f"no data role: {asset.href}")
@@ -240,7 +240,6 @@ class FIMCollectionRasItem(FIMCollection):
         TODO: Placeholder function for adding ripple-params to FIM collection items.
         This assumes the conflation output is in the same directory as the `project-file` asset
         """
-
         if asset_role != "project-file":
             raise NotImplementedError("Only project-file is supported at this time.")
 

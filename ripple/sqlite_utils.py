@@ -43,7 +43,12 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame):
             INSERT OR REPLACE INTO {[table_name]} (control_by_reach_stage, flow, stage,reach_id)
             VALUES ( ?, ?, ?, ?)
         """,
-            (float(row.control_by_reach_stage), float(row.flow), float(row.stage), int(row.reach_id)),
+            (
+                float(row.control_by_reach_stage),
+                float(row.flow),
+                float(row.stage),
+                int(row.reach_id),
+            ),
         )
 
     conn.commit()

@@ -11,13 +11,14 @@ from typing import List
 import fiona
 import geopandas as gpd
 import h5py
-import numpy as np
+
+# import numpy as np
 import pandas as pd
 from pyproj import CRS
 
 from .consts import (
     FLOW_HDF_PATH,
-    MIN_FLOW,
+    # MIN_FLOW,
     NORMAL_DEPTH,
     PROFILE_NAMES_HDF_PATH,
     SUPPORTED_LAYERS,
@@ -28,15 +29,18 @@ from .consts import (
 )
 from .data_model import FlowChangeLocation, Junction, Reach
 from .errors import (
-    CouldNotFindAnyPlansError,
+    # CouldNotFindAnyPlansError,
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
     NoCrossSectionLayerError,
+    NoFlowFileSpecifiedError,
+    NoGeometryFileSpecifiedError,
     NoRiverLayerError,
     PlanTitleAlreadyExistsError,
     RASComputeTimeoutError,
-    ToManyPlansError,
 )
+
+# ToManyPlansError,
 from .rasmap import PLAN, RASMAP_631, TERRAIN
 from .utils import (
     assert_no_mesh_error,
@@ -86,7 +90,11 @@ def write_new_plan_text_file(func):
         if "write_depth_grids" in kwargs:
             # populate new plan info
             plan_text_file.new_plan_contents(
-                title, title, self.flows[title], self.geoms[geom_title], kwargs["write_depth_grids"]
+                title,
+                title,
+                self.flows[title],
+                self.geoms[geom_title],
+                kwargs["write_depth_grids"],
             )
 
         # write content
@@ -225,7 +233,12 @@ class RasManager:
 
     @classmethod
     def from_gpkg(
-        cls, ras_project_text_file: str, nwm_id, ras_gpkg_file_path: str, version: str = "631", terrain_path: str = None
+        cls,
+        ras_project_text_file: str,
+        nwm_id,
+        ras_gpkg_file_path: str,
+        version: str = "631",
+        terrain_path: str = None,
     ):
         inst = cls(
             ras_project_text_file,
@@ -310,7 +323,6 @@ class RasManager:
             close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
             show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
         """
-
         compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
 
         RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER")
@@ -416,7 +428,6 @@ class RasManager:
         """
         Write a rasmapper file to output depth grids for the current plan
         """
-
         # manage rasmapper
         map_file = f"{self.ras_project._ras_root_path}.rasmap"
 
@@ -432,7 +443,11 @@ class RasManager:
         rasmap = RasMap(map_file, self.plan.geom, self.version)
         rasmap.update_crs(self.projection_file)
         rasmap.add_terrain(terrain_name, terrain_relative_path)
-        rasmap.add_plan_layer(self.plan.title, os.path.basename(self.plan.hdf_file), self.plan.flow.profile_names)
+        rasmap.add_plan_layer(
+            self.plan.title,
+            os.path.basename(self.plan.hdf_file),
+            self.plan.flow.profile_names,
+        )
         rasmap.add_result_layers(self.plan.title, self.plan.flow.profile_names, "Depth")
         rasmap.write()
 
@@ -496,7 +511,10 @@ class RasProject(RasTextFile):
         os.makedirs(self._ras_dir, exist_ok=True)
 
         if new_file:
-            self.contents = [f"Proj Title={self._ras_project_basename}", "Current Plan="]
+            self.contents = [
+                f"Proj Title={self._ras_project_basename}",
+                "Current Plan=",
+            ]
 
     def __repr__(self):
         return f"RasProject({self._ras_text_file_path})"
@@ -609,7 +627,12 @@ class RasPlanText(RasTextFile):
 
     @property
     def plan_geom_extension(self):
-        return search_contents(self.contents, "Geom File")
+        try:
+            return search_contents(self.contents, "Geom File")
+        except ValueError:
+            raise NoGeometryFileSpecifiedError(
+                f"Could not find a specified geometry file for plan: {self.title} | {self._ras_text_file_path}"
+            )
 
     @property
     def plan_unsteady_extension(self):
@@ -617,7 +640,12 @@ class RasPlanText(RasTextFile):
 
     @property
     def plan_steady_extension(self):
-        return search_contents(self.contents, "Flow File")
+        try:
+            return search_contents(self.contents, "Flow File")
+        except ValueError:
+            raise NoFlowFileSpecifiedError(
+                f"Could not find a specified flow file for plan: {self.title} | {self._ras_text_file_path}"
+            )
 
     @property
     @check_crs
@@ -664,10 +692,10 @@ class RasPlanText(RasTextFile):
         """
         populate the content of the plan with basic attributes (title, short_id, flow, and geom)
 
-        Raises:
+        Raises
+        ------
             RuntimeError: raise run time error if the plan already has content associated with it
         """
-
         if self.contents:
             raise RuntimeError(f"content already exists for this plan: {self._ras_text_file_path}")
 
@@ -699,13 +727,14 @@ class RasPlanText(RasTextFile):
         """
         Read the flow and water surface elevations resulting from the computed plan
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError: _description_
 
-        Returns:
+        Returns
+        -------
             dict: A dictionary containing "wse" and "flow" keys whose values are pandas dataframes
         """
-
         # check if the hdf file exists; raise error if it does not
         if not self.hdf_file:
             self.hdf_file = self.text_file + ".hdf"
@@ -883,7 +912,10 @@ class RasGeomText(RasTextFile):
     @add_fid_index
     def junction_gdf(self):
         if self.junctions:
-            return pd.concat([junction.gdf for junction in self.junctions.values()], ignore_index=True)
+            return pd.concat(
+                [junction.gdf for junction in self.junctions.values()],
+                ignore_index=True,
+            )
 
     @property
     @check_crs
@@ -898,7 +930,7 @@ class RasGeomText(RasTextFile):
         self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
         self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
-            self.junction_gdf.to_file(gpkg_path, diver="GPKG", layer="Junction")
+            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
 
 
 class RasFlowText(RasTextFile):
@@ -943,7 +975,8 @@ class RasFlowText(RasTextFile):
             title (str): title of the flow
             profile_names (list[str]): profile names for the flow
 
-        Returns:
+        Returns
+        -------
             list (list[str]): lines of the flow content
         """
         lines = [
@@ -963,7 +996,6 @@ class RasFlowText(RasTextFile):
             reach (str): Ras reach
             river_station (float): Ras river station
         """
-
         lines = []
         lines.append(f"River Rch & RM={river},{reach.ljust(16,' ')},{str(river_station).ljust(8,' ')}")
         line = ""
@@ -1034,7 +1066,13 @@ class RasFlowText(RasTextFile):
                     flows.append(float(line[i : i + 8].lstrip(" ")))
                     if len(flows) == self.n_profiles:
                         flow_change_locations.append(
-                            FlowChangeLocation(river, reach.rstrip(" "), float(rs), flows, self.profile_names)
+                            FlowChangeLocation(
+                                river,
+                                reach.rstrip(" "),
+                                float(rs),
+                                flows,
+                                self.profile_names,
+                            )
                         )
 
                     if len(flow_change_locations) == self.n_flow_change_locations:
@@ -1074,7 +1112,8 @@ class RasMap:
         """
         Read contents of the file. Searches for the file locally and on s3.
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError:
         """
         if os.path.exists(self.text_file):
@@ -1101,10 +1140,10 @@ class RasMap:
         Args:
             projection_file (str): path to projeciton file containing the coordinate system (.prj)
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError:
         """
-
         directory = os.path.dirname(self.text_file)
         crs_base = os.path.basename(projection_file)
 
@@ -1128,7 +1167,6 @@ class RasMap:
             profiles (list[str]): Profiles for the output raster(s)
             variable (str): Variable to create rasters for. Currently "Depth" is the only supported variable.
         """
-
         if variable not in ["Depth"]:
             raise NotImplementedError(
                 f"Variable {variable} not currently implemented. Currently only Depth is supported."
@@ -1179,7 +1217,6 @@ class RasMap:
         """
         Add Terrain to RasMap content
         """
-
         lines = []
         for line in self.contents.splitlines():
 
@@ -1196,7 +1233,6 @@ class RasMap:
         """
         write Ras Map contents to file
         """
-
         logging.info(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as f:
@@ -1238,7 +1274,8 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
         dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys
             and objects plan/geom/flow as values.
 
-    Returns:
+    Returns
+    -------
         new file extension (str): The new file exension.
     """
     extension_number = []
