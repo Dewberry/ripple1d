@@ -14,7 +14,7 @@ def initialize_log() -> None:
     By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead."""
     global LOGS
 
-    filename = os.path.join(LOG_DIR, f"{get_log_filename_prefix()}-{get_log_filename_prefix()}.log")
+    filename = os.path.join(LOG_DIR, f"{get_log_filename_prefix()}-{get_log_filename_suffix()}.log")
 
     # If this log has already been initialized, just return it
     if filename in LOGS:
