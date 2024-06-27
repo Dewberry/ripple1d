@@ -10,7 +10,19 @@ class ModelNotFoundError(Exception):
     pass
 
 
+class NotGeoreferencedError(Exception):
+    pass
+
+
 class CouldNotIdentifyPrimaryPlanError(Exception):
+    pass
+
+
+class NoFlowFileSpecifiedError(Exception):
+    pass
+
+
+class NoGeometryFileSpecifiedError(Exception):
     pass
 
 

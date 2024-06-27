@@ -32,6 +32,8 @@ from .errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
     NoCrossSectionLayerError,
+    NoFlowFileSpecifiedError,
+    NoGeometryFileSpecifiedError,
     NoRiverLayerError,
     PlanTitleAlreadyExistsError,
     RASComputeTimeoutError,
@@ -609,7 +611,12 @@ class RasPlanText(RasTextFile):
 
     @property
     def plan_geom_extension(self):
-        return search_contents(self.contents, "Geom File")
+        try:
+            return search_contents(self.contents, "Geom File")
+        except ValueError:
+            raise NoGeometryFileSpecifiedError(
+                f"Could not find a specified geometry file for plan: {self.title} | {self._ras_text_file_path}"
+            )
 
     @property
     def plan_unsteady_extension(self):
@@ -617,7 +624,12 @@ class RasPlanText(RasTextFile):
 
     @property
     def plan_steady_extension(self):
-        return search_contents(self.contents, "Flow File")
+        try:
+            return search_contents(self.contents, "Flow File")
+        except ValueError:
+            raise NoFlowFileSpecifiedError(
+                f"Could not find a specified flow file for plan: {self.title} | {self._ras_text_file_path}"
+            )
 
     @property
     @check_crs
