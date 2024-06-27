@@ -1,17 +1,34 @@
+import json
 import logging
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 import boto3
 import pandas as pd
+import pystac
 from pyproj import CRS
 
-from ripple.errors import (
-    CouldNotIdentifyPrimaryPlanError,
-    NotAPrjFile,
-)
+from ripple.errors import CouldNotIdentifyPrimaryPlanError
 from ripple.ras import RasFlowText, RasGeomText, RasPlanText, RasProject
+from ripple.stacio.gpkg_utils import (
+    create_geom_item,
+    create_thumbnail_from_gpkg,
+    get_asset_info,
+    get_river_miles,
+    gpkg_to_geodataframe,
+    reproject,
+)
+from ripple.stacio.s3_utils import list_keys
+from ripple.stacio.utils.dg_utils import bbox_to_polygon
+
+# from utils.dg_utils import *
+from ripple.stacio.utils.s3_utils import (
+    get_basic_object_metadata,
+    init_s3_resources,
+    s3_key_public_url_converter,
+)
 from ripple.utils import get_sessioned_s3_client, str_from_s3
 
 
@@ -116,18 +133,69 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     shutil.rmtree(temp_dir)
 
 
-def process_one_geom(
-    key: str,
-    crs: str,
-    bucket: str = None,
+def new_gpkg_item_s3(
+    gpkg_s3_key: str,
+    new_stac_item_s3_key: str,
+    thumbnail_png_s3_key: str,
+    bucket: str,
+    ripple_version: str,
+    mip_case_no: str,
+    dev_mode: bool = False,
 ):
-    # create path name for gpkg
-    if key.endswith(".prj"):
-        gpkg_path = key.replace("prj", "gpkg")
-    else:
-        raise NotAPrjFile(f"{key} does not have a '.prj' extension")
+    logging.info("Creating item from gpkg")
+    # Instantitate S3 resources
 
-    # read the geometry and write the geopackage
-    if bucket:
-        geom_to_gpkg_s3(key, crs, gpkg_path, bucket)
-    return f"s3://{bucket}/{gpkg_path}"
+    session, s3_client, s3_resource = init_s3_resources(dev_mode)
+    print(gpkg_s3_key.replace(Path(gpkg_s3_key).name, ""))
+    asset_list = list_keys(s3_client, bucket, gpkg_s3_key.replace(Path(gpkg_s3_key).name, ""))
+
+    gdfs = gpkg_to_geodataframe(f"s3://{bucket}/{gpkg_s3_key}")
+    river_miles = get_river_miles(gdfs["River"])
+    crs = gdfs["River"].crs
+    gdfs = reproject(gdfs)
+
+    logging.info("Creating png thumbnail")
+    create_thumbnail_from_gpkg(gdfs, thumbnail_png_s3_key, bucket, s3_client)
+
+    # Create item
+    bbox = pd.concat(gdfs).total_bounds
+    footprint = bbox_to_polygon(bbox)
+    item = create_geom_item(
+        gpkg_s3_key,
+        bbox,
+        footprint,
+        ripple_version,
+        gdfs["XS"].iloc[0],
+        river_miles,
+        crs,
+        mip_case_no,
+    )
+
+    asset_list = asset_list + [thumbnail_png_s3_key, gpkg_s3_key]
+    for asset_key in asset_list:
+        obj = s3_resource.Bucket(bucket).Object(asset_key)
+        metadata = get_basic_object_metadata(obj)
+        asset_info = get_asset_info(asset_key, bucket)
+        if asset_key == thumbnail_png_s3_key:
+            asset = pystac.Asset(
+                s3_key_public_url_converter(f"s3://{bucket}/{asset_key}"),
+                extra_fields=metadata,
+                roles=asset_info["roles"],
+                description=asset_info["description"],
+            )
+        else:
+            asset = pystac.Asset(
+                f"s3://{bucket}/{asset_key}",
+                extra_fields=metadata,
+                roles=asset_info["roles"],
+                description=asset_info["description"],
+            )
+        item.add_asset(asset_info["title"], asset)
+
+    s3_client.put_object(
+        Body=json.dumps(item.to_dict()).encode(),
+        Bucket=bucket,
+        Key=new_stac_item_s3_key,
+    )
+
+    logging.info("Program completed successfully")

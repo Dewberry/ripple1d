@@ -1,15 +1,9 @@
-import argparse
 import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 
-import boto3
-import pandas as pd
 import pystac
-import pystac_client
-import requests
 
 from ripple.conflate.plotter import plot_conflation_results
 from ripple.conflate.rasfim import (
@@ -49,7 +43,7 @@ def conflate(rfc: RasFimConflater):
     return metadata
 
 
-def main(item, client, bucket, stac_item_s3_key, rfc, river_reach_name):
+def conflate_s3_model(item, client, bucket, stac_item_s3_key, rfc, river_reach_name):
 
     # build conflation key and href
     nwm_conflation_key = stac_item_s3_key.replace(".json", "-nwm_conflation.json")
@@ -115,45 +109,45 @@ def main(item, client, bucket, stac_item_s3_key, rfc, river_reach_name):
     client.put_object(Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=stac_item_s3_key)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.INFO, filename="conflate_with_stac-v1.log")
+#     logging.basicConfig(level=logging.INFO, filename="conflate_with_stac-v1.log")
 
-    # parser = argparse.ArgumentParser(description="")
-    # parser.add_argument("--collection_id", type=str, required=True, help="Collection ID")
+#     # parser = argparse.ArgumentParser(description="")
+#     # parser.add_argument("--collection_id", type=str, required=True, help="Collection ID")
 
-    # args = parser.parse_args()
-    # collection_id = args.collection_id
-    bucket = "fim"
+#     # args = parser.parse_args()
+#     # collection_id = args.collection_id
+#     bucket = "fim"
 
-    stac_item_href = "https://fim.s3.amazonaws.com/stac/dev2/Caney%20Creek-Lake%20Creek/BUMS%20CREEK/BUMS%20CREEK.json"
-    stac_item_s3_key = stac_item_href.replace(f"https://{bucket}.s3.amazonaws.com/", "").replace("%20", " ")
-    nwm_pq_path = r"C:\Users\mdeshotel\Downloads\nwm_flows_v3.parquet"
+#     stac_item_href = "https://fim.s3.amazonaws.com/stac/dev2/Caney%20Creek-Lake%20Creek/BUMS%20CREEK/BUMS%20CREEK.json"
+#     stac_item_s3_key = stac_item_href.replace(f"https://{bucket}.s3.amazonaws.com/", "").replace("%20", " ")
+#     nwm_pq_path = r"C:\Users\mdeshotel\Downloads\nwm_flows_v3.parquet"
 
-    session, client, s3_resource = init_s3_resources()
+#     session, client, s3_resource = init_s3_resources()
 
-    item = pystac.Item.from_file(stac_item_href)
+#     item = pystac.Item.from_file(stac_item_href)
 
-    logging.info(item.id)
+#     logging.info(item.id)
 
-    for asset in item.get_assets(role="ras-geometry-gpkg"):
-        gpkg_name = Path(item.assets[asset].href).name
-        ras_gpkg = href_to_vsis(item.assets[asset].href, bucket="fim")
+#     for asset in item.get_assets(role="ras-geometry-gpkg"):
+#         gpkg_name = Path(item.assets[asset].href).name
+#         ras_gpkg = href_to_vsis(item.assets[asset].href, bucket="fim")
 
-    rfc = RasFimConflater(nwm_pq_path, ras_gpkg)
+#     rfc = RasFimConflater(nwm_pq_path, ras_gpkg)
 
-    for river_reach_name in rfc.ras_river_reach_names:
-        logging.info(f"item_id {item.id}, river_reach {river_reach_name}")
+#     for river_reach_name in rfc.ras_river_reach_names:
+#         logging.info(f"item_id {item.id}, river_reach {river_reach_name}")
 
-    try:
-        main(
-            item,
-            client,
-            bucket,
-            stac_item_s3_key,
-            rfc,
-            river_reach_name,
-        )
-        logging.info(f"{item.id}: Successfully processed")
-    except Exception as e:
-        logging.error(f"{item.id}: Error processing | {e}")
+#     try:
+#         conflate_s3_model(
+#             item,
+#             client,
+#             bucket,
+#             stac_item_s3_key,
+#             rfc,
+#             river_reach_name,
+#         )
+#         logging.info(f"{item.id}: Successfully processed")
+#     except Exception as e:
+#         logging.error(f"{item.id}: Error processing | {e}")

@@ -1,13 +1,10 @@
-import logging
 import os
 import sqlite3
-import traceback
 
 import psycopg2
-from dotenv import find_dotenv, load_dotenv
+from dotenv import load_dotenv
 from psycopg2 import sql
 
-from ripple.ripple_logger import configure_logging
 from ripple.stacio.s3_utils import list_keys
 from ripple.utils import get_sessioned_s3_client
 
@@ -112,7 +109,7 @@ def create_table(cases_db_path: str, table_name: str):
         connection.commit()
 
 
-def create_tx_ble_db(s3_prefix: str, crs: int, db_path: str):
+def create_tx_ble_db(s3_prefix: str, crs: int, db_path: str, bucket: str = "fim"):
 
     if os.path.exists(db_path):
         os.remove(db_path)

@@ -11,13 +11,14 @@ from typing import List
 import fiona
 import geopandas as gpd
 import h5py
-import numpy as np
+
+# import numpy as np
 import pandas as pd
 from pyproj import CRS
 
 from .consts import (
     FLOW_HDF_PATH,
-    MIN_FLOW,
+    # MIN_FLOW,
     NORMAL_DEPTH,
     PROFILE_NAMES_HDF_PATH,
     SUPPORTED_LAYERS,
@@ -28,7 +29,7 @@ from .consts import (
 )
 from .data_model import FlowChangeLocation, Junction, Reach
 from .errors import (
-    CouldNotFindAnyPlansError,
+    # CouldNotFindAnyPlansError,
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
     NoCrossSectionLayerError,
@@ -37,8 +38,9 @@ from .errors import (
     NoRiverLayerError,
     PlanTitleAlreadyExistsError,
     RASComputeTimeoutError,
-    ToManyPlansError,
 )
+
+# ToManyPlansError,
 from .rasmap import PLAN, RASMAP_631, TERRAIN
 from .utils import (
     assert_no_mesh_error,

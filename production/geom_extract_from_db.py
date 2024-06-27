@@ -3,12 +3,32 @@ import traceback
 
 from dotenv import find_dotenv, load_dotenv
 
+from ripple.errors import (
+    NotAPrjFile,
+)
+from ripple.ras_to_gpkg import geom_to_gpkg_s3
 from ripple.ripple_logger import configure_logging
-from ripple.scripts.geom_to_gpkg import process_one_geom
 
 from .db_utils import PGFim
 
 load_dotenv()
+
+
+def process_one_geom(
+    key: str,
+    crs: str,
+    bucket: str = None,
+):
+    # create path name for gpkg
+    if key.endswith(".prj"):
+        gpkg_path = key.replace("prj", "gpkg")
+    else:
+        raise NotAPrjFile(f"{key} does not have a '.prj' extension")
+
+    # read the geometry and write the geopackage
+    if bucket:
+        geom_to_gpkg_s3(key, crs, gpkg_path, bucket)
+    return f"s3://{bucket}/{gpkg_path}"
 
 
 def main(cases_db_path: str, table_name: str, bucket: str = None):
