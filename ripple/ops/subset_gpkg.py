@@ -14,7 +14,6 @@ def new_gpkg(
     """
     Using ripple conflation data, creates a new GPKG from an existing ras geopackage
     """
-
     if ripple_parameters["us_xs"]["xs_id"] == "-9999":
         ripple_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         print(ripple_parameters["messages"])

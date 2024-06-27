@@ -1,69 +1,69 @@
-class ProjectionNotFoundError(Exception):
-    pass
+class ProjectionNotFoundError(Exception):  # noqa: D100
+    """TODO."""
 
 
 class NoDefaultEPSGError(Exception):
-    pass
+    """TODO."""
 
 
 class ModelNotFoundError(Exception):
-    pass
+    """TODO."""
 
 
 class NotGeoreferencedError(Exception):
-    pass
+    """TODO."""
 
 
 class CouldNotIdentifyPrimaryPlanError(Exception):
-    pass
+    """TODO."""
 
 
 class NoFlowFileSpecifiedError(Exception):
-    pass
+    """TODO."""
 
 
 class NoGeometryFileSpecifiedError(Exception):
-    pass
+    """TODO."""
 
 
 class NotAPrjFile(Exception):
-    pass
+    """TODO."""
 
 
 class NoCRSInferredError(Exception):
-    pass
+    """TODO."""
 
 
 class UnkownCRSUnitsError(Exception):
-    pass
+    """TODO."""
 
 
 class HECRASVersionNotInstalledError(Exception):
-    pass
+    """TODO."""
 
 
 class NoRiverLayerError(Exception):
-    pass
+    """TODO."""
 
 
 class NoCrossSectionLayerError(Exception):
-    pass
+    """TODO."""
 
 
 class FlowTitleAlreadyExistsError(Exception):
-    pass
+    """TODO."""
 
 
 class PlanTitleAlreadyExistsError(Exception):
-    pass
+    """TODO."""
 
 
 class CouldNotFindAnyPlansError(Exception):
-    pass
+    """TODO."""
 
 
 class ToManyPlansError(Exception):
-    pass
+    """TODO."""
 
 
 class RASComputeTimeoutError(Exception):
@@ -71,20 +71,20 @@ class RASComputeTimeoutError(Exception):
 
 
 class RASComputeError(Exception):
-    """Raised when *.pNN.computeMsgs.txt indicates error"""
+    """Raised when *.pNN.computeMsgs.txt indicates error."""
 
 
 class RASComputeMeshError(Exception):
-    """Raised when *.pNN.computeMsgs.txt indicates mesh-specific error"""
+    """Raised when *.pNN.computeMsgs.txt indicates mesh-specific error."""
 
 
 class RASGeometryError(Exception):
-    """Raised when *.pNN.computeMsgs.txt indicates geometry-specific error"""
+    """Raised when *.pNN.computeMsgs.txt indicates geometry-specific error."""
 
 
 class RASStoreAllMapsError(Exception):
-    """Raised when *.pNN.computeMsgs.txt indicates StoreAllMaps error (related to RAS Mapper postprocessing)"""
+    """Raised when *.pNN.computeMsgs.txt indicates StoreAllMaps error (related to RAS Mapper postprocessing)."""
 
 
 class DepthGridNotFoundError(Exception):
-    """Raised when a depth grid is not found when clipping raw RAS output"""
+    """Raised when a depth grid is not found when clipping raw RAS output."""

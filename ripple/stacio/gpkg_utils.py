@@ -41,14 +41,15 @@ def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
     """
     Converts a local geopackage file to a GeoDataFrame.
 
-    Parameters:
+    Parameters
+    ----------
         gpkg_key (str): Path of locally saved geopackage.
 
-    Returns:
+    Returns
+    -------
         gpkg_gdf (dict): dictionary of GeoDataFrame.
 
     """
-
     layers = fiona.listlayers(gpkg_s3_uri)
     gdfs = {}
 
@@ -69,13 +70,13 @@ def create_thumbnail_from_gpkg(gdfs: dict, png_s3_key: str, bucket: str, s3_clie
     """
     Generates a PNG thumbnail for a geopandas dataframe and uploads it to AWS S3.
 
-    Parameters:
+    Parameters
+    ----------
     - gdf (dict): A dictionary of geopandas dataframes containing the geometries to plot.
     - png_s3_key (str): The S3 path where the generated PNG thumbnail is to be stored.
     - bucket (str): The S3 bucket
     - s3_client: The AWS S3 client instance used for uploading the PNG.
     """
-
     # Define colors for each layer type
 
     # Plotting
@@ -115,15 +116,16 @@ def create_geom_item(
     """
     This function creates a PySTAC Item for a gpkg file stored in an AWS S3 bucket.
 
-    Parameters:
+    Parameters
+    ----------
         gpkg_key (str): gpkg file key for item_id naming.
         bbox: Item bounding box.
         footprint: Item Footprint.
 
-    Returns:
+    Returns
+    -------
         pystac.Item: The PySTAC Item representing the gpkg file.
     """
-
     gpkg_name = gpkg_key.split("/")[-1].replace(".gpkg", "")
 
     item_id = gpkg_name
@@ -157,14 +159,15 @@ def parse_featuresproperties(json_data, metadata_to_remove):
     """
     Parses and cleans FeaturesProperties data from json. Removes unwanted fields.
 
-    Parameters:
+    Parameters
+    ----------
         json_data (dict): Input JSON data containing the metadata to be parsed.
         metadata_to_remove (list): List of metadata fields to be removed from the output.
 
-    Returns:
+    Returns
+    -------
         dict: Organized FeaturesProperties data.
     """
-
     # Navigate to FeaturesProperties within the JSON data
     geometry_files = json_data["Files"]["InputFiles"]["GeometryFiles"]["FeaturesProperties"]
 
@@ -195,11 +198,13 @@ def parse_control_files(json_data, metadata_to_remove):
     """
     Parses and cleans ControlFiles data from json. Removes unwanted fields.
 
-    Parameters:
+    Parameters
+    ----------
         json_data (dict): Input JSON data containing the metadata to be parsed.
         metadata_to_remove (list): List of metadata fields to be removed from the output.
 
-    Returns:
+    Returns
+    -------
         dict: Organized ControlFiles data.
     """
     # Navigate to ControlFiles within the JSON data
@@ -229,11 +234,13 @@ def parse_forcingfiles(json_data, metadata_to_remove):
     """
     Parses and cleans ForcingFiles data from json. Removes unwanted fields.
 
-    Parameters:
+    Parameters
+    ----------
         json_data (dict): Input JSON data containing the metadata to be parsed.
         metadata_to_remove (list): List of metadata fields to be removed from the output.
 
-    Returns:
+    Returns
+    -------
         dict: Organized ForcingFiles data.
     """
     # Navigate to ForcingFiles within the JSON data
@@ -265,14 +272,15 @@ def parse_metadata(json_data, metadata_to_remove):
     """
     Parses and cleans metadata from a JSON object. Combines metadata from GeometryFiles, ControlFiles, and ForcingFiles.
 
-    Parameters:
+    Parameters
+    ----------
         json_data (dict): Input JSON data containing the metadata to be parsed.
         metadata_to_remove (list): List of metadata fields to be removed from the output.
 
-    Returns:
+    Returns
+    -------
         dict: Processed metadata with specified fields removed.
     """
-
     # Initialize a single dictionary to hold all reformatted data entries
     comprehensive_data = {}
 
@@ -308,13 +316,14 @@ def parse_metadata(json_data, metadata_to_remove):
 def get_asset_info(asset_key: str, bucket: str):
     """This function generates information for an asset based on its file extension.
 
-    Parameters:
+    Parameters
+    ----------
         asset_key (str): The S3 key of the asset.
 
-    Returns:
+    Returns
+    -------
         dict: A dictionary with the roles, the description, and the title of the asset.
     """
-
     file_extension = Path(asset_key).suffix.lstrip(".")
     title = Path(asset_key).name.replace(" ", "_")
     description = ""
@@ -369,15 +378,16 @@ def find_hash(item_metadata: Dict, asset_file: str):
     This function searches through a metadata dictionary for an asset file based on the file's extension.
     It then extracts and returns the hash value associated with that file extension from the metadata.
 
-    Parameters:
+    Parameters
+    ----------
         item_metadata (dict): A dictionary containing metadata items with hash info.
         asset_file (str): The path to the asset file.
 
-    Returns:
+    Returns
+    -------
         hash_dict (Dict): A dictionary with a single key-value pair where the value is the hash for the
         asset file. Returns an empty dictionary if no hash is found for the file extension.
     """
-
     hash_dict = {}
 
     file_extension = Path(asset_file).suffix.lstrip(".")
@@ -393,13 +403,14 @@ def remove_hash_from_metadata(item_metadata: Dict):
     """
     Removes "Hash" from each key (if it exists) in metedata dictionary.
 
-    Parameters:
+    Parameters
+    ----------
         item_metadata (Dict): Dictionary of item metadata with hashs.
 
-    Returns:
+    Returns
+    -------
         no_hash_metadata (Dict): New metadata dictionary without hash info.
     """
-
     # Copy the dictionary to avoid modifying the original
     no_hash_metadata = item_metadata.copy()
     for key in no_hash_metadata:

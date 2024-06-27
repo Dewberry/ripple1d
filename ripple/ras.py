@@ -323,7 +323,6 @@ class RasManager:
             close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
             show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
         """
-
         compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
 
         RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER")
@@ -429,7 +428,6 @@ class RasManager:
         """
         Write a rasmapper file to output depth grids for the current plan
         """
-
         # manage rasmapper
         map_file = f"{self.ras_project._ras_root_path}.rasmap"
 
@@ -694,10 +692,10 @@ class RasPlanText(RasTextFile):
         """
         populate the content of the plan with basic attributes (title, short_id, flow, and geom)
 
-        Raises:
+        Raises
+        ------
             RuntimeError: raise run time error if the plan already has content associated with it
         """
-
         if self.contents:
             raise RuntimeError(f"content already exists for this plan: {self._ras_text_file_path}")
 
@@ -729,13 +727,14 @@ class RasPlanText(RasTextFile):
         """
         Read the flow and water surface elevations resulting from the computed plan
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError: _description_
 
-        Returns:
+        Returns
+        -------
             dict: A dictionary containing "wse" and "flow" keys whose values are pandas dataframes
         """
-
         # check if the hdf file exists; raise error if it does not
         if not self.hdf_file:
             self.hdf_file = self.text_file + ".hdf"
@@ -976,7 +975,8 @@ class RasFlowText(RasTextFile):
             title (str): title of the flow
             profile_names (list[str]): profile names for the flow
 
-        Returns:
+        Returns
+        -------
             list (list[str]): lines of the flow content
         """
         lines = [
@@ -996,7 +996,6 @@ class RasFlowText(RasTextFile):
             reach (str): Ras reach
             river_station (float): Ras river station
         """
-
         lines = []
         lines.append(f"River Rch & RM={river},{reach.ljust(16,' ')},{str(river_station).ljust(8,' ')}")
         line = ""
@@ -1113,7 +1112,8 @@ class RasMap:
         """
         Read contents of the file. Searches for the file locally and on s3.
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError:
         """
         if os.path.exists(self.text_file):
@@ -1140,10 +1140,10 @@ class RasMap:
         Args:
             projection_file (str): path to projeciton file containing the coordinate system (.prj)
 
-        Raises:
+        Raises
+        ------
             FileNotFoundError:
         """
-
         directory = os.path.dirname(self.text_file)
         crs_base = os.path.basename(projection_file)
 
@@ -1167,7 +1167,6 @@ class RasMap:
             profiles (list[str]): Profiles for the output raster(s)
             variable (str): Variable to create rasters for. Currently "Depth" is the only supported variable.
         """
-
         if variable not in ["Depth"]:
             raise NotImplementedError(
                 f"Variable {variable} not currently implemented. Currently only Depth is supported."
@@ -1218,7 +1217,6 @@ class RasMap:
         """
         Add Terrain to RasMap content
         """
-
         lines = []
         for line in self.contents.splitlines():
 
@@ -1235,7 +1233,6 @@ class RasMap:
         """
         write Ras Map contents to file
         """
-
         logging.info(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as f:
@@ -1277,7 +1274,8 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
         dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys
             and objects plan/geom/flow as values.
 
-    Returns:
+    Returns
+    -------
         new file extension (str): The new file exension.
     """
     extension_number = []

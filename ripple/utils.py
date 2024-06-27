@@ -125,8 +125,8 @@ def s3_upload_status_file(
     output location on s3.  If e is None, then upload a 'succeed' json file.  Either file
     will have key "time" indicating the time that the file was uploaded.  A 'fail' file will
     also have keys "err" and "traceback" containing the exception as a string and the Python
-    traceback of the exception, respectively."""
-
+    traceback of the exception, respectively.
+    """
     s3_output_key_succeed, s3_output_key_fail = s3_get_ripple_status_file_key_names(stac_href, s3_bucket, s3_client)
 
     time_now_str = datetime.now(tz=timezone.utc).isoformat()
@@ -176,7 +176,8 @@ def s3_get_ripple_status_file_key_names(
     stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient
 ) -> tuple[str, str]:
     """Return two S3 key paths, the first to a succeed sentinel file, the second t oa failure sentinel file.
-    This function does not check if the keys exist."""
+    This function does not check if the keys exist.
+    """
     _, s3_output_dir_key = extract_bucketname_and_keyname(s3_get_output_s3path(s3_bucket, stac_href))
     s3_output_key_succeed = posixpath.join(s3_output_dir_key, "ripple-succeed.json")
     s3_output_key_fail = posixpath.join(s3_output_dir_key, "ripple-fail.json")
@@ -238,7 +239,6 @@ def get_terrain_exe_path(ras_ver: str) -> str:
 
 def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
-
     points = xs.boundary.explode(index_parts=True).unstack()
     points_last_xs = [Point(coord) for coord in xs["geometry"].iloc[-1].coords]
     points_first_xs = [Point(coord) for coord in xs["geometry"].iloc[0].coords[::-1]]
@@ -296,7 +296,6 @@ def download_model(
     """
     Download HEC-RAS model from stac href
     """
-
     # make RAS directory if it does not exists
     if not os.path.exists(ras_directory):
         os.makedirs(ras_directory)
@@ -366,7 +365,6 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, inc
     Search for an exact match to the start_str and return
     all lines from there to a line that contains the end_str.
     """
-
     results = []
     in_block = False
     for line in lines:
@@ -393,7 +391,6 @@ def text_block_from_start_str_to_empty_line(start_str: str, lines: list):
     Search for an exact match to the start_str and return
     all lines from there to the next empty line.
     """
-
     results = []
     in_block = False
     for line in lines:
@@ -419,7 +416,6 @@ def text_block_from_start_str_length(start_str: str, number_of_lines: int, lines
 
     start_token:
     """
-
     results = []
     in_block = False
     for line in lines:

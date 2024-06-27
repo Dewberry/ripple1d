@@ -55,7 +55,8 @@ class RasFimConflater:
         load_data (bool, optional): Load the data on initialization. Defaults to True.
         bucket (str, optional): S3 bucket to read data from. Defaults to "fim".
 
-    Raises:
+    Raises
+    ------
         ValueError: Required layer not found in the GeoPackage
         DriverError: Unable to read the GeoPackage
     """

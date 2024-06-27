@@ -246,10 +246,10 @@ def create_flow_depth_combinations(
             of the downstream cross section of the reach
         min_depths (pd.Series): minimum depth to be included. (typically derived from a previous noraml depth run)
 
-    Returns:
+    Returns
+    -------
         tuple: tuple of depths, flows, and wses
     """
-
     depths, flows, wses = [], [], []
     for wse, depth in zip(ds_wses, ds_depths):
 

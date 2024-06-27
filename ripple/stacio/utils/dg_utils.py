@@ -28,11 +28,13 @@ def get_raster_bounds(
     """
     This function retrieves the geographic bounds of a raster file stored in an AWS S3 bucket and returns them in the WGS 84 (EPSG:4326) coordinate reference system.
 
-    Parameters:
+    Parameters
+    ----------
         s3_key (str): The key of the raster file in the S3 bucket.
         aws_session (AWSSession): The AWS session to use to access the S3 bucket.
 
-    Returns:
+    Returns
+    -------
         Tuple[float, float, float, float]: The geographic bounds of the raster file in the WGS 84 (EPSG:4326) coordinate reference system. The bounds are returned as a tuple of four floats: (west, south, east, north).
     """
     if dev_mode:
@@ -55,11 +57,13 @@ def get_raster_metadata(s3_key: str, aws_session: AWSSession, dev_mode: bool = F
     """
     This function retrieves the metadata of a raster file stored in an AWS S3 bucket.
 
-    Parameters:
+    Parameters
+    ----------
         s3_key (str): The key of the raster file in the S3 bucket.
         aws_session (AWSSession): The AWS session to use to access the S3 bucket.
 
-    Returns:
+    Returns
+    -------
         dict: The metadata of the raster file. The metadata is returned as a dictionary
         where the keys are the names of the metadata items and the values are the values of the metadata items.
     """
@@ -76,10 +80,12 @@ def bbox_to_polygon(bbox) -> shapely.Polygon:
     """
     This function converts a bounding box to a Shapely Polygon.
 
-    Parameters:
+    Parameters
+    ----------
         bbox: The bounding box to convert. It should be a sequence of four numbers: (min_x, min_y, max_x, max_y).
 
-    Returns:
+    Returns
+    -------
         shapely.Polygon: The Shapely Polygon representing the bounding box. The Polygon is a rectangle with the lower
           left corner at (min_x, min_y) and the upper right corner at (max_x, max_y).
     """
@@ -100,12 +106,14 @@ def create_depth_grid_item(
     """
     This function creates a PySTAC Item for a depth grid raster file stored in an AWS S3 bucket.
 
-    Parameters:
+    Parameters
+    ----------
         s3_obj (Object): The s3 object of the raster file in the S3 bucket.
         item_id (str): The ID to assign to the PySTAC Item.
         aws_session (AWSSession): The AWS session to use to access the S3 bucket.
 
-    Returns:
+    Returns
+    -------
         pystac.Item: The PySTAC Item representing the raster file. The Item has an Asset with the href set to the S3
         key of the raster file, the title set to the name of the raster file, the media type set to COG, and the role
         set to "ras-depth-grid". The Asset's extra fields are updated with the basic object metadata of the raster file

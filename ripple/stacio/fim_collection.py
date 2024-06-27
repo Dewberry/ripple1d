@@ -240,7 +240,6 @@ class FIMCollectionRasItem(FIMCollection):
         TODO: Placeholder function for adding ripple-params to FIM collection items.
         This assumes the conflation output is in the same directory as the `project-file` asset
         """
-
         if asset_role != "project-file":
             raise NotImplementedError("Only project-file is supported at this time.")
 
