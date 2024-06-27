@@ -38,7 +38,14 @@ def main(
     """
 
     # read stac item, download ras model, load nwm conflation parameters
-    r = read_ras(ras_directory, conflation_params, terrain_name, bucket, s3_client, postprocessed_output_s3_path)
+    r = read_ras(
+        ras_directory,
+        conflation_params,
+        terrain_name,
+        bucket,
+        s3_client,
+        postprocessed_output_s3_path,
+    )
 
     # increment flows based on min and max flows specified in conflation parameters
     r.conflation_params = increment_rc_flows(r.conflation_params, number_of_discharges_for_rating_curve)

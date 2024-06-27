@@ -18,4 +18,4 @@ xs_gdf.to_file(combined_gpkg, layer="XS")
 reach_gdf.to_file(combined_gpkg, layer="River")
 
 
-rm=RasManager.from_gpkg(ras_project_text_file, "combined", combined_gpkg, version="631")
+rm = RasManager.from_gpkg(ras_project_text_file, "combined", combined_gpkg, version="631")

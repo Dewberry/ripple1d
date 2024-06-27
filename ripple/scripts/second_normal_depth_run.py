@@ -36,7 +36,12 @@ def main(
             nwm_id,
         )
 
-        fcl = FlowChangeLocation(nwm_id, nwm_id, rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station, flows)
+        fcl = FlowChangeLocation(
+            nwm_id,
+            nwm_id,
+            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
+            flows,
+        )
         # write and compute flow/plans for normal_depth run
         rm.normal_depth_run(
             plan_name,

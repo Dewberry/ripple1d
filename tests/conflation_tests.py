@@ -1,7 +1,7 @@
 import json
 import os
 import unittest
-import logging 
+import logging
 import geopandas as gpd
 import pandas as pd
 import pytest
@@ -28,10 +28,14 @@ RAS_XS = 173
 GAGES = 1
 
 # Other expected data
-RIVER_REACHES = ["Baxter River, Upper Reach", "Tule Creek, Tributary", "Baxter River, Lower Reach"]
+RIVER_REACHES = [
+    "Baxter River, Upper Reach",
+    "Tule Creek, Tributary",
+    "Baxter River, Lower Reach",
+]
 LOW_FLOW_DATA = "high_water_threshold.parquet"
 NWM_REACHES_DATA = "flow_paths.parquet"
-NWM_REACHE_IDS=[2826228]
+NWM_REACHE_IDS = [2826228]
 RAS_DIR = "Baxter"
 RAS_GEOMETRY_GPKG = "Baxter.gpkg"
 
@@ -122,10 +126,7 @@ class TestConflationExample(unittest.TestCase):
         for reach in NWM_REACHE_IDS:
             self.assertIn(reach, metadata.keys())
 
-
-        test_data_results = os.path.join(
-            TEST_DIR, "ras-data", RAS_DIR, "baxter-ripple-params.json"
-        )
+        test_data_results = os.path.join(TEST_DIR, "ras-data", RAS_DIR, "baxter-ripple-params.json")
         with open(test_data_results, "r") as f:
             expected_metadata = f.read()
             self.assertEqual(json.dumps(metadata, indent=4), expected_metadata)

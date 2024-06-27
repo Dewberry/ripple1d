@@ -96,7 +96,11 @@ def main(ras_model_stac_href: str):
         if not (-180 <= min(ras.stac_item.bbox) <= 180) and (-180 <= max(ras.stac_item.bbox) <= 180):
             raise ValueError(f"Unexpected value outside of range -180 to 180 found in bbox: {ras.stac_item.bbox}")
 
-        clip_raster(src_path=MAP_DEM_UNCLIPPED_SRC_URL, dst_path=src_dem_clipped_localfile, mask=mask)
+        clip_raster(
+            src_path=MAP_DEM_UNCLIPPED_SRC_URL,
+            dst_path=src_dem_clipped_localfile,
+            mask=mask,
+        )
 
         # Make the RAS mapping terrain locally
         map_dem_dir = os.path.join(tmp_dir, MAP_DEM_DIRNAME)

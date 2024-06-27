@@ -4,7 +4,13 @@ import os
 from ripple.process import subset_gpkg
 
 
-def main(ras_project_directory: str, ras_gpkg_file_path: str, nwm_id: str, ripple_parameters: dict, ripple_version):
+def main(
+    ras_project_directory: str,
+    ras_gpkg_file_path: str,
+    nwm_id: str,
+    ripple_parameters: dict,
+    ripple_version,
+):
 
     if ripple_parameters["us_xs"]["xs_id"] == "-9999":
         ripple_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."

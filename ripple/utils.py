@@ -34,6 +34,7 @@ load_dotenv(find_dotenv())
 
 def get_sessioned_s3_client():
     """Use env variables to establish a boto3 (AWS) session and return that session's S3 client handle."""
+    load_dotenv(find_dotenv())
     session = boto3.Session(
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
@@ -114,7 +115,12 @@ def extract_bucketname_and_keyname(s3path: str) -> tuple[str, str]:
     return bucket, key
 
 
-def s3_upload_status_file(stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient, e: Exception | None):
+def s3_upload_status_file(
+    stac_href: str,
+    s3_bucket: str,
+    s3_client: botocore.client.BaseClient,
+    e: Exception | None,
+):
     """If e is a Python exception, then upload a 'fail' json file to the href's standard
     output location on s3.  If e is None, then upload a 'succeed' json file.  Either file
     will have key "time" indicating the time that the file was uploaded.  A 'fail' file will
@@ -129,7 +135,11 @@ def s3_upload_status_file(stac_href: str, s3_bucket: str, s3_client: botocore.cl
         body = {"time": time_now_str}
     elif isinstance(e, Exception):
         s3_output_key = s3_output_key_fail
-        body = {"time": time_now_str, "err": str(e), "traceback": "".join(traceback.format_tb(e.__traceback__))}
+        body = {
+            "time": time_now_str,
+            "err": str(e),
+            "traceback": "".join(traceback.format_tb(e.__traceback__)),
+        }
     else:
         raise TypeError(f"For e, expected None or type Exception, but got type: {type(e)}")
 
@@ -140,7 +150,12 @@ def s3_upload_status_file(stac_href: str, s3_bucket: str, s3_client: botocore.cl
 
     body_str = json.dumps(body, indent=2)
     logging.debug(f"Writing: {s3_output_key} with body: {body_str}")
-    s3_client.put_object(Body=body_str, Bucket=s3_bucket, Key=s3_output_key, ContentType="application/json")
+    s3_client.put_object(
+        Body=body_str,
+        Bucket=s3_bucket,
+        Key=s3_output_key,
+        ContentType="application/json",
+    )
 
 
 def s3_ripple_status_succeed_file_exists(stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient) -> bool:
@@ -234,7 +249,10 @@ def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def derive_input_from_stac_item(
-    ras_model_stac_href: str, ras_directory: str, client: boto3.session.Session.client, bucket: str
+    ras_model_stac_href: str,
+    ras_directory: str,
+    client: boto3.session.Session.client,
+    bucket: str,
 ) -> tuple:
 
     # read stac item
@@ -260,14 +278,20 @@ def create_ripple_parameters_from_stac_item(
     # create nwm dictionary
     for _, asset in stac_item.get_assets(role="ripple-params").items():
 
-        response = client.get_object(Bucket=bucket, Key=asset.href.replace(f"https://{bucket}.s3.amazonaws.com/", ""))
+        response = client.get_object(
+            Bucket=bucket,
+            Key=asset.href.replace(f"https://{bucket}.s3.amazonaws.com/", ""),
+        )
         json_data = response["Body"].read()
 
     return json.loads(json_data)
 
 
 def download_model(
-    stac_item: pystac.Item, ras_directory: str, client: boto3.session.Session.client, bucket: str
+    stac_item: pystac.Item,
+    ras_directory: str,
+    client: boto3.session.Session.client,
+    bucket: str,
 ) -> str:
     """
     Download HEC-RAS model from stac href
@@ -278,7 +302,7 @@ def download_model(
         os.makedirs(ras_directory)
 
     # download HEC-RAS model files
-    for _, asset in stac_item.get_assets(role="ras-file").items():
+    for _, asset in stac_item.get_assets(role="hec-ras").items():
 
         s3_key = asset.extra_fields["s3_key"]
 
@@ -337,7 +361,7 @@ def replace_line_in_contents(lines: list, search_string: str, replacement: str, 
         return lines
 
 
-def text_block_from_start_end_str(start_str: str, end_str: str, lines: list):
+def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, include_end_line=False):
     """
     Search for an exact match to the start_str and return
     all lines from there to a line that contains the end_str.
@@ -354,7 +378,11 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list):
 
         if in_block:
             if end_str in line:
-                return results
+                if include_end_line:
+                    results.append(line)
+                    return results
+                else:
+                    return results
             else:
                 results.append(line)
     return results

@@ -23,7 +23,8 @@ def configure_logging(level, logfile: str = None, milliseconds: bool = False, ve
         )
     else:
         log_formatter = logging.Formatter(
-            '{"time": "%(asctime)s" , "level": "%(levelname)s", "msg": "%(message)s"}', datefmt=datefmt
+            '{"time": "%(asctime)s" , "level": "%(levelname)s", "msg": "%(message)s"}',
+            datefmt=datefmt,
         )
 
     console_handler = logging.StreamHandler()

@@ -3,6 +3,7 @@ import logging
 from collections import OrderedDict
 from typing import List, Tuple
 
+import fiona
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -77,20 +78,25 @@ class RasFimConflater:
     def __repr__(self):
         return f"RasFimConflater(nwm_pq={self.nwm_pq}, ras_gpkg={self.ras_gpkg})"
 
-    def load_gpkg_layer(self, gpkg: str, layer: str):
-        try:
-            return gpd.read_file(gpkg, layer=layer)
-        except Exception as e:
-            if type(e) == ValueError:
-                raise ValueError(f"Required layer '{layer}' not found in {gpkg}")
-            elif type(e) == DriverError:
-                raise DriverError(f"Unable to read {gpkg}")
-            else:
-                raise (e)
+    def set_ras_gpkg(self, ras_gpkg, load_data=True):
+        self.ras_gpkg = ras_gpkg
+        if load_data:
+            self.load_gpkg(self.ras_gpkg)
+
+    def load_gpkg(self, gpkg: str):
+        layers = fiona.listlayers(gpkg)
+        if "River" in layers:
+            self._ras_centerlines = gpd.read_file(self.ras_gpkg, "River")
+        if "XS" in layers:
+            self._ras_xs = gpd.read_file(self.ras_gpkg, "XS")
+        if "Junciton" in layers:
+            self._ras_junctions = gpd.read_file(self.ras_gpkg, "Junction")
 
     def load_pq(self, nwm_pq: str):
         try:
-            return gpd.read_parquet(nwm_pq)
+            nwm_reaches = gpd.read_parquet(nwm_pq)
+            nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
+            self._nwm_reaches = nwm_reaches.set_geometry("geometry")
         except Exception as e:
             if type(e) == DriverError:
                 raise DriverError(f"Unable to read {nwm_pq}")
@@ -101,15 +107,8 @@ class RasFimConflater:
         """
         Loads the NWM and RAS data from the GeoPackages
         """
-        nwm_reaches = self.load_pq(self.nwm_pq)
-        nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
-        self._nwm_reaches = nwm_reaches.set_geometry("geometry")
-        self._ras_centerlines = self.load_gpkg_layer(self.ras_gpkg, "River")
-        self._ras_xs = self.load_gpkg_layer(self.ras_gpkg, "XS")
-        try:
-            self._ras_junctions = self.load_gpkg_layer(self.ras_gpkg, "Junction")
-        except ValueError:
-            logging.warning("No junctions found")
+        self.load_pq(self.nwm_pq)
+        self.load_gpkg(self.ras_gpkg)
 
     def ensure_data_loaded(func):
         def wrapper(self, *args, **kwargs):
@@ -432,7 +431,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: boo
     }
 
 
-def ras_reaches_metadata(rfc: RasFimConflater, flow_data_df: pd.DataFrame, candidate_reaches: gpd.GeoDataFrame):
+def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame):
     reach_metadata = OrderedDict()
     for reach in candidate_reaches.itertuples():
         # logging.debug(f"REACH: {reach.ID}")
@@ -446,7 +445,7 @@ def ras_reaches_metadata(rfc: RasFimConflater, flow_data_df: pd.DataFrame, candi
             reach_metadata[reach.ID] = {"us_xs": {"xs_id": str(-9999)}}
 
     for k in reach_metadata.keys():
-        flow_data = flow_data_df[flow_data_df["ID"] == k].iloc[0]
+        flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
         if isinstance(flow_data["high_flow_threshold"], float):
             reach_metadata[k]["low_flow_cfs"] = round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR
         else:

@@ -18,7 +18,9 @@ def main(
     rfc: RasFimConflater,
     low_flows: pd.DataFrame,
 ):
+
     configure_logging(logging.CRITICAL)
+
     metadata = {}
     for river_reach_name in rfc.ras_river_reach_names:
         # logging.info(f"Processing {river_reach_name}")
@@ -59,11 +61,13 @@ def main(
 
 
 if __name__ == "__main__":
-    wkdir = "/Users/slawler/repos/ripple"
-    ras_gpkg_path = f"{wkdir}/tests/ras-data/Baxter/new.gpkg"
-    nwm_pq_path = f"{wkdir}/tests/nwm-data/flow_paths.parquet"
-    low_flows = pd.read_parquet(f"{wkdir}/tests/nwm-data/high_water_threshold.parquet")
-    conflation_output = f"{wkdir}/tests/ras-data/baxter-ripple-params.json"
+    # wkdir = "/Users/slawler/repos/ripple"
+    ras_gpkg_path = r"s3://fim/mip/dev2/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.gpkg"
+
+    nwm_pq_path = r"C:\Users\mdeshotel\Downloads\nwm_flows_v3.parquet"
+    low_flows = pd.read_parquet(nwm_pq_path)
+
+    conflation_output = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\mip_models/bums_creek-ripple-params.json"
 
     rfc = RasFimConflater(
         nwm_pq_path,

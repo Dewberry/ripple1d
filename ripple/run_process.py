@@ -88,7 +88,9 @@ def main(
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
-            nwm_data["low_flow_cfs"], nwm_data["high_flow_cfs"], number_of_discharges_for_initial_normal_depth_runs
+            nwm_data["low_flow_cfs"],
+            nwm_data["high_flow_cfs"],
+            number_of_discharges_for_initial_normal_depth_runs,
         )
 
         logging.info(f"working on initial normal depth run for nwm_id: {nwm_id}")
@@ -130,9 +132,16 @@ def main(
 
         # get resulting depths from normal depth runs
         flows, depths = get_flow_depth_arrays(
-            rm, nwm_id, nwm_id, rm.geoms[nwm_id].xs_gdf["river_station"].min(), nwm_data["ds_xs"]["min_elevation"]
+            rm,
+            nwm_id,
+            nwm_id,
+            rm.geoms[nwm_id].xs_gdf["river_station"].min(),
+            nwm_data["ds_xs"]["min_elevation"],
         )
-        ripple_parameters[nwm_id]["nd_results"] = {"ds_flows": flows, "ds_depths": depths}
+        ripple_parameters[nwm_id]["nd_results"] = {
+            "ds_flows": flows,
+            "ds_depths": depths,
+        }
 
     for nwm_id, nwm_data in ripple_parameters.items():
 

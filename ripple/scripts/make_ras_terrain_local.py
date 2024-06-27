@@ -60,7 +60,11 @@ def main(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters
         # clip dem
         src_dem_clipped_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
         logging.info(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
-        clip_raster(src_path=MAP_DEM_UNCLIPPED_SRC_URL, dst_path=src_dem_clipped_localfile, mask_polygon=mask)
+        clip_raster(
+            src_path=MAP_DEM_UNCLIPPED_SRC_URL,
+            dst_path=src_dem_clipped_localfile,
+            mask_polygon=mask,
+        )
 
         # write projection file
         projection_file = write_projection_file(gdf_xs.crs, terrain_directory)

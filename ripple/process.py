@@ -70,7 +70,11 @@ def determine_flow_increments(
 
 
 def post_process_depth_grids(
-    rm: RasManager, nwm_id: str, nwm_data: dict, except_missing_grid: bool = False, dest_directory=None
+    rm: RasManager,
+    nwm_id: str,
+    nwm_data: dict,
+    except_missing_grid: bool = False,
+    dest_directory=None,
 ) -> tuple(list[str]):
     """
     Clip depth grids based on their associated NWM branch and respective cross sections.

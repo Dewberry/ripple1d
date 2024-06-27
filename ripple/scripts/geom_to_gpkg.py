@@ -7,6 +7,7 @@ import traceback
 
 import boto3
 import pandas as pd
+from db import PGFim
 from dotenv import find_dotenv, load_dotenv
 from pyproj import CRS
 
@@ -16,6 +17,7 @@ from ripple.errors import (
 )
 from ripple.ras import RasFlowText, RasGeomText, RasPlanText, RasProject
 from ripple.ripple_logger import configure_logging
+from ripple.stacio.s3_utils import list_keys
 from ripple.utils import get_sessioned_s3_client, str_from_s3
 
 
@@ -66,7 +68,11 @@ def geom_flow_xs_gdf(geom, flow, plan_title: str, project_title: str):
 
 
 def detemine_primary_plan(
-    ras_project: str, client: boto3.session.Session.client, crs: CRS, ras_text_file_path: str, bucket: str
+    ras_project: str,
+    client: boto3.session.Session.client,
+    crs: CRS,
+    ras_text_file_path: str,
+    bucket: str,
 ):
     if len(ras_project.plans) == 1:
         plan_path = ras_project.plans[0]
@@ -137,7 +143,7 @@ def process_one_geom(
 def read_case_db(cases_db_path: str, table_name: str):
     with sqlite3.connect(cases_db_path) as connection:
         cursor = connection.cursor()
-        cursor.execute("SELECT key, crs FROM inferred_crs_A ")
+        cursor.execute(f"SELECT key, crs FROM {table_name} ")
         return cursor.fetchall()
 
 
@@ -154,7 +160,6 @@ def add_columns(cases_db_path: str, table_name: str, columns: list[str]):
 
 
 def insert_data(cases_db_path: str, table_name: str, data):
-    print(f"""INSERT OR REPLACE INTO {table_name} (exc, tb, gpkg, crs, key) VALUES (?, ?, ?, ?, ?)""")
     with sqlite3.connect(cases_db_path) as connection:
         cursor = connection.cursor()
         for key, val in data.items():
@@ -177,38 +182,71 @@ def create_table(cases_db_path: str, table_name: str):
         connection.commit()
 
 
-def main(cases_db_path: str, table_name: str, bucket: str = None):
-    configure_logging(level=logging.ERROR, logfile="geom_to_gpkg.log")
-    out_table=f"geom_gpkg_{table_name.split("_")[-1]}"
-    create_table(cases_db_path, out_table)
-    data = {}
+def create_tx_ble_db(s3_prefix: str, crs: int, db_path: str):
 
-    for key, crs in read_case_db(cases_db_path, table_name):
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    with sqlite3.connect(db_path) as connection:
+        cursor = connection.cursor()
+        cursor.execute("""create table tx_ble_crs_A (key Text, crs Text)""")
+
+    client = get_sessioned_s3_client()
+    keys = list_keys(client, bucket, s3_prefix, ".prj")
+    with sqlite3.connect(db_path) as connection:
+        cursor = connection.cursor()
+        for i, key in enumerate(keys):
+
+            cursor.execute(
+                """Insert or replace into tx_ble_crs_A (key,crs) values (?, ?)""",
+                (key, f"EPSG:{crs}"),
+            )
+            connection.commit()
+
+
+def main(cases_db_path: str, table_name: str, bucket: str = None):
+    db = PGFim()
+
+    keys = db.read_case_db(table_name)
+    for i, (mip_case, key, crs) in enumerate(keys):
         key = key.replace("s3://fim/", "")
         gpkg_path, exc, tb = ["null"] * 3
 
-        #if key == "mip/cases/06-05-B026S/06-05-B026S_2f2f15b551888158be423671a7bbe32215e3f26f/TSDNfy05/5_Misc Ref Materials/USACE_Floodway2004/St Louis District/HEC-RAS Models/MissFldwy.prj":
-        logging.info(f"working on {key}")
+        logging.info(f"working on ({i+1}/{len(keys)} | {round(100*(i+1)/len(keys),1)}% | key: {key}")
         try:
             gpkg_path = process_one_geom(key, crs, bucket)
-
+            db.update_case_status(mip_group, mip_case, key, True, None, None)
+            db.update_table(
+                "mip_gpkg",
+                ("mip_group", "mip_case", "key", "gpkg"),
+                (mip_group, mip_case, key, gpkg_path),
+            )
         except Exception as e:
             exc = e
             tb = traceback.format_exc()
-            logging.Error(exc)
-        data[key] = {"crs": crs, "gpkg": gpkg_path, "exc": str(exc), "tb": tb}
-
-    insert_data(cases_db_path, out_table, data)
+            logging.error(exc)
+            db.update_case_status(mip_group, mip_case, key, False, exc, tb)
+            db.update_table(
+                "mip_gpkg",
+                ("mip_group", "mip_case", "key", "gpkg"),
+                (mip_group, mip_case, key, gpkg_path),
+            )
 
 
 if __name__ == "__main__":
 
-    cases_db_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\mip_models\cases.db"
-    table_name = "inferred_crs_A"
-    bucket = "fim"  # "fim"
-    main(cases_db_path, table_name, bucket)
+    configure_logging(level=logging.INFO, logfile="geom_to_gpkg.log")
+    load_dotenv(find_dotenv())
 
-    #for running 1 key with a prescribed_crs
-    # prescribed_crs = 2277
-    # key = "mip/dev2/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.prj"
-    # process_one_geom(key, prescribed_crs, bucket)
+    db_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\mip_models\tx_ble.db"
+    table_name = "tx_ble_crs_A"
+    bucket = "fim"  # "fim"
+
+    s3_prefix = "mip/dev2"
+    prescribed_crs = 2277
+    create_ble_db = True
+
+    if create_ble_db:
+        db = PGFim()
+        db.create_table("inferred_crs_tx_ble", [("mip_case", "TEXT"), ("key", "TEXT"), (crs)])
+
+    main(db_path, table_name, bucket)

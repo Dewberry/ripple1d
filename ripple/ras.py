@@ -88,7 +88,11 @@ def write_new_plan_text_file(func):
         if "write_depth_grids" in kwargs:
             # populate new plan info
             plan_text_file.new_plan_contents(
-                title, title, self.flows[title], self.geoms[geom_title], kwargs["write_depth_grids"]
+                title,
+                title,
+                self.flows[title],
+                self.geoms[geom_title],
+                kwargs["write_depth_grids"],
             )
 
         # write content
@@ -227,7 +231,12 @@ class RasManager:
 
     @classmethod
     def from_gpkg(
-        cls, ras_project_text_file: str, nwm_id, ras_gpkg_file_path: str, version: str = "631", terrain_path: str = None
+        cls,
+        ras_project_text_file: str,
+        nwm_id,
+        ras_gpkg_file_path: str,
+        version: str = "631",
+        terrain_path: str = None,
     ):
         inst = cls(
             ras_project_text_file,
@@ -434,7 +443,11 @@ class RasManager:
         rasmap = RasMap(map_file, self.plan.geom, self.version)
         rasmap.update_crs(self.projection_file)
         rasmap.add_terrain(terrain_name, terrain_relative_path)
-        rasmap.add_plan_layer(self.plan.title, os.path.basename(self.plan.hdf_file), self.plan.flow.profile_names)
+        rasmap.add_plan_layer(
+            self.plan.title,
+            os.path.basename(self.plan.hdf_file),
+            self.plan.flow.profile_names,
+        )
         rasmap.add_result_layers(self.plan.title, self.plan.flow.profile_names, "Depth")
         rasmap.write()
 
@@ -498,7 +511,10 @@ class RasProject(RasTextFile):
         os.makedirs(self._ras_dir, exist_ok=True)
 
         if new_file:
-            self.contents = [f"Proj Title={self._ras_project_basename}", "Current Plan="]
+            self.contents = [
+                f"Proj Title={self._ras_project_basename}",
+                "Current Plan=",
+            ]
 
     def __repr__(self):
         return f"RasProject({self._ras_text_file_path})"
@@ -895,7 +911,10 @@ class RasGeomText(RasTextFile):
     @add_fid_index
     def junction_gdf(self):
         if self.junctions:
-            return pd.concat([junction.gdf for junction in self.junctions.values()], ignore_index=True)
+            return pd.concat(
+                [junction.gdf for junction in self.junctions.values()],
+                ignore_index=True,
+            )
 
     @property
     @check_crs
@@ -1046,7 +1065,13 @@ class RasFlowText(RasTextFile):
                     flows.append(float(line[i : i + 8].lstrip(" ")))
                     if len(flows) == self.n_profiles:
                         flow_change_locations.append(
-                            FlowChangeLocation(river, reach.rstrip(" "), float(rs), flows, self.profile_names)
+                            FlowChangeLocation(
+                                river,
+                                reach.rstrip(" "),
+                                float(rs),
+                                flows,
+                                self.profile_names,
+                            )
                         )
 
                     if len(flow_change_locations) == self.n_flow_change_locations:

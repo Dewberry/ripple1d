@@ -35,7 +35,10 @@ def main(
 
         # # write and compute initial normal depth runs to develop rating curves
         fcl = FlowChangeLocation(
-            nwm_id, nwm_id, rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station, initial_flows
+            nwm_id,
+            nwm_id,
+            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
+            initial_flows,
         )
 
         rm.normal_depth_run(
@@ -56,4 +59,10 @@ if __name__ == "__main__":
         print(nwm_id)
         new_ras_project_text_file = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.prj"
         subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.gpkg"
-        main(nwm_id, f"{nwm_id}_ind", conflation_parameters[nwm_id], new_ras_project_text_file, subset_gpkg_path)
+        main(
+            nwm_id,
+            f"{nwm_id}_ind",
+            conflation_parameters[nwm_id],
+            new_ras_project_text_file,
+            subset_gpkg_path,
+        )

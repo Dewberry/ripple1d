@@ -7,7 +7,13 @@ from .ras import RasManager
 from .sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
-def main(nwm_id: str, nwm_data: dict, ras_project_text_file: str, terrain_path: str, subset_gpkg_path: str):
+def main(
+    nwm_id: str,
+    nwm_data: dict,
+    ras_project_text_file: str,
+    terrain_path: str,
+    subset_gpkg_path: str,
+):
 
     crs = gpd.read_file(subset_gpkg_path).crs
 
@@ -32,4 +38,10 @@ if __name__ == "__main__":
     with open(json_path) as f:
         ripple_parameters = json.load(f)
 
-    main(nwm_id, ripple_parameters[nwm_id], ras_project_text_file, terrain_path, subset_gpkg_path)
+    main(
+        nwm_id,
+        ripple_parameters[nwm_id],
+        ras_project_text_file,
+        terrain_path,
+        subset_gpkg_path,
+    )

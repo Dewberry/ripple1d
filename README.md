@@ -15,7 +15,7 @@ To utilize this repository to develop flood inundations maps from 1D steady-stat
 - Python packages specified in requirements-windows.txt installed
 - Access to s3
 - An href for a STAC item containing the following minimum content:
-    - Assets representing the necessary HEC-RAS files with role assigned as "RAS-FILE"
+    - Assets representing the necessary HEC-RAS files with role assigned as "hec-ras"
         - HEC-RAS project file
         - HEC-RAS geometry file 
         - HEC-RAS plan file
