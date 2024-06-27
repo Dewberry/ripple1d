@@ -930,7 +930,7 @@ class RasGeomText(RasTextFile):
         self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
         self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
-            self.junction_gdf.to_file(gpkg_path, diver="GPKG", layer="Junction")
+            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
 
 
 class RasFlowText(RasTextFile):
