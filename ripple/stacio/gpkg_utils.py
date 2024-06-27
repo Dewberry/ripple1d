@@ -37,23 +37,24 @@ def get_river_miles(river_gdf: gpd.GeoDataFrame):
     return round(river_gdf.length.sum() * conversion_factor, 2)
 
 
-def gpkg_to_geodataframe(gpkg_local_path: str) -> dict:
+def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
     """
     Converts a local geopackage file to a GeoDataFrame.
 
     Parameters:
-        gpkg_local_path (str): Path of locally saved geopackage.
+        gpkg_key (str): Path of locally saved geopackage.
 
     Returns:
         gpkg_gdf (dict): dictionary of GeoDataFrame.
 
     """
-    layers = fiona.listlayers(gpkg_local_path)
+
+    layers = fiona.listlayers(gpkg_s3_uri)
     gdfs = {}
 
     for layer in layers:
 
-        gdfs[layer] = gpd.read_file(gpkg_local_path, layer=layer)
+        gdfs[layer] = gpd.read_file(gpkg_s3_uri, layer=layer)
 
     return gdfs
 
@@ -64,13 +65,14 @@ def reproject(gdfs: dict, crs=4326) -> dict:
     return gdfs
 
 
-def create_thumbnail_from_gpkg(gdfs: dict, png_s3_path: str, s3_client: boto3.Session.client):
+def create_thumbnail_from_gpkg(gdfs: dict, png_s3_key: str, bucket: str, s3_client: boto3.Session.client):
     """
     Generates a PNG thumbnail for a geopandas dataframe and uploads it to AWS S3.
 
     Parameters:
     - gdf (dict): A dictionary of geopandas dataframes containing the geometries to plot.
-    - png_s3_path (str): The S3 path where the generated PNG thumbnail is to be stored.
+    - png_s3_key (str): The S3 path where the generated PNG thumbnail is to be stored.
+    - bucket (str): The S3 bucket
     - s3_client: The AWS S3 client instance used for uploading the PNG.
     """
 
@@ -96,9 +98,8 @@ def create_thumbnail_from_gpkg(gdfs: dict, png_s3_path: str, s3_client: boto3.Se
     plt.savefig(buf, format="png")
     buf.seek(0)
 
-    bucket, key = split_s3_key(png_s3_path)
     # Download the PNG to s3
-    s3_client.put_object(Bucket=bucket, Key=key, Body=buf, ContentType="image/png")
+    s3_client.put_object(Bucket=bucket, Key=png_s3_key, Body=buf, ContentType="image/png")
 
 
 def create_geom_item(
@@ -141,8 +142,8 @@ def create_geom_item(
             "plan title": xs["plan_title"],
             "geom title": xs["geom_title"],
             "flow title": xs["flow_title"],
-            "profile names": xs["profile_names"],
-            "mip:case_id": mip_case_no,
+            "profile names": xs["profile_names"].splitlines(),
+            "MIP:case_ID": mip_case_no,
             "river miles": str(river_miles),
             "proj:wkt2": crs.to_wkt(),
             "proj:epsg": crs.to_epsg(),
@@ -304,38 +305,38 @@ def parse_metadata(json_data, metadata_to_remove):
     return comprehensive_data
 
 
-def get_asset_info(asset_file: str, bucket: str):
+def get_asset_info(asset_key: str, bucket: str):
     """This function generates information for an asset based on its file extension.
 
     Parameters:
-        asset_file (str): The S3 path of the asset.
+        asset_key (str): The S3 key of the asset.
 
     Returns:
         dict: A dictionary with the roles, the description, and the title of the asset.
     """
 
-    file_extension = Path(asset_file).suffix.lstrip(".")
-    title = Path(asset_file).name.replace(" ", "_")
+    file_extension = Path(asset_key).suffix.lstrip(".")
+    title = Path(asset_key).name.replace(" ", "_")
     description = ""
     roles = []
     if re.match("f[0-9]{2}", file_extension):
-        roles.extend(["forcing-file", "ras-file", pystac.MediaType.TEXT])
+        roles.extend(["forcing", "hec-ras", pystac.MediaType.TEXT])
         description = """Forcing file for ras."""
 
     elif re.match("g[0-9]{2}", file_extension):
-        roles.extend(["geometry-file", "ras-file", pystac.MediaType.TEXT])
+        roles.extend(["geometry", "hec-ras", pystac.MediaType.TEXT])
         description = """Geometry file for ras."""
 
     elif re.match("p[0-9]{2}", file_extension):
-        roles.extend(["plan-file", "ras-file", pystac.MediaType.TEXT])
+        roles.extend(["plan", "hec-ras", pystac.MediaType.TEXT])
         description = """Plan file for ras."""
 
     elif re.match("O[0-9]{2}", file_extension):
-        roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
+        roles.extend(["output", "hec-ras", pystac.MediaType.TEXT])
         description = """Output file for ras."""
 
     elif re.match("r[0-9]{2}", file_extension):
-        roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
+        roles.extend(["run", "hec-ras", pystac.MediaType.TEXT])
         description = """Run file for ras."""
 
     elif re.match("png", file_extension):
@@ -353,9 +354,9 @@ def get_asset_info(asset_file: str, bucket: str):
 
     elif file_extension == "prj":
         client = get_sessioned_s3_client()
-        string = str_from_s3(asset_file.replace(f"s3://{bucket}/", ""), client, bucket)
+        string = str_from_s3(asset_key, client, bucket)
         if "Proj Title=" in string:
-            roles.extend(["project-file", "ras-file", pystac.MediaType.TEXT])
+            roles.extend(["project-file", "hec-ras", pystac.MediaType.TEXT])
             description = """Project file for ras."""
 
     return {"roles": roles, "description": description, "title": title}
