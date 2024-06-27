@@ -42,7 +42,7 @@ def write_projection_file(crs: CRS, terrain_directory: str):
     return projection_file
 
 
-def main(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict):
+def new_ras_terrain(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict):
     """Requires Windows with geospatial libs, so typically run using OSGeo4W shell."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
         print(f"skipping {nwm_id}; no cross sections conflated.")

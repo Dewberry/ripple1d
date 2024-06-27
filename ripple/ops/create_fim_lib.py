@@ -7,7 +7,7 @@ from ripple.ras import RasManager
 from ripple.sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
-def main(
+def new_fim_lib(
     nwm_id: str,
     nwm_data: dict,
     ras_project_text_file: str,
