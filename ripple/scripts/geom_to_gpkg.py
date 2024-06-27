@@ -1,14 +1,10 @@
 import logging
 import os
 import shutil
-import sqlite3
 import tempfile
-import traceback
 
 import boto3
 import pandas as pd
-from db import PGFim
-from dotenv import find_dotenv, load_dotenv
 from pyproj import CRS
 
 from ripple.errors import (
@@ -16,22 +12,20 @@ from ripple.errors import (
     NotAPrjFile,
 )
 from ripple.ras import RasFlowText, RasGeomText, RasPlanText, RasProject
-from ripple.ripple_logger import configure_logging
-from ripple.stacio.s3_utils import list_keys
 from ripple.utils import get_sessioned_s3_client, str_from_s3
 
 
-def geom_flow_to_gpkg(geom, flow, plan_title: str, project_title: str, gpkg_file: str):
-    if geom.cross_sections:
-        geom_flow_xs_gdf(geom, flow, plan_title, project_title).to_file(gpkg_file, driver="GPKG", layer="XS")
-    if geom.reaches:
-        geom.reach_gdf.to_file(gpkg_file, driver="GPKG", layer="River")
-    if geom.junctions:
-        geom.junction_gdf.to_file(gpkg_file, driver="GPKG", layer="Junction")
+def geom_flow_to_gpkg(rg: RasGeomText, flow, plan_title: str, project_title: str, gpkg_file: str):
+    if rg.cross_sections:
+        geom_flow_xs_gdf(rg, flow, plan_title, project_title).to_file(gpkg_file, driver="GPKG", layer="XS")
+    if rg.reaches:
+        rg.reach_gdf.to_file(gpkg_file, driver="GPKG", layer="River")
+    if rg.junctions:
+        rg.junction_gdf.to_file(gpkg_file, driver="GPKG", layer="Junction")
 
 
-def geom_flow_xs_gdf(geom, flow, plan_title: str, project_title: str):
-    xs_gdf = geom.xs_gdf
+def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str):
+    xs_gdf = rg.xs_gdf
     xs_gdf[["flows", "profile_names"]] = None, None
 
     fcls = pd.DataFrame(flow.flow_change_locations)
@@ -43,7 +37,6 @@ def geom_flow_xs_gdf(geom, flow, plan_title: str, project_title: str):
 
         # iterate through this reaches flow change locations and set cross section flows/profile names
         for _, row in fcls_rr.iterrows():
-
             # add flows to xs_gdf
             xs_gdf.loc[
                 (xs_gdf["river"] == row["river"])
@@ -60,8 +53,8 @@ def geom_flow_xs_gdf(geom, flow, plan_title: str, project_title: str):
                 "profile_names",
             ] = "\n".join(row["profile_names"])
     xs_gdf["plan_title"] = plan_title
-    xs_gdf["geom_title"] = geom.title
-    xs_gdf["version"] = geom.version
+    xs_gdf["geom_title"] = rg.title
+    xs_gdf["version"] = rg.version
     xs_gdf["flow_title"] = flow.title
     xs_gdf["project_title"] = project_title
     return xs_gdf
@@ -105,13 +98,13 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
 
     # read flow string and write geopackage
     string = str_from_s3(plan.plan_steady_file, client, bucket)
-    flow = RasFlowText.from_str(string, " .f01")
+    rf = RasFlowText.from_str(string, " .f01")
 
     # read geom string and write geopackage
     string = str_from_s3(plan.plan_geom_file, client, bucket)
-    geom = RasGeomText.from_str(string, crs, " .g01")
+    rg = RasGeomText.from_str(string, crs, " .g01")
 
-    geom_flow_to_gpkg(geom, flow, plan.title, ras_project.title, temp_path)
+    geom_flow_to_gpkg(rg, rf, plan.title, ras_project.title, temp_path)
 
     # move geopackage to s3
     logging.debug(f"uploading {output_gpkg_path} to s3")
@@ -138,115 +131,3 @@ def process_one_geom(
     if bucket:
         geom_to_gpkg_s3(key, crs, gpkg_path, bucket)
     return f"s3://{bucket}/{gpkg_path}"
-
-
-def read_case_db(cases_db_path: str, table_name: str):
-    with sqlite3.connect(cases_db_path) as connection:
-        cursor = connection.cursor()
-        cursor.execute(f"SELECT key, crs FROM {table_name} ")
-        return cursor.fetchall()
-
-
-def add_columns(cases_db_path: str, table_name: str, columns: list[str]):
-    with sqlite3.connect(cases_db_path) as connection:
-        cursor = connection.cursor()
-        existing_columns = cursor.execute(f"""SELECT * FROM {table_name}""")
-        for column in columns:
-            if column in [c[0] for c in existing_columns.description]:
-                cursor.execute(f"ALTER TABLE {table_name} DROP {column}")
-                connection.commit()
-        cursor.execute(f"ALTER TABLE {table_name} ADD {column} TEXT")
-        connection.commit()
-
-
-def insert_data(cases_db_path: str, table_name: str, data):
-    with sqlite3.connect(cases_db_path) as connection:
-        cursor = connection.cursor()
-        for key, val in data.items():
-            cursor.execute(
-                f"""INSERT OR REPLACE INTO {table_name} (exc, tb, gpkg, crs, key) VALUES (?, ?, ?, ?, ?)""",
-                (val["exc"], val["tb"], val["gpkg"], val["crs"], key),
-            )
-        connection.commit()
-
-
-def create_table(cases_db_path: str, table_name: str):
-    with sqlite3.connect(cases_db_path) as connection:
-        cursor = connection.cursor()
-        res = cursor.execute(f"SELECT name FROM sqlite_master WHERE name='{table_name}'")
-        if res.fetchone():
-            cursor.execute(f"DROP TABLE {table_name}")
-        connection.commit()
-
-        cursor.execute(f"""Create Table {table_name} (key Text, crs Text, gpkg Text, exc Text, tb Text)""")
-        connection.commit()
-
-
-def create_tx_ble_db(s3_prefix: str, crs: int, db_path: str):
-
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    with sqlite3.connect(db_path) as connection:
-        cursor = connection.cursor()
-        cursor.execute("""create table tx_ble_crs_A (key Text, crs Text)""")
-
-    client = get_sessioned_s3_client()
-    keys = list_keys(client, bucket, s3_prefix, ".prj")
-    with sqlite3.connect(db_path) as connection:
-        cursor = connection.cursor()
-        for i, key in enumerate(keys):
-
-            cursor.execute(
-                """Insert or replace into tx_ble_crs_A (key,crs) values (?, ?)""",
-                (key, f"EPSG:{crs}"),
-            )
-            connection.commit()
-
-
-def main(cases_db_path: str, table_name: str, bucket: str = None):
-    db = PGFim()
-
-    keys = db.read_case_db(table_name)
-    for i, (mip_case, key, crs) in enumerate(keys):
-        key = key.replace("s3://fim/", "")
-        gpkg_path, exc, tb = ["null"] * 3
-
-        logging.info(f"working on ({i+1}/{len(keys)} | {round(100*(i+1)/len(keys),1)}% | key: {key}")
-        try:
-            gpkg_path = process_one_geom(key, crs, bucket)
-            db.update_case_status(mip_group, mip_case, key, True, None, None)
-            db.update_table(
-                "mip_gpkg",
-                ("mip_group", "mip_case", "key", "gpkg"),
-                (mip_group, mip_case, key, gpkg_path),
-            )
-        except Exception as e:
-            exc = e
-            tb = traceback.format_exc()
-            logging.error(exc)
-            db.update_case_status(mip_group, mip_case, key, False, exc, tb)
-            db.update_table(
-                "mip_gpkg",
-                ("mip_group", "mip_case", "key", "gpkg"),
-                (mip_group, mip_case, key, gpkg_path),
-            )
-
-
-if __name__ == "__main__":
-
-    configure_logging(level=logging.INFO, logfile="geom_to_gpkg.log")
-    load_dotenv(find_dotenv())
-
-    db_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\mip_models\tx_ble.db"
-    table_name = "tx_ble_crs_A"
-    bucket = "fim"  # "fim"
-
-    s3_prefix = "mip/dev2"
-    prescribed_crs = 2277
-    create_ble_db = True
-
-    if create_ble_db:
-        db = PGFim()
-        db.create_table("inferred_crs_tx_ble", [("mip_case", "TEXT"), ("key", "TEXT"), (crs)])
-
-    main(db_path, table_name, bucket)
