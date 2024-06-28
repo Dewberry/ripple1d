@@ -5,10 +5,29 @@ import traceback
 from flask import Flask, Response, jsonify, request
 from werkzeug.exceptions import BadRequest
 
+from ripple.ops.create_fim_lib import new_fim_lib
+from ripple.ops.create_ras_terrain import new_ras_terrain
+from ripple.ops.subset_gpkg import new_gpkg
+
 from api import tasks
 from api.utils import get_unexpected_and_missing_args
 
 app = Flask(__name__)
+
+
+@app.route("/processes/new_gpkg/execution", methods=["POST"])
+def process__new_gpkg():
+    return process_async_request(new_gpkg)
+
+
+@app.route("/processes/new_ras_terrain/execution", methods=["POST"])
+def process__new_ras_terrain():
+    return process_async_request(new_ras_terrain)
+
+
+@app.route("/processes/new_fim_lib/execution", methods=["POST"])
+def process__new_fim_lib():
+    return process_async_request(new_fim_lib)
 
 
 @app.route("/ping", methods=["GET"])
