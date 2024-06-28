@@ -593,7 +593,7 @@ class RasProject(RasTextFile):
     @property
     def current_plan(self):
         """Get the current plan."""
-        return search_contents(self.contents, "Current Plan")
+        return f".{search_contents(self.contents, 'Current Plan')}"
 
     def set_current_plan(self, plan_ext):
         """
@@ -606,7 +606,7 @@ class RasProject(RasTextFile):
         if f"{plan_ext}" not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {plan_ext}")
         else:
-            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext)
+            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext.rstrip("."))
 
         # TODO: Update this to put it with the other plans
         if f"Plan File={plan_ext}" not in new_contents:
@@ -668,7 +668,7 @@ class RasPlanText(RasTextFile):
     def plan_geom_extension(self):
         """Geometry extension associated with this plan."""
         try:
-            return search_contents(self.contents, "Geom File")
+            return f".{search_contents(self.contents, 'Geom File')}"
         except ValueError:
             raise NoGeometryFileSpecifiedError(
                 f"Could not find a specified geometry file for plan: {self.title} | {self._ras_text_file_path}"
@@ -677,13 +677,13 @@ class RasPlanText(RasTextFile):
     @property
     def plan_unsteady_extension(self):
         """Unsteady flow extension associated with this plan."""
-        return search_contents(self.contents, "Unsteady File")
+        return f".{search_contents(self.contents, 'Unsteady File')}"
 
     @property
     def plan_steady_extension(self):
         """Steady flow extension associated with this plan."""
         try:
-            return search_contents(self.contents, "Flow File")
+            return f".{search_contents(self.contents, 'Flow File')}"
         except ValueError:
             raise NoFlowFileSpecifiedError(
                 f"Could not find a specified flow file for plan: {self.title} | {self._ras_text_file_path}"
@@ -752,12 +752,12 @@ class RasPlanText(RasTextFile):
             self.contents.append(f"Short Identifier={short_id}")
 
         if f"{geom.file_extension}" not in VALID_GEOMS:
-            raise TypeError(f"Geometry extenstion must be one of g01-g99, not {geom.file_extension}")
+            raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {geom.file_extension}")
         else:
             self.contents.append(f"Geom File={geom.file_extension.lstrip('.')}")
 
         if f"{flow.file_extension}" not in VALID_STEADY_FLOWS:
-            raise TypeError(f"Flow extenstion must be one of f01-f99, not {flow.file_extension}")
+            raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {flow.file_extension}")
         else:
             self.contents.append(f"Flow File={flow.file_extension.lstrip('.')}")
         if run_rasmapper:
@@ -992,7 +992,7 @@ class RasFlowText(RasTextFile):
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension in VALID_UNSTEADY_FLOWS or self.file_extension in VALID_QUASISTEADY_FLOWS:
-            raise NotImplementedError("only steady flow (f.**) supported")
+            raise NotImplementedError("only steady flow (.f**) supported")
 
         if self.file_extension not in VALID_STEADY_FLOWS:
             raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {self.file_extension}")
