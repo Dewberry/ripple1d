@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 
@@ -16,11 +15,11 @@ from ripple.consts import (
     METERS_PER_FOOT,
 )
 from ripple.ras import create_terrain
-from ripple.utils import clip_raster, xs_concave_hull
+from ripple.utils.dg_utils import clip_raster, xs_concave_hull
 
 
-def get_geometry_mask(gdf_xs: str, MAP_DEM_UNCLIPPED_SRC_URL: str):
-
+def get_geometry_mask(gdf_xs: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
+    """Get a geometry mask for the DEM based on the cross sections."""
     # build a DEM mask polygon based on the XS extents
     gdf_xs_conc_hull = xs_concave_hull(gdf_xs)
 
@@ -35,19 +34,20 @@ def get_geometry_mask(gdf_xs: str, MAP_DEM_UNCLIPPED_SRC_URL: str):
     return gdf_xs_conc_hull_buffered.iloc[0]
 
 
-def write_projection_file(crs: CRS, terrain_directory: str):
+def write_projection_file(crs: CRS, terrain_directory: str) -> str:
+    """Write a projection file for the terrain."""
     projection_file = os.path.join(terrain_directory, "projection.prj")
     with open(projection_file, "w") as f:
         f.write(CRS(crs).to_wkt("WKT1_ESRI"))
     return projection_file
 
 
-def new_ras_terrain(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict, nwm_id: str):
-    """Requires Windows with geospatial libs, so typically run using OSGeo4W shell."""
+def new_ras_terrain(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict, nwm_id: str) -> None:
+    """Require Windows with geospatial libs, so typically run using OSGeo4W shell."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        print(f"skipping {nwm_id}; no cross sections conflated.")
+        logging.info(f"skipping {nwm_id}; no cross sections conflated.")
     else:
-        print(f"Processing: {nwm_id}")
+        logging.info(f"Processing: {nwm_id}")
         # terrain directory
         terrain_directory = os.path.dirname(output_terrain_hdf_filepath)
         os.makedirs(terrain_directory, exist_ok=True)
@@ -88,4 +88,4 @@ def new_ras_terrain(output_terrain_hdf_filepath: str, gpkg_path: str, conflation
 #         output_terrain_hdf_filepath = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\Terrain.hdf"
 #         gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.gpkg"
 
-#         main(output_terrain_hdf_filepath, gpkg_path, conflation_parameters[nwm_id])
+#         main(output_terrain_hdf_filepath, gpkg_path, conflation_parameters[nwm_id],nwm_id)

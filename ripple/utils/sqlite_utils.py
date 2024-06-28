@@ -3,13 +3,11 @@ import sqlite3
 
 import pandas as pd
 
-from .ras import RasManager
+from ripple.ras import RasManager
 
 
 def create_db_and_table(db_name: str, table_name: str):
-    """
-    Create sqlite database and table
-    """
+    """Create sqlite database and table."""
     if os.path.exists(db_name):
         os.remove(db_name)
 
@@ -31,9 +29,7 @@ def create_db_and_table(db_name: str, table_name: str):
 
 
 def insert_data(db_name: str, table_name: str, data: pd.DataFrame):
-    """
-    Insert data into the sqlite database
-    """
+    """Insert data into the sqlite database."""
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
 
@@ -57,7 +53,7 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame):
 
 
 def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
-    """Parse flow and control by stage from profile names"""
+    """Parse flow and control by stage from profile names."""
     wses_t = wses.T
     wses_t.reset_index(inplace=True)
     wses_t[["flow", "control_by_reach_stage"]] = wses_t["index"].str.split("-", expand=True)
@@ -70,7 +66,7 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
 
 
 def zero_depth_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_nd: list):
-
+    """Export zero depth (normal depth) results to sqlite."""
     database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
     table = rm.ras_project._ras_project_basename
 
@@ -100,8 +96,8 @@ def zero_depth_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_nd: list):
     insert_data(database_path, table, df)
 
 
-def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, nwm_data: dict, missing_grids_kwse: list):
-    """Export rating curves to sqlite"""
+def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_kwse: list):
+    """Export rating curves to sqlite."""
     # create dabase and table
     database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
     table = rm.ras_project._ras_project_basename

@@ -18,13 +18,11 @@ from shapely import Polygon, to_geojson
 
 from ripple.consts import LAYER_COLORS
 from ripple.errors import UnkownCRSUnitsError
-from ripple.utils import get_sessioned_s3_client, str_from_s3
-
-from .utils.s3_utils import split_s3_key
+from ripple.utils.s3_utils import init_s3_resources, str_from_s3
 
 
 def get_river_miles(river_gdf: gpd.GeoDataFrame):
-
+    """Compute the total length of the river centerlines in miles."""
     if "units" not in river_gdf.crs.to_dict().keys():
         raise UnkownCRSUnitsError("No units specified. The coordinate system may be Geographic.")
     units = river_gdf.crs.to_dict()["units"]
@@ -39,7 +37,7 @@ def get_river_miles(river_gdf: gpd.GeoDataFrame):
 
 def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
     """
-    Converts a local geopackage file to a GeoDataFrame.
+    Convert a local geopackage file to a GeoDataFrame.
 
     Parameters
     ----------
@@ -61,14 +59,15 @@ def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
 
 
 def reproject(gdfs: dict, crs=4326) -> dict:
+    """Reproject a gdf to a new CRS."""
     for layer, gdf in gdfs.items():
-        gdfs[layer] = gdf.to_crs(4326)  # reproject to WSG 84
+        gdfs[layer] = gdf.to_crs(crs)  # reproject to WSG 84
     return gdfs
 
 
 def create_thumbnail_from_gpkg(gdfs: dict, png_s3_key: str, bucket: str, s3_client: boto3.Session.client):
     """
-    Generates a PNG thumbnail for a geopandas dataframe and uploads it to AWS S3.
+    Generate a PNG thumbnail for a geopandas dataframe and uploads it to AWS S3.
 
     Parameters
     ----------
@@ -112,15 +111,20 @@ def create_geom_item(
     river_miles: float,
     crs: CRS,
     mip_case_no: str,
-):
+) -> pystac.Item:
     """
-    This function creates a PySTAC Item for a gpkg file stored in an AWS S3 bucket.
+    Create a PySTAC Item for a gpkg file stored in an AWS S3 bucket.
 
     Parameters
     ----------
         gpkg_key (str): gpkg file key for item_id naming.
-        bbox: Item bounding box.
-        footprint: Item Footprint.
+        bbox (shapely.Polygon): Item bounding box.
+        footprint (list[float]): Item Footprint.
+        ripple_version (str): Ripple version.
+        xs (gpd.GeoDataFrame): GeoDataFrame containing metadata.
+        river_miles (float): Total length of the river centerlines in miles.
+        crs (pyproj.CRS): Coordinate Reference System.
+        mip_case_no (str): MIP case number.
 
     Returns
     -------
@@ -155,9 +159,9 @@ def create_geom_item(
     return item
 
 
-def parse_featuresproperties(json_data, metadata_to_remove):
+def parse_featuresproperties(json_data, metadata_to_remove) -> dict:
     """
-    Parses and cleans FeaturesProperties data from json. Removes unwanted fields.
+    Parse and clean FeaturesProperties data from json. Removes unwanted fields.
 
     Parameters
     ----------
@@ -194,9 +198,9 @@ def parse_featuresproperties(json_data, metadata_to_remove):
     return geom_files_meta
 
 
-def parse_control_files(json_data, metadata_to_remove):
+def parse_control_files(json_data, metadata_to_remove) -> dict:
     """
-    Parses and cleans ControlFiles data from json. Removes unwanted fields.
+    Parse and clean ControlFiles data from json. Removes unwanted fields.
 
     Parameters
     ----------
@@ -214,7 +218,7 @@ def parse_control_files(json_data, metadata_to_remove):
     control_files_meta = {}
     i = 1
     # Loop through each data entry in ControlFiles
-    for file_key, data_properties in control_files.items():
+    for _, data_properties in control_files.items():
         file_ext = data_properties["FileExt"].replace(".", "")
         prefix = f"control:{file_ext}"
         # Remove unwanted data
@@ -230,9 +234,9 @@ def parse_control_files(json_data, metadata_to_remove):
     return control_files_meta
 
 
-def parse_forcingfiles(json_data, metadata_to_remove):
+def parse_forcingfiles(json_data, metadata_to_remove) -> dict:
     """
-    Parses and cleans ForcingFiles data from json. Removes unwanted fields.
+    Pars and clean ForcingFiles data from json. Removes unwanted fields.
 
     Parameters
     ----------
@@ -250,7 +254,7 @@ def parse_forcingfiles(json_data, metadata_to_remove):
     forcing_files_meta = {}
     i = 1
     # Loop through each data entry in "Data"
-    for data_key, data_properties in data_files.items():
+    for _, data_properties in data_files.items():
 
         file_ext = data_properties["FileExt"].replace(".", "")
         prefix = f"forcing:{file_ext}"
@@ -268,9 +272,9 @@ def parse_forcingfiles(json_data, metadata_to_remove):
     return forcing_files_meta
 
 
-def parse_metadata(json_data, metadata_to_remove):
+def parse_metadata(json_data, metadata_to_remove) -> dict:
     """
-    Parses and cleans metadata from a JSON object. Combines metadata from GeometryFiles, ControlFiles, and ForcingFiles.
+    Pars and clean metadata from a JSON object. Combines metadata from GeometryFiles, ControlFiles, and ForcingFiles.
 
     Parameters
     ----------
@@ -313,12 +317,14 @@ def parse_metadata(json_data, metadata_to_remove):
     return comprehensive_data
 
 
-def get_asset_info(asset_key: str, bucket: str):
-    """This function generates information for an asset based on its file extension.
+def get_asset_info(asset_key: str, bucket: str) -> dict:
+    """
+    Generate information for an asset based on its file extension.
 
     Parameters
     ----------
         asset_key (str): The S3 key of the asset.
+        bucket (str): The S3 bucket where the asset is stored.
 
     Returns
     -------
@@ -362,7 +368,7 @@ def get_asset_info(asset_key: str, bucket: str):
         roles.extend(["hdf-file", pystac.MediaType.HDF])
 
     elif file_extension == "prj":
-        client = get_sessioned_s3_client()
+        _, client, _ = init_s3_resources()
         string = str_from_s3(asset_key, client, bucket)
         if "Proj Title=" in string:
             roles.extend(["project-file", "hec-ras", pystac.MediaType.TEXT])
@@ -371,9 +377,9 @@ def get_asset_info(asset_key: str, bucket: str):
     return {"roles": roles, "description": description, "title": title}
 
 
-def find_hash(item_metadata: Dict, asset_file: str):
+def find_hash(item_metadata: Dict, asset_file: str) -> dict:
     """
-    Extracts the hash value for a given asset file from a metadata dictionary.
+    Extract the hash value for a given asset file from a metadata dictionary.
 
     This function searches through a metadata dictionary for an asset file based on the file's extension.
     It then extracts and returns the hash value associated with that file extension from the metadata.
@@ -399,9 +405,9 @@ def find_hash(item_metadata: Dict, asset_file: str):
     return hash_dict
 
 
-def remove_hash_from_metadata(item_metadata: Dict):
+def remove_hash_from_metadata(item_metadata: Dict) -> dict:
     """
-    Removes "Hash" from each key (if it exists) in metedata dictionary.
+    Remove "Hash" from each key (if it exists) in metedata dictionary.
 
     Parameters
     ----------

@@ -18,6 +18,7 @@ def process_one_geom(
     crs: str,
     bucket: str = None,
 ):
+    """Process one geometry file and convert it to geopackage."""
     # create path name for gpkg
     if key.endswith(".prj"):
         gpkg_path = key.replace("prj", "gpkg")
@@ -31,9 +32,7 @@ def process_one_geom(
 
 
 def main(table_name: str, mip_group: str, bucket: str = None):
-    """
-    Reads from database a list of ras files to convert to geopackage
-    """
+    """Read from database a list of ras files to convert to geopackage."""
     db = PGFim()
 
     data = db.read_cases(table_name, ["mip_case", "s3_key", "crs"], mip_group)
@@ -60,5 +59,6 @@ if __name__ == "__main__":
 
     table_name = "inferred_crs"
     bucket = "fim"
+    mip_group = "tx_ble"
 
-    main(table_name, "tx_ble", bucket)
+    main(table_name, mip_group, bucket)

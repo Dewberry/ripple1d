@@ -1,8 +1,9 @@
 import argparse
 import logging
 
+from ripple.utils.s3_utils import read_json_from_s3
+
 from .fim_collection import FIMCollection, FIMCollectionRasItem
-from .s3_utils import read_json_from_s3
 
 if __name__ == "__main__":
     # STAC API URL

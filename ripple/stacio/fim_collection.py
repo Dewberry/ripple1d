@@ -6,14 +6,18 @@ from pathlib import Path
 import pystac
 import pystac_client
 import pystac_client.errors
-from s3_utils import check_s3_key_exists
-from stac_utils import key_to_uri, upsert_collection, upsert_item, uri_to_key
+
+from ripple.utils.s3_utils import check_s3_key_exists
+from ripple.utils.stac_utils import (
+    key_to_uri,
+    upsert_collection,
+    upsert_item,
+    uri_to_key,
+)
 
 
 class FIMCollection:
-    """
-    Class for interacting with a FIM collection in a STAC API.
-    """
+    """Class for interacting with a FIM collection in a STAC API."""
 
     def __init__(self, stac_api: str, collection_id: str, connect: bool = True) -> str:
         self.stac_api = stac_api
@@ -24,9 +28,11 @@ class FIMCollection:
             self.collection = None
 
     def __repr__(self) -> str:
+        """Return a string representation of the FIMCollection."""
         return f"FIMCollection: {self._collection_id}"
 
     def load(self) -> pystac.Collection:
+        """Load the collection from the STAC API."""
         try:
             client = pystac_client.Client.open(self.stac_api)
         except Exception as e:
@@ -44,6 +50,7 @@ class FIMCollection:
         roles: str = pystac.MediaType.GEOPACKAGE,
         bucket: str = "fim",
     ):
+        """Add a branch conflation asset to the collection."""
         asset_url = key_to_uri(asset_key, bucket)
         asset = pystac.Asset(
             href=asset_url,
@@ -54,6 +61,7 @@ class FIMCollection:
         self.collection.add_asset(asset_id, asset)
 
     def post_collection_updates(self):
+        """Post collection updates to the STAC API."""
         return upsert_collection(self.stac_api, self.collection)
 
     # def new_item(self, item: pystac.Item):
@@ -62,9 +70,7 @@ class FIMCollection:
 
 
 class FIMCollectionRasItem(FIMCollection):
-    """
-    Class for interacting with a FIM collection RAS item in a STAC API.
-    """
+    """Class for interacting with a FIM collection RAS item in a STAC API."""
 
     def __init__(
         self,
@@ -88,9 +94,11 @@ class FIMCollectionRasItem(FIMCollection):
             raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")
 
     def __repr__(self) -> str:
+        """Return a string representation of the FIMCollectionRasItem."""
         return f"FIMCollectionRasItem: {self._collection_id}-{self._item_id}"
 
     def load_item(self) -> pystac.Item:
+        """Load the item from the STAC API."""
         try:
             return self.collection.get_item(self._item_id)
         except Exception:
@@ -99,11 +107,13 @@ class FIMCollectionRasItem(FIMCollection):
     # def add_topo_assets(self, topo_filename: str = "MapTerrain"):
 
     def post_item_updates(self):
+        """Post item updates to the STAC API."""
         return upsert_item(self.stac_api, self.collection.id, self.item)
 
     def sanitize_ras_stac_props(self):
         """
         TODO: Placeholder function for sanitizing RAS STAC properties.
+
         Need to update ras-stac and remove this method here or convert to a check.
         """
         # Grab the gpkg location (href)
@@ -148,11 +158,13 @@ class FIMCollectionRasItem(FIMCollection):
                 logging.warning(f"no data role: {asset.href}")
 
     def add_s3_key_to_assets(self, bucket: str = "fim"):
+        """Add the s3_key to the assets in the item."""
         for asset_name in self.item.assets:
             asset = self.item.assets[asset_name]
             asset.extra_fields["s3_key"] = uri_to_key(asset.href, bucket)
 
     def ensure_asset_roles_unique(self, bucket: str = "fim"):
+        """Ensure that the asset roles are unique."""
         for asset_name in self.item.assets:
             asset = self.item.assets[asset_name]
             asset.roles = list(set(asset.roles))
@@ -167,6 +179,7 @@ class FIMCollectionRasItem(FIMCollection):
     ):
         """
         TODO: Placeholder function for mapping topo assets to FIM collection items.
+
         This assumes the topo assets are in the same directory as the `ras-geometry-gpkg` asset
         """
         if source != "USGS_Seamless_DEM_13":
@@ -238,6 +251,7 @@ class FIMCollectionRasItem(FIMCollection):
     ) -> bool:
         """
         TODO: Placeholder function for adding ripple-params to FIM collection items.
+
         This assumes the conflation output is in the same directory as the `project-file` asset
         """
         if asset_role != "project-file":
@@ -273,6 +287,7 @@ class FIMCollectionRasItem(FIMCollection):
 class FIMCollectionRasDGItem(FIMCollection):
     """
     Class for interacting with a FIM collection RAS Depth Grid item in a STAC API.
+
     Not Implemented
     """
 
@@ -286,9 +301,11 @@ class FIMCollectionRasDGItem(FIMCollection):
             raise KeyError(f"Item `{self._item_id}` does not exist. Use new_item() to create.")
 
     def __repr__(self) -> str:
+        """Return a string representation of the FIMCollectionRasDGItem."""
         return f"FIMCollectionDGItem: {self._collection_id}-{self._item_id}"
 
     def load_item(self) -> pystac.Item:
+        """Load the item from the STAC API."""
         try:
             return self.collection.get_item(self._item_id)
         except Exception:

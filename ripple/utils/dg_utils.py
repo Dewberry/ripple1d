@@ -1,20 +1,19 @@
 import json
 import logging
-from dataclasses import dataclass
+import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Tuple
 
-import boto3
 import pystac
 import rasterio
 import rasterio.warp
 import shapely
 import shapely.ops
-from dotenv import load_dotenv
 from mypy_boto3_s3.service_resource import Object
+from rasterio import mask
 from rasterio.session import AWSSession
-from shapely.geometry import box, shape
+from shapely import Polygon
 
 from .s3_utils import *
 
@@ -26,7 +25,7 @@ def get_raster_bounds(
     s3_key: str, aws_session: AWSSession, dev_mode: bool = False
 ) -> Tuple[float, float, float, float]:
     """
-    This function retrieves the geographic bounds of a raster file stored in an AWS S3 bucket and returns them in the WGS 84 (EPSG:4326) coordinate reference system.
+    Retrieve the geographic bounds of a raster file stored in an AWS S3 bucket and returns them in the WGS 84 (EPSG:4326) coordinate reference system.
 
     Parameters
     ----------
@@ -55,7 +54,7 @@ def get_raster_bounds(
 
 def get_raster_metadata(s3_key: str, aws_session: AWSSession, dev_mode: bool = False) -> dict:
     """
-    This function retrieves the metadata of a raster file stored in an AWS S3 bucket.
+    Retrieve the metadata of a raster file stored in an AWS S3 bucket.
 
     Parameters
     ----------
@@ -78,7 +77,7 @@ def get_raster_metadata(s3_key: str, aws_session: AWSSession, dev_mode: bool = F
 
 def bbox_to_polygon(bbox) -> shapely.Polygon:
     """
-    This function converts a bounding box to a Shapely Polygon.
+    Convert a bounding box to a Shapely Polygon.
 
     Parameters
     ----------
@@ -104,7 +103,7 @@ def create_depth_grid_item(
     s3_obj: Object, item_id: str, aws_session: AWSSession, dev_mode: bool = False
 ) -> pystac.Item:
     """
-    This function creates a PySTAC Item for a depth grid raster file stored in an AWS S3 bucket.
+    Create a PySTAC Item for a depth grid raster file stored in an AWS S3 bucket.
 
     Parameters
     ----------
@@ -146,3 +145,53 @@ def create_depth_grid_item(
         asset.extra_fields.update(metadata)
     item.add_asset(key=asset.title, asset=asset)
     return item
+
+
+def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon):
+    """Clip a raster file to a polygon and save the result to a new file."""
+    if os.path.exists(dst_path):
+        raise FileExistsError(dst_path)
+    if not isinstance(mask_polygon, Polygon):
+        raise TypeError(mask_polygon)
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+
+    logging.info(f"Reading: {src_path}")
+    with rasterio.open(src_path) as src:
+        out_meta = src.meta
+        out_image, out_transform = mask(src, [mask_polygon], all_touched=True, crop=True)
+
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform,
+            "compress": "LZW",
+            "predictor": 3,
+            "tiled": True,
+        }
+    )
+
+    logging.info(f"Writing as masked: {dst_path}")
+    with rasterio.open(dst_path, "w", **out_meta) as dest:
+        dest.write(out_image)
+
+
+def get_terrain_exe_path(ras_ver: str) -> str:
+    """Return Windows path to RasProcess.exe exposing CreateTerrain subroutine, compatible with provided RAS version."""
+    # 5.0.7 version of RasProcess.exe does not expose CreateTerrain subroutine.
+    # Testing shows that RAS 5.0.7 accepts Terrain created by 6.1 version of RasProcess.exe, so use that for 5.0.7.
+    d = {
+        "507": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "5.07": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "600": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
+        "6.00": r"C:\Program Files (x86)\HEC\HEC-RAS\6.0\RasProcess.exe",
+        "610": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "6.10": r"C:\Program Files (x86)\HEC\HEC-RAS\6.1\RasProcess.exe",
+        "631": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
+        "6.3.1": r"C:\Program Files (x86)\HEC\HEC-RAS\6.3.1\RasProcess.exe",
+    }
+    try:
+        return d[ras_ver]
+    except KeyError as e:
+        raise ValueError(f"Unsupported ras_ver: {ras_ver}. choices: {sorted(d)}") from e

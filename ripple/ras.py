@@ -11,14 +11,11 @@ from typing import List
 import fiona
 import geopandas as gpd
 import h5py
-
-# import numpy as np
 import pandas as pd
 from pyproj import CRS
 
-from .consts import (
+from ripple.consts import (
     FLOW_HDF_PATH,
-    # MIN_FLOW,
     NORMAL_DEPTH,
     PROFILE_NAMES_HDF_PATH,
     SUPPORTED_LAYERS,
@@ -27,9 +24,8 @@ from .consts import (
     WSE_HDF_PATH,
     XS_NAMES_HDF_PATH,
 )
-from .data_model import FlowChangeLocation, Junction, Reach
-from .errors import (
-    # CouldNotFindAnyPlansError,
+from ripple.data_model import FlowChangeLocation, Junction, Reach
+from ripple.errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
     NoCrossSectionLayerError,
@@ -41,14 +37,14 @@ from .errors import (
 )
 
 # ToManyPlansError,
-from .rasmap import PLAN, RASMAP_631, TERRAIN
-from .utils import (
+from ripple.rasmap import PLAN, RASMAP_631, TERRAIN
+from ripple.utils.dg_utils import get_terrain_exe_path
+from ripple.utils.ripple_utils import (
     assert_no_mesh_error,
     assert_no_ras_compute_error_message,
     assert_no_ras_geometry_error,
     assert_no_store_all_maps_error_message,
     decode,
-    get_terrain_exe_path,
     replace_line_in_contents,
     search_contents,
     text_block_from_start_end_str,
@@ -70,6 +66,8 @@ VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
 
 # Decorator Functions
 def write_new_plan_text_file(func):
+    """Write new plan text file decorator."""
+
     def wrapper(self, *args, **kwargs):
 
         title = args[0]
@@ -124,6 +122,8 @@ def write_new_plan_text_file(func):
 
 
 def write_new_flow_text_file(func):
+    """Write new flow text file decorator."""
+
     def wrapper(self, *args, **kwargs):
         title = args[0]
         if title in self.flows.keys():
@@ -153,6 +153,8 @@ def write_new_flow_text_file(func):
 
 
 def check_crs(func):
+    """Check CRS decorator."""
+
     def wrapper(self, *args, **kwargs):
         if self.crs is None:
             raise ValueError("Projection cannot be None")
@@ -162,6 +164,8 @@ def check_crs(func):
 
 
 def combine_root_extension(func):
+    """Combine root extension decorator."""
+
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         if isinstance(extensions, list):
@@ -173,6 +177,8 @@ def combine_root_extension(func):
 
 
 def check_version_installed(version: str):
+    """Check version installed decorator."""
+
     def decorator(func):
         def wrapper(self, *args, **kwargs):
             try:
@@ -190,6 +196,8 @@ def check_version_installed(version: str):
 
 
 def check_windows(func):
+    """Check windows decorator."""
+
     def wrapper(self, *args, **kwargs):
         if platform.system() != "Windows":
             raise SystemError("This method can only be run on a Windows machine.")
@@ -199,6 +207,8 @@ def check_windows(func):
 
 
 def add_fid_index(func):
+    """Add FID index decorator."""
+
     def wrapper(*args, **kwargs):
         gdf = func(*args, **kwargs)
         gdf.index.name = "ID"
@@ -209,6 +219,8 @@ def add_fid_index(func):
 
 # classes
 class RasManager:
+    """Manage HEC-RAS projects."""
+
     def __init__(
         self,
         ras_text_file_path: str,
@@ -229,6 +241,7 @@ class RasManager:
         self.plan = self.current_plan
 
     def __repr__(self):
+        """Representation of the RasManager class."""
         return f"RasManager(project={self.ras_project._ras_text_file_path} ras-version={self.version})"
 
     @classmethod
@@ -240,6 +253,7 @@ class RasManager:
         version: str = "631",
         terrain_path: str = None,
     ):
+        """Create a new RasManager object from a geopackage."""
         inst = cls(
             ras_project_text_file,
             version,
@@ -254,21 +268,21 @@ class RasManager:
 
     @property
     def current_plan(self):
+        """Get the current plan."""
         for plan in self.plans.values():
             if plan.file_extension == self.ras_project.current_plan:
                 return plan
 
     @property
     def projection_file(self):
+        """Write the current projection to file and return the file path."""
         projection_file = os.path.join(self.ras_project._ras_dir, "crs.prj")
         with open(projection_file, "w") as f:
             f.write(self.crs.to_wkt("WKT1_ESRI"))
         return projection_file
 
     def get_plans(self):
-        """
-        Create plan objects for each plan.
-        """
+        """Create plan objects for each plan."""
         plans = {}
         for plan_file in self.ras_project.plans:
             try:
@@ -280,9 +294,7 @@ class RasManager:
 
     @check_crs
     def get_geoms(self):
-        """
-        Create geom objects for each geom.
-        """
+        """Create geom objects for each geom."""
         geoms = {}
         for geom_file in self.ras_project.geoms:
             try:
@@ -293,9 +305,7 @@ class RasManager:
         return geoms
 
     def get_flows(self):
-        """
-        Create flow objects for each flow.
-        """
+        """Create flow objects for each flow."""
         flows = {}
         for flow_file in self.ras_project.steady_flows:
             try:
@@ -368,7 +378,7 @@ class RasManager:
         normal_depth: float = NORMAL_DEPTH,
         write_depth_grids: bool = False,
     ):
-
+        """Create a new normal depth run."""
         # write headers
         flow_text_file.contents += flow_text_file.write_headers(plan_flow_title, profile_names)
 
@@ -399,6 +409,7 @@ class RasManager:
         us_river_station: float,
         write_depth_grids: bool = False,
     ):
+        """Create a new known water surface elevation run."""
         profile_names = [f"f_{flow}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
 
         # write headers
@@ -417,6 +428,7 @@ class RasManager:
         ras_gpkg_file_path: str,
         title: str,
     ):
+        """Create a new geometry file from a geopackage."""
         new_extension_number = get_new_extension_number(self.geoms)
         text_file = self.ras_project._ras_root_path + f".g{new_extension_number}"
         geom_text_file = RasGeomText.from_gpkg(ras_gpkg_file_path, title, self.version, text_file)
@@ -425,9 +437,7 @@ class RasManager:
         self.ras_project.contents.append(f"Geom File=g{new_extension_number}")
 
     def update_rasmapper_for_mapping(self):
-        """
-        Write a rasmapper file to output depth grids for the current plan
-        """
+        """Write a rasmapper file to output depth grids for the current plan."""
         # manage rasmapper
         map_file = f"{self.ras_project._ras_root_path}.rasmap"
 
@@ -455,6 +465,8 @@ class RasManager:
 
 
 class RasTextFile:
+    """Represents a HEC-RAS text file."""
+
     def __init__(self, ras_text_file_path, new_file=False):
         self._ras_text_file_path = ras_text_file_path
 
@@ -470,15 +482,18 @@ class RasTextFile:
             self.contents = []
 
     def __repr__(self):
+        """Representation of the RasTextFile class."""
         return f"RasTextFile({self._ras_text_file_path})"
 
     def read_contents(self):
+        """Read the contents of the text file."""
         if not os.path.exists(self._ras_text_file_path):
             raise FileNotFoundError(f"could not find {self._ras_text_file_path}")
         with open(self._ras_text_file_path) as f:
             self.contents = f.read().splitlines()
 
     def write_contents(self):
+        """Write the contents of the text file."""
         if os.path.exists(self._ras_text_file_path):
             raise FileExistsError(f"The specified file already exists {self._ras_text_file_path}")
 
@@ -487,6 +502,7 @@ class RasTextFile:
             f.write("\n".join(self.contents))
 
     def write_updated_contents(self):
+        """Write the updated contents of the text file."""
         if not os.path.exists(self._ras_text_file_path):
             raise FileNotFoundError(f"The specified file doesn't exists {self._ras_text_file_path}")
 
@@ -496,10 +512,13 @@ class RasTextFile:
 
     @property
     def file_extension(self):
+        """Get the file extension."""
         return Path(self._ras_text_file_path).suffix
 
 
 class RasProject(RasTextFile):
+    """Represents a HEC-RAS project file."""
+
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
 
@@ -517,53 +536,64 @@ class RasProject(RasTextFile):
             ]
 
     def __repr__(self):
+        """Representation of the RasProject class."""
         return f"RasProject({self._ras_text_file_path})"
 
     @classmethod
     def from_str(cls, text_string: str, ras_text_file_path: str = ""):
+        """Initiate a RasProject class from a string."""
         inst = cls(ras_text_file_path, new_file=True)
         inst.contents = text_string.splitlines()
         return inst
 
     @property
     def title(self):
+        """Title of the HEC-RAS project."""
         return search_contents(self.contents, "Proj Title")
 
     @property
     @combine_root_extension
     def plans(self):
+        """Get the plans associated with this project."""
         return search_contents(self.contents, "Plan File", expect_one=False)
 
     @property
     @combine_root_extension
     def geoms(self):
+        """Get the geometry files associated with this project."""
         return search_contents(self.contents, "Geom File", expect_one=False)
 
     @property
     @combine_root_extension
     def unsteady_flows(self):
+        """Get the unsteady flow files associated with this project."""
         return search_contents(self.contents, "Unsteady File", expect_one=False)
 
     @property
     @combine_root_extension
     def steady_flows(self):
+        """Get the steady flow files associated with this project."""
         return search_contents(self.contents, "Flow File", expect_one=False)
 
     @property
     def n_geoms(self):
+        """Get the number of geometry files associated with this project."""
         return len(self.geoms)
 
     @property
     def n_plans(self):
+        """Get the number of plans associated with this project."""
         return len(self.plans)
 
     @property
     def n_flows(self):
+        """Get the number of flow files associated with this project."""
         return len(self.stead_flows)
 
     @property
     def current_plan(self):
-        return search_contents(self.contents, "Current Plan")
+        """Get the current plan."""
+        return f".{search_contents(self.contents, 'Current Plan')}"
 
     def set_current_plan(self, plan_ext):
         """
@@ -576,7 +606,7 @@ class RasProject(RasTextFile):
         if f"{plan_ext}" not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {plan_ext}")
         else:
-            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext)
+            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext.rstrip("."))
 
         # TODO: Update this to put it with the other plans
         if f"Plan File={plan_ext}" not in new_contents:
@@ -586,6 +616,8 @@ class RasProject(RasTextFile):
 
 
 class RasPlanText(RasTextFile):
+    """Represents a HEC-RAS plan file."""
+
     def __init__(self, ras_text_file_path: str, crs: str = None, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension not in VALID_PLANS:
@@ -594,41 +626,49 @@ class RasPlanText(RasTextFile):
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
     def __repr__(self):
+        """Representation of the RasPlanText class."""
         return f"RasPlanText({self._ras_text_file_path})"
 
     @classmethod
     def from_str(cls, text_string: str, crs, ras_text_file_path: str = ""):
+        """Initiate a RasPlanText class from a string."""
         inst = cls(ras_text_file_path, crs, new_file=True)
         inst.contents = text_string.splitlines()
         return inst
 
     @property
     def title(self):
+        """Title of this HEC-RAS plan."""
         return search_contents(self.contents, "Plan Title")
 
     @property
     def version(self):
+        """HEC-RAS version."""
         return search_contents(self.contents, "Program Version")
 
     @property
     @combine_root_extension
     def plan_geom_file(self):
+        """Geometry flow file associated with this plan."""
         return self.plan_geom_extension
 
     @property
     @combine_root_extension
     def plan_unsteady_flow_file(self):
+        """Unsteady flow file associated with this plan."""
         return self.plan_unsteady_extension
 
     @property
     @combine_root_extension
     def plan_steady_file(self):
+        """Steady flow file associated with this plan."""
         return self.plan_steady_extension
 
     @property
     def plan_geom_extension(self):
+        """Geometry extension associated with this plan."""
         try:
-            return search_contents(self.contents, "Geom File")
+            return f".{search_contents(self.contents, 'Geom File')}"
         except ValueError:
             raise NoGeometryFileSpecifiedError(
                 f"Could not find a specified geometry file for plan: {self.title} | {self._ras_text_file_path}"
@@ -636,12 +676,14 @@ class RasPlanText(RasTextFile):
 
     @property
     def plan_unsteady_extension(self):
-        return search_contents(self.contents, "Unsteady File")
+        """Unsteady flow extension associated with this plan."""
+        return f".{search_contents(self.contents, 'Unsteady File')}"
 
     @property
     def plan_steady_extension(self):
+        """Steady flow extension associated with this plan."""
         try:
-            return search_contents(self.contents, "Flow File")
+            return f".{search_contents(self.contents, 'Flow File')}"
         except ValueError:
             raise NoFlowFileSpecifiedError(
                 f"Could not find a specified flow file for plan: {self.title} | {self._ras_text_file_path}"
@@ -650,16 +692,16 @@ class RasPlanText(RasTextFile):
     @property
     @check_crs
     def geom(self):
+        """Represents the HEC-RAS geometry file associated with this plan."""
         return RasGeomText(self.plan_geom_file, self.crs)
 
     @property
     def flow(self):
+        """Represents the HEC-RAS flow file associated with this plan."""
         return RasFlowText(self.plan_steady_file)
 
     def new_plan_from_existing(self, title, short_id, geom_ext, flow_ext):
-        """
-        Populate the content of the new plan with basic attributes (title, short_id, flow, and geom)
-        """
+        """Populate the content of the new plan with basic attributes (title, short_id, flow, and geom)."""
         new_contents = self.contents
         if len(title) > 80:
             raise ValueError("Short Identifier must be less than 80 characters")
@@ -690,7 +732,7 @@ class RasPlanText(RasTextFile):
 
     def new_plan_contents(self, title: str, short_id: str, flow, geom, run_rasmapper: bool = False):
         """
-        populate the content of the plan with basic attributes (title, short_id, flow, and geom)
+        Populate the content of the plan with basic attributes (title, short_id, flow, and geom).
 
         Raises
         ------
@@ -710,12 +752,12 @@ class RasPlanText(RasTextFile):
             self.contents.append(f"Short Identifier={short_id}")
 
         if f"{geom.file_extension}" not in VALID_GEOMS:
-            raise TypeError(f"Geometry extenstion must be one of g01-g99, not {geom.file_extension}")
+            raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {geom.file_extension}")
         else:
             self.contents.append(f"Geom File={geom.file_extension.lstrip('.')}")
 
         if f"{flow.file_extension}" not in VALID_STEADY_FLOWS:
-            raise TypeError(f"Flow extenstion must be one of f01-f99, not {flow.file_extension}")
+            raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {flow.file_extension}")
         else:
             self.contents.append(f"Flow File={flow.file_extension.lstrip('.')}")
         if run_rasmapper:
@@ -725,7 +767,7 @@ class RasPlanText(RasTextFile):
 
     def read_rating_curves(self) -> dict:
         """
-        Read the flow and water surface elevations resulting from the computed plan
+        Read the flow and water surface elevations resulting from the computed plan.
 
         Raises
         ------
@@ -763,6 +805,8 @@ class RasPlanText(RasTextFile):
 
 
 class RasGeomText(RasTextFile):
+    """Represents a HEC-RAS geometry text file."""
+
     def __init__(self, ras_text_file_path: str, crs: str = None, new_file=False):
         super().__init__(ras_text_file_path, new_file)
         if not new_file and self.file_extension not in VALID_GEOMS:
@@ -772,17 +816,19 @@ class RasGeomText(RasTextFile):
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
     def __repr__(self):
+        """Representation of the RasGeomText class."""
         return f"RasGeomText({self._ras_text_file_path})"
 
     @classmethod
     def from_str(cls, text_string: str, crs, ras_text_file_path: str = ""):
+        """Initiate the RASGeomText class from a string."""
         inst = cls(ras_text_file_path, crs, new_file=True)
         inst.contents = text_string.splitlines()
         return inst
 
     @classmethod
     def from_gpkg(cls, gpkg_path, title: str, version: str, ras_text_file_path: str = ""):
-
+        """Initiate the RASGeomText class from a geopackage."""
         inst = cls(ras_text_file_path, crs=gpd.read_file(gpkg_path).crs, new_file=True)
         inst._gpkg_path = gpkg_path
         inst._version = version
@@ -859,15 +905,18 @@ class RasGeomText(RasTextFile):
 
     @property
     def title(self):
+        """Title of the HEC-RAS Geometry file."""
         return search_contents(self.contents, "Geom Title")
 
     @property
     def version(self):
+        """The HEC-RAS version."""
         return search_contents(self.contents, "Program Version")
 
     @property
     @check_crs
     def reaches(self) -> dict:
+        """A dictionary of the reaches contained in the HEC-RAS geometry file."""
         river_reaches = search_contents(self.contents, "River Reach", expect_one=False)
         reaches = {}
         for river_reach in river_reaches:
@@ -877,6 +926,7 @@ class RasGeomText(RasTextFile):
     @property
     @check_crs
     def rivers(self) -> dict:
+        """A nested river-reach dictionary of the rivers/reaches contained in the HEC-RAS geometry file."""
         rivers = {}
         for reach in self.reaches.values():
             rivers[reach.river] = {}
@@ -886,6 +936,7 @@ class RasGeomText(RasTextFile):
     @property
     @check_crs
     def junctions(self) -> dict:
+        """A dictionary of the junctions contained in the HEC-RAS geometry file."""
         juncts = search_contents(self.contents, "Junct Name", expect_one=False)
         junctions = {}
         for junct in juncts:
@@ -895,6 +946,7 @@ class RasGeomText(RasTextFile):
     @property
     @check_crs
     def cross_sections(self) -> dict:
+        """A dictionary of the cross sections contained in the HEC-RAS geometry file."""
         cross_sections = {}
         for reach in self.reaches.values():
             cross_sections.update(reach.cross_sections)
@@ -905,12 +957,14 @@ class RasGeomText(RasTextFile):
     @check_crs
     @add_fid_index
     def reach_gdf(self):
+        """A GeodataFrame of the reaches contained in the HEC-RAS geometry file."""
         return pd.concat([reach.gdf for reach in self.reaches.values()], ignore_index=True)
 
     @property
     @check_crs
     @add_fid_index
     def junction_gdf(self):
+        """A GeodataFrame of the junctions contained in the HEC-RAS geometry file."""
         if self.junctions:
             return pd.concat(
                 [junction.gdf for junction in self.junctions.values()],
@@ -921,12 +975,11 @@ class RasGeomText(RasTextFile):
     @check_crs
     @add_fid_index
     def xs_gdf(self):
-        """
-        Geodataframe of all cross sections in the geometry text file.
-        """
+        """Geodataframe of all cross sections in the geometry text file."""
         return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
 
     def to_gpkg(self, gpkg_path: str):
+        """Write the HEC-RAS Geometry file to geopackage."""
         self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
         self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
@@ -934,42 +987,50 @@ class RasGeomText(RasTextFile):
 
 
 class RasFlowText(RasTextFile):
+    """Represents a HEC-RAS flow text file."""
+
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension in VALID_UNSTEADY_FLOWS or self.file_extension in VALID_QUASISTEADY_FLOWS:
-            raise NotImplementedError("only steady flow (f.**) supported")
+            raise NotImplementedError("only steady flow (.f**) supported")
 
         if self.file_extension not in VALID_STEADY_FLOWS:
             raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {self.file_extension}")
 
     def __repr__(self):
+        """Representation of the RasFlowText class."""
         return f"RasFlowText({self._ras_text_file_path})"
 
     @classmethod
     def from_str(cls, text_string: str, ras_text_file_path: str = ""):
+        """Read flow file from string."""
         inst = cls(ras_text_file_path, new_file=True)
         inst.contents = text_string.splitlines()
         return inst
 
     @property
     def title(self):
+        """Title of the flow File."""
         return search_contents(self.contents, "Flow Title")
 
     @property
     def version(self):
+        """Program Version."""
         return search_contents(self.contents, "Program Version")
 
     @property
     def n_profiles(self):
+        """Number of profiles."""
         return int(search_contents(self.contents, "Number of Profiles"))
 
     @property
     def profile_names(self):
+        """Profile names."""
         return search_contents(self.contents, "Profile Names").split(",")
 
     def write_headers(self, title: str, profile_names: list[str]):
         """
-        Write headers for flow content
+        Write headers for flow content.
 
         Args:
             title (str): title of the flow
@@ -988,7 +1049,7 @@ class RasFlowText(RasTextFile):
 
     def write_discharges(self, flows: list, river: str, reach: str, river_station: float):
         """
-        Write discharges to flow content
+        Write discharges to flow content.
 
         Args:
             flows (list): flows to write to the flow content
@@ -1011,7 +1072,7 @@ class RasFlowText(RasTextFile):
 
     def write_ds_known_wse(self, ds_wses: list[float], river: str, reach: str):
         """
-        Write downstream known water surface elevations to flow content
+        Write downstream known water surface elevations to flow content.
 
         Args:
             ds_wses (list): downstream known water surface elevations
@@ -1029,7 +1090,7 @@ class RasFlowText(RasTextFile):
 
     def write_ds_normal_depth(self, number_of_profiles: int, normal_depth: float, river: str, reach: str):
         """
-        Write the downstream normal depth boundary condition
+        Write the downstream normal depth boundary condition.
 
         Args:
             number_of_profiles (int): Number of profiles
@@ -1048,10 +1109,12 @@ class RasFlowText(RasTextFile):
 
     @property
     def n_flow_change_locations(self):
+        """Number of flow change locations."""
         return len(search_contents(self.contents, "River Rch & RM", expect_one=False))
 
     @property
     def flow_change_locations(self):
+        """Retrieve flow change locations."""
         flow_change_locations = []
         for location in search_contents(self.contents, "River Rch & RM", expect_one=False):
 
@@ -1093,6 +1156,8 @@ class RasMap:
 
     def __init__(self, path: str, geom, version: str = 631):
         """
+        Represent a single RasMapper file.
+
         Args:
             path (str): file path to the plan text file
             version (str): HEC-RAS vesion for this RAS Mapper file
@@ -1106,6 +1171,7 @@ class RasMap:
             self.new_rasmap_content(geom)
 
     def __repr__(self):
+        """Representation of the RasMap class."""
         return f"RasMap({self.path})"
 
     def read_contents(self):
@@ -1123,9 +1189,7 @@ class RasMap:
             raise FileNotFoundError(f"could not find {self.text_file}")
 
     def new_rasmap_content(self, geom):
-        """
-        Populate the contents with boiler plate contents
-        """
+        """Populate the contents with boiler plate contents."""
         if self.version in ["631", "6.31", "6.3.1", "63.1"]:
             self.contents = RASMAP_631.replace("geom_hdf_placeholder", os.path.basename(geom.hdf_file)).replace(
                 "geom_name_placeholder", geom.title
@@ -1135,7 +1199,7 @@ class RasMap:
 
     def update_crs(self, projection_file: str):
         """
-        Add/update the crs file to the RAS Mapper contents
+        Add/update the crs file to the RAS Mapper contents.
 
         Args:
             projection_file (str): path to projeciton file containing the coordinate system (.prj)
@@ -1159,8 +1223,7 @@ class RasMap:
 
     def add_result_layers(self, plan_short_id: str, profiles: list[str], variable: str):
         """
-        Add results layers to RasMap contents. When the RAS plan is ran with "Floodplain Mapping" toggled on
-        the result layer added here will output rasters.
+        Add results layers to RasMap contents. When the RAS plan is ran with "Floodplain Mapping" toggled onthe result layer added here will output rasters.
 
         Args:
             plan_short_id (str): Plan short id for the output raster(s)
@@ -1190,7 +1253,7 @@ class RasMap:
 
     def add_plan_layer(self, plan_short_id: str, plan_hdf: str, profiles: list[str]):
         """
-        Add a plan layer to the results in the RASMap contents
+        Add a plan layer to the results in the RASMap contents.
 
         Args:
             plan_short_id (str): plan_short_id of the plan
@@ -1214,9 +1277,7 @@ class RasMap:
         self.contents = "\n".join(lines)
 
     def add_terrain(self, terrain_name: str, terrain_path: str):
-        """
-        Add Terrain to RasMap content
-        """
+        """Add Terrain to RasMap content."""
         lines = []
         for line in self.contents.splitlines():
 
@@ -1230,9 +1291,7 @@ class RasMap:
         self.contents = "\n".join(lines)
 
     def write(self):
-        """
-        write Ras Map contents to file
-        """
+        """Write Ras Map contents to file."""
         logging.info(f"writing: {self.text_file}")
 
         with open(self.text_file, "w") as f:
@@ -1245,6 +1304,7 @@ class RasMap:
 
 # functions
 def search_for_ras_crs(search_dir: str):
+    """Search for RAS crs."""
     rasmap_files = glob.glob(f"{search_dir}/*.rasmap")
     if rasmap_files:
         rm = rasmap_files[0]
@@ -1266,9 +1326,7 @@ def search_for_ras_crs(search_dir: str):
 
 def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
     """
-    Determines the next numeric extension that should be used when creating a new plan, flow, or geom;
-    e.g., if you are adding a new plan and .p01, and .p02 already exists then the new plan
-    will have a .p03 extension.
+    Determine the next numeric extension that should be used when creating a new plan, flow, or geom; e.g., if you are adding a new plan and .p01, and .p02 already exists then the new planwill have a .p03 extension.
 
     Args:
         dict_of_ras_subclasses (dict): A dictionary containing plan/geom/flow titles as keys
@@ -1295,8 +1353,7 @@ def create_terrain(
     version: str = "631",
 ) -> str:
     r"""
-    Uses the crs file and a list of terrain file paths to make the RAS terrain HDF file.
-    Default location is {model_directory}\Terrain\Terrain.hdf.
+    Use the crs file and a list of terrain file paths to make the RAS terrain HDF file. Default location is {model_directory}\Terrain\Terrain.hdf.
 
     Returns the full path to the local directory containing the output files.
 

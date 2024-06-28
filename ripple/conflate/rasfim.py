@@ -34,6 +34,7 @@ NWM_CRS = """PROJCRS["USA_Contiguous_Albers_Equal_Area_Conic_USGS_version",
 
 
 def ensure_geometry_column(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Confirm that there exists a geometry column in the GeoDataFrame."""
     if "geom" in gdf.columns:
         return gdf
     elif "geometry" in gdf.columns:
@@ -46,7 +47,7 @@ def ensure_geometry_column(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 class RasFimConflater:
     """
-    Conflate NWM and RAS data for a single river reach
+    Conflate NWM and RAS data for a single river reach.
 
     Args:
         nwm_parquet (str): Path to the NWM Parquet file converted to parquet from:
@@ -77,14 +78,17 @@ class RasFimConflater:
             self._common_crs = NWM_CRS
 
     def __repr__(self):
+        """Return the string representation of the object."""
         return f"RasFimConflater(nwm_pq={self.nwm_pq}, ras_gpkg={self.ras_gpkg})"
 
     def set_ras_gpkg(self, ras_gpkg, load_data=True):
+        """Set the RAS GeoPackage and optionally load the data."""
         self.ras_gpkg = ras_gpkg
         if load_data:
             self.load_gpkg(self.ras_gpkg)
 
     def load_gpkg(self, gpkg: str):
+        """Load the RAS data from the GeoPackage."""
         layers = fiona.listlayers(gpkg)
         if "River" in layers:
             self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
@@ -94,6 +98,7 @@ class RasFimConflater:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
 
     def load_pq(self, nwm_pq: str):
+        """Load the NWM data from the Parquet file."""
         try:
             nwm_reaches = gpd.read_parquet(nwm_pq)
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
@@ -105,13 +110,13 @@ class RasFimConflater:
                 raise (e)
 
     def load_data(self):
-        """
-        Loads the NWM and RAS data from the GeoPackages
-        """
+        """Load the NWM and RAS data from the GeoPackages."""
         self.load_pq(self.nwm_pq)
         self.load_gpkg(self.ras_gpkg)
 
     def ensure_data_loaded(func):
+        """Ensure that the data is loaded before accessing the properties Decorator."""
+
         def wrapper(self, *args, **kwargs):
             if not self.__data_loaded:
                 raise Exception("Data not loaded")
@@ -121,26 +126,31 @@ class RasFimConflater:
 
     @property
     def common_crs(self):
+        """Return the common CRS for the NWM and RAS data."""
         return self._common_crs
 
     @property
     @ensure_data_loaded
     def ras_centerlines(self) -> gpd.GeoDataFrame:
+        """RAS centerlines."""
         return self._ras_centerlines.to_crs(self.common_crs)
 
     @property
     @ensure_data_loaded
     def ras_river_reach_names(self) -> List[str]:
+        """Return the unique river reach names in the RAS data."""
         return self.ras_centerlines["river_reach"].unique().tolist()
 
     @property
     @ensure_data_loaded
     def ras_xs(self) -> gpd.GeoDataFrame:
+        """RAS cross sections."""
         return self._ras_xs.to_crs(self.common_crs)
 
     @property
     @ensure_data_loaded
     def ras_junctions(self) -> gpd.GeoDataFrame:
+        """RAS junctions."""
         try:
             return self._ras_junctions.to_crs(self.common_crs)
         except ValueError:
@@ -148,13 +158,16 @@ class RasFimConflater:
 
     @property
     def ras_xs_bbox(self) -> Polygon:
+        """Return the bounding box for the RAS cross sections."""
         return self.get_projected_bbox(self.ras_xs)
 
     @property
     def ras_banks(self):
+        """Return the banks of the RAS cross sections."""
         raise NotImplementedError
 
     def get_projected_bbox(self, gdf: gpd.GeoDataFrame) -> Polygon:
+        """Return the bounding box for the GeoDataFrame in the common CRS."""
         assert gdf.crs, "GeoDataFrame must have a CRS"
         project = pyproj.Transformer.from_crs(gdf.crs, NWM_CRS, always_xy=True).transform
         return transform(project, box(*tuple(gdf.total_bounds)))
@@ -162,26 +175,33 @@ class RasFimConflater:
     @property
     @ensure_data_loaded
     def nwm_reaches(self) -> gpd.GeoDataFrame:
+        """NWM reaches."""
         return self._nwm_reaches
 
     @property
     def local_nwm_reaches(self) -> gpd.GeoDataFrame:
+        """NWM reaches that intersect the RAS cross sections."""
         return self.nwm_reaches[self.nwm_reaches.intersects(self.ras_xs_bbox)]
 
     @property
     def local_gages(self) -> dict:
+        """Local gages for the NWM reaches."""
         local_reaches = self.local_nwm_reaches
         gages = local_reaches["gages"]
         reach_ids = local_reaches["ID"]
         return {reach_id: gage for reach_id, gage in zip(reach_ids, gages) if pd.notna(gage) and gage.strip()}
 
     def local_lakes(self):
+        """Local lakes for the NWM reaches."""
         raise NotImplementedError
 
     def check_centerline(func):
         """
-        Helper function to ensure that ras_centerline is available and that the centerline is specified
-        If the centerline is not specified, the first centerline is used, with a check that there is only one centerline
+        Ensure that ras_centerline is available and that the centerline is specified.
+
+        Helper function.
+
+        If the centerline is not specified, the first centerline is used, with a check that there is only one centerline.
         """
 
         def wrapper(self, *args, **kwargs):
@@ -204,20 +224,21 @@ class RasFimConflater:
 
     @check_centerline
     def ras_start_end_points(self, river_reach_name: str = None, centerline=None) -> Tuple[Point, Point]:
-        """
-        river_reach_name used by the decorator to get the centerline
-        """
+        """River_reach_name used by the decorator to get the centerline."""
         if river_reach_name:
             centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
         return endpoints_from_multiline(centerline)
 
     def ras_centerline_by_river_reach_name(self, river_reach_name: str) -> LineString:
+        """Return the centerline for the specified river reach."""
         return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
 
     def xs_by_river_reach_name(self, river_reach_name: str) -> gpd.GeoDataFrame:
+        """Return the cross sections for the specified river reach."""
         return self.ras_xs[self.ras_xs["river_reach"] == river_reach_name]
 
     def river_reach_name_by_xs(self, xs_id: str) -> Tuple[str, str]:
+        """Return the river and reach names for the specified cross section."""
         data = self.ras_xs[self.ras_xs["ID"] == int(xs_id)]
         if data.empty:
             raise ValueError(f"XS ID {xs_id} not found in ras_xs")
@@ -229,6 +250,7 @@ class RasFimConflater:
 
 # general geospatial functions
 def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
+    """Return the start and end points of a MultiLineString."""
     if isinstance(mline, MultiLineString):
         # TODO: Ensure the centerlines in the GPKG are always the same type (i.e. MultiLineString)
         merged_line = linemerge(mline)
@@ -239,6 +261,7 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
 
 
 def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID") -> int:
+    """Return the ID of the line closest to the point."""
     if not column_id in lines.columns:
         raise ValueError(f"required `ID` column not found in GeoDataFrame with columns: {lines.columns}")
 
@@ -260,6 +283,7 @@ def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str 
 def convert_linestring_to_points(
     linestring: LineString, crs: pyproj.crs.crs.CRS, point_spacing: int = 5
 ) -> gpd.GeoDataFrame:
+    """Convert a LineString to a GeoDataFrame of Points."""
     num_points = int(round(linestring.length / point_spacing))
 
     if num_points == 0:
@@ -274,6 +298,7 @@ def convert_linestring_to_points(
 
 
 def cacl_avg_nearest_points(reference_gdf: gpd.GeoDataFrame, compare_points_gdf: gpd.GeoDataFrame) -> float:
+    """Calculate the average distance between the reference points and the nearest points in the comparison GeoDataFrame."""
     multipoint = compare_points_gdf.geometry.unary_union
     reference_gdf["nearest_distance"] = reference_gdf.geometry.apply(
         lambda point: point.distance(nearest_points(point, multipoint)[1])
@@ -282,6 +307,7 @@ def cacl_avg_nearest_points(reference_gdf: gpd.GeoDataFrame, compare_points_gdf:
 
 
 def count_intersecting_lines(ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataFrame) -> int:
+    """Return the number of intersecting lines between the RAS cross sections and the NWM reaches."""
     if ras_xs.crs != nwm_reaches.crs:
         ras_xs = ras_xs.to_crs(nwm_reaches.crs)
     join_gdf = gpd.sjoin(ras_xs, nwm_reaches, predicate="intersects")
@@ -289,11 +315,13 @@ def count_intersecting_lines(ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataF
 
 
 def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "ID") -> gpd.GeoDataFrame:
+    """Filter a GeoDataFrame based on the values in a column."""
     return gdf[~gdf[column_name].isin(column_values)]
 
 
 # analytical functions
 def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int]:
+    """Walk the network from the start ID to the stop ID."""
     current_id = start_id
     ids = [current_id]
 
@@ -319,6 +347,7 @@ def calculate_conflation_metrics(
     xs_group: gpd.GeoDataFrame,
     ras_points: gpd.GeoDataFrame,
 ) -> dict:
+    """Calculate the conflation metrics for the candidate reaches."""
     next_round_candidates = []
     xs_hits_ids = []
     total_hits = 0
@@ -380,6 +409,7 @@ def calculate_conflation_metrics(
 
 
 def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
+    """Return the geometry data for the specified cross section."""
     # TODO: Need to verify units in the RAS data
     xs = rfc.ras_xs[rfc.ras_xs["ID"] == xs_id]
     if xs.shape[0] > 1:
@@ -394,6 +424,7 @@ def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
 
 
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: bool = True):
+    """Map the upstream and downstream cross sections for the reach."""
     intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach)]
 
     if intersected_xs.empty:
@@ -432,6 +463,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: boo
 
 
 def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame):
+    """Return the metadata for the RAS reaches."""
     reach_metadata = OrderedDict()
     for reach in candidate_reaches.itertuples():
         # logging.debug(f"REACH: {reach.ID}")
