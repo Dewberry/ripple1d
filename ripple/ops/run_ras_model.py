@@ -5,11 +5,6 @@ import pandas as pd
 from ripple.consts import DEFAULT_EPSG, MIN_FLOW
 from ripple.data_model import FlowChangeLocation
 from ripple.ras import RasManager
-from ripple.utils.ripple_utils import (
-    create_flow_depth_combinations,
-    determine_flow_increments,
-    get_flow_depth_arrays,
-)
 
 
 def initial_normal_depth(

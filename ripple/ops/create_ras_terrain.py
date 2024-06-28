@@ -15,7 +15,8 @@ from ripple.consts import (
     METERS_PER_FOOT,
 )
 from ripple.ras import create_terrain
-from ripple.utils.dg_utils import clip_raster, xs_concave_hull
+from ripple.utils.dg_utils import clip_raster
+from ripple.utils.ripple_utils import xs_concave_hull
 
 
 def get_geometry_mask(gdf_xs: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:

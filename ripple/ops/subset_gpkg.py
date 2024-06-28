@@ -6,8 +6,6 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString
 
-from ripple.utils.ripple_utils import subset_gpkg
-
 
 def subset_gpkg(
     src_gpkg_path: str,

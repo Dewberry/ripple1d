@@ -9,7 +9,6 @@ from rasterio.shutil import copy as copy_raster
 
 from ripple.errors import DepthGridNotFoundError
 from ripple.ras import RasManager
-from ripple.utils.dg_utils import post_process_depth_grids
 from ripple.utils.sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
