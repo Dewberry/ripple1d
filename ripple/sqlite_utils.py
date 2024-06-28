@@ -22,6 +22,7 @@ def create_db_and_table(db_name: str, table_name: str):
             UNIQUE(flow, reach_id, control_by_reach_stage)
         )
     """
+    os.makedirs(os.path.dirname(os.path.abspath(db_name)), exist_ok=True)
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
     c.execute(sql_query)
