@@ -110,6 +110,8 @@ def known_wse(
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
     print(f"working on known water surface elevation run for nwm_id: {nwm_id}")
 
+    known_water_surface_elevations = np.array(known_water_surface_elevations, dtype=float)
+
     crs = gpd.read_file(subset_gpkg_path).crs
 
     # write and compute flow/plans for known water surface elevation runs
