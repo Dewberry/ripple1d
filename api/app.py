@@ -7,6 +7,7 @@ from werkzeug.exceptions import BadRequest
 
 from ripple.ops.create_fim_lib import new_fim_lib
 from ripple.ops.create_ras_terrain import new_ras_terrain
+from ripple.ops.run_ras_model import initial_normal_depth, incremental_normal_depth, known_wse
 from ripple.ops.subset_gpkg import new_gpkg
 
 from api import tasks
@@ -23,6 +24,21 @@ def process__new_gpkg():
 @app.route("/processes/new_ras_terrain/execution", methods=["POST"])
 def process__new_ras_terrain():
     return process_async_request(new_ras_terrain)
+
+
+@app.route("/processes/initial_normal_depth/execution", methods=["POST"])
+def process__initial_normal_depth():
+    return process_async_request(initial_normal_depth)
+
+
+@app.route("/processes/incremental_normal_depth/execution", methods=["POST"])
+def process__incremental_normal_depth():
+    return process_async_request(incremental_normal_depth)
+
+
+@app.route("/processes/known_wse/execution", methods=["POST"])
+def process__known_wse():
+    return process_async_request(known_wse)
 
 
 @app.route("/processes/new_fim_lib/execution", methods=["POST"])
