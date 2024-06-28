@@ -19,9 +19,7 @@ def plot_conflation_results(
     s3_client: Session.client = None,
     limit_plot_to_nearby_reaches: bool = True,
 ):
-    """
-    Create/write png to s3. The png contains RAS centerline and cross sections and nearby NWM branches
-    """
+    """Create/write png to s3. The png contains RAS centerline and cross sections and nearby NWM branches."""
     _, ax = plt.subplots(figsize=(10, 10))
 
     # Plot the centerline and cross-sections first
@@ -33,6 +31,18 @@ def plot_conflation_results(
     ylim = ax.get_ylim()
     bounds = shapely.geometry.box(xlim[0], ylim[0], xlim[1], ylim[1])
 
+    zoom_factor = 3  # Adjust this value to change the zoom level
+
+    # Calculate the range of x and y
+    x_range = bounds.bounds[2] - bounds.bounds[0]
+    y_range = bounds.bounds[3] - bounds.bounds[1]
+
+    min_x = bounds.bounds[0] - x_range * (zoom_factor - 1) / 2
+    max_x = bounds.bounds[2] + x_range * (zoom_factor - 1) / 2
+    min_y = bounds.bounds[1] - y_range * (zoom_factor - 1) / 2
+    max_y = bounds.bounds[3] + y_range * (zoom_factor - 1) / 2
+
+    adjusted_bounds = shapely.geometry.box(min_x, min_y, max_x, max_y)
     # Add a patch for the ras_centerline
     patches = [mpatches.Patch(color="black", label="RAS Centerline", linestyle="dashed")]
 
@@ -40,7 +50,7 @@ def plot_conflation_results(
     patches.append(mpatches.Patch(color="blue", label="Nearby NWM reaches", alpha=0.3))
 
     # Plot the reaches that fall within the axis limits
-    rfc.nwm_reaches.plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
+    rfc.nwm_reaches.clip(adjusted_bounds).plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
 
     if limit_plot_to_nearby_reaches:
         # Create a colormap that maps each reach_id to a color
@@ -64,12 +74,12 @@ def plot_conflation_results(
 
     # Set the axis limits to the bounds, expanded by the zoom factor
     ax.set_xlim(
-        bounds.bounds[0] - x_range * (zoom_factor - 1) / 2,
-        bounds.bounds[2] + x_range * (zoom_factor - 1) / 2,
+        min_x,
+        max_x,
     )
     ax.set_ylim(
-        bounds.bounds[1] - y_range * (zoom_factor - 1) / 2,
-        bounds.bounds[3] + y_range * (zoom_factor - 1) / 2,
+        min_y,
+        max_y,
     )
 
     ax.legend(handles=patches, handleheight=0.005)

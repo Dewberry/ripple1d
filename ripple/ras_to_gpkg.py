@@ -6,13 +6,15 @@ import tempfile
 from pathlib import Path
 
 import boto3
+import geopandas as gpd
 import pandas as pd
 import pystac
 from pyproj import CRS
 
 from ripple.errors import CouldNotIdentifyPrimaryPlanError
 from ripple.ras import RasFlowText, RasGeomText, RasPlanText, RasProject
-from ripple.stacio.gpkg_utils import (
+from ripple.utils.dg_utils import bbox_to_polygon
+from ripple.utils.gpkg_utils import (
     create_geom_item,
     create_thumbnail_from_gpkg,
     get_asset_info,
@@ -20,19 +22,17 @@ from ripple.stacio.gpkg_utils import (
     gpkg_to_geodataframe,
     reproject,
 )
-from ripple.stacio.s3_utils import list_keys
-from ripple.stacio.utils.dg_utils import bbox_to_polygon
-
-# from utils.dg_utils import *
-from ripple.stacio.utils.s3_utils import (
+from ripple.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
+    list_keys,
     s3_key_public_url_converter,
+    str_from_s3,
 )
-from ripple.utils import get_sessioned_s3_client, str_from_s3
 
 
 def geom_flow_to_gpkg(rg: RasGeomText, flow, plan_title: str, project_title: str, gpkg_file: str):
+    """Write geometry and flow data to a geopackage."""
     if rg.cross_sections:
         geom_flow_xs_gdf(rg, flow, plan_title, project_title).to_file(gpkg_file, driver="GPKG", layer="XS")
     if rg.reaches:
@@ -41,7 +41,8 @@ def geom_flow_to_gpkg(rg: RasGeomText, flow, plan_title: str, project_title: str
         rg.junction_gdf.to_file(gpkg_file, driver="GPKG", layer="Junction")
 
 
-def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str):
+def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str) -> gpd.GeoDataFrame:
+    """Create a geodataframe with cross section geometry and flow data."""
     xs_gdf = rg.xs_gdf
     xs_gdf[["flows", "profile_names"]] = None, None
 
@@ -83,7 +84,14 @@ def detemine_primary_plan(
     crs: CRS,
     ras_text_file_path: str,
     bucket: str,
-):
+) -> RasPlanText:
+    """
+    Determine the primary plan for a ras project.
+
+    Exammple: The active plan if it does not contain encroachments.
+    If the active plan contains encroachments, the first plan without encroachments is returned.
+    If no plans are found without encroachments, an error is raised.
+    """
     if len(ras_project.plans) == 1:
         plan_path = ras_project.plans[0]
         string = str_from_s3(plan_path, client, bucket)
@@ -100,7 +108,8 @@ def detemine_primary_plan(
 
 
 def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
-    client = get_sessioned_s3_client()
+    """Write geometry and flow data to a geopackage on s3."""
+    _, client, _ = init_s3_resources()
 
     # make temp directory
     temp_dir = tempfile.mkdtemp()
@@ -142,6 +151,7 @@ def new_stac_item_s3(
     mip_case_no: str,
     dev_mode: bool = False,
 ):
+    """Create a new stac item from a geopackage on s3."""
     logging.info("Creating item from gpkg")
     # Instantitate S3 resources
 
