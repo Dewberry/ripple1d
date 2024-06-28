@@ -1,6 +1,5 @@
 import logging
 import traceback
-from pathlib import Path
 from time import sleep
 
 import pystac
@@ -9,14 +8,14 @@ from production.db_utils import PGFim
 from ripple.conflate.rasfim import RasFimConflater
 from ripple.ops.conflate_ras_model import conflate_s3_model, href_to_vsis
 from ripple.ripple_logger import configure_logging
-from ripple.stacio.utils.s3_utils import init_s3_resources, s3_key_public_url_converter
+from ripple.utils.s3_utils import init_s3_resources
 
 
 def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
-
+    """Read from database a list of geopackages to create stac items."""
     db = PGFim()
 
-    session, client, s3_resource = init_s3_resources()
+    _, client, _ = init_s3_resources()
     rfc = None
     optional_condition = "AND stac_complete=true AND conflation_complete IS NULL"
     data = db.read_cases(

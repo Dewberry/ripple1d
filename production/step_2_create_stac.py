@@ -9,7 +9,7 @@ from ripple.ripple_logger import configure_logging
 
 
 def main(mip_group: str, table_name: str, bucket: str, ripple_version: str):
-
+    """Read from database a list of geopackages to create stac items."""
     db = PGFim()
     optional_condition = "AND gpkg_complete=true AND stac_complete IS NULL"
     data = db.read_cases(table_name, ["case_id", "s3_key"], mip_group, optional_condition)
