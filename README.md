@@ -5,7 +5,38 @@ Utilities for reuse of HEC-RAS models for NWM. HEC-RAS models must be cataloged 
 Refactor in progress
 
 ## Getting Started
-Refactor in progress
+
+Some parts of ripple require a Windows environment. Furthermore, some parts require that the Windows environment be a Desktop Experience (GUI, not a headless Windows server).
+
+These steps assume you will be using Python version 3.12 on a Windows host. Alternate versions of Python can typically be used by replacing "312" in the below steps, e.g. use "311" for Python 3.11.
+
+All commands should be ran within a standard Terminal (not PowerShell)
+
+### Initializing the Python Virtual Environment
+
+1. Install [Python](https://www.python.org/downloads/)
+1. Create a virtual Python environment: `"%LOCALAPPDATA%\Programs\Python\Python312\python.exe" -m venv "%homepath%\venvs\ripple-py312"`
+1. Activate (enter) the new virtual environment: `"%homepath%\venvs\ripple-py312\Scripts\activate.bat"`
+1. Confirm that the activation worked.
+    1. You should see that a parenthetical "(ripple-py312)" has been added to the left side of your current line in the terminal
+    1. Enter `where python` and confirm that the top result is sourcing Python from the new directory
+
+### Installing Dependencies
+
+1. Activate (enter) the new virtual environment (if not already): `"%homepath%\venvs\ripple-py312\Scripts\activate.bat"`
+1. Update pip: `python -m pip install --upgrade pip`
+1. Change directory into the root of this repository: `cd C:\path\to\this\repo`
+1. Install dependencies from [pyproject.toml](pyproject.toml). In this example we would like to include the optional "dev" dependency group, in addition to the required dependencies: `python -m pip install ".[dev]"`
+
+### Configuring Ripple Environment Variables
+
+1. Copy [.env.example](.env.example) and rename the copy to `.env`
+1. Edit `.env` as necessary to specify the path to the virtual Python environment, to specify the number of huey threads, etc. `.env` must at least contain the variables `VENV_PATH` and `HUEY_THREAD_COUNT`.
+
+### Testing the Installation
+
+For a full test of the REST API, see the REST API section below.
+
 
 ## About
 Producing inundation maps at half-foot increments for each NWM branch in a given RAS model is a multi-step process outlined below. "run_process.py" is a script that executes the process in the necessary sequential order. 
@@ -28,7 +59,6 @@ Producing inundation maps at half-foot increments for each NWM branch in a given
 
 <br>
 <br>
-<br>
 
 # REST API
 
@@ -40,19 +70,15 @@ system. The HTTP endpoints adhere closely to [OGC Process API](https://ogcapi.og
 ## Environment Requirements of the API
 
 1. Windows host with Desktop Experience, due to its usage of the HEC-RAS GUI.
-1. Python 3.8 or higher, with dependencies installed per requirements.txt.
+1. A virtual Python environment with dependencies installed per [pyproject.toml](pyproject.toml).
 1. HEC-RAS installed, and EULA accepted. For each version of RAS, open the program once to read and accept the EULA.
 
 ## API Launch Steps
 
+1. Initialize or edit `.env` as necessary to specify the virtual Python environment to use, the number of huey threads to use, data access credentials, etc. Care should be taken not to include the same variable names in [.flaskenv](.flaskenv) and in `.env`.
 1. If necessary, edit [.flaskenv](.flaskenv) (do not store any secrets or credentials in this file!)
-1. If necessary, initialize or edit `.env`, e.g. for data access credentials. Care should be taken not to include the same variable names in [.flaskenv](.flaskenv) and in `.env`.
-1. If necessary, edit [api-start.bat](api-start.bat) to:
-    1. Adjust the number of threads (cores) that huey will use to process concurrent tasks (jobs).  By default, [api-start.bat](api-start.bat) is configured to inspect the number of cores on the host machine and use a value of (N - 2), with a minimum of 1.
-    1. Adjust the huey logging behavior.  By default, the huey logs will not stream to the terminal, and will instead stream to a local file.
-    1. Adjust the huey consumer path.  By default, a typical such path is assumed in [api-start.bat](api-start.bat).
 1. Double-click [api-start.bat](api-start.bat). This will cause two Windows terminals to open. One will be running huey and the other will be running Flask. **Warning: this will delete and re-initialize the `api\logs\` directory, which includes the huey tasks database in addition to the log files.**
-1. Double-click [api-test.bat](api-test.bat). This will send a request to the ping endpoint of the API confirming that it is online and ready to process jobs.
+1. Double-click [api-test.bat](api-test.bat). This will send some requests to the API confirming that it is online and ready to process jobs.
 
 ## API Administration Notes
 
