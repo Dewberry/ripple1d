@@ -23,8 +23,13 @@ class PGFim:
 
     def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition: str):
         """Read cases from the cases schema."""
-        if optional_condition not in ["gpkg", "stac", "conflation"]:
-            raise ValueError(f"optional_condition must be one of {optional_condition} or None")
+        approved_conditons = [
+            "AND stac_complete=true AND conflation_complete IS NULL",
+            "AND gpkg_complete=true AND stac_complete IS NULL",
+            "AND stac_complete=true",
+        ]
+        if optional_condition not in approved_conditons:
+            raise ValueError(f"optional_condition must be one of {approved_conditons} or None")
 
         with psycopg2.connect(self.__conn_string()) as connection:
             cursor = connection.cursor()
