@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from typing import List
-from urllib.parse import requote_uri
+from urllib.parse import quote
 
 import boto3
 import pystac
@@ -13,12 +13,18 @@ from ripple.utils.s3_utils import s3_get_output_s3path
 
 def key_to_uri(key: str, bucket: str) -> str:
     """Convert a key to a uri."""
-    return f"https://{bucket}.s3.amazonaws.com/{key}"
+    return f"https://{bucket}.s3.amazonaws.com/{quote(key)}"
 
 
 def uri_to_key(href: str, bucket: str) -> str:
     """Convert a uri to a key."""
     return href.replace(f"https://{bucket}.s3.amazonaws.com/", "")
+
+
+def collection_exists(endpoint: str, collection_id: str) -> bool:
+    """Check if a collection exists in a STAC API."""
+    response = requests.get(f"{endpoint}/collections/{collection_id}")
+    return response.ok
 
 
 def create_collection(
@@ -65,7 +71,7 @@ def derive_input_from_stac_item(
 ) -> tuple:
     """TODO: leverage the contents of this function but split it into multiple functions."""
     # read stac item
-    stac_item = pystac.Item.from_file(requote_uri(ras_model_stac_href))
+    stac_item = pystac.Item.from_file(ras_model_stac_href)
 
     # download RAS model from stac item. derive terrain_name during download.
     # terrain_name is the basename of the terrain hdf without extension.
