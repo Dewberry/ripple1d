@@ -21,8 +21,11 @@ class PGFim:
         conn_string = f"dbname='{self.dbname}' user='{self.dbuser}' password='{self.dbpass}' host='{self.dbhost}' port='{self.dbport}'"
         return conn_string
 
-    def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition=""):
+    def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition: str):
         """Read cases from the cases schema."""
+        if optional_condition not in ["gpkg", "stac", "conflation"]:
+            raise ValueError(f"optional_condition must be one of {optional_condition} or None")
+
         with psycopg2.connect(self.__conn_string()) as connection:
             cursor = connection.cursor()
             fields_str = ""
