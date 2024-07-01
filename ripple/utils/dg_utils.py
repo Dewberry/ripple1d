@@ -11,8 +11,10 @@ import rasterio.warp
 import shapely
 import shapely.ops
 from mypy_boto3_s3.service_resource import Object
+from pyproj import CRS
 from rasterio import mask
 from rasterio.session import AWSSession
+from rasterio.warp import Resampling, calculate_default_transform, reproject
 from shapely import Polygon
 
 from .s3_utils import *
@@ -147,6 +149,33 @@ def create_depth_grid_item(
     return item
 
 
+def reproject_raster(src_path: str, dest_path: str, dst_crs: CRS, resolution: float = None):
+    """Reproject/resample raster."""
+    with rasterio.open(src_path) as src:
+        if not resolution:
+            resolution = src.res[0]
+            transform, width, height = calculate_default_transform(src.crs, dst_crs, src.width, src.height, *src.bounds)
+        else:
+            transform, width, height = calculate_default_transform(
+                src.crs, dst_crs, src.width, src.height, *src.bounds, resolution=resolution
+            )
+        kwargs = src.meta.copy()
+        kwargs.update({"crs": dst_crs, "transform": transform, "width": width, "height": height})
+
+        with rasterio.open(dest_path, "w", **kwargs) as dst:
+            for i in range(1, src.count + 1):
+                reproject(
+                    source=rasterio.band(src, i),
+                    destination=rasterio.band(dst, i),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs=dst_crs,
+                    dst_resolution=resolution,
+                    resampling=Resampling.nearest,
+                )
+
+
 def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon):
     """Clip a raster file to a polygon and save the result to a new file."""
     if os.path.exists(dst_path):
@@ -158,7 +187,7 @@ def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon):
     logging.info(f"Reading: {src_path}")
     with rasterio.open(src_path) as src:
         out_meta = src.meta
-        out_image, out_transform = mask(src, [mask_polygon], all_touched=True, crop=True)
+        out_image, out_transform = mask.mask(src, [mask_polygon], all_touched=True, crop=True)
 
     out_meta.update(
         {
