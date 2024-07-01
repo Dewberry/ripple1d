@@ -6,6 +6,8 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString
 
+from ripple.consts import RIPPLE_VERSION
+
 
 def subset_gpkg(
     src_gpkg_path: str,
@@ -92,7 +94,9 @@ def subset_gpkg(
     xs_subset_gdf.to_file(dest_gpkg_path, layer="XS", driver="GPKG")
     river_subset_gdf.to_file(dest_gpkg_path, layer="River", driver="GPKG")
 
-    return dest_gpkg_path, xs_subset_gdf.crs.to_epsg()
+    max_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
+    min_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).min().min()
+    return dest_gpkg_path, xs_subset_gdf.crs.to_epsg(), max_flow, min_flow
 
 
 def clean_river_stations(ras_data: str) -> str:
@@ -122,18 +126,19 @@ def junction_length_to_reach_lengths():
 
 
 def new_gpkg(
+    mip_source_model: str,
     ras_project_directory: str,
     ras_gpkg_file_path: str,
     nwm_id: str,
     ripple_parameters: dict,
-    ripple_version,
+    ripple_version: str = RIPPLE_VERSION,
 ):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
     if ripple_parameters["us_xs"]["xs_id"] == "-9999":
         ripple_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         print(ripple_parameters["messages"])
     else:
-        subset_gpkg_path, crs = subset_gpkg(
+        subset_gpkg_path, crs, max_flow, min_flow = subset_gpkg(
             ras_gpkg_file_path,
             ras_project_directory,
             nwm_id,
@@ -144,35 +149,18 @@ def new_gpkg(
             ripple_parameters["ds_xs"]["river"],
             ripple_parameters["ds_xs"]["reach"],
         )
-
+        ripple_parameters["MIP source model"] = mip_source_model
         ripple_parameters["files"] = {"gpkg": subset_gpkg_path}
         ripple_parameters["crs"] = crs
         ripple_parameters["version"] = ripple_version
+        ripple_parameters["high_flow_cfs"] = max([ripple_parameters["high_flow_cfs"], max_flow])
+        ripple_parameters["low_flow_cfs"] = max([ripple_parameters["low_flow_cfs"], min_flow])
+        if ripple_parameters["high_flow_cfs"] == max_flow:
+            ripple_parameters["notes"] = ["high_flow_cfs computed from MIP model flows"]
+        if ripple_parameters["low_flow_cfs"] == min_flow:
+            ripple_parameters["notes"] = ["low_flow_cfs computed from MIP model flows"]
 
         with open(os.path.join(ras_project_directory, f"{nwm_id}.ripple.json"), "w") as f:
             json.dump({nwm_id: ripple_parameters}, f, indent=4)
 
     return ripple_parameters
-
-
-# if __name__ == "__main__":
-
-#     ras_project_directory = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models"
-#     ras_gpkg_file_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJMain.gpkg"
-#     conflation_json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJ Main.json"
-#     ripple_version = "0.0.1"
-#     with open(conflation_json_path) as f:
-#         conflation_parameters = json.load(f)
-
-#     ripple_parameters = {}
-#     for nwm_id in conflation_parameters.keys():
-#         print(f"working on {nwm_id}")
-#         ripple_parameters[nwm_id] = new_gpkg(
-#             os.path.join(ras_project_directory, nwm_id),
-#             ras_gpkg_file_path,
-#             nwm_id,
-#             conflation_parameters[nwm_id],
-#             ripple_version,
-#         )
-#     with open(conflation_json_path, "w") as f:
-#         json.dump(ripple_parameters, f, indent=4)
