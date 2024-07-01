@@ -24,9 +24,9 @@ class PGFim:
     def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition: str):
         """Read cases from the cases schema."""
         approved_conditons = [
-            "AND stac_complete=true AND conflation_complete IS NULL",
-            "AND gpkg_complete=true AND stac_complete IS NULL",
-            "AND stac_complete=true",
+            "AND stac_complete=true AND conflation_complete=true",
+            "AND gpkg_complete=true AND stac_complete=false",
+            "AND stac_complete=true AND (conflation_complete=false or conflation_complete is null)",
         ]
         if optional_condition not in approved_conditons:
             raise ValueError(f"optional_condition must be one of {approved_conditons} or None")
