@@ -129,15 +129,27 @@ def task_result(task_id):
 def dismiss(task_id):
     # https://developer.ogc.org/api/processes/index.html#tag/Dismiss
     try:
-        status = tasks.ogc_status(task_id)
-        if status == "notfound":
+        ogc_status = tasks.ogc_status(task_id)
+        if ogc_status == "notfound":
             return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
-        else:
+        elif ogc_status == "accepted":
             tasks.revoke_task(task_id)
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
-    except:
+        elif ogc_status == "dismissed":
+            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+        else:
+            return (
+                jsonify(
+                    {
+                        "type": "process",
+                        "detail": f"failed to dismiss job ID {task_id} due to existing job status '{ogc_status}'",
+                    }
+                ),
+                HTTPStatus.CONFLICT,
+            )
+    except Exception as e:
         return (
-            jsonify({"type": "process", "detail": f"failed to dismiss job ID: {task_id}"}),
+            jsonify({"type": "process", "detail": f"failed to dismiss job ID {task_id} due to internal server error"}),
             HTTPStatus.INTERNAL_SERVER_ERROR,
         )
 
