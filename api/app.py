@@ -101,6 +101,15 @@ def task_status(task_id):
     return jsonify({"type": "process", "detail": f"unexpected status: {status}"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
+@app.route("/jobs_status_all", methods=["GET"])
+def task_status_all():
+    task2result = {
+        task_id: {"status": tasks.status(task_id), "result": tasks.result(task_id)}
+        for task_id in sorted(set(tasks._all_queued()) | set(tasks._all_executing()) | set(tasks.huey.all_results()))
+    }
+    return (jsonify(task2result), HTTPStatus.OK)
+
+
 @app.route("/jobs/<task_id>/results", methods=["GET"])
 def task_result(task_id):
     # https://developer.ogc.org/api/processes/index.html#tag/Result
