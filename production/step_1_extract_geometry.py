@@ -38,7 +38,7 @@ def main(table_name: str, mip_group: str, bucket: str = None):
     data = db.read_cases(table_name, ["mip_case", "s3_key", "crs"], mip_group)
 
     for i, (mip_case, key, crs) in enumerate(data):
-        key = key.replace("s3://fim/", "")
+        key = key.replace(f"s3://{bucket}/", "")
 
         logging.info(f"working on ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | key: {key}")
         try:
