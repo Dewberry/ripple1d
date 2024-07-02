@@ -1,4 +1,7 @@
 # ripple
+[![CI](https://github.com/dewberry/ripple/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dewberry/ripple/actions/workflows/ci.yml)
+
+
 Utilities for updating HEC-RAS models for use in the development of Flood Inundation Maps (FIM's) in support of the Nationa Water Model. 
 
 ## Contents
