@@ -1,42 +1,48 @@
-import argparse
-import logging
+"""
+Update existing collection.
 
-from ripple.utils.s3_utils import read_json_from_s3
+TODO: Refactor, this script was written in one setting and needs to be revised significantly.     
+"""
 
-from .fim_collection import FIMCollection, FIMCollectionRasItem
+# import argparse
+# import logging
 
-if __name__ == "__main__":
-    # STAC API URL
-    API_URL = "https://stac2.dewberryanalytics.com"
+# from ripple.utils.s3_utils import read_json_from_s3
 
-    parser = argparse.ArgumentParser(description="Process some integers.")
-    parser.add_argument("--collection_id", type=str, required=True, help="Collection ID")
+# from .fim_collection import FIMCollection, FIMCollectionRasItem
 
-    args = parser.parse_args()
-    collection_id = args.collection_id
+# if __name__ == "__main__":
+#     # STAC API URL
+#     API_URL = "https://stac2.dewberryanalytics.com"
 
-    fc = FIMCollection(API_URL, collection_id)
-    for item in fc.collection.get_all_items():
-        logging.info(f"item_id: {item.id}")
+#     parser = argparse.ArgumentParser(description="Process some integers.")
+#     parser.add_argument("--collection_id", type=str, required=True, help="Collection ID")
 
-        fci = FIMCollectionRasItem(API_URL, collection_id, item.id)
+#     args = parser.parse_args()
+#     collection_id = args.collection_id
 
-        fci.sanitize_ras_stac_props()
+#     fc = FIMCollection(API_URL, collection_id)
+#     for item in fc.collection.get_all_items():
+#         logging.info(f"item_id: {item.id}")
 
-        fci.map_topo_assets()
+#         fci = FIMCollectionRasItem(API_URL, collection_id, item.id)
 
-        conflated = fci.add_ripple_params()
+#         fci.sanitize_ras_stac_props()
 
-        fci.add_s3_key_to_assets()
+#         fci.map_topo_assets()
 
-        fci.ensure_asset_roles_unique()
+#         conflated = fci.add_ripple_params()
 
-        if conflated:
-            params_json = fci.item.assets["ripple_parameters.json"].extra_fields["s3_key"]
-            data = read_json_from_s3("fim", params_json)
+#         fci.add_s3_key_to_assets()
 
-            fci.item.properties["FIM:Branch Metadata"] = data
-        else:
-            logging.error(f"Failed to add ripple params for {fci.item.id}")
+#         fci.ensure_asset_roles_unique()
 
-        fci.post_item_updates()
+#         if conflated:
+#             params_json = fci.item.assets["ripple_parameters.json"].extra_fields["s3_key"]
+#             data = read_json_from_s3("fim", params_json)
+
+#             fci.item.properties["FIM:Branch Metadata"] = data
+#         else:
+#             logging.error(f"Failed to add ripple params for {fci.item.id}")
+
+#         fci.post_item_updates()
