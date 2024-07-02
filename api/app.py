@@ -170,10 +170,7 @@ def dismiss(task_id):
 
 
 def enqueue_async_task(func: typing.Callable) -> tuple[Response, HTTPStatus]:
-    """
-    Start the execution of the provided func using kwargs from the request body.
-    Assume body is a JSON dictionary.
-    """
+    """Start the execution of the provided func using kwargs from the request body. Assume body is a JSON dictionary."""
     try:
         kwargs = request.json  # can throw BadRequest when parsing body into json
         if not isinstance(kwargs, dict):
