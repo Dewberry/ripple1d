@@ -103,7 +103,6 @@ def detemine_primary_plan(
             return RasPlanText(plan_path, crs)
     candidate_plans = []
     for plan_path in ras_project.plans:
-
         if client:
             string = str_from_s3(plan_path, client, bucket)
 
@@ -111,7 +110,6 @@ def detemine_primary_plan(
                 candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
         else:
             if os.path.exists(plan_path):
-
                 with open(plan_path) as src:
                     string = src.read()
                 if not string.__contains__("Encroach Node"):

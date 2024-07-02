@@ -71,7 +71,6 @@ def write_new_plan_text_file(func):
     """Write new plan text file decorator."""
 
     def wrapper(self, *args, **kwargs):
-
         title = args[0]
         geom_title = args[1]
         if title in self.plans.keys():
@@ -231,7 +230,6 @@ class RasManager:
         crs: CRS = None,
         new_project: bool = False,
     ):
-
         self.version = version
         self.terrain_path = terrain_path
         self.ras_project = RasProject(ras_text_file_path, new_file=new_project)
@@ -791,7 +789,6 @@ class RasPlanText(RasTextFile):
 
         # read the hdf file
         with h5py.File(self.hdf_file) as hdf:
-
             # get columns and indexes for the wse and flow arrays
             columns = decode(pd.DataFrame(hdf[XS_NAMES_HDF_PATH]))
             index = decode(pd.DataFrame(hdf[PROFILE_NAMES_HDF_PATH]))
@@ -843,7 +840,6 @@ class RasGeomText(RasTextFile):
     def _content_from_gpkg(
         self,
     ):
-
         if not hasattr(self, "_gpkg_path"):
             raise ("gpkg_path not provided")
         if not os.path.exists(self._gpkg_path):
@@ -872,7 +868,6 @@ class RasGeomText(RasTextFile):
         xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
         data = ""
         for _, row in river_gdf.iterrows():
-
             centroid = row.geometry.centroid
 
             coords = row["geometry"].coords
@@ -1119,14 +1114,12 @@ class RasFlowText(RasTextFile):
         """Retrieve flow change locations."""
         flow_change_locations = []
         for location in search_contents(self.contents, "River Rch & RM", expect_one=False):
-
             # parse river, reach, and river station for the flow change location
             river, reach, rs = location.split(",")
             lines = text_block_from_start_end_str(f"River Rch & RM={location}", "River Rch & RM", self.contents)
             flows = []
 
             for line in lines[1:]:
-
                 for i in range(0, len(line), 8):
                     flows.append(float(line[i : i + 8].lstrip(" ")))
                     if len(flows) == self.n_profiles:
@@ -1264,9 +1257,7 @@ class RasMap:
         """
         lines = []
         for line in self.contents.splitlines():
-
             if line == "  <Results />":
-
                 lines.append(
                     PLAN.replace("plan_hdf_placeholder", plan_hdf)
                     .replace("plan_name_placeholder", str(plan_short_id))
@@ -1282,9 +1273,7 @@ class RasMap:
         """Add Terrain to RasMap content."""
         lines = []
         for line in self.contents.splitlines():
-
             if line == "  <Terrains />":
-
                 lines.append(TERRAIN.replace(TERRAIN_NAME, terrain_name).replace(TERRAIN_PATH, terrain_path))
                 continue
 

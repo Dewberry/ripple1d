@@ -16,7 +16,6 @@ if __name__ == "__main__":
         conflation_parameters = json.load(f)
 
     for nwm_id in conflation_parameters.keys():
-
         logging.info(f"Working on: {nwm_id}")
         ras_project_text_file = os.path.join(SAMPLE_DATA, f"{nwm_id}\\{nwm_id}.prj")
         subset_gpkg_path = os.path.join(SAMPLE_DATA, f"{nwm_id}\\{nwm_id}.gpkg")

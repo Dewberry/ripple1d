@@ -30,7 +30,6 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
         optional_condition,
     )
     while data:
-
         for i, (mip_case, s3_ras_project_key) in enumerate(data):
             try:
                 logging.info(
@@ -83,7 +82,6 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
 
 
 if __name__ == "__main__":
-
     configure_logging(level=logging.INFO, logfile="create_stac.log")
     mip_group = "tx_ble"
     table_name = "processing"

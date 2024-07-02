@@ -1,7 +1,7 @@
 """
 Update existing collection.
 
-TODO: Refactor, this script was written in one setting and needs to be revised significantly.     
+TODO: Refactor, this script was written in one setting and needs to be revised significantly.
 """
 
 # import argparse

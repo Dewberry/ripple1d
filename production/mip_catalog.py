@@ -111,7 +111,6 @@ def list_items_on_s3(table_name: str, mip_group: str, bucket: str = "fim", condi
 
 
 if __name__ == "__main__":
-
     configure_logging(level=logging.INFO, logfile="create_stac.log")
     table_name = "processing"
     bucket = "fim"

@@ -219,7 +219,6 @@ def _process(func: typing.Callable, kwargs: dict = {}):
 def _handle_signals(signal, task, exc=None):
     """Update the status in the task_status table When task emits a signal."""
     match signal:
-
         case sigs.SIGNAL_EXECUTING:
             time_field = "start_time"
             ogc_status = "running"

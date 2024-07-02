@@ -46,7 +46,6 @@ def post_process_depth_grids(
     """Clip depth grids based on their associated NWM branch and respective cross sections."""
     missing_grids_kwse, missing_grids_nd = [], []
     for plan_name in plan_names:
-
         if plan_name not in rm.plans:
             continue
         for profile_name in rm.plans[plan_name].flow.profile_names:

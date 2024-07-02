@@ -91,7 +91,6 @@ def download_model_from_stac_item(
 
     # download HEC-RAS model files
     for _, asset in stac_item.get_assets(role="hec-ras").items():
-
         s3_key = asset.extra_fields["s3_key"]
 
         file = os.path.join(ras_directory, Path(s3_key).name)
@@ -99,7 +98,6 @@ def download_model_from_stac_item(
 
     # download HEC-RAS topo files
     for _, asset in stac_item.get_assets(role="ras-topo").items():
-
         s3_key = asset.extra_fields["s3_key"]
 
         file = os.path.join(ras_directory, Path(s3_key).name)

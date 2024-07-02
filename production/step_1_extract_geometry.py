@@ -55,7 +55,6 @@ def main(table_name: str, mip_group: str, bucket: str = None):
 
 
 if __name__ == "__main__":
-
     configure_logging(level=logging.INFO, logfile="extract_geometry.log")
     load_dotenv(find_dotenv())
 

@@ -54,7 +54,6 @@ def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
     gdfs = {}
 
     for layer in layers:
-
         gdfs[layer] = gpd.read_file(gpkg_s3_uri, layer=layer)
 
     return gdfs
@@ -183,7 +182,6 @@ def parse_featuresproperties(json_data, metadata_to_remove) -> dict:
 
     # Loop through each features property entry
     for file_key, data_properties in geometry_files.items():
-
         file_ext = data_properties["File Extension"].replace(".", "")
         prefix = f"geometry:{file_ext}"
 
@@ -257,7 +255,6 @@ def parse_forcingfiles(json_data, metadata_to_remove) -> dict:
     i = 1
     # Loop through each data entry in "Data"
     for _, data_properties in data_files.items():
-
         file_ext = data_properties["FileExt"].replace(".", "")
         prefix = f"forcing:{file_ext}"
 

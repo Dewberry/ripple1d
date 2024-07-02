@@ -16,9 +16,7 @@ def main(mip_group: str, table_name: str, bucket: str, ripple_version: str):
     optional_condition = "AND gpkg_complete=true AND stac_complete IS NULL"
     data = db.read_cases(table_name, ["case_id", "s3_key"], mip_group, optional_condition)
     while data:
-
         for i, (mip_case, s3_ras_project_key) in enumerate(data):
-
             gpkg_key = s3_ras_project_key.replace(".prj", ".gpkg")
             thumbnail_png_s3_key = s3_ras_project_key.replace("mip", "stac").replace(".prj", ".png")
             new_stac_item_s3_key = s3_ras_project_key.replace("mip", "stac").replace(".prj", ".json")

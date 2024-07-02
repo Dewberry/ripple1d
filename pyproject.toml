@@ -59,6 +59,9 @@ select = ["D"]
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
+[tool.ruff]
+line-length = 120
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
 "docs/**" = ["D"]

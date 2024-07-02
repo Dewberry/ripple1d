@@ -40,7 +40,6 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame, ripple_versio
     c = conn.cursor()
 
     for row in data.itertuples():
-
         c.execute(
             f"""
             INSERT OR REPLACE INTO {[table_name]} (control_by_reach_depth, control_by_reach_wse,flow, depth, wse, reach_id,ripple_version)

@@ -1,7 +1,7 @@
 """
-Script is a prototype for creating a STAC collection for the FIM depth grids. 
+Script is a prototype for creating a STAC collection for the FIM depth grids.
 
-TODO: Refactor, this script was written in one setting and needs to be revised significantly.     
+TODO: Refactor, this script was written in one setting and needs to be revised significantly.
 """
 
 # from typing import List

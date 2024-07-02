@@ -72,7 +72,6 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, inc
     results = []
     in_block = False
     for line in lines:
-
         if line == start_str:
             in_block = True
             results.append(line)
@@ -95,7 +94,6 @@ def text_block_from_start_str_to_empty_line(start_str: str, lines: list) -> list
     results = []
     in_block = False
     for line in lines:
-
         if line == start_str:
             in_block = True
             results.append(line)
@@ -131,7 +129,6 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
     pairs = []
     for line in lines:
         for i in range(0, len(line), width):
-
             x = line[i : int(i + width / 2)]
             y = line[int(i + width / 2) : int(i + width)]
             pairs.append((float(x), float(y)))
