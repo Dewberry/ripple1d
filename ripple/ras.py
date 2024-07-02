@@ -169,9 +169,9 @@ def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         if isinstance(extensions, list):
-            return [self._ras_root_path + "." + extension for extension in extensions]
+            return [self._ras_root_path + "." + extension.lstrip(".") for extension in extensions]
         else:
-            return self._ras_root_path + "." + extensions
+            return self._ras_root_path + "." + extensions.lstrip(".")
 
     return wrapper
 
@@ -410,7 +410,7 @@ class RasManager:
         write_depth_grids: bool = False,
     ):
         """Create a new known water surface elevation run."""
-        profile_names = [f"f_{flow}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
+        profile_names = [f"f_{flow}-z_{str(wse).replace('.','_')}" for flow, wse in zip(flows, wses)]
 
         # write headers
         flow_text_file.contents += flow_text_file.write_headers(title, profile_names)
@@ -555,7 +555,7 @@ class RasProject(RasTextFile):
     @combine_root_extension
     def plans(self):
         """Get the plans associated with this project."""
-        return search_contents(self.contents, "Plan File", expect_one=False)
+        return [f".{ext}" for ext in search_contents(self.contents, "Plan File", expect_one=False)]
 
     @property
     @combine_root_extension
@@ -588,7 +588,7 @@ class RasProject(RasTextFile):
     @property
     def n_flows(self):
         """Get the number of flow files associated with this project."""
-        return len(self.stead_flows)
+        return len(self.steady_flows)
 
     @property
     def current_plan(self):
@@ -606,11 +606,11 @@ class RasProject(RasTextFile):
         if f"{plan_ext}" not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {plan_ext}")
         else:
-            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext.rstrip("."))
+            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext.lstrip("."))
 
         # TODO: Update this to put it with the other plans
-        if f"Plan File={plan_ext}" not in new_contents:
-            new_contents.append(f"Plan File={plan_ext}")
+        if f"Plan File={plan_ext.lstrip('.')}" not in new_contents:
+            new_contents.append(f"Plan File={plan_ext.lstrip('.')}")
         logging.info("set plan!")
         return new_contents
 
@@ -829,7 +829,7 @@ class RasGeomText(RasTextFile):
     @classmethod
     def from_gpkg(cls, gpkg_path, title: str, version: str, ras_text_file_path: str = ""):
         """Initiate the RASGeomText class from a geopackage."""
-        inst = cls(ras_text_file_path, crs=gpd.read_file(gpkg_path).crs, new_file=True)
+        inst = cls(ras_text_file_path, crs=gpd.read_file(gpkg_path, layer="XS").crs, new_file=True)
         inst._gpkg_path = gpkg_path
         inst._version = version
         inst._title = title
