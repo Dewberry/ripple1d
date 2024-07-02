@@ -1,4 +1,5 @@
 import json
+import logging
 
 from ripple.ops.create_fim_lib import new_fim_lib
 
@@ -12,7 +13,7 @@ if __name__ == "__main__":
 
     for nwm_id in conflation_parameters.keys():
 
-        logging.info(f"Working on: {nwm_id}")
+        print(f"Working on: {nwm_id}")
         ras_project_text_file = (
             rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple2\ripple\tests\ras-data\Baxter\{nwm_id}\{nwm_id}.prj"
         )
@@ -22,8 +23,8 @@ if __name__ == "__main__":
         terrain_path = (
             rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple2\ripple\tests\ras-data\Baxter\{nwm_id}\Terrain.hdf"
         )
-        nd_plan_name = f"{nwm_id}_nd1"
-        kwse_plan_name = f"{nwm_id}_kwse2"
+        nd_plan_name = f"{nwm_id}_nd"
+        kwse_plan_name = f"{nwm_id}_kwse"
 
         new_fim_lib(
             nwm_id,

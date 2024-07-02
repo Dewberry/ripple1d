@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
         incremental_normal_depth(
             nwm_id,
-            f"{nwm_id}_nd1",
+            f"{nwm_id}_nd",
             f"{nwm_id}_ind",
             conflation_parameters[nwm_id],
             ras_project_text_file,

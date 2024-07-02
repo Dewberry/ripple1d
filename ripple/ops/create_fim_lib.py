@@ -49,7 +49,7 @@ def post_process_depth_grids(
             continue
         for profile_name in rm.plans[plan_name].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
-            src_path = os.path.join(rm.ras_project._ras_dir, str(id), f"Depth ({profile_name}).vrt")
+            src_path = os.path.join(rm.ras_project._ras_dir, str(plan_name), f"Depth ({profile_name}).vrt")
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(src_path):

@@ -14,6 +14,8 @@ if __name__ == "__main__":
         r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple2\ripple\tests\ras-data\Baxter\Baxter-ripple-params.json"
     )
     depth_increment = 2
+    default_min_elevation = 20  # when no downstream model
+    default_max_elevation = 45
 
     with open(conflation_json_path) as f:
         conflation_parameters = json.load(f)
@@ -36,23 +38,25 @@ if __name__ == "__main__":
         )
 
         if e == 0:
-            known_water_surface_elevations = np.arange(21, 45, depth_increment)
+            min_elevation = default_min_elevation
+            max_elevation = default_max_elevation
         elif "messages" in conflation_parameters[nwm_id]:
             continue
         else:
-            known_water_surface_elevations = get_kwse_from_ds_model(
+            min_elevation, max_elevation = get_kwse_from_ds_model(
                 ds_nwm_id,
                 ds_nwm_ras_project_file,
-                [f"{ds_nwm_id}_nd1", f"{ds_nwm_id}_kwse2"],
-                depth_increment=depth_increment,
+                [f"{ds_nwm_id}_nd", f"{ds_nwm_id}_kwse"],
             )
 
         known_wse(
             nwm_id,
-            f"{nwm_id}_kwse2",
-            f"{nwm_id}_nd1",
+            f"{nwm_id}_kwse",
+            f"{nwm_id}_nd",
             ras_project_text_file,
             subset_gpkg_path,
             terrain_path,
-            known_water_surface_elevations,
+            min_elevation,
+            max_elevation,
+            depth_increment,
         )
