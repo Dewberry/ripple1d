@@ -80,10 +80,10 @@ def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str)
 
 def detemine_primary_plan(
     ras_project: str,
-    client: boto3.session.Session.client,
     crs: CRS,
     ras_text_file_path: str,
-    bucket: str,
+    client: boto3.session.Session.client = None,
+    bucket: str = None,
 ) -> RasPlanText:
     """
     Determine the primary plan for a ras project.
@@ -94,17 +94,44 @@ def detemine_primary_plan(
     """
     if len(ras_project.plans) == 1:
         plan_path = ras_project.plans[0]
-        string = str_from_s3(plan_path, client, bucket)
-        return RasPlanText.from_str(string, crs, plan_path)
+        if client:
+            string = str_from_s3(plan_path, client, bucket)
+            return RasPlanText.from_str(string, crs, plan_path)
+        else:
+            return RasPlanText(plan_path, crs)
+    candidate_plans = []
     for plan_path in ras_project.plans:
-        string = str_from_s3(plan_path, client, bucket)
-        candidate_plans = []
-        if not string.__contains__("Encroach Node"):
-            candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
+
+        if client:
+            string = str_from_s3(plan_path, client, bucket)
+
+            if not string.__contains__("Encroach Node"):
+                candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
+        else:
+            if os.path.exists(plan_path):
+
+                with open(plan_path) as src:
+                    string = src.read()
+                if not string.__contains__("Encroach Node"):
+                    candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
     if len(candidate_plans) > 1 or not candidate_plans:
         raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
     else:
         return candidate_plans[0]
+
+
+def geom_to_gpkg(ras_text_file_path: str, crs: CRS, output_gpkg_path: str):
+    """Write geometry and flow data to a geopackage locally."""
+    ras_project = RasProject(ras_text_file_path)
+
+    # determine primary plan
+    rp = detemine_primary_plan(ras_project, crs, ras_text_file_path)
+
+    rf = RasFlowText(rp.plan_steady_file)
+
+    rg = RasGeomText(rp.plan_geom_file, crs)
+
+    geom_flow_to_gpkg(rg, rf, rp.title, ras_project.title, output_gpkg_path)
 
 
 def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
@@ -120,17 +147,17 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
     # determine primary plan
-    plan = detemine_primary_plan(ras_project, client, crs, ras_text_file_path, bucket)
+    rp = detemine_primary_plan(ras_project, client, crs, ras_text_file_path, bucket)
 
     # read flow string and write geopackage
-    string = str_from_s3(plan.plan_steady_file, client, bucket)
+    string = str_from_s3(rp.plan_steady_file, client, bucket)
     rf = RasFlowText.from_str(string, " .f01")
 
     # read geom string and write geopackage
-    string = str_from_s3(plan.plan_geom_file, client, bucket)
+    string = str_from_s3(rp.plan_geom_file, client, bucket)
     rg = RasGeomText.from_str(string, crs, " .g01")
 
-    geom_flow_to_gpkg(rg, rf, plan.title, ras_project.title, temp_path)
+    geom_flow_to_gpkg(rg, rf, rp.title, ras_project.title, temp_path)
 
     # move geopackage to s3
     logging.debug(f"uploading {output_gpkg_path} to s3")
