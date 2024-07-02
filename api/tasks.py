@@ -1,3 +1,5 @@
+"""huey instance for huey + Flask REST API (to be called by huey_consumer.py)."""
+
 import json
 import os
 import time
