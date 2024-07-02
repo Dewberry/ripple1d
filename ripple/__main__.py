@@ -1,3 +1,5 @@
+"""Launch ripple API."""
+
 import os
 import shutil
 import subprocess

@@ -1,3 +1,5 @@
+"""Logging utility an setup."""
+
 import logging
 from logging.handlers import RotatingFileHandler
 

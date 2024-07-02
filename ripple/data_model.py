@@ -1,3 +1,5 @@
+"""Data model for shared utilities."""
+
 import math
 from dataclasses import dataclass
 from typing import List
