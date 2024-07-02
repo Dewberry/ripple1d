@@ -1,3 +1,5 @@
+"""Utils for working with sqlite databases."""
+
 import os
 import sqlite3
 

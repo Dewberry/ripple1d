@@ -1,3 +1,5 @@
+"""Utils for working with s3."""
+
 import json
 import logging
 import os

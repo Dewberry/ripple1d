@@ -1,3 +1,5 @@
+"""Utils for working with STAC items/catalogs."""
+
 import json
 import logging
 import os

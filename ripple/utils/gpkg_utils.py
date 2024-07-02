@@ -1,3 +1,5 @@
+"""Utils for working with geopackages."""
+
 import json
 import logging
 import re

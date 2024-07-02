@@ -1,3 +1,5 @@
+"""Utils for working with raster data."""
+
 import json
 import logging
 import os
