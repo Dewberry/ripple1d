@@ -24,7 +24,7 @@ def get_auth_header():
     try:
         token = json.loads(auth_response.text)["access_token"]
     except KeyError:
-        print(auth_response.text)
+        logging.debug(auth_response.text)
         raise KeyError
 
     headers = {
