@@ -36,7 +36,7 @@ class XS:
         self.river = river
         self.reach = reach
         self.river_reach = river_reach
-        self.river_reach_rs = f"{river} {reach} {self.river_station}".rstrip("0").rstrip(".")
+        self.river_reach_rs = f"{river} {reach} {self.river_station}"
 
     def split_xs_header(self, position: int):
         """

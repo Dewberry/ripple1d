@@ -16,21 +16,26 @@ def new_fim_lib(
     nwm_id: str,
     nwm_data: dict,
     ras_project_text_file: str,
+    nd_plan_name: str,
+    kwse_plan_name: str,
     terrain_path: str,
     subset_gpkg_path: str,
 ):
     """Create a new FIM library for a NWM id."""
-    crs = gpd.read_file(subset_gpkg_path).crs
+    crs = gpd.read_file(subset_gpkg_path, layer="XS").crs
 
     rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, crs=crs)
-    missing_grids_kwse, missing_grids_nd = post_process_depth_grids(rm, nwm_id, nwm_data, except_missing_grid=True)
+    missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
+        rm, [nd_plan_name, kwse_plan_name], nwm_id, nwm_data, except_missing_grid=True
+    )
 
-    rating_curves_to_sqlite(rm, nwm_id, missing_grids_kwse)
-    zero_depth_to_sqlite(rm, nwm_id, missing_grids_nd)
+    rating_curves_to_sqlite(rm, kwse_plan_name, nwm_id, missing_grids_kwse)
+    zero_depth_to_sqlite(rm, nd_plan_name, nwm_id, missing_grids_nd)
 
 
 def post_process_depth_grids(
     rm: RasManager,
+    plan_names: str,
     nwm_id: str,
     nwm_data: dict,
     except_missing_grid: bool = False,
@@ -38,20 +43,19 @@ def post_process_depth_grids(
 ) -> tuple[list[str]]:
     """Clip depth grids based on their associated NWM branch and respective cross sections."""
     missing_grids_kwse, missing_grids_nd = [], []
-    for prefix in ["_kwse", "_nd"]:
-        id = nwm_id + prefix
+    for plan_name in plan_names:
 
-        if id not in rm.plans:
+        if plan_name not in rm.plans:
             continue
-        for profile_name in rm.plans[id].flow.profile_names:
+        for profile_name in rm.plans[plan_name].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
             src_path = os.path.join(rm.ras_project._ras_dir, str(id), f"Depth ({profile_name}).vrt")
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(src_path):
-                if prefix == "_kwse":
+                if "_kwse" in plan_name:
                     missing_grids_kwse.append(profile_name)
-                elif prefix == "_nd":
+                elif "_nd" in plan_name:
                     missing_grids_nd.append(profile_name)
                 if except_missing_grid:
                     logging.warning(f"depth raster does not exists: {src_path}")
@@ -59,9 +63,9 @@ def post_process_depth_grids(
                 else:
                     raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
 
-            if "_kwse" in id:
+            if "_kwse" in plan_name:
                 flow, depth = profile_name.split("-")
-            elif "_nd" in id:
+            elif "_nd" in plan_name:
                 flow = f"f_{profile_name}"
                 depth = "z_0_0"
 
@@ -78,26 +82,3 @@ def post_process_depth_grids(
                     dst.update_tags(ns="rio_overview", resampling="nearest")
 
     return missing_grids_kwse, missing_grids_nd
-
-
-# if __name__ == "__main__":
-#     nwm_id = "2826228"
-#     ras_project_text_file = (
-#         rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}\{nwm_id}.prj"
-#     )
-#     subset_gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}.gpkg"
-#     terrain_path = (
-#         rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\test\{nwm_id}Terrain.hdf"
-#     )
-#     json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\Baxter\baxter-ripple-params.json"
-
-#     with open(json_path) as f:
-#         ripple_parameters = json.load(f)
-
-#     main(
-#         nwm_id,
-#         ripple_parameters[nwm_id],
-#         ras_project_text_file,
-#         terrain_path,
-#         subset_gpkg_path,
-#     )
