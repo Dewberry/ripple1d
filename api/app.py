@@ -1,59 +1,72 @@
-from http import HTTPStatus
+"""Flask API."""
+
 import time
 import traceback
 import typing
+from http import HTTPStatus
 
 from flask import Flask, Response, jsonify, request
 from werkzeug.exceptions import BadRequest
 
-from ripple.ops.create_fim_lib import new_fim_lib
-from ripple.ops.create_ras_terrain import new_ras_terrain
-from ripple.ops.run_ras_model import initial_normal_depth, incremental_normal_depth, known_wse
-from ripple.ops.subset_gpkg import new_gpkg
-
 from api import tasks
 from api.utils import get_unexpected_and_missing_args
+from ripple.ops.create_fim_lib import new_fim_lib
+from ripple.ops.create_ras_terrain import new_ras_terrain
+from ripple.ops.run_ras_model import (
+    incremental_normal_depth,
+    initial_normal_depth,
+    known_wse,
+)
+from ripple.ops.subset_gpkg import new_gpkg
 
 app = Flask(__name__)
 
 
 @app.route("/processes/new_gpkg/execution", methods=["POST"])
 def process__new_gpkg():
+    """Enqueue a task to create a new GeoPackage."""
     return enqueue_async_task(new_gpkg)
 
 
 @app.route("/processes/new_ras_terrain/execution", methods=["POST"])
 def process__new_ras_terrain():
+    """Enqueue a task to create a new RAS terrain."""
     return enqueue_async_task(new_ras_terrain)
 
 
 @app.route("/processes/initial_normal_depth/execution", methods=["POST"])
 def process__initial_normal_depth():
+    """Enqueue a task to calculate the initial normal depth."""
     return enqueue_async_task(initial_normal_depth)
 
 
 @app.route("/processes/incremental_normal_depth/execution", methods=["POST"])
 def process__incremental_normal_depth():
+    """Enqueue a task to calculate the incremental normal depth."""
     return enqueue_async_task(incremental_normal_depth)
 
 
 @app.route("/processes/known_wse/execution", methods=["POST"])
 def process__known_wse():
+    """Enqueue a task to calculate the water surface elevation (WSE) based on known inputs."""
     return enqueue_async_task(known_wse)
 
 
 @app.route("/processes/new_fim_lib/execution", methods=["POST"])
 def process__new_fim_lib():
+    """Enqueue a task to create a new FIM library."""
     return enqueue_async_task(new_fim_lib)
 
 
 @app.route("/ping", methods=["GET"])
 def ping():
+    """Check the health of the service."""
     return jsonify({"status": "healthy"}), HTTPStatus.OK
 
 
 @app.route("/processes/test/execution", methods=["POST"])
 def test():
+    """Test the execution and monitoring of an asynchronous task."""
     response, http_status = enqueue_async_task(tasks.noop)
     if http_status != HTTPStatus.CREATED:
         return jsonify(response.json, HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -76,12 +89,13 @@ def test():
 
 @app.route("/processes/sleep/execution", methods=["POST"])
 def process__sleep():
+    """Enqueue a task that sleeps for 15 seconds."""
     return enqueue_async_task(tasks.sleep15)
 
 
 @app.route("/jobs/<task_id>", methods=["GET"])
 def task_status(task_id):
-    # https://developer.ogc.org/api/processes/index.html#tag/Status
+    """Retrieve the status of a specific task by its ID."""
     status = tasks.ogc_status(task_id)
     if status == "accepted":
         return jsonify({"type": "process", "jobID": task_id, "status": status}), HTTPStatus.OK
@@ -109,12 +123,13 @@ def task_status(task_id):
 
 @app.route("/jobs", methods=["GET"])
 def all_task_status():
+    """Retrieve the status of all tasks."""
     return jsonify(tasks.all_task_status(), HTTPStatus.OK)
 
 
 @app.route("/jobs/<task_id>/results", methods=["GET"])
 def task_result(task_id):
-    # https://developer.ogc.org/api/processes/index.html#tag/Result
+    """Retrieve the result of a specific task by its ID."""
     try:
         status = tasks.ogc_status(task_id)
         if status == "notfound":
@@ -127,7 +142,7 @@ def task_result(task_id):
 
 @app.route("/jobs/<task_id>", methods=["DELETE"])
 def dismiss(task_id):
-    # https://developer.ogc.org/api/processes/index.html#tag/Dismiss
+    """Dismiss a specific task by its ID."""
     try:
         ogc_status = tasks.ogc_status(task_id)
         if ogc_status == "notfound":
@@ -155,8 +170,10 @@ def dismiss(task_id):
 
 
 def enqueue_async_task(func: typing.Callable) -> tuple[Response, HTTPStatus]:
-    """Start the execution of the provided func using kwargs from the request body (assume body is a JSON dictionary)"""
-    # https://developer.ogc.org/api/processes/index.html#tag/Execute/operation/execute
+    """
+    Start the execution of the provided func using kwargs from the request body.
+    Assume body is a JSON dictionary.
+    """
     try:
         kwargs = request.json  # can throw BadRequest when parsing body into json
         if not isinstance(kwargs, dict):
