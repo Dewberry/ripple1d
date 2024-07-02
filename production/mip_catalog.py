@@ -1,3 +1,5 @@
+"""Build STAC Catalog for MIP HEC-RAS models."""
+
 # mip_catalog.py
 import logging
 from typing import List

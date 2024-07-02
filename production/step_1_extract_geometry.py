@@ -1,3 +1,5 @@
+"""Extract geopackage from HEC-RAS geometry file."""
+
 import logging
 import traceback
 

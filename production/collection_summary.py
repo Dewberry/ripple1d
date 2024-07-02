@@ -1,3 +1,5 @@
+"""Summarize collection."""
+
 import logging
 
 import pystac_client

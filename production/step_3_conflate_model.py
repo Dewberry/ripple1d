@@ -1,3 +1,5 @@
+"""Conflate HEC-RAS model with NWM hydrofabric."""
+
 import logging
 import traceback
 from time import sleep

@@ -1,3 +1,5 @@
+"""Manage Headers."""
+
 import json
 import os
 

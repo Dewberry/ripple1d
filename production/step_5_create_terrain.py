@@ -1,3 +1,5 @@
+"""Create HEC-RAS terrain."""
+
 import json
 import logging
 import os

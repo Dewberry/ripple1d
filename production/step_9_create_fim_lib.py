@@ -1,3 +1,5 @@
+"""Create FIM library."""
+
 import json
 import logging
 import os

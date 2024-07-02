@@ -1,3 +1,5 @@
+"""Database utils."""
+
 import os
 
 import psycopg2
