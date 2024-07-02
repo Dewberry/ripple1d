@@ -1,3 +1,5 @@
+"""Conflation classes and functions."""
+
 import json
 import logging
 from collections import OrderedDict
