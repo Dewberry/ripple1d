@@ -1,3 +1,5 @@
+"""Generic utilities supporting the huey + Flask REST API."""
+
 from functools import wraps
 import inspect
 import logging
