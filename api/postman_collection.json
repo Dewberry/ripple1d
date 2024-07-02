@@ -52,34 +52,6 @@
 			"response": []
 		},
 		{
-			"name": "test-new-gpkg",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"ras_project_directory\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"ras_gpkg_file_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.gpkgXXXZZ\",\r\n    \"nwm_id\": \"2826228\",\r\n    \"ripple_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ripple_version\": \"0.0.1\"\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/new_gpkg/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"new_gpkg",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
 			"name": "test-sleep",
 			"request": {
 				"method": "POST",
@@ -101,6 +73,34 @@
 					"path": [
 						"processes",
 						"sleep",
+						"execution"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "test-new-gpkg",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mip_source_model\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.prj\",\r\n    \"ras_project_directory\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"ras_gpkg_file_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.gpkg\",\r\n    \"nwm_id\": \"2826228\",\r\n    \"ripple_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ripple_version\": \"0.0.1\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/processes/new_gpkg/execution",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"processes",
+						"new_gpkg",
 						"execution"
 					]
 				}
@@ -198,7 +198,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"plan_name\": \"2826228_kwse\",\r\n    \"ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"known_water_surface_elevations\": [60.0, 61.0, 62.0]\r\n}",
+					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"plan_name\": \"2826228_kwse\",\r\n    \"incremental_normal_depth_plan_name\": \"2826228_ind\",\r\n    \"ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -226,7 +226,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"nwm_data\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\"\r\n}",
+					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"nwm_data\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"nd_plan_name\" : \"2826228_nd\",\r\n    \"kwse_plan_name\" : \"2826228_kwse\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
