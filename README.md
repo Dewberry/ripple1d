@@ -3,14 +3,14 @@ Utilities for updating HEC-RAS models for use in the development of Flood Inunda
 
 ## Contents
 
- - [api](api/) : Source code fot a Flask API and Huey queueing system for managing parallel compute. 
- - [production](production/) : Stand alone scripts providing examples of using the ripple without the API.
+ - [api](api/) : Source code for a Flask API and Huey queueing system for managing parallel compute. 
+ - [production](production/) : Stand alone scripts providing examples of using the ripple library without the API.
  - [ripple](ripple/): Source code for the ripple library.
  - [tests](tests/): Unit tests.
 
 ## Getting Started
 
-*OS Dependency*: Ripple requires a Windows environment with Desktop Experience (GUI, not a headless Windows server) and [HEC-RAS](https://www.hec.usace.army.mil/software/hec-ras/download.aspx) installed (currently version 5.3.1 is supported).
+*OS Dependency*: Ripple requires a Windows environment with Desktop Experience (GUI, not a headless Windows server) and [HEC-RAS](https://www.hec.usace.army.mil/software/hec-ras/download.aspx) installed (currently version 6.3.1 is supported).
 
 
 These steps assume you will be using Python version 3.12 on a Windows host. Alternate versions of Python can typically be used by replacing "312" in the below steps, e.g. use "311" for Python 3.11.
