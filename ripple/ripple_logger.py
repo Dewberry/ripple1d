@@ -1,6 +1,8 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
+SUPPRESS_LOGS = ["boto3", "botocore", "geopandas", "fiona", "rasterios"]
+
 
 def configure_logging(level, logfile: str = None, milliseconds: bool = False, verbose: str = False):
     """Configure logging for ripple."""
@@ -36,6 +38,9 @@ def configure_logging(level, logfile: str = None, milliseconds: bool = False, ve
         file_handler = RotatingFileHandler(logfile, maxBytes=5000000, backupCount=5)
         file_handler.setFormatter(log_formatter)
         handlers.append(file_handler)
+
+    for module in SUPPRESS_LOGS:
+        logging.getLogger(module).setLevel(logging.WARNING)
 
     logging.basicConfig(
         level=level,

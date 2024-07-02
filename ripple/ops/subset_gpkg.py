@@ -50,7 +50,7 @@ def subset_gpkg(
         ]
 
         if xs_us_reach["river_station"].min() <= xs_ds_reach["river_station"].max():
-            logging.info(
+            logging.warning(
                 f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
                 f" than the highest river station on the downstream reach ({xs_ds_reach['river_station'].max()}) for nwm_id: {nwm_id}"
             )
