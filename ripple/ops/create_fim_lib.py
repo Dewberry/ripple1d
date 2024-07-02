@@ -75,7 +75,7 @@ def post_process_depth_grids(
 
             copy_raster(src_path, dest_path)
 
-            # logging.debug(f"Building overviews for: {dest_path}")
+            logging.debug(f"Building overviews for: {dest_path}")
             with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
                 with rasterio.open(dest_path, "r+") as dst:
                     dst.build_overviews([4, 8, 16], Resampling.nearest)

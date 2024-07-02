@@ -49,7 +49,7 @@ def new_ras_terrain(
 ) -> None:
     """Require Windows with geospatial libs, so typically run using OSGeo4W shell."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        logging.info(f"skipping {nwm_id}; no cross sections conflated.")
+        logging.warning(f"Skipping {nwm_id}; no cross sections conflated.")
     else:
         logging.info(f"Processing: {nwm_id}")
         # terrain directory
@@ -65,14 +65,14 @@ def new_ras_terrain(
         src_dem_clipped_localfile = os.path.join(terrain_directory, "temp.tif")
         src_dem_reprojected_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
 
-        logging.info(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
+        logging.debug(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
         clip_raster(
             src_path=MAP_DEM_UNCLIPPED_SRC_URL,
             dst_path=src_dem_clipped_localfile,
             mask_polygon=mask,
         )
         # reproject/resample dem
-        logging.info(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
+        logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
         reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution)
         os.remove(src_dem_clipped_localfile)
 

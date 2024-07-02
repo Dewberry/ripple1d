@@ -21,9 +21,9 @@ def initial_normal_depth(
 ):
     """Write and compute initial normal depth runs to develop initial rating curves."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        print(f"skipping {nwm_id}; no cross sections conflated.")
+        logging.warning(f"skipping {nwm_id}; no cross sections conflated.")
     else:
-        print(f"working on initial normal depth run for nwm_id: {nwm_id}")
+        loging.info(f"Working on initial normal depth run for nwm_id: {nwm_id}")
 
         # create new ras manager class
         rm = RasManager.from_gpkg(new_ras_project_text_file, nwm_id, subset_gpkg_path, version, terrain_path)
@@ -64,9 +64,9 @@ def incremental_normal_depth(
     depth_increment=0.5,
 ):
     """Write and compute incremental normal depth runs to develop rating curves and depth grids."""
-    print(f"working on normal depth run for nwm_id: {nwm_id}")
+    logging.info(f"Working on normal depth run for nwm_id: {nwm_id}")
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        print(f"skipping {nwm_id}; no cross sections conflated.")
+        logging.warning(f"skipping {nwm_id}; no cross sections conflated.")
     else:
         crs = gpd.read_file(subset_gpkg_path, layer="XS").crs
 
@@ -105,7 +105,7 @@ def known_wse(
     depth_increment: float,
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
-    print(f"working on known water surface elevation run for nwm_id: {nwm_id}")
+    logging.info(f"Working on known water surface elevation run for nwm_id: {nwm_id}")
 
     start_elevation = np.floor(min_elevation * 2) / 2  # round down to nearest .0 or .5
     known_water_surface_elevations = np.arange(start_elevation, max_elevation + depth_increment, depth_increment)
@@ -136,7 +136,7 @@ def known_wse(
     )
 
     if not flows:
-        print(
+        logging.warning(
             f"No controling known water surface elevations were identified for {nwm_id}; i.e., the depth of flooding\
  for the normal depth run for a given flow was alway higher than the known water surface elevations of the downstream reach"
         )
@@ -237,7 +237,7 @@ def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_na
     wses = []
     for plan_name in plan_names:
         if plan_name not in rm.plans.keys():
-            print(f"{plan_name} is not an existing plan in the specified HEC-RAS model")
+            logging.warning(f"{plan_name} is not an existing plan in the specified HEC-RAS model")
             return np.array([])
 
         rm.plan = rm.plans[plan_name]
@@ -258,7 +258,7 @@ def establish_order_of_nwm_ids(conflation_parameters: dict) -> list[str]:
     order = []
     for id, data in conflation_parameters.items():
         if conflation_parameters[id]["us_xs"]["xs_id"] == "-9999":
-            print(f"skipping {id}; no cross sections conflated.")
+            logging.warning(f"skipping {id}; no cross sections conflated.")
         else:
             order.append((float(data["us_xs"]["xs_id"]), id))
     order.sort()

@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     ripple_parameters = {}
     for nwm_id in conflation_parameters.keys():
-        logging.info(f"working on {nwm_id}")
+
         ripple_parameters[nwm_id] = new_gpkg(
             mip_source_model,
             os.path.join(ras_project_directory, nwm_id),

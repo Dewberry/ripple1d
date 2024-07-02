@@ -32,13 +32,12 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
         for i, (mip_case, s3_ras_project_key) in enumerate(data):
             try:
                 logging.info(
-                    f"progress: ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | working on key: {s3_ras_project_key}"
+                    f"Progress: ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | working on key: {s3_ras_project_key}"
                 )
 
                 stac_item_s3_key = s3_ras_project_key.replace("mip", "stac").replace(".prj", ".json")
                 stac_item_href = f"https://{bucket}.s3.amazonaws.com/{stac_item_s3_key}".replace(" ", "%20")
-                print(stac_item_s3_key)
-                print(stac_item_href)
+
                 item = pystac.Item.from_file(stac_item_href)
 
                 for asset in item.get_assets(role="ras-geometry-gpkg"):
@@ -50,7 +49,7 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
                     rfc.set_ras_gpkg(ras_gpkg)
 
                 for river_reach_name in rfc.ras_river_reach_names:
-                    logging.info(f"item_id {item.id}, river_reach {river_reach_name}")
+                    logging.debug(f"item_id {item.id}, river_reach {river_reach_name}")
 
                 conflate_s3_model(
                     item,
@@ -60,7 +59,7 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
                     rfc,
                     river_reach_name,
                 )
-                logging.info(f"{item.id}: Successfully processed")
+                logging.debug(f"{item.id}: Successfully processed")
                 db.update_case_status(mip_group, mip_case, s3_ras_project_key, True, None, None, "conflation")
 
             except Exception as e:

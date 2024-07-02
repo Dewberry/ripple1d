@@ -179,11 +179,10 @@ def new_stac_item_s3(
     dev_mode: bool = False,
 ):
     """Create a new stac item from a geopackage on s3."""
-    logging.info("Creating item from gpkg")
+    logging.debug("Creating item from gpkg")
     # Instantitate S3 resources
 
     session, s3_client, s3_resource = init_s3_resources(dev_mode)
-    print(gpkg_s3_key.replace(Path(gpkg_s3_key).name, ""))
     asset_list = list_keys(s3_client, bucket, gpkg_s3_key.replace(Path(gpkg_s3_key).name, ""))
 
     gdfs = gpkg_to_geodataframe(f"s3://{bucket}/{gpkg_s3_key}")
@@ -191,7 +190,7 @@ def new_stac_item_s3(
     crs = gdfs["River"].crs
     gdfs = reproject(gdfs)
 
-    logging.info("Creating png thumbnail")
+    logging.debug("Creating png thumbnail")
     create_thumbnail_from_gpkg(gdfs, thumbnail_png_s3_key, bucket, s3_client)
 
     # Create item
@@ -235,4 +234,4 @@ def new_stac_item_s3(
         Key=new_stac_item_s3_key,
     )
 
-    logging.info("Program completed successfully")
+    logging.debug("Program completed successfully")

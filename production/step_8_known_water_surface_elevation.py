@@ -27,7 +27,6 @@ if __name__ == "__main__":
 
     for e, nwm_id in enumerate(ordered_ids):
         ds_nwm_id = ordered_ids[e - 1]
-        print(f"nwm_id={nwm_id} | ds_nwm_id={ds_nwm_id}")
 
         ds_nwm_ras_project_file = os.path.join(SAMPLE_DATA, f"{ds_nwm_id}\\{ds_nwm_id}.prj")
 

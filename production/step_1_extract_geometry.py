@@ -40,7 +40,7 @@ def main(table_name: str, mip_group: str, bucket: str = None):
     for i, (mip_case, key, crs) in enumerate(data):
         key = key.replace(f"s3://{bucket}/", "")
 
-        logging.info(f"working on ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | key: {key}")
+        logging.info(f"Working on ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | key: {key}")
         try:
             _ = process_one_geom(key, crs, bucket)
             db.update_case_status(mip_group, mip_case, key, True, None, None, "gpkg")

@@ -15,7 +15,6 @@ if __name__ == "__main__":
         conflation_parameters = json.load(f)
 
     for nwm_id in conflation_parameters.keys():
-        print(f"working on {nwm_id}")
         output_terrain_hdf_filepath = os.path.join(SAMPLE_DATA, f"{nwm_id}\\Terrain.hdf")
         gpkg_path = os.path.join(SAMPLE_DATA, f"{nwm_id}\\{nwm_id}.gpkg")
 

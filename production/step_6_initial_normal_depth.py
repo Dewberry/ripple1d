@@ -13,7 +13,6 @@ if __name__ == "__main__":
         conflation_parameters = json.load(f)
 
     for nwm_id in conflation_parameters.keys():
-        print(nwm_id)
         new_ras_project_text_file = os.path.join(SAMPLE_DATA, f"{nwm_id}\\{nwm_id}.prj")
 
         subset_gpkg_path = os.path.join(SAMPLE_DATA, f"{nwm_id}\\{nwm_id}.gpkg")

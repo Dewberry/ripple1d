@@ -134,9 +134,10 @@ def new_gpkg(
     ripple_version: str = RIPPLE_VERSION,
 ):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
+    logging.info(f"Working on {nwm_id}")
     if ripple_parameters["us_xs"]["xs_id"] == "-9999":
         ripple_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
-        print(ripple_parameters["messages"])
+        logging.warning(ripple_parameters["messages"])
     else:
         subset_gpkg_path, crs, max_flow, min_flow = subset_gpkg(
             ras_gpkg_file_path,
