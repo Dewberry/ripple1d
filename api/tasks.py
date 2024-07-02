@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import typing
@@ -19,6 +20,8 @@ huey.storage.sql(
     """
 create table if not exists "task_status" (
     "task_id" text not null,
+    "func_name" text not null,
+    "func_kwargs" text not null,
     "huey_status" text not null,
     "ogc_status" text not null,
     "accept_time" timestamptz not null,
@@ -81,10 +84,10 @@ def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
     huey.storage.sql(
         """
 insert into "task_status"
-    ("task_id", "huey_status", "ogc_status", "accept_time")
+    ("task_id", "func_name", "func_kwargs", "huey_status", "ogc_status", "accept_time")
 values
-    (?, 'queued', 'accepted', datetime('now'))""",
-        (task_instance.id,),
+    (?, ?, ?, 'queued', 'accepted', datetime('now'))""",
+        (task_instance.id, func.__name__, json.dumps(kwargs)),
         True,
     )
     return huey.enqueue(task_instance)
@@ -108,6 +111,8 @@ def all_task_status() -> dict[str, dict]:
     expression = """
 select
     "task_id",
+    "func_name",
+    "func_kwargs",
     "huey_status",
     "ogc_status",
     "accept_time",
@@ -123,6 +128,8 @@ order by "status_time" desc
     results_dict = {}
     for (
         task_id,
+        func_name,
+        func_kwargs,
         huey_status,
         ogc_status,
         accept_time,
@@ -134,6 +141,8 @@ order by "status_time" desc
     ) in results_raw:
         results_dict[task_id] = {
             "huey_status": huey_status,
+            "func_name": func_name,
+            "func_kwargs": func_kwargs,
             "ogc_status": ogc_status,
             "accept_time": accept_time,
             "dismiss_time": dismiss_time,
