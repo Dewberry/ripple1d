@@ -60,7 +60,7 @@ def upsert_item(endpoint: str, collection_id: str, item: pystac.Item, headers: d
     """Upsert an item to a STAC API."""
     items_url = f"{endpoint}/collections/{collection_id}/items"
     response = requests.post(items_url, json=item.to_dict(), headers=headers)
-    # print(item.id, response.status_code)
+
     if response.status_code == 409:
         item_update_url = f"{items_url}/{item.id}"
         response = requests.put(item_update_url, json=item.to_dict(), headers=headers)
