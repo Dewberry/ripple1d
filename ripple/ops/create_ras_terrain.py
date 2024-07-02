@@ -1,5 +1,8 @@
+"""Create HEC-RAS Terrains."""
+
 from __future__ import annotations
 
+import json
 import logging
 import os
 
@@ -15,7 +18,8 @@ from ripple.consts import (
     METERS_PER_FOOT,
 )
 from ripple.ras import create_terrain
-from ripple.utils.dg_utils import clip_raster, xs_concave_hull
+from ripple.utils.dg_utils import clip_raster, reproject_raster
+from ripple.utils.ripple_utils import xs_concave_hull
 
 
 def get_geometry_mask(gdf_xs: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
@@ -42,10 +46,12 @@ def write_projection_file(crs: CRS, terrain_directory: str) -> str:
     return projection_file
 
 
-def new_ras_terrain(output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict, nwm_id: str) -> None:
+def new_ras_terrain(
+    output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict, nwm_id: str, resolution: float = None
+) -> None:
     """Require Windows with geospatial libs, so typically run using OSGeo4W shell."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        logging.info(f"skipping {nwm_id}; no cross sections conflated.")
+        logging.warning(f"Skipping {nwm_id}; no cross sections conflated.")
     else:
         logging.info(f"Processing: {nwm_id}")
         # terrain directory
@@ -54,38 +60,31 @@ def new_ras_terrain(output_terrain_hdf_filepath: str, gpkg_path: str, conflation
 
         # get geometry mask
         gdf_xs = gpd.read_file(gpkg_path, layer="XS", driver="GPKG").explode(ignore_index=True)
+        crs = gdf_xs.crs
         mask = get_geometry_mask(gdf_xs, MAP_DEM_UNCLIPPED_SRC_URL)
 
         # clip dem
-        src_dem_clipped_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
-        logging.info(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
+        src_dem_clipped_localfile = os.path.join(terrain_directory, "temp.tif")
+        src_dem_reprojected_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
+
+        logging.debug(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
         clip_raster(
             src_path=MAP_DEM_UNCLIPPED_SRC_URL,
             dst_path=src_dem_clipped_localfile,
             mask_polygon=mask,
         )
+        # reproject/resample dem
+        logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
+        reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution)
+        os.remove(src_dem_clipped_localfile)
 
         # write projection file
         projection_file = write_projection_file(gdf_xs.crs, terrain_directory)
 
         # Make the RAS mapping terrain locally
         create_terrain(
-            [src_dem_clipped_localfile],
+            [src_dem_reprojected_localfile],
             projection_file,
             terrain_hdf_filepath=output_terrain_hdf_filepath,
             vertical_units=MAP_DEM_VERT_UNITS,
         )
-
-
-# if __name__ == "__main__":
-#     conflation_json_path = r"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\WFSJ Main.json"
-
-#     with open(conflation_json_path) as f:
-#         conflation_parameters = json.load(f)
-
-#     for nwm_id in conflation_parameters.keys():
-
-#         output_terrain_hdf_filepath = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\Terrain.hdf"
-#         gpkg_path = rf"C:\Users\mdeshotel\Downloads\12040101_Models\ripple\tests\ras-data\WFSJMain\nwm_models\{nwm_id}\{nwm_id}.gpkg"
-
-#         main(output_terrain_hdf_filepath, gpkg_path, conflation_parameters[nwm_id],nwm_id)

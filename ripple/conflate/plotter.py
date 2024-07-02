@@ -1,3 +1,5 @@
+"""Plotting functions for geometry data."""
+
 from io import BytesIO
 from pathlib import Path
 

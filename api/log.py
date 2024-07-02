@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Logging utilities supporting the huey + Flask REST API."""
 
 from datetime import datetime, timezone
 import inspect
@@ -11,10 +11,12 @@ LOGS: dict[str, logging.RootLogger] = {}  # global that is modified by initializ
 
 def initialize_log() -> None:
     """Initialize log with json-style formatting and throttled level for AWS libs.
-    By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead."""
+
+    By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead.
+    """
     global LOGS
 
-    filename = os.path.join(LOG_DIR, f"{get_log_filename_prefix()}-{get_log_filename_suffix()}.log")
+    filename = os.path.join(LOG_DIR, f"{_get_log_filename_prefix()}-{_get_log_filename_suffix()}.log")
 
     # If this log has already been initialized, just return it
     if filename in LOGS:
@@ -47,11 +49,16 @@ def initialize_log() -> None:
     return log
 
 
-def get_log_filename_prefix():
+def _get_log_filename_prefix():
+    """Return a string of the current UTC timestamp, to be used as the left-hand portion of the log file name."""
     return f"{datetime.now(tz=timezone.utc).isoformat().replace(':','-')}-ripple"
 
 
-def get_log_filename_suffix():
+def _get_log_filename_suffix():
+    """Return a string indicating whether this function is being called from a huey consumer or from a Flask instance.
+
+    The string is to be used as the right-hand portino of the log file name.
+    """
     stack_filenames = [frame.filename for frame in inspect.stack()]
     if stack_filenames[-1].endswith("huey_consumer.py"):
         return "huey"

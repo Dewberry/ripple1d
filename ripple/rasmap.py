@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""RASMap Contents."""
 
 from .consts import TERRAIN_NAME, TERRAIN_PATH
 

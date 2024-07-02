@@ -1,3 +1,5 @@
+"""RAS Class and functions."""
+
 import glob
 import logging
 import os
@@ -69,7 +71,6 @@ def write_new_plan_text_file(func):
     """Write new plan text file decorator."""
 
     def wrapper(self, *args, **kwargs):
-
         title = args[0]
         geom_title = args[1]
         if title in self.plans.keys():
@@ -169,9 +170,9 @@ def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         if isinstance(extensions, list):
-            return [self._ras_root_path + "." + extension for extension in extensions]
+            return [self._ras_root_path + "." + extension.lstrip(".") for extension in extensions]
         else:
-            return self._ras_root_path + "." + extensions
+            return self._ras_root_path + "." + extensions.lstrip(".")
 
     return wrapper
 
@@ -229,7 +230,6 @@ class RasManager:
         crs: CRS = None,
         new_project: bool = False,
     ):
-
         self.version = version
         self.terrain_path = terrain_path
         self.ras_project = RasProject(ras_text_file_path, new_file=new_project)
@@ -410,7 +410,7 @@ class RasManager:
         write_depth_grids: bool = False,
     ):
         """Create a new known water surface elevation run."""
-        profile_names = [f"f_{flow}-z_{str(depth).replace('.','_')}" for flow, depth in zip(flows, depths)]
+        profile_names = [f"f_{flow}-z_{str(wse).replace('.','_')}" for flow, wse in zip(flows, wses)]
 
         # write headers
         flow_text_file.contents += flow_text_file.write_headers(title, profile_names)
@@ -555,7 +555,7 @@ class RasProject(RasTextFile):
     @combine_root_extension
     def plans(self):
         """Get the plans associated with this project."""
-        return search_contents(self.contents, "Plan File", expect_one=False)
+        return [f".{ext}" for ext in search_contents(self.contents, "Plan File", expect_one=False)]
 
     @property
     @combine_root_extension
@@ -588,12 +588,12 @@ class RasProject(RasTextFile):
     @property
     def n_flows(self):
         """Get the number of flow files associated with this project."""
-        return len(self.stead_flows)
+        return len(self.steady_flows)
 
     @property
     def current_plan(self):
         """Get the current plan."""
-        return search_contents(self.contents, "Current Plan")
+        return f".{search_contents(self.contents, 'Current Plan')}"
 
     def set_current_plan(self, plan_ext):
         """
@@ -606,11 +606,11 @@ class RasProject(RasTextFile):
         if f"{plan_ext}" not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {plan_ext}")
         else:
-            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext)
+            new_contents = replace_line_in_contents(new_contents, "Current Plan", plan_ext.lstrip("."))
 
         # TODO: Update this to put it with the other plans
-        if f"Plan File={plan_ext}" not in new_contents:
-            new_contents.append(f"Plan File={plan_ext}")
+        if f"Plan File={plan_ext.lstrip('.')}" not in new_contents:
+            new_contents.append(f"Plan File={plan_ext.lstrip('.')}")
         logging.info("set plan!")
         return new_contents
 
@@ -668,7 +668,7 @@ class RasPlanText(RasTextFile):
     def plan_geom_extension(self):
         """Geometry extension associated with this plan."""
         try:
-            return search_contents(self.contents, "Geom File")
+            return f".{search_contents(self.contents, 'Geom File')}"
         except ValueError:
             raise NoGeometryFileSpecifiedError(
                 f"Could not find a specified geometry file for plan: {self.title} | {self._ras_text_file_path}"
@@ -677,13 +677,13 @@ class RasPlanText(RasTextFile):
     @property
     def plan_unsteady_extension(self):
         """Unsteady flow extension associated with this plan."""
-        return search_contents(self.contents, "Unsteady File")
+        return f".{search_contents(self.contents, 'Unsteady File')}"
 
     @property
     def plan_steady_extension(self):
         """Steady flow extension associated with this plan."""
         try:
-            return search_contents(self.contents, "Flow File")
+            return f".{search_contents(self.contents, 'Flow File')}"
         except ValueError:
             raise NoFlowFileSpecifiedError(
                 f"Could not find a specified flow file for plan: {self.title} | {self._ras_text_file_path}"
@@ -752,12 +752,12 @@ class RasPlanText(RasTextFile):
             self.contents.append(f"Short Identifier={short_id}")
 
         if f"{geom.file_extension}" not in VALID_GEOMS:
-            raise TypeError(f"Geometry extenstion must be one of g01-g99, not {geom.file_extension}")
+            raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {geom.file_extension}")
         else:
             self.contents.append(f"Geom File={geom.file_extension.lstrip('.')}")
 
         if f"{flow.file_extension}" not in VALID_STEADY_FLOWS:
-            raise TypeError(f"Flow extenstion must be one of f01-f99, not {flow.file_extension}")
+            raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {flow.file_extension}")
         else:
             self.contents.append(f"Flow File={flow.file_extension.lstrip('.')}")
         if run_rasmapper:
@@ -789,7 +789,6 @@ class RasPlanText(RasTextFile):
 
         # read the hdf file
         with h5py.File(self.hdf_file) as hdf:
-
             # get columns and indexes for the wse and flow arrays
             columns = decode(pd.DataFrame(hdf[XS_NAMES_HDF_PATH]))
             index = decode(pd.DataFrame(hdf[PROFILE_NAMES_HDF_PATH]))
@@ -829,7 +828,7 @@ class RasGeomText(RasTextFile):
     @classmethod
     def from_gpkg(cls, gpkg_path, title: str, version: str, ras_text_file_path: str = ""):
         """Initiate the RASGeomText class from a geopackage."""
-        inst = cls(ras_text_file_path, crs=gpd.read_file(gpkg_path).crs, new_file=True)
+        inst = cls(ras_text_file_path, crs=gpd.read_file(gpkg_path, layer="XS").crs, new_file=True)
         inst._gpkg_path = gpkg_path
         inst._version = version
         inst._title = title
@@ -841,7 +840,6 @@ class RasGeomText(RasTextFile):
     def _content_from_gpkg(
         self,
     ):
-
         if not hasattr(self, "_gpkg_path"):
             raise ("gpkg_path not provided")
         if not os.path.exists(self._gpkg_path):
@@ -870,7 +868,6 @@ class RasGeomText(RasTextFile):
         xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
         data = ""
         for _, row in river_gdf.iterrows():
-
             centroid = row.geometry.centroid
 
             coords = row["geometry"].coords
@@ -992,7 +989,7 @@ class RasFlowText(RasTextFile):
     def __init__(self, ras_text_file_path: str, new_file: bool = False):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension in VALID_UNSTEADY_FLOWS or self.file_extension in VALID_QUASISTEADY_FLOWS:
-            raise NotImplementedError("only steady flow (f.**) supported")
+            raise NotImplementedError("only steady flow (.f**) supported")
 
         if self.file_extension not in VALID_STEADY_FLOWS:
             raise TypeError(f"Flow extenstion must be one of .f01-.f99, not {self.file_extension}")
@@ -1117,14 +1114,12 @@ class RasFlowText(RasTextFile):
         """Retrieve flow change locations."""
         flow_change_locations = []
         for location in search_contents(self.contents, "River Rch & RM", expect_one=False):
-
             # parse river, reach, and river station for the flow change location
             river, reach, rs = location.split(",")
             lines = text_block_from_start_end_str(f"River Rch & RM={location}", "River Rch & RM", self.contents)
             flows = []
 
             for line in lines[1:]:
-
                 for i in range(0, len(line), 8):
                     flows.append(float(line[i : i + 8].lstrip(" ")))
                     if len(flows) == self.n_profiles:
@@ -1262,9 +1257,7 @@ class RasMap:
         """
         lines = []
         for line in self.contents.splitlines():
-
             if line == "  <Results />":
-
                 lines.append(
                     PLAN.replace("plan_hdf_placeholder", plan_hdf)
                     .replace("plan_name_placeholder", str(plan_short_id))
@@ -1280,9 +1273,7 @@ class RasMap:
         """Add Terrain to RasMap content."""
         lines = []
         for line in self.contents.splitlines():
-
             if line == "  <Terrains />":
-
                 lines.append(TERRAIN.replace(TERRAIN_NAME, terrain_name).replace(TERRAIN_PATH, terrain_path))
                 continue
 

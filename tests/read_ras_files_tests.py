@@ -64,8 +64,8 @@ class TestPlan(unittest.TestCase):
         self.assertEqual(len(self.ras_plan.contents), 171)
         self.assertEqual(self.ras_plan.title, "Steady Flows")
         self.assertEqual(self.ras_plan.version, "5.00")
-        self.assertEqual(self.ras_plan.plan_geom_extension, "g02")
-        self.assertEqual(self.ras_plan.plan_steady_extension, "f01")
+        self.assertEqual(self.ras_plan.plan_geom_extension, ".g02")
+        self.assertEqual(self.ras_plan.plan_steady_extension, ".f01")
 
     def test_new_plan(self):
         pass

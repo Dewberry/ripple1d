@@ -1,3 +1,5 @@
+"""Database utils."""
+
 import os
 
 import psycopg2
@@ -21,8 +23,16 @@ class PGFim:
         conn_string = f"dbname='{self.dbname}' user='{self.dbuser}' password='{self.dbpass}' host='{self.dbhost}' port='{self.dbport}'"
         return conn_string
 
-    def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition=""):
+    def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition: str):
         """Read cases from the cases schema."""
+        approved_conditons = [
+            "AND stac_complete=true AND conflation_complete=true",
+            "AND gpkg_complete=true AND stac_complete=false",
+            "AND stac_complete=true AND (conflation_complete=false or conflation_complete is null)",
+        ]
+        if optional_condition not in approved_conditons:
+            raise ValueError(f"optional_condition must be one of {approved_conditons} or None")
+
         with psycopg2.connect(self.__conn_string()) as connection:
             cursor = connection.cursor()
             fields_str = ""

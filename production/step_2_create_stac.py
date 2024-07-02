@@ -1,3 +1,5 @@
+"""Create STAC Item for HEC-RAS model."""
+
 import logging
 import traceback
 from time import sleep
@@ -14,15 +16,13 @@ def main(mip_group: str, table_name: str, bucket: str, ripple_version: str):
     optional_condition = "AND gpkg_complete=true AND stac_complete IS NULL"
     data = db.read_cases(table_name, ["case_id", "s3_key"], mip_group, optional_condition)
     while data:
-
         for i, (mip_case, s3_ras_project_key) in enumerate(data):
-
             gpkg_key = s3_ras_project_key.replace(".prj", ".gpkg")
             thumbnail_png_s3_key = s3_ras_project_key.replace("mip", "stac").replace(".prj", ".png")
             new_stac_item_s3_key = s3_ras_project_key.replace("mip", "stac").replace(".prj", ".json")
 
             logging.info(
-                f"progress: ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | working on key: {s3_ras_project_key}"
+                f"Progress: ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | working on key: {s3_ras_project_key}"
             )
 
             try:
@@ -36,7 +36,7 @@ def main(mip_group: str, table_name: str, bucket: str, ripple_version: str):
                 )
 
                 db.update_case_status(mip_group, mip_case, s3_ras_project_key, True, None, None, "stac")
-                logging.info(f"Successfully finished stac item for {s3_ras_project_key}")
+                logging.debug(f"Successfully finished stac item for {s3_ras_project_key}")
             except Exception as e:
                 exc = str(e)
                 tb = str(traceback.format_exc())

@@ -1,11 +1,16 @@
+"""Utils for working with STAC items/catalogs."""
+
 import json
+import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import List
-from urllib.parse import requote_uri
+from urllib.parse import quote
 
 import boto3
 import pystac
+import pystac_client
 import requests
 
 from ripple.utils.s3_utils import s3_get_output_s3path
@@ -13,12 +18,17 @@ from ripple.utils.s3_utils import s3_get_output_s3path
 
 def key_to_uri(key: str, bucket: str) -> str:
     """Convert a key to a uri."""
-    return f"https://{bucket}.s3.amazonaws.com/{key}"
+    return f"https://{bucket}.s3.amazonaws.com/{quote(key)}"
 
 
 def uri_to_key(href: str, bucket: str) -> str:
     """Convert a uri to a key."""
     return href.replace(f"https://{bucket}.s3.amazonaws.com/", "")
+
+
+def collection_exists(endpoint: str, collection_id: str):
+    """Check if a collection exists in a STAC API."""
+    return requests.get(f"{endpoint}/collections/{collection_id}")
 
 
 def create_collection(
@@ -34,66 +44,38 @@ def create_collection(
     )
 
 
-def upsert_collection(endpoint: str, collection: pystac.Collection):
+def upsert_collection(endpoint: str, collection: pystac.Collection, headers: dict):
     """Upsert a collection to a STAC API."""
     collections_url = f"{endpoint}/collections"
-    response = requests.post(collections_url, json=collection.to_dict())
+    response = requests.post(collections_url, json=collection.to_dict(), headers=headers)
     if response.status_code == 409:
-        response = requests.put(collections_url, json=collection.to_dict())
+        logging.warning("collection already exists, updating...")
+        collections_update_url = f"{collections_url}/{collection.id}"
+        response = requests.put(collections_update_url, json=collection.to_dict(), headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(f"Error upserting collection: {response.text}")
-    elif response.status_code != 200:
-        raise RuntimeError(f"Error upserting collection: {response.text}")
+            raise RuntimeError(f"Error putting collection {(response.status_code)}")
+    elif response.status_code not in (201, 200):
+        raise RuntimeError(f"Error posting collection {(response.status_code)}")
 
 
-def upsert_item(endpoint: str, collection_id: str, item: pystac.Item):
+def upsert_item(endpoint: str, collection_id: str, item: pystac.Item, headers: dict):
     """Upsert an item to a STAC API."""
     items_url = f"{endpoint}/collections/{collection_id}/items"
-    response = requests.post(items_url, json=item.to_dict())
+    response = requests.post(items_url, json=item.to_dict(), headers=headers)
+
     if response.status_code == 409:
         item_update_url = f"{items_url}/{item.id}"
-        response = requests.put(item_update_url, json=item.to_dict())
+        response = requests.put(item_update_url, json=item.to_dict(), headers=headers)
+    elif response.status_code != 200:
+        return f"Response from STAC API: {response.status_code}"
     if not response.ok:
         return f"Response from STAC API: {response.status_code}"
 
 
-def derive_input_from_stac_item(
-    ras_model_stac_href: str,
-    ras_directory: str,
-    client: boto3.session.Session.client,
-    bucket: str,
-) -> tuple:
-    """TODO: leverage the contents of this function but split it into multiple functions."""
-    # read stac item
-    stac_item = pystac.Item.from_file(requote_uri(ras_model_stac_href))
-
-    # download RAS model from stac item. derive terrain_name during download.
-    # terrain_name is the basename of the terrain hdf without extension.
-    terrain_name = download_model_from_stac_item(stac_item, ras_directory, client, bucket)
-
-    # get nwm conflation parameters
-    # ripple_parameters = create_ripple_parameters_from_stac_item(stac_item, client, bucket)
-
-    # directory for post processed depth grids/sqlite db. The default is None which will not upload to s3
-    postprocessed_output_s3_path = s3_get_output_s3path(bucket, ras_model_stac_href)
-
-    # return terrain_name, ripple_parameters, postprocessed_output_s3_path
-
-
-def get_conflation_parameters_from_stac_item(
-    stac_item: pystac.Item, client: boto3.session.Session.client, bucket: str
-) -> dict:
-    """Get a dictionary of conflation parameters from a stac item."""
-    # create nwm dictionary
-    for _, asset in stac_item.get_assets(role="nwm_conflation").items():
-
-        response = client.get_object(
-            Bucket=bucket,
-            Key=asset.href.replace(f"https://{bucket}.s3.amazonaws.com/", ""),
-        )
-        json_data = response["Body"].read()
-
-    return json.loads(json_data)
+def delete_collection(endpoint: str, collection_id: str, headers: dict):
+    """Upsert a collection to a STAC API."""
+    collections_url = f"{endpoint}/collections/{collection_id}"
+    return requests.delete(collections_url, headers=headers)
 
 
 def download_model_from_stac_item(
@@ -109,7 +91,6 @@ def download_model_from_stac_item(
 
     # download HEC-RAS model files
     for _, asset in stac_item.get_assets(role="hec-ras").items():
-
         s3_key = asset.extra_fields["s3_key"]
 
         file = os.path.join(ras_directory, Path(s3_key).name)
@@ -117,7 +98,6 @@ def download_model_from_stac_item(
 
     # download HEC-RAS topo files
     for _, asset in stac_item.get_assets(role="ras-topo").items():
-
         s3_key = asset.extra_fields["s3_key"]
 
         file = os.path.join(ras_directory, Path(s3_key).name)

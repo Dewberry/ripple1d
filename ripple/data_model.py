@@ -1,3 +1,5 @@
+"""Data model for shared utilities."""
+
 import math
 from dataclasses import dataclass
 from typing import List
@@ -30,13 +32,12 @@ class XS:
     """HEC-RAS Cross Section."""
 
     def __init__(self, ras_data: list, river_reach: str, river: str, reach: str, crs: str):
-
         self.ras_data = ras_data
         self.crs = crs
         self.river = river
         self.reach = reach
         self.river_reach = river_reach
-        self.river_reach_rs = f"{river} {reach} {self.river_station}".rstrip("0").rstrip(".")
+        self.river_reach_rs = f"{river} {reach} {self.river_station}"
 
     def split_xs_header(self, position: int):
         """
@@ -212,7 +213,6 @@ class Reach:
         """Cross sections."""
         cross_sections = {}
         for header in self.reach_nodes:
-
             type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")[:5]
             if type != " 1 ":
                 continue
@@ -254,7 +254,6 @@ class Junction:
     """HEC-RAS Junction."""
 
     def __init__(self, ras_data: List[str], junct: str, crs: str):
-
         self.crs = crs
         self.name = junct
         self.ras_data = text_block_from_start_str_to_empty_line(f"Junct Name={junct}", ras_data)

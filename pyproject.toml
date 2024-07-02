@@ -1,38 +1,41 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ripple"
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
     { name = "Seth Lawler", email = "slawler@dewberry.com" },
-    { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" }
+    { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" },
+    { name = "Max Kipp", email = "jkipp@dewberry.com" }
 ]
 classifiers = [
-    "Development Status :: 1 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
     "boto3",
     "python-dotenv",
-    "flask",
-    "fiona",
-    "h5py",
-    "huey",
+    "flask>=3.0.3",
+    "fiona>=1.9.6",
+    "h5py>=3.11.0",
+    "huey==2.5.1",
     "geopandas>=1.0.0",
-    "matplotlib",
-    "mypy_boto3_s3",
+    "matplotlib>=3.9.0",
+    "mypy_boto3_s3==1.34.120",
     "pystac>=1.10.0",
-    "pyarrow",
-    "rasterio",
-    "requests",
-    "pywin32",
-    "xarray",
+    "pyarrow==16.1.0",
+    "rasterio==1.3.10",
+    "requests>=2.32.3",
+    "pywin32==306"
 ]
 
 [project.optional-dependencies]
@@ -43,7 +46,7 @@ docs = ["sphinx", "numpydoc", "sphinx_rtd_theme"]
 repository = "https://github.com/dewberry/ripple"
 
 [project.scripts]
-rashdf = "cli:main"
+ripple = "ripple:main"
 
 [tool.pytest.ini_options]
 pythonpath = "ripple"
@@ -54,6 +57,9 @@ select = ["D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.ruff]
+line-length = 120
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]

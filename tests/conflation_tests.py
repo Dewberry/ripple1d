@@ -52,7 +52,6 @@ def setup_data(request):
 
 @pytest.mark.usefixtures("setup_data")
 class TestRasFimConflater(unittest.TestCase):
-
     def test_load_data(self):
         self.conflater.load_data()
 

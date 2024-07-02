@@ -1,8 +1,11 @@
+"""Utils for working with sqlite databases."""
+
 import os
 import sqlite3
 
 import pandas as pd
 
+from ripple.consts import RIPPLE_VERSION
 from ripple.ras import RasManager
 
 
@@ -13,13 +16,17 @@ def create_db_and_table(db_name: str, table_name: str):
 
     sql_query = f"""
         CREATE TABLE {[table_name]}(
-            control_by_reach_stage REAL,
+            control_by_reach_depth REAL,
+            control_by_reach_wse REAL,
             flow REAL,
-            stage REAL,
+            depth REAL,
+            wse Real,
             reach_id INTEGER,
-            UNIQUE(flow, reach_id, control_by_reach_stage)
+            ripple_version TEXT,
+            UNIQUE(flow, reach_id, control_by_reach_depth)
         )
     """
+    os.makedirs(os.path.dirname(os.path.abspath(db_name)), exist_ok=True)
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
     c.execute(sql_query)
@@ -27,23 +34,25 @@ def create_db_and_table(db_name: str, table_name: str):
     conn.close()
 
 
-def insert_data(db_name: str, table_name: str, data: pd.DataFrame):
+def insert_data(db_name: str, table_name: str, data: pd.DataFrame, ripple_version: str = RIPPLE_VERSION):
     """Insert data into the sqlite database."""
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
 
     for row in data.itertuples():
-
         c.execute(
             f"""
-            INSERT OR REPLACE INTO {[table_name]} (control_by_reach_stage, flow, stage,reach_id)
-            VALUES ( ?, ?, ?, ?)
+            INSERT OR REPLACE INTO {[table_name]} (control_by_reach_depth, control_by_reach_wse,flow, depth, wse, reach_id,ripple_version)
+            VALUES ( ?, ?, ?, ?, ?, ?, ?)
         """,
             (
-                float(row.control_by_reach_stage),
+                float(row.control_by_reach_depth),
+                float(row.control_by_reach_wse),
                 float(row.flow),
-                float(row.stage),
+                float(row.depth),
+                float(row.wse),
                 int(row.reach_id),
+                ripple_version,
             ),
         )
 
@@ -55,22 +64,22 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     """Parse flow and control by stage from profile names."""
     wses_t = wses.T
     wses_t.reset_index(inplace=True)
-    wses_t[["flow", "control_by_reach_stage"]] = wses_t["index"].str.split("-", expand=True)
+    wses_t[["flow", "control_by_reach_wse"]] = wses_t["index"].str.split("-", expand=True)
     wses_t.drop(columns="index", inplace=True)
     wses_t["flow"] = wses_t["flow"].str.lstrip("f_").astype(float)
-    wses_t["control_by_reach_stage"] = wses_t["control_by_reach_stage"].str.lstrip("z_")
-    wses_t["control_by_reach_stage"] = wses_t["control_by_reach_stage"].str.replace("_", ".").astype(float)
+    wses_t["control_by_reach_wse"] = wses_t["control_by_reach_wse"].str.lstrip("z_")
+    wses_t["control_by_reach_wse"] = wses_t["control_by_reach_wse"].str.replace("_", ".").astype(float)
 
     return wses_t
 
 
-def zero_depth_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_nd: list):
+def zero_depth_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_nd: list):
     """Export zero depth (normal depth) results to sqlite."""
     database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
     table = rm.ras_project._ras_project_basename
 
     # set the plan
-    rm.plan = rm.plans[str(nwm_id) + "_nd"]
+    rm.plan = rm.plans[plan_name]
 
     # read in flow/wse
     wses, flows = rm.plan.read_rating_curves()
@@ -79,15 +88,20 @@ def zero_depth_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_nd: list):
         flows.drop(columns=missing_grids_nd, inplace=True)
 
     # get river-reach-rs
-    xs_gdf = rm.plan.geom.xs_gdf
-    rs = xs_gdf["river_station"].max()
-    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0").rstrip(".")
+    river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs
 
     wses_t = wses.T
     wses_t["flow"] = wses_t.index
-    wses_t["control_by_reach_stage"] = 0
-    df = wses_t.loc[:, [river_reach_rs, "flow", "control_by_reach_stage"]]
-    df.rename(columns={river_reach_rs: "stage"}, inplace=True)
+    wses_t["control_by_reach_depth"] = 0
+    df = wses_t.loc[:, [river_reach_rs, "flow", "control_by_reach_depth"]]
+    df.rename(columns={river_reach_rs: "wse"}, inplace=True)
+
+    # convert elevation to stage
+    thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.thalweg
+    df["depth"] = df["wse"] - thalweg
+
+    thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.thalweg
+    df["control_by_reach_wse"] = thalweg
 
     # add control id
     df["reach_id"] = [nwm_id] * len(df)
@@ -95,7 +109,7 @@ def zero_depth_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_nd: list):
     insert_data(database_path, table, df)
 
 
-def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_kwse: list):
+def rating_curves_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_kwse: list):
     """Export rating curves to sqlite."""
     # create dabase and table
     database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
@@ -104,9 +118,9 @@ def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_kwse: lis
     create_db_and_table(database_path, table)
 
     # set the plan
-    if str(nwm_id) + "_kwse" not in rm.plans:
+    if plan_name not in rm.plans:
         return
-    rm.plan = rm.plans[str(nwm_id) + "_kwse"]
+    rm.plan = rm.plans[plan_name]
 
     # read in flow/wse
     wses, flows = rm.plan.read_rating_curves()
@@ -118,21 +132,22 @@ def rating_curves_to_sqlite(rm: RasManager, nwm_id: str, missing_grids_kwse: lis
     wses = parse_stage_flow(wses)
 
     # get river-reach-rs id
-    xs_gdf = rm.plan.geom.xs_gdf
-    rs = xs_gdf["river_station"].max()
-    river_reach_rs = f"{nwm_id} {nwm_id} {rs}".rstrip("0").rstrip(".")
+    river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs
 
     # get subset of results for this cross section
-    df = wses[["flow", "control_by_reach_stage", river_reach_rs]].copy()
+    df = wses[["flow", "control_by_reach_wse", river_reach_rs]].copy()
 
     # rename columns
-    df.rename(columns={river_reach_rs: "stage"}, inplace=True)
+    df.rename(columns={river_reach_rs: "wse"}, inplace=True)
 
     # add control id
     df["reach_id"] = [nwm_id] * len(df)
 
     # convert elevation to stage
-    thalweg = xs_gdf.loc[xs_gdf["river_station"] == rs, "thalweg"][0]
-    df.loc[:, "stage"] = df["stage"] - thalweg
+    thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.thalweg
+    df["depth"] = df["wse"] - thalweg
+
+    thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.thalweg
+    df["control_by_reach_depth"] = df["control_by_reach_wse"] - thalweg
 
     insert_data(database_path, table, df)
