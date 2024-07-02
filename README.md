@@ -89,6 +89,3 @@ does not exist, it will be created when the huey consumer is executed. If it doe
 Therefore if the server administrator needs to ungracefully stop all tasks and/or re-start the server, then if they want to be sure that
 any existing tasks are fully cleared / removed from the system, they should manually delete the db file themselves before re-starting
 the server.
-
-The SQLite method is highly stable, but there may be rare instances in which a "lock" race condition error may occur under heavy load.
-If this is a concern, the server administrator could reconfigure huey to use another store supported by huey, such as Redis.

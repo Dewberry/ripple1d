@@ -24,7 +24,7 @@ def tracerbacker(func: typing.Callable) -> str:
     return wrapper
 
 
-def get_unexpected_and_missing_args(func: callable, kwargs_provided: set) -> tuple[list, list]:
+def get_unexpected_and_missing_args(func: typing.Callable, kwargs_provided: set) -> tuple[list, list]:
     """Inspect func and evaluate whether the provided kwargs will satisfy it, considering its required & optional args.
     Return a list of unexpected kwargs (provided, but not called for),
     and return a list of missing kwargs (required but not provided).

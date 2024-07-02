@@ -58,7 +58,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"ras_project_directory\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"ras_gpkg_file_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.gpkg\",\r\n    \"nwm_id\": \"2826228\",\r\n    \"ripple_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ripple_version\": \"0.0.1\"\r\n}",
+					"raw": "{\r\n    \"ras_project_directory\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"ras_gpkg_file_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.gpkgXXXZZ\",\r\n    \"nwm_id\": \"2826228\",\r\n    \"ripple_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ripple_version\": \"0.0.1\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -73,6 +73,34 @@
 					"path": [
 						"processes",
 						"new_gpkg",
+						"execution"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "test-sleep",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/processes/sleep/execution",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"processes",
+						"sleep",
 						"execution"
 					]
 				}
@@ -220,7 +248,40 @@
 			"response": []
 		},
 		{
-			"name": "job-status",
+			"name": "dismiss",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/jobs/:jobID",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"jobs",
+						":jobID"
+					],
+					"variable": [
+						{
+							"key": "jobID",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "job",
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
@@ -255,7 +316,43 @@
 					"variable": [
 						{
 							"key": "jobID",
-							"value": "236ef3b0-9ab1-4a62-8e8d-8f8c374ee78b"
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "all_jobs",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/jobs",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"jobs"
+					],
+					"query": [
+						{
+							"key": null,
+							"value": "",
+							"disabled": true
 						}
 					]
 				}

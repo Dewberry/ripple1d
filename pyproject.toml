@@ -1,10 +1,15 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ripple"
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
     { name = "Seth Lawler", email = "slawler@dewberry.com" },
-    { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" }
+    { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" },
+    { name = "Max Kipp", email = "jkipp@dewberry.com" }
 ]
 classifiers = [
     "Development Status :: 1 - Alpha",
@@ -43,7 +48,7 @@ docs = ["sphinx", "numpydoc", "sphinx_rtd_theme"]
 repository = "https://github.com/dewberry/ripple"
 
 [project.scripts]
-rashdf = "cli:main"
+ripple = "ripple:main"
 
 [tool.pytest.ini_options]
 pythonpath = "ripple"
