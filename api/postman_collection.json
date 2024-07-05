@@ -1,11 +1,263 @@
 {
 	"info": {
-		"_postman_id": "e06c0c68-1dca-418e-808e-f887df2afab6",
+		"_postman_id": "ede3de33-07b8-4233-a980-e7a509cdb404",
 		"name": "ripple",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "30016756"
+		"_exporter_id": "36773789"
 	},
 	"item": [
+		{
+			"name": "processes",
+			"item": [
+				{
+					"name": "test-huey-health",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/test/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"test",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "test-sleep",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/sleep/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"sleep",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "extract_submodel",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"source_model\": \"D:\\\\Users\\\\abdul.siddiqui\\\\workbench\\\\repos\\\\ripple\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.prj\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/extract_submodel/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"extract_submodel",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create_ras_terrain",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/create_ras_terrain/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"create_ras_terrain",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create_model_run_normal_depth",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 10,\r\n    \"ras_version\": \"631\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/create_model_run_normal_depth/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"create_model_run_normal_depth",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "run_incremental_normal_depth",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 0.5,\r\n    \"ras_version\": \"631\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/run_incremental_normal_depth/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"run_incremental_normal_depth",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "run_known_wse",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"kwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"version\": \"631\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/run_known_wse/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"run_known_wse",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create_fim_lib",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"fim_lib_directory\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/create_fim_lib/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"create_fim_lib",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							"var resp = pm.response.json()\r",
+							"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+						]
+					}
+				}
+			]
+		},
 		{
 			"name": "ping",
 			"request": {
@@ -18,230 +270,6 @@
 					],
 					"path": [
 						"ping"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-huey-health",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/test/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"test",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-sleep",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/sleep/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"sleep",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-new-gpkg",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"mip_source_model\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.prj\",\r\n    \"ras_project_directory\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"ras_gpkg_file_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.gpkg\",\r\n    \"nwm_id\": \"2826228\",\r\n    \"ripple_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ripple_version\": \"0.0.1\"\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/new_gpkg/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"new_gpkg",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-new-ras-terrain",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"output_terrain_hdf_filepath\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.gpkg\",\r\n    \"conflation_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"nwm_id\": \"2826228\"\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/new_ras_terrain/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"new_ras_terrain",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-initial-normal-depth",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"plan_name\": \"2826228_ind\",\r\n    \"conflation_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"new_ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"number_of_discharges_for_initial_normal_depth_runs\": 10,\r\n    \"version\": \"631\"\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/initial_normal_depth/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"initial_normal_depth",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-incremental-normal-depth",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"plan_name\": \"2826228_nd\",\r\n    \"initial_normal_depth_plan_title\": \"2826228_ind\",\r\n    \"conflation_parameters\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"version\": \"631\"\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/incremental_normal_depth/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"incremental_normal_depth",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-known-wse",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"plan_name\": \"2826228_kwse\",\r\n    \"incremental_normal_depth_plan_name\": \"2826228_ind\",\r\n    \"ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/known_wse/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"known_wse",
-						"execution"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "test-new-fim-lib",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"nwm_id\": \"2826228\",\r\n    \"nwm_data\": {\r\n        // from \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\baxter-ripple-params.json\"\r\n        \"us_xs\": {\r\n            \"min_elevation\": 33.4,\r\n            \"max_elevation\": 125.0,\r\n            \"xs_id\": 84816.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"ds_xs\": {\r\n            \"min_elevation\": 55.0,\r\n            \"max_elevation\": 120.02,\r\n            \"xs_id\": 84000.0,\r\n            \"river\": \"Baxter River\",\r\n            \"reach\": \"Upper Reach\"\r\n        },\r\n        \"low_flow_cfs\": 5668.86,\r\n        \"high_flow_cfs\": 19588.71\r\n    },\r\n    \"ras_project_text_file\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\ripple-model\\\\2826228.prj\",\r\n    \"nd_plan_name\" : \"2826228_nd\",\r\n    \"kwse_plan_name\" : \"2826228_kwse\",\r\n    \"terrain_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228Terrain.hdf\",\r\n    \"subset_gpkg_path\": \"{{repo_root}}\\\\tests\\\\ras-data\\\\Baxter\\\\2826228.gpkg\"\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{url}}/processes/new_fim_lib/execution",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"processes",
-						"new_fim_lib",
-						"execution"
 					]
 				}
 			},
@@ -273,7 +301,7 @@
 					"variable": [
 						{
 							"key": "jobID",
-							"value": ""
+							"value": "{{jobID}}"
 						}
 					]
 				}
@@ -316,7 +344,7 @@
 					"variable": [
 						{
 							"key": "jobID",
-							"value": ""
+							"value": "{{jobID}}"
 						}
 					]
 				}
@@ -389,8 +417,23 @@
 			"type": "string"
 		},
 		{
-			"key": "repo_root",
-			"value": "~\\\\repos\\\\Dewberry\\\\ripple",
+			"key": "submodels_base_directory",
+			"value": "D:\\\\Users\\\\abdul.siddiqui\\workbench\\\\repos\\\\ripple\\\\tests\\\\outputs\\\\submodels",
+			"type": "string"
+		},
+		{
+			"key": "nwm_reach_id",
+			"value": "2823932",
+			"type": "string"
+		},
+		{
+			"key": "ripple_version",
+			"value": "0.0.1",
+			"type": "string"
+		},
+		{
+			"key": "jobID",
+			"value": "",
 			"type": "string"
 		}
 	]
