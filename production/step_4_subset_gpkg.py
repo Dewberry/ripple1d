@@ -4,7 +4,7 @@ import json
 import logging
 import os
 
-from ripple.ops.subset_gpkg import new_gpkg
+from ripple.ops.subset_gpkg import extract_submodel
 from ripple.ripple_logger import configure_logging
 
 if __name__ == "__main__":
@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     SAMPLE_DATA = os.path.dirname(__file__).replace("production", "sample_data\\Baxter")
     ras_project_directory = os.path.join(SAMPLE_DATA, "Baxter")
-    mip_source_model = ras_project_directory
+    source_model = ras_project_directory
     ras_gpkg_file_path = os.path.join(SAMPLE_DATA, "Baxter.gpkg")
     conflation_json_path = os.path.join(SAMPLE_DATA, "Baxter-ripple-params.json")
 
@@ -21,8 +21,8 @@ if __name__ == "__main__":
 
     ripple_parameters = {}
     for nwm_id in conflation_parameters.keys():
-        ripple_parameters[nwm_id] = new_gpkg(
-            mip_source_model,
+        ripple_parameters[nwm_id] = extract_submodel(
+            source_model,
             os.path.join(ras_project_directory, nwm_id),
             ras_gpkg_file_path,
             nwm_id,

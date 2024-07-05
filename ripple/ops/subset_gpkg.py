@@ -96,8 +96,9 @@ def subset_gpkg(
     xs_subset_gdf.to_file(dest_gpkg_path, layer="XS", driver="GPKG")
     river_subset_gdf.to_file(dest_gpkg_path, layer="River", driver="GPKG")
 
-    max_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
-    min_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).min().min()
+    # TODO: Fix this issue
+    max_flow = 0  # xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
+    min_flow = 0  # xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).min().min()
     return dest_gpkg_path, xs_subset_gdf.crs.to_epsg(), max_flow, min_flow
 
 
@@ -127,23 +128,35 @@ def junction_length_to_reach_lengths():
     #     if us_river in row["us_rivers"] and us_reach in row["us_reach"]:
 
 
-def new_gpkg(
-    mip_source_model: str,
-    ras_project_directory: str,
-    ras_gpkg_file_path: str,
-    nwm_id: str,
-    ripple_parameters: dict,
+def extract_submodel(
+    source_model: str,
+    submodel_directory: str,
+    nwm_id: int,
     ripple_version: str = RIPPLE_VERSION,
 ):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
-    logging.info(f"Working on {nwm_id}")
+    logging.info(f"Preparing to extract NWM ID {nwm_id} from {source_model}")
+
+    ras_gpkg_file_path = source_model.replace(".prj", ".gpkg")
+    if not os.path.exists(ras_gpkg_file_path):
+        raise FileNotFoundError(f"cannot find file ras-geometry file {ras_gpkg_file_path}, please ensure file exists")
+
+    conflation_parameters_path = source_model.replace(".prj", ".json")
+    if not os.path.exists(conflation_parameters_path):
+        raise FileNotFoundError(f"cannot find conflation file {conflation_parameters_path}, please ensure file exists")
+
+    with open(conflation_parameters_path, "r") as f:
+        conflation_parameters = json.loads(f.read())
+
+    ripple_parameters = conflation_parameters[str(nwm_id)]
     if ripple_parameters["us_xs"]["xs_id"] == "-9999":
         ripple_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple_parameters["messages"])
+
     else:
         subset_gpkg_path, crs, max_flow, min_flow = subset_gpkg(
             ras_gpkg_file_path,
-            ras_project_directory,
+            submodel_directory,
             nwm_id,
             ripple_parameters["ds_xs"]["xs_id"],
             ripple_parameters["us_xs"]["xs_id"],
@@ -152,18 +165,18 @@ def new_gpkg(
             ripple_parameters["ds_xs"]["river"],
             ripple_parameters["ds_xs"]["reach"],
         )
-        ripple_parameters["MIP source model"] = mip_source_model
+        ripple_parameters["source_model"] = source_model
         ripple_parameters["files"] = {"gpkg": subset_gpkg_path}
         ripple_parameters["crs"] = crs
         ripple_parameters["version"] = ripple_version
         ripple_parameters["high_flow_cfs"] = max([ripple_parameters["high_flow_cfs"], max_flow])
         ripple_parameters["low_flow_cfs"] = max([ripple_parameters["low_flow_cfs"], min_flow])
         if ripple_parameters["high_flow_cfs"] == max_flow:
-            ripple_parameters["notes"] = ["high_flow_cfs computed from MIP model flows"]
+            ripple_parameters["notes"] = ["high_flow_cfs computed from source model flows"]
         if ripple_parameters["low_flow_cfs"] == min_flow:
-            ripple_parameters["notes"] = ["low_flow_cfs computed from MIP model flows"]
+            ripple_parameters["notes"] = ["low_flow_cfs computed from source model flows"]
 
-        with open(os.path.join(ras_project_directory, f"{nwm_id}.ripple.json"), "w") as f:
+        with open(os.path.join(submodel_directory, f"{nwm_id}.ripple.json"), "w") as f:
             json.dump({nwm_id: ripple_parameters}, f, indent=4)
 
     return ripple_parameters

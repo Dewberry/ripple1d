@@ -19,7 +19,7 @@ from ripple.conflate.rasfim import (
 from ripple.ops.conflate_ras_model import conflate
 
 TEST_DIR = os.path.dirname(__file__)
-TEST_ITEM_FILE = "ras-data/baxter.json"
+TEST_ITEM_FILE = "ras-data/Baxter.json"
 TEST_ITEM_PATH = os.path.join(TEST_DIR, TEST_ITEM_FILE)
 
 # Expected counts
@@ -126,7 +126,7 @@ class TestConflationExample(unittest.TestCase):
         for reach in NWM_REACHE_IDS:
             self.assertIn(reach, metadata.keys())
 
-        test_data_results = os.path.join(TEST_DIR, "ras-data", RAS_DIR, "baxter-ripple-params.json")
+        test_data_results = os.path.join(TEST_DIR, "ras-data", RAS_DIR, "Baxter.json")
         with open(test_data_results, "r") as f:
             expected_metadata = f.read()
             self.assertEqual(json.dumps(metadata, indent=4), expected_metadata)
