@@ -110,8 +110,12 @@ def revoke_task(task_id: str):
     huey.storage.sql(expression, args, True)
 
 
-def all_task_status() -> dict[str, dict]:
-    """Return dictionary of tasks, where key is task ID and value is subdict (fields related to each task)."""
+def task_status(only_task_id: str | None) -> dict[str, dict]:
+    """Return dictionary of tasks, where key is task ID and value is subdict (fields related to each task).
+
+    If only_task_id is None, all tasks will be returned.
+    If only_task_id is *not* None, only the provided task will be returned.
+    """
     expression = """
         select
             "task_id",
@@ -143,6 +147,10 @@ def all_task_status() -> dict[str, dict]:
         status_time,
         finish_duration_minutes,
     ) in results_raw:
+
+        if only_task_id is not None and task_id != only_task_id:
+            continue
+
         results_dict[task_id] = {
             "huey_status": huey_status,
             "func_name": func_name,
@@ -154,7 +162,6 @@ def all_task_status() -> dict[str, dict]:
             "finish_time": finish_time,
             "status_time": status_time,
             "finish_duration_minutes": finish_duration_minutes,
-            "result": result_traceback(task_id),
         }
     return results_dict
 
@@ -180,22 +187,6 @@ def ogc_status(task_id: str) -> str:
     return results[0][0]
 
 
-def result_traceback(task_id: str) -> typing.Any:
-    """Assumes that @tracerbacker is being used.
-
-    For given task ID, return the value returned by that task's function.
-    If traceback is None, task is not finished or the ID does not exist.
-    If traceback string is non-empty, it failed.
-    If traceback string is empty, it succeeded.
-    """
-    tb = huey.result(task_id, preserve=True)
-    if not (tb is None or isinstance(tb, str)):
-        raise TypeError(
-            f"For task={task_id}, expected result to be a string or None, but got type={type(tb)}, value={tb}"
-        )
-    return tb
-
-
 def noop():
     """Do nothing except log a message. For ping endpoint and testing."""
     LOG.info("This message is from the noop function")
@@ -206,13 +197,14 @@ def sleep15():
     """Do nothing except log a message and then sleep for a while.  For testing."""
     LOG.info("This message is from the sleep15 function")
     time.sleep(15)
+    return ("Slept for 15", 123.456)
 
 
 @huey.task()  # If needing the worker to know about its own task, then use `@huey.task(context=True)`` and add `task=None` to the task function definition.
 @tracerbacker
 def _process(func: typing.Callable, kwargs: dict = {}):
     """Execute generic huey task that calls the provided func with provided kwargs, asynchronously."""
-    func(**kwargs)
+    return func(**kwargs)
 
 
 @huey.signal()
@@ -225,13 +217,14 @@ def _handle_signals(signal, task, exc=None):
 
         case sigs.SIGNAL_COMPLETE | sigs.SIGNAL_ERROR:
             time_field = "finish_time"
-            tb = result_traceback(task.id)
-            if tb is None:
+            tracerbacker_return = huey.result(task.id, preserve=True)
+            if tracerbacker_return is None:
                 ogc_status = "notfound"
-            elif tb == "":
-                ogc_status = "successful"
             else:
-                ogc_status = "failed"
+                if tracerbacker_return["err"] is None:
+                    ogc_status = "successful"
+                else:
+                    ogc_status = "failed"
 
         case sigs.SIGNAL_CANCELED | sigs.SIGNAL_LOCKED | sigs.SIGNAL_EXPIRED | sigs.SIGNAL_INTERRUPTED:
             time_field = "dismiss_time"
