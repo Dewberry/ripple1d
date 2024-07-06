@@ -10,8 +10,8 @@ from werkzeug.exceptions import BadRequest
 
 from api import tasks
 from api.utils import get_unexpected_and_missing_args
-from ripple.ops.create_fim_lib import new_fim_lib
 from ripple.ops.create_ras_terrain import create_ras_terrain
+from ripple.ops.fim_lib import create_fim_lib
 from ripple.ops.run_ras_model import (
     create_model_run_normal_depth,
     run_incremental_normal_depth,
@@ -52,10 +52,10 @@ def process__run_known_wse():
     return enqueue_async_task(run_known_wse)
 
 
-@app.route("/processes/new_fim_lib/execution", methods=["POST"])
-def process__new_fim_lib():
-    """Enqueue a task to create a new FIM library."""
-    return enqueue_async_task(new_fim_lib)
+@app.route("/processes/create_fim_lib/execution", methods=["POST"])
+def process__create_fim_lib():
+    """Enqueue a task to create a FIM library."""
+    return enqueue_async_task(create_fim_lib)
 
 
 @app.route("/ping", methods=["GET"])

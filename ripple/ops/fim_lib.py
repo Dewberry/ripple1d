@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 
 import geopandas as gpd
 import rasterio
@@ -14,32 +15,10 @@ from ripple.ras import RasManager
 from ripple.utils.sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
-def new_fim_lib(
-    nwm_id: str,
-    nwm_data: dict,
-    ras_project_text_file: str,
-    nd_plan_name: str,
-    kwse_plan_name: str,
-    terrain_path: str,
-    subset_gpkg_path: str,
-):
-    """Create a new FIM library for a NWM id."""
-    crs = gpd.read_file(subset_gpkg_path, layer="XS").crs
-
-    rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, crs=crs)
-    missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
-        rm, [nd_plan_name, kwse_plan_name], nwm_id, nwm_data, except_missing_grid=True
-    )
-
-    rating_curves_to_sqlite(rm, kwse_plan_name, nwm_id, missing_grids_kwse)
-    zero_depth_to_sqlite(rm, nd_plan_name, nwm_id, missing_grids_nd)
-
-
 def post_process_depth_grids(
     rm: RasManager,
     plan_names: str,
     nwm_id: str,
-    nwm_data: dict,
     except_missing_grid: bool = False,
     dest_directory=None,
 ) -> tuple[list[str]]:
@@ -47,6 +26,7 @@ def post_process_depth_grids(
     missing_grids_kwse, missing_grids_nd = [], []
     for plan_name in plan_names:
         if plan_name not in rm.plans:
+            logging.info(f"Plan {plan_name} not found in the model, skipping...")
             continue
         for profile_name in rm.plans[plan_name].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
@@ -83,3 +63,27 @@ def post_process_depth_grids(
                     dst.update_tags(ns="rio_overview", resampling="nearest")
 
     return missing_grids_kwse, missing_grids_nd
+
+
+def create_fim_lib(submodel_directory: str, plans: list, fim_output_dir: str = None, ras_version: str = "631"):
+    """Create a new FIM library for a NWM id."""
+    model_name = Path(submodel_directory).name
+    source_model = f"{submodel_directory}/{model_name}.prj"
+    terrain_path = f"{submodel_directory}\\Terrain\\{model_name}.hdf"
+    conflation_parameters_path = source_model.replace(".prj", ".ripple.json")
+    ras_gpkg_file_path = source_model.replace(".prj", ".gpkg")
+    if not os.path.exists(ras_gpkg_file_path):
+        raise FileNotFoundError(f"cannot find file ras-geometry file {ras_gpkg_file_path}, please ensure file exists")
+
+    with open(conflation_parameters_path, "r") as f:
+        conflation_parameters = json.loads(f.read())
+    crs = gpd.read_file(ras_gpkg_file_path, layer="XS").crs
+
+    rm = RasManager(source_model, version=ras_version, terrain_path=terrain_path, crs=crs)
+    ras_plans = [f"{model_name}_{plan}" for plan in plans]
+    missing_grids_kwse, missing_grids_nd = post_process_depth_grids(rm, ras_plans, model_name, except_missing_grid=True)
+
+    if f"kwse" in plans:
+        rating_curves_to_sqlite(rm, f"{model_name}_kwse", model_name, missing_grids_kwse)
+    if f"nd" in plans:
+        zero_depth_to_sqlite(rm, f"{model_name}_nd", model_name, missing_grids_nd)
