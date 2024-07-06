@@ -1,6 +1,9 @@
 """Run HEC-RAS models."""
 
 import json
+import logging
+import os
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -11,43 +14,52 @@ from ripple.data_model import FlowChangeLocation
 from ripple.ras import RasManager
 
 
-def initial_normal_depth(
-    nwm_id: str,
-    plan_name: str,
-    conflation_parameters: dict,
-    new_ras_project_text_file: str,
-    subset_gpkg_path: str,
-    terrain_path: str = None,
-    number_of_discharges_for_initial_normal_depth_runs: int = 10,
-    version: str = "631",
+def create_model_run_normal_depth(
+    submodel_directory: str,
+    plan_suffix: str,
+    num_of_discharges_for_initial_normal_depth_runs: int = 10,
+    ras_version: str = "631",
 ):
+    model_name = Path(submodel_directory).name
+    source_model = f"{submodel_directory}/{model_name}.prj"
+    conflation_parameters_path = source_model.replace(".prj", ".ripple.json")
+    if not os.path.exists(conflation_parameters_path):
+        raise FileNotFoundError(f"cannot find conflation file {conflation_parameters_path}, please ensure file exists")
+
+    with open(conflation_parameters_path, "r") as f:
+        conflation_parameters = json.loads(f.read())
+
+    ras_gpkg_file_path = source_model.replace(".prj", ".gpkg")
+    if not os.path.exists(ras_gpkg_file_path):
+        raise FileNotFoundError(f"cannot find file ras-geometry file {ras_gpkg_file_path}, please ensure file exists")
+
     """Write and compute initial normal depth runs to develop initial rating curves."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        logging.warning(f"skipping {nwm_id}; no cross sections conflated.")
+        logging.warning(f"skipping {source_model}; no cross sections conflated.")
     else:
-        loging.info(f"Working on initial normal depth run for nwm_id: {nwm_id}")
+        logging.info(f"Working on initial normal depth run for nwm_id: {source_model}")
 
         # create new ras manager class
-        rm = RasManager.from_gpkg(new_ras_project_text_file, nwm_id, subset_gpkg_path, version, terrain_path)
+        rm = RasManager.from_gpkg(source_model, model_name, ras_gpkg_file_path, ras_version)
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
             max([conflation_parameters["low_flow_cfs"], MIN_FLOW]),
             conflation_parameters["high_flow_cfs"],
-            number_of_discharges_for_initial_normal_depth_runs,
+            num_of_discharges_for_initial_normal_depth_runs,
         ).astype(int)
 
         # # write and compute initial normal depth runs to develop rating curves
         fcl = FlowChangeLocation(
-            nwm_id,
-            nwm_id,
-            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
+            model_name,
+            model_name,
+            rm.geoms[model_name].rivers[model_name][model_name].us_xs.river_station,
             initial_flows,
         )
 
         rm.normal_depth_run(
-            plan_name,
-            nwm_id,
+            f"{model_name}_{plan_suffix}",
+            model_name,
             [fcl],
             initial_flows.astype(str),
             write_depth_grids=False,

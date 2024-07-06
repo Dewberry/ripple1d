@@ -13,8 +13,8 @@ from api.utils import get_unexpected_and_missing_args
 from ripple.ops.create_fim_lib import new_fim_lib
 from ripple.ops.create_ras_terrain import create_ras_terrain
 from ripple.ops.run_ras_model import (
+    create_model_run_normal_depth,
     incremental_normal_depth,
-    initial_normal_depth,
     known_wse,
 )
 from ripple.ops.subset_gpkg import extract_submodel
@@ -34,10 +34,10 @@ def process__create_ras_terrain():
     return enqueue_async_task(create_ras_terrain)
 
 
-@app.route("/processes/initial_normal_depth/execution", methods=["POST"])
-def process__initial_normal_depth():
+@app.route("/processes/create_model_run_normal_depth/execution", methods=["POST"])
+def process__create_model_run_normal_depth():
     """Enqueue a task to calculate the initial normal depth."""
-    return enqueue_async_task(initial_normal_depth)
+    return enqueue_async_task(create_model_run_normal_depth)
 
 
 @app.route("/processes/incremental_normal_depth/execution", methods=["POST"])

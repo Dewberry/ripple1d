@@ -177,6 +177,6 @@ def extract_submodel(
             ripple_parameters["notes"] = ["low_flow_cfs computed from source model flows"]
 
         with open(os.path.join(submodel_directory, f"{nwm_id}.ripple.json"), "w") as f:
-            json.dump({nwm_id: ripple_parameters}, f, indent=4)
+            json.dump(ripple_parameters, f, indent=4)
 
     return ripple_parameters
