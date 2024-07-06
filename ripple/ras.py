@@ -366,6 +366,8 @@ class RasManager:
                 RC.Project_Close()
                 RC.QuitRas()
 
+    # TODO: Evaluate alternative to these (rather complicated) decorators
+    # We need to include the show_ras option in the endpoints and pass to this function
     @write_new_plan_text_file
     @write_new_flow_text_file
     def normal_depth_run(
@@ -394,6 +396,8 @@ class RasManager:
 
         return flow_text_file
 
+    # TODO: Evaluate alternative to these (rather complicated) decorators
+    # We need to include the show_ras option in the endpoints and pass to this function
     @write_new_plan_text_file
     @write_new_flow_text_file
     def kwses_run(
