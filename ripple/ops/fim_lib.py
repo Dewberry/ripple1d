@@ -81,7 +81,9 @@ def create_fim_lib(submodel_directory: str, plans: list, fim_output_dir: str = N
 
     rm = RasManager(source_model, version=ras_version, terrain_path=terrain_path, crs=crs)
     ras_plans = [f"{model_name}_{plan}" for plan in plans]
-    missing_grids_kwse, missing_grids_nd = post_process_depth_grids(rm, ras_plans, model_name, except_missing_grid=True)
+    missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
+        rm, ras_plans, model_name, except_missing_grid=True, dest_directory=fim_output_dir
+    )
 
     if f"kwse" in plans:
         rating_curves_to_sqlite(rm, f"{model_name}_kwse", model_name, missing_grids_kwse)

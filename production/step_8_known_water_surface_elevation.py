@@ -6,7 +6,7 @@ import os
 
 import numpy as np
 
-from ripple.ops.run_ras_model import (
+from ripple.ops.ras_run import (
     establish_order_of_nwm_ids,
     get_kwse_from_ds_model,
     run_known_wse,

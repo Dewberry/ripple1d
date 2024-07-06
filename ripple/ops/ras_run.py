@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from ripple.consts import DEFAULT_EPSG, MIN_FLOW
-from ripple.data_model import FlowChangeLocation
+from ripple.data_model import FlowChangeLocation, NwmReachModel
 from ripple.ras import RasManager
 
 
@@ -20,27 +20,30 @@ def create_model_run_normal_depth(
     num_of_discharges_for_initial_normal_depth_runs: int = 10,
     ras_version: str = "631",
 ):
-    model_name = Path(submodel_directory).name
-    source_model = f"{submodel_directory}/{model_name}.prj"
-    conflation_parameters_path = source_model.replace(".prj", ".ripple.json")
-    if not os.path.exists(conflation_parameters_path):
-        raise FileNotFoundError(f"cannot find conflation file {conflation_parameters_path}, please ensure file exists")
+    nwm_reach_model = NwmReachModel(submodel_directory)
+    nwm_id = nwm_reach_model.model_name
 
-    with open(conflation_parameters_path, "r") as f:
-        conflation_parameters = json.loads(f.read())
+    if not nwm_reach_model.file_exists(nwm_reach_model.conflation_file):
+        raise FileNotFoundError(
+            f"cannot find conflation file {nwm_reach_model.conflation_file}, please ensure file exists"
+        )
+    else:
+        with open(nwm_reach_model.conflation_file, "r") as f:
+            conflation_parameters = json.loads(f.read())
 
-    ras_gpkg_file_path = source_model.replace(".prj", ".gpkg")
-    if not os.path.exists(ras_gpkg_file_path):
-        raise FileNotFoundError(f"cannot find file ras-geometry file {ras_gpkg_file_path}, please ensure file exists")
+    if not nwm_reach_model.file_exists(nwm_reach_model.ras_gpkg_file):
+        raise FileNotFoundError(
+            f"cannot find ras_gpkg_file file {nwm_reach_model.ras_gpkg_file}, please ensure file exists"
+        )
 
     """Write and compute initial normal depth runs to develop initial rating curves."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        logging.warning(f"skipping {source_model}; no cross sections conflated.")
+        logging.warning(f"skipping {nwm_id}; no cross sections conflated.")
     else:
-        logging.info(f"Working on initial normal depth run for nwm_id: {source_model}")
+        logging.info(f"Working on initial normal depth run for nwm_id: {nwm_id}")
 
         # create new ras manager class
-        rm = RasManager.from_gpkg(source_model, model_name, ras_gpkg_file_path, ras_version)
+        rm = RasManager.from_gpkg(nwm_reach_model.ras_project_file, nwm_id, nwm_reach_model.ras_gpkg_file, ras_version)
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
@@ -51,15 +54,15 @@ def create_model_run_normal_depth(
 
         # # write and compute initial normal depth runs to develop rating curves
         fcl = FlowChangeLocation(
-            model_name,
-            model_name,
-            rm.geoms[model_name].rivers[model_name][model_name].us_xs.river_station,
+            nwm_id,
+            nwm_id,
+            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
             initial_flows,
         )
 
         rm.normal_depth_run(
-            f"{model_name}_{plan_suffix}",
-            model_name,
+            f"{nwm_id}_{plan_suffix}",
+            nwm_id,
             [fcl],
             initial_flows.astype(str),
             write_depth_grids=False,

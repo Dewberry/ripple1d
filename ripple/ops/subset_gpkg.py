@@ -9,11 +9,12 @@ import pandas as pd
 from shapely.geometry import LineString
 
 from ripple.consts import RIPPLE_VERSION
+from ripple.data_model import NwmReachModel, RippleSourceModel
 
 
 def subset_gpkg(
     src_gpkg_path: str,
-    ras_project_dir: str,
+    dst_project_dir: str,
     nwm_id: str,
     ds_rs: str,
     us_rs: str,
@@ -24,8 +25,6 @@ def subset_gpkg(
 ) -> tuple:
     """Subset the cross sections and river geometry for a given NWM reach."""
     # TODO add logic for junctions/multiple river-reaches
-
-    dest_gpkg_path = os.path.join(ras_project_dir, f"{nwm_id}.gpkg")
 
     # read data
     xs_gdf = gpd.read_file(src_gpkg_path, layer="XS", driver="GPKG")
@@ -92,14 +91,15 @@ def subset_gpkg(
         return None
 
     # write data
-    os.makedirs(ras_project_dir, exist_ok=True)
-    xs_subset_gdf.to_file(dest_gpkg_path, layer="XS", driver="GPKG")
-    river_subset_gdf.to_file(dest_gpkg_path, layer="River", driver="GPKG")
+    new_nwm_reach_model = NwmReachModel(dst_project_dir)
+    os.makedirs(dst_project_dir, exist_ok=True)
+    xs_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="XS", driver="GPKG")
+    river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
 
     # TODO: Fix this issue
     max_flow = 0  # xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
     min_flow = 0  # xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).min().min()
-    return dest_gpkg_path, xs_subset_gdf.crs.to_epsg(), max_flow, min_flow
+    return new_nwm_reach_model.ras_gpkg_file, xs_subset_gdf.crs.to_epsg(), max_flow, min_flow
 
 
 def clean_river_stations(ras_data: str) -> str:
@@ -129,33 +129,33 @@ def junction_length_to_reach_lengths():
 
 
 def extract_submodel(
-    source_model: str,
+    source_model_directory: str,
     submodel_directory: str,
     nwm_id: int,
     ripple_version: str = RIPPLE_VERSION,
 ):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
-    logging.info(f"Preparing to extract NWM ID {nwm_id} from {source_model}")
+    ripple_source_model = RippleSourceModel(source_model_directory)
+    logging.info(f"Preparing to extract NWM ID {nwm_id} from {ripple_source_model.ras_project_file}")
 
-    ras_gpkg_file_path = source_model.replace(".prj", ".gpkg")
-    if not os.path.exists(ras_gpkg_file_path):
-        raise FileNotFoundError(f"cannot find file ras-geometry file {ras_gpkg_file_path}, please ensure file exists")
+    if not ripple_source_model.file_exists(ripple_source_model.ras_gpkg_file):
+        raise FileNotFoundError(
+            f"cannot find file ras-geometry file {ripple_source_model.ras_gpkg_file}, please ensure file exists"
+        )
 
-    conflation_parameters_path = source_model.replace(".prj", ".json")
-    if not os.path.exists(conflation_parameters_path):
-        raise FileNotFoundError(f"cannot find conflation file {conflation_parameters_path}, please ensure file exists")
+    if not ripple_source_model.file_exists(ripple_source_model.conflation_file):
+        raise FileNotFoundError(
+            f"cannot find conflation file {ripple_source_model.conflation_file}, please ensure file exists"
+        )
 
-    with open(conflation_parameters_path, "r") as f:
-        conflation_parameters = json.loads(f.read())
-
-    ripple_parameters = conflation_parameters[str(nwm_id)]
+    ripple_parameters = ripple_source_model.nwm_conflation_parameters(str(nwm_id))
     if ripple_parameters["us_xs"]["xs_id"] == "-9999":
         ripple_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple_parameters["messages"])
 
     else:
         subset_gpkg_path, crs, max_flow, min_flow = subset_gpkg(
-            ras_gpkg_file_path,
+            ripple_source_model.ras_gpkg_file,
             submodel_directory,
             nwm_id,
             ripple_parameters["ds_xs"]["xs_id"],
@@ -165,7 +165,7 @@ def extract_submodel(
             ripple_parameters["ds_xs"]["river"],
             ripple_parameters["ds_xs"]["reach"],
         )
-        ripple_parameters["source_model"] = source_model
+        ripple_parameters["source_model"] = ripple_source_model.ras_project_file
         ripple_parameters["files"] = {"gpkg": subset_gpkg_path}
         ripple_parameters["crs"] = crs
         ripple_parameters["version"] = ripple_version

@@ -8,7 +8,7 @@ import pystac
 
 from production.db_utils import PGFim
 from ripple.conflate.rasfim import RasFimConflater
-from ripple.ops.conflate_ras_model import conflate_s3_model, href_to_vsis
+from ripple.ops.ras_conflate import conflate_s3_model, href_to_vsis
 from ripple.ripple_logger import configure_logging
 from ripple.utils.s3_utils import init_s3_resources
 

@@ -10,23 +10,14 @@ from ripple.ripple_logger import configure_logging
 if __name__ == "__main__":
     configure_logging(level=logging.INFO)
 
-    SAMPLE_DATA = os.path.dirname(__file__).replace("production", "sample_data\\Baxter")
-    ras_project_directory = os.path.join(SAMPLE_DATA, "Baxter")
-    source_model = ras_project_directory
-    ras_gpkg_file_path = os.path.join(SAMPLE_DATA, "Baxter.gpkg")
-    conflation_json_path = os.path.join(SAMPLE_DATA, "Baxter-ripple-params.json")
+    SOURCE_MODEL_DIR = os.path.dirname(__file__).replace("production", "tests\\ras-data\\Baxter")
+    nwm_id = "2823932"
+    submodel_dir = f"{SOURCE_MODEL_DIR}\\submodels\\{nwm_id}"
 
-    with open(conflation_json_path) as f:
-        conflation_parameters = json.load(f)
-
-    ripple_parameters = {}
-    for nwm_id in conflation_parameters.keys():
-        ripple_parameters[nwm_id] = extract_submodel(
-            source_model,
-            os.path.join(ras_project_directory, nwm_id),
-            ras_gpkg_file_path,
-            nwm_id,
-            conflation_parameters[nwm_id],
-        )
-    with open(conflation_json_path, "w") as f:
-        json.dump(ripple_parameters, f, indent=4)
+    extract_submodel(
+        SOURCE_MODEL_DIR,
+        submodel_dir,
+        nwm_id,
+    )
+    # with open(conflation_json_path, "w") as f:
+    #     json.dump(ripple_parameters, f, indent=4)

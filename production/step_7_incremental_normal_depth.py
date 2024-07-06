@@ -4,7 +4,7 @@ import json
 import logging
 import os
 
-from ripple.ops.run_ras_model import run_incremental_normal_depth
+from ripple.ops.ras_run import run_incremental_normal_depth
 from ripple.ripple_logger import configure_logging
 
 if __name__ == "__main__":

@@ -13,11 +13,11 @@ from pyproj import CRS
 
 from ripple.consts import (
     MAP_DEM_BUFFER_DIST_FT,
-    MAP_DEM_CLIPPED_BASENAME,
     MAP_DEM_UNCLIPPED_SRC_URL,
     MAP_DEM_VERT_UNITS,
     METERS_PER_FOOT,
 )
+from ripple.data_model import NwmReachModel
 from ripple.ras import create_terrain
 from ripple.utils.dg_utils import clip_raster, reproject_raster
 from ripple.utils.ripple_utils import xs_concave_hull
@@ -47,30 +47,35 @@ def write_projection_file(crs: CRS, terrain_directory: str) -> str:
     return projection_file
 
 
-def create_ras_terrain(submodel_directory: str, resolution: float = None) -> None:
+def create_ras_terrain(
+    submodel_directory: str, terrain_source_url: str = MAP_DEM_UNCLIPPED_SRC_URL, resolution: float = None
+) -> None:
     """Create a RAS terrain file."""
     logging.info(f"Processing: {submodel_directory}")
-    gpkg_file = Path(submodel_directory) / f"{Path(submodel_directory).name}.gpkg"
 
-    if not os.path.exists(gpkg_file):
-        raise FileNotFoundError(f"Expecting {gpkg_file}, file not found")
+    nrm = NwmReachModel(submodel_directory)
 
-    # terrain directory
-    terrain_directory = f"{submodel_directory}/Terrain"
-    os.makedirs(terrain_directory, exist_ok=True)
+    if not nrm.file_exists(nrm.ras_gpkg_file):
+        raise FileNotFoundError(f"Expecting {nrm.ras_gpkg_file}, file not found")
+
+    if not os.path.exists(nrm.terrain_directory):
+        os.makedirs(nrm.terrain_directory, exist_ok=True)
 
     # get geometry mask
-    gdf_xs = gpd.read_file(gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
+    gdf_xs = gpd.read_file(nrm.ras_gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
     crs = gdf_xs.crs
-    mask = get_geometry_mask(gdf_xs, MAP_DEM_UNCLIPPED_SRC_URL)
+    mask = get_geometry_mask(gdf_xs, terrain_source_url)
 
     # clip dem
-    src_dem_clipped_localfile = os.path.join(terrain_directory, "temp.tif")
-    src_dem_reprojected_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
+    src_dem_clipped_localfile = os.path.join(nrm.terrain_directory, "temp.tif")
+    map_dem_clipped_basename = os.path.basename(terrain_source_url)
+    src_dem_reprojected_localfile = os.path.join(
+        nrm.terrain_directory, map_dem_clipped_basename.replace(".vrt", ".tif")
+    )
 
-    logging.debug(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
+    logging.debug(f"Clipping DEM {terrain_source_url} to {src_dem_clipped_localfile}")
     clip_raster(
-        src_path=MAP_DEM_UNCLIPPED_SRC_URL,
+        src_path=terrain_source_url,
         dst_path=src_dem_clipped_localfile,
         mask_polygon=mask,
     )
@@ -80,13 +85,13 @@ def create_ras_terrain(submodel_directory: str, resolution: float = None) -> Non
     os.remove(src_dem_clipped_localfile)
 
     # write projection file
-    projection_file = write_projection_file(gdf_xs.crs, terrain_directory)
+    projection_file = write_projection_file(gdf_xs.crs, nrm.terrain_directory)
 
     # Make the RAS mapping terrain locally
     result = create_terrain(
         [src_dem_reprojected_localfile],
         projection_file,
-        dst_terrain_filepath=submodel_directory,
+        nrm.model_directory,
         vertical_units=MAP_DEM_VERT_UNITS,
     )
     os.remove(src_dem_reprojected_localfile)
