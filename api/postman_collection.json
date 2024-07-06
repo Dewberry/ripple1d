@@ -326,7 +326,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{url}}/jobs/:jobID",
+					"raw": "{{url}}/jobs/:jobID?tb=false",
 					"host": [
 						"{{url}}"
 					],
@@ -339,6 +339,10 @@
 							"key": null,
 							"value": "",
 							"disabled": true
+						},
+						{
+							"key": "tb",
+							"value": "false"
 						}
 					],
 					"variable": [
@@ -369,7 +373,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{url}}/jobs",
+					"raw": "{{url}}/jobs?tb=false",
 					"host": [
 						"{{url}}"
 					],
@@ -378,9 +382,8 @@
 					],
 					"query": [
 						{
-							"key": null,
-							"value": "",
-							"disabled": true
+							"key": "tb",
+							"value": "false"
 						}
 					]
 				}
