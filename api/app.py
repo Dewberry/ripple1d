@@ -14,8 +14,8 @@ from ripple.ops.create_fim_lib import new_fim_lib
 from ripple.ops.create_ras_terrain import create_ras_terrain
 from ripple.ops.run_ras_model import (
     create_model_run_normal_depth,
-    incremental_normal_depth,
-    known_wse,
+    run_incremental_normal_depth,
+    run_known_wse,
 )
 from ripple.ops.subset_gpkg import extract_submodel
 
@@ -40,16 +40,16 @@ def process__create_model_run_normal_depth():
     return enqueue_async_task(create_model_run_normal_depth)
 
 
-@app.route("/processes/incremental_normal_depth/execution", methods=["POST"])
-def process__incremental_normal_depth():
+@app.route("/processes/run_incremental_normal_depth/execution", methods=["POST"])
+def process__run_incremental_normal_depth():
     """Enqueue a task to calculate the incremental normal depth."""
-    return enqueue_async_task(incremental_normal_depth)
+    return enqueue_async_task(run_incremental_normal_depth)
 
 
-@app.route("/processes/known_wse/execution", methods=["POST"])
-def process__known_wse():
+@app.route("/processes/run_known_wse/execution", methods=["POST"])
+def process__run_known_wse():
     """Enqueue a task to calculate the water surface elevation (WSE) based on known inputs."""
-    return enqueue_async_task(known_wse)
+    return enqueue_async_task(run_known_wse)
 
 
 @app.route("/processes/new_fim_lib/execution", methods=["POST"])
