@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from pathlib import Path
 
 import geopandas as gpd
 import rasterio
@@ -46,45 +47,47 @@ def write_projection_file(crs: CRS, terrain_directory: str) -> str:
     return projection_file
 
 
-def new_ras_terrain(
-    output_terrain_hdf_filepath: str, gpkg_path: str, conflation_parameters: dict, nwm_id: str, resolution: float = None
-) -> None:
-    """Require Windows with geospatial libs, so typically run using OSGeo4W shell."""
-    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        logging.warning(f"Skipping {nwm_id}; no cross sections conflated.")
-    else:
-        logging.info(f"Processing: {nwm_id}")
-        # terrain directory
-        terrain_directory = os.path.dirname(output_terrain_hdf_filepath)
-        os.makedirs(terrain_directory, exist_ok=True)
+def create_ras_terrain(submodel_directory: str, resolution: float = None) -> None:
+    """Create a RAS terrain file."""
+    logging.info(f"Processing: {submodel_directory}")
+    gpkg_file = Path(submodel_directory) / f"{Path(submodel_directory).name}.gpkg"
 
-        # get geometry mask
-        gdf_xs = gpd.read_file(gpkg_path, layer="XS", driver="GPKG").explode(ignore_index=True)
-        crs = gdf_xs.crs
-        mask = get_geometry_mask(gdf_xs, MAP_DEM_UNCLIPPED_SRC_URL)
+    if not os.path.exists(gpkg_file):
+        raise FileNotFoundError(f"Expecting {gpkg_file}, file not found")
 
-        # clip dem
-        src_dem_clipped_localfile = os.path.join(terrain_directory, "temp.tif")
-        src_dem_reprojected_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
+    # terrain directory
+    terrain_directory = f"{submodel_directory}/Terrain"
+    os.makedirs(terrain_directory, exist_ok=True)
 
-        logging.debug(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
-        clip_raster(
-            src_path=MAP_DEM_UNCLIPPED_SRC_URL,
-            dst_path=src_dem_clipped_localfile,
-            mask_polygon=mask,
-        )
-        # reproject/resample dem
-        logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
-        reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution)
-        os.remove(src_dem_clipped_localfile)
+    # get geometry mask
+    gdf_xs = gpd.read_file(gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
+    crs = gdf_xs.crs
+    mask = get_geometry_mask(gdf_xs, MAP_DEM_UNCLIPPED_SRC_URL)
 
-        # write projection file
-        projection_file = write_projection_file(gdf_xs.crs, terrain_directory)
+    # clip dem
+    src_dem_clipped_localfile = os.path.join(terrain_directory, "temp.tif")
+    src_dem_reprojected_localfile = os.path.join(terrain_directory, MAP_DEM_CLIPPED_BASENAME)
 
-        # Make the RAS mapping terrain locally
-        create_terrain(
-            [src_dem_reprojected_localfile],
-            projection_file,
-            terrain_hdf_filepath=output_terrain_hdf_filepath,
-            vertical_units=MAP_DEM_VERT_UNITS,
-        )
+    logging.debug(f"Clipping DEM {MAP_DEM_UNCLIPPED_SRC_URL} to {src_dem_clipped_localfile}")
+    clip_raster(
+        src_path=MAP_DEM_UNCLIPPED_SRC_URL,
+        dst_path=src_dem_clipped_localfile,
+        mask_polygon=mask,
+    )
+    # reproject/resample dem
+    logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
+    reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution)
+    os.remove(src_dem_clipped_localfile)
+
+    # write projection file
+    projection_file = write_projection_file(gdf_xs.crs, terrain_directory)
+
+    # Make the RAS mapping terrain locally
+    result = create_terrain(
+        [src_dem_reprojected_localfile],
+        projection_file,
+        dst_terrain_filepath=submodel_directory,
+        vertical_units=MAP_DEM_VERT_UNITS,
+    )
+    os.remove(src_dem_reprojected_localfile)
+    return result

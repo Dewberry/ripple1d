@@ -1339,7 +1339,7 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
 def create_terrain(
     src_terrain_filepaths: list[str],
     projection_file: str,
-    terrain_hdf_filepath: str,
+    dst_terrain_filepath: str,
     vertical_units: str = "Feet",
     version: str = "631",
 ) -> str:
@@ -1347,23 +1347,12 @@ def create_terrain(
     Use the crs file and a list of terrain file paths to make the RAS terrain HDF file. Default location is {model_directory}\Terrain\Terrain.hdf.
 
     Returns the full path to the local directory containing the output files.
-
-    Parameters
-    ----------
-    src_terrain_filepaths : list[str]
-        a list of terrain raster filepaths, typically tifs, to use when creating the terrain HDF
-        can be a list of 1 filepath
-    terrain_dirname : str (default="Terrain")
-        the name of the directory to put the terrain HDF into
-    hdf_filename : str (default="Terrain")
-        the filename of the output HDF terrain file, with the extension
-    vertical_units : str (default="Feet")
-        vertical units to be used, must be one of ["Feet", "Meters"]
     """
     if vertical_units not in ["Feet", "Meters"]:
         raise ValueError(f"vertical_units must be either 'Feet' or 'Meters'; got: '{vertical_units}'")
 
     missing_files = [x for x in src_terrain_filepaths if not os.path.exists(x)]
+
     if missing_files:
         raise FileNotFoundError(str(missing_files))
 
@@ -1379,7 +1368,7 @@ def create_terrain(
         f"units={vertical_units}",  # vertical units
         "stitch=true",
         f"prj={projection_file}",
-        f"out={terrain_hdf_filepath}",
+        f"out={dst_terrain_filepath}/Terrain/{Path(dst_terrain_filepath).name}",
     ]
     # add list of input rasters from which to build the Terrain
     subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])

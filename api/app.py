@@ -11,7 +11,7 @@ from werkzeug.exceptions import BadRequest
 from api import tasks
 from api.utils import get_unexpected_and_missing_args
 from ripple.ops.create_fim_lib import new_fim_lib
-from ripple.ops.create_ras_terrain import new_ras_terrain
+from ripple.ops.create_ras_terrain import create_ras_terrain
 from ripple.ops.run_ras_model import (
     incremental_normal_depth,
     initial_normal_depth,
@@ -28,10 +28,10 @@ def process__extract_submodel():
     return enqueue_async_task(extract_submodel)
 
 
-@app.route("/processes/new_ras_terrain/execution", methods=["POST"])
-def process__new_ras_terrain():
+@app.route("/processes/create_ras_terrain/execution", methods=["POST"])
+def process__create_ras_terrain():
     """Enqueue a task to create a new RAS terrain."""
-    return enqueue_async_task(new_ras_terrain)
+    return enqueue_async_task(create_ras_terrain)
 
 
 @app.route("/processes/initial_normal_depth/execution", methods=["POST"])
