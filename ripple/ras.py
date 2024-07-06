@@ -20,6 +20,7 @@ from ripple.consts import (
     FLOW_HDF_PATH,
     NORMAL_DEPTH,
     PROFILE_NAMES_HDF_PATH,
+    SHOW_RAS,
     SUPPORTED_LAYERS,
     TERRAIN_NAME,
     TERRAIN_PATH,
@@ -117,7 +118,7 @@ def write_new_plan_text_file(func):
                 self.update_rasmapper_for_mapping()
 
         # run the RAS plan
-        self.run_sim(close_ras=True, show_ras=True, ignore_store_all_maps_error=True)
+        self.run_sim(close_ras=True, show_ras=SHOW_RAS, ignore_store_all_maps_error=True)
 
     return wrapper
 
@@ -321,7 +322,7 @@ class RasManager:
         self,
         pid_running=None,
         close_ras=True,
-        show_ras=False,
+        show_ras=SHOW_RAS,
         ignore_store_all_maps_error: bool = False,
         timeout_seconds=None,
     ):
@@ -331,7 +332,7 @@ class RasManager:
         Args:
             pid_running (_type_, optional): _description_. Defaults to None.
             close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
-            show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
+            show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to False.
         """
         compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
 
@@ -1365,19 +1366,21 @@ def create_terrain(
         raise FileNotFoundError(terrain_exe)
 
     exe_parent_dir = os.path.split(terrain_exe)[0]
-
+    # TODO: Add documentation for the following to understand
+    # what files are created and where they are stored
     subproc_args = [
         terrain_exe,
         "CreateTerrain",
         f"units={vertical_units}",  # vertical units
         "stitch=true",
         f"prj={projection_file}",
-        f"out={dst_terrain_filepath}/Terrain/{Path(dst_terrain_filepath).name}",
+        f"out={dst_terrain_filepath}",
     ]
     # add list of input rasters from which to build the Terrain
     subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
     logging.debug(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
     subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
+    return f"Terrain written to {dst_terrain_filepath}"
 
     # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
     # # compress the output tif(s) that RasProcess.exe created (otherwise could be 1+ GB at HUC12 size)

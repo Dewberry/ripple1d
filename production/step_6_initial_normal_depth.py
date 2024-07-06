@@ -12,4 +12,4 @@ if __name__ == "__main__":
     SAMPLE_DATA = os.path.dirname(__file__).replace("production", "tests")
     SAMPLE_DATA = f"{SAMPLE_DATA}\\outputs\\submodels\\2823932"
 
-    create_model_run_normal_depth(SAMPLE_DATA, f"ind", num_of_discharges_for_initial_normal_depth_runs=2)
+    r = create_model_run_normal_depth(SAMPLE_DATA, f"ind", num_of_discharges_for_initial_normal_depth_runs=2)

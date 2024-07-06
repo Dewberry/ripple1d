@@ -73,9 +73,8 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     return wses_t
 
 
-def zero_depth_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_nd: list):
+def zero_depth_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_nd: list, database_path: str):
     """Export zero depth (normal depth) results to sqlite."""
-    database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
     table = rm.ras_project._ras_project_basename
 
     # set the plan
@@ -109,10 +108,9 @@ def zero_depth_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_gr
     insert_data(database_path, table, df)
 
 
-def rating_curves_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_kwse: list):
+def rating_curves_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_kwse: list, database_path: str):
     """Export rating curves to sqlite."""
     # create dabase and table
-    database_path = os.path.join(rm.ras_project._ras_dir, "output", rm.ras_project._ras_project_basename + ".db")
     table = rm.ras_project._ras_project_basename
 
     create_db_and_table(database_path, table)

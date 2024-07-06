@@ -53,24 +53,24 @@ def create_ras_terrain(
     """Create a RAS terrain file."""
     logging.info(f"Processing: {submodel_directory}")
 
-    nrm = NwmReachModel(submodel_directory)
+    nwm_rm = NwmReachModel(submodel_directory)
 
-    if not nrm.file_exists(nrm.ras_gpkg_file):
-        raise FileNotFoundError(f"Expecting {nrm.ras_gpkg_file}, file not found")
+    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
+        raise FileNotFoundError(f"Expecting {nwm_rm.ras_gpkg_file}, file not found")
 
-    if not os.path.exists(nrm.terrain_directory):
-        os.makedirs(nrm.terrain_directory, exist_ok=True)
+    if not os.path.exists(nwm_rm.terrain_directory):
+        os.makedirs(nwm_rm.terrain_directory, exist_ok=True)
 
     # get geometry mask
-    gdf_xs = gpd.read_file(nrm.ras_gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
+    gdf_xs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
     crs = gdf_xs.crs
     mask = get_geometry_mask(gdf_xs, terrain_source_url)
 
     # clip dem
-    src_dem_clipped_localfile = os.path.join(nrm.terrain_directory, "temp.tif")
+    src_dem_clipped_localfile = os.path.join(nwm_rm.terrain_directory, "temp.tif")
     map_dem_clipped_basename = os.path.basename(terrain_source_url)
     src_dem_reprojected_localfile = os.path.join(
-        nrm.terrain_directory, map_dem_clipped_basename.replace(".vrt", ".tif")
+        nwm_rm.terrain_directory, map_dem_clipped_basename.replace(".vrt", ".tif")
     )
 
     logging.debug(f"Clipping DEM {terrain_source_url} to {src_dem_clipped_localfile}")
@@ -85,13 +85,13 @@ def create_ras_terrain(
     os.remove(src_dem_clipped_localfile)
 
     # write projection file
-    projection_file = write_projection_file(gdf_xs.crs, nrm.terrain_directory)
+    projection_file = write_projection_file(gdf_xs.crs, nwm_rm.terrain_directory)
 
     # Make the RAS mapping terrain locally
     result = create_terrain(
         [src_dem_reprojected_localfile],
         projection_file,
-        nrm.model_directory,
+        f"{nwm_rm.terrain_directory}\\{nwm_rm.model_name}",
         vertical_units=MAP_DEM_VERT_UNITS,
     )
     os.remove(src_dem_reprojected_localfile)

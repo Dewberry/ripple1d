@@ -92,7 +92,7 @@ class NwmReachModel:
 
     @property
     def ras_terrain_hdf(self):
-        return str(Path(self.ras_terrain_dir / f"{self.model_name}.hdf"))
+        return str(Path(self.terrain_directory) / f"{self.model_name}.hdf")
 
 
 @dataclass

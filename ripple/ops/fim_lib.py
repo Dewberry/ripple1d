@@ -10,17 +10,14 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.shutil import copy as copy_raster
 
+from ripple.data_model import NwmReachModel
 from ripple.errors import DepthGridNotFoundError
 from ripple.ras import RasManager
 from ripple.utils.sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
 def post_process_depth_grids(
-    rm: RasManager,
-    plan_names: str,
-    nwm_id: str,
-    except_missing_grid: bool = False,
-    dest_directory=None,
+    rm: RasManager, plan_names: str, dest_directory: str, except_missing_grid: bool = False
 ) -> tuple[list[str]]:
     """Clip depth grids based on their associated NWM branch and respective cross sections."""
     missing_grids_kwse, missing_grids_nd = [], []
@@ -50,7 +47,6 @@ def post_process_depth_grids(
                 flow = f"f_{profile_name}"
                 depth = "z_0_0"
 
-            dest_directory = os.path.join(rm.ras_project._ras_dir, "output", nwm_id, depth)
             os.makedirs(dest_directory, exist_ok=True)
             dest_path = os.path.join(dest_directory, f"{flow}.tif")
 
@@ -67,25 +63,27 @@ def post_process_depth_grids(
 
 def create_fim_lib(submodel_directory: str, plans: list, fim_output_dir: str = None, ras_version: str = "631"):
     """Create a new FIM library for a NWM id."""
-    model_name = Path(submodel_directory).name
-    source_model = f"{submodel_directory}/{model_name}.prj"
-    terrain_path = f"{submodel_directory}\\Terrain\\{model_name}.hdf"
-    conflation_parameters_path = source_model.replace(".prj", ".ripple.json")
-    ras_gpkg_file_path = source_model.replace(".prj", ".gpkg")
-    if not os.path.exists(ras_gpkg_file_path):
-        raise FileNotFoundError(f"cannot find file ras-geometry file {ras_gpkg_file_path}, please ensure file exists")
+    nwm_rm = NwmReachModel(submodel_directory)
+    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
+        raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
-    with open(conflation_parameters_path, "r") as f:
-        conflation_parameters = json.loads(f.read())
-    crs = gpd.read_file(ras_gpkg_file_path, layer="XS").crs
+    crs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").crs
 
-    rm = RasManager(source_model, version=ras_version, terrain_path=terrain_path, crs=crs)
-    ras_plans = [f"{model_name}_{plan}" for plan in plans]
+    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
+    ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
+
+    fim_results_directory = os.path.join(submodel_directory, "fims")
+
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
-        rm, ras_plans, model_name, except_missing_grid=True, dest_directory=fim_output_dir
+        rm, ras_plans, fim_results_directory, except_missing_grid=True
     )
 
+    results_database = os.path.join(fim_results_directory, f"{nwm_rm.model_name}.db")
     if f"kwse" in plans:
-        rating_curves_to_sqlite(rm, f"{model_name}_kwse", model_name, missing_grids_kwse)
+        rating_curves_to_sqlite(
+            rm, f"{nwm_rm.model_name}_kwse", nwm_rm.model_name, missing_grids_kwse, results_database
+        )
     if f"nd" in plans:
-        zero_depth_to_sqlite(rm, f"{model_name}_nd", model_name, missing_grids_nd)
+        zero_depth_to_sqlite(rm, f"{nwm_rm.model_name}_nd", nwm_rm.model_name, missing_grids_nd, results_database)
+
+    return {"fim_results_directory": fim_results_directory, "results_database": results_database}
