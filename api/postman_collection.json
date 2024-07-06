@@ -1,9 +1,9 @@
 {
 	"info": {
-		"_postman_id": "ede3de33-07b8-4233-a980-e7a509cdb404",
+		"_postman_id": "605bba37-fe00-40f3-8e0c-9d0541fcfe01",
 		"name": "ripple",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "36773789"
+		"_exporter_id": "11115435"
 	},
 	"item": [
 		{
@@ -72,7 +72,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model\": \"D:\\\\Users\\\\abdul.siddiqui\\\\workbench\\\\repos\\\\ripple\\\\tests\\\\ras-data\\\\Baxter\\\\Baxter.prj\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"C:\\\\Users\\\\slawler\\\\repos\\\\ripple\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -128,7 +128,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 10,\r\n    \"ras_version\": \"631\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 10\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -184,7 +184,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"kwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"version\": \"631\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"kwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -212,7 +212,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"fim_lib_directory\": \"\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -326,7 +326,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{url}}/jobs/:jobID?tb=false",
+					"raw": "{{url}}/jobs/:jobID",
 					"host": [
 						"{{url}}"
 					],
@@ -339,10 +339,6 @@
 							"key": null,
 							"value": "",
 							"disabled": true
-						},
-						{
-							"key": "tb",
-							"value": "false"
 						}
 					],
 					"variable": [
@@ -373,7 +369,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{url}}/jobs?tb=false",
+					"raw": "{{url}}/jobs",
 					"host": [
 						"{{url}}"
 					],
@@ -382,8 +378,9 @@
 					],
 					"query": [
 						{
-							"key": "tb",
-							"value": "false"
+							"key": null,
+							"value": "",
+							"disabled": true
 						}
 					]
 				}
