@@ -24,7 +24,7 @@ app = Flask(__name__)
 
 @app.route("/processes/extract_submodel/execution", methods=["POST"])
 def process__extract_submodel():
-    """Enqueue a task to create a new GeoPackage"""
+    """Enqueue a task to create a new GeoPackage."""
     return enqueue_async_task(extract_submodel)
 
 
@@ -146,7 +146,8 @@ def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tup
     """Get the parameter, assert it is true or false, and return the appropriate Python boolean value as well as a status tuple.
 
     If there is a problem, the status tuple has two elements: a response message, and a HTTP status to be returned by the endpoint.
-    If there is not a problem, the status tuple is actually None."""
+    If there is not a problem, the status tuple is actually None.
+    """
     arg_tb = request.args.get(param_name)
     if not arg_tb:
         return (default, None)
