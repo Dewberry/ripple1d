@@ -176,3 +176,4 @@ tests/ras-data/Baxter/submodels/
 ripple/tests/
 dev
 /api/logs/*.log
+tests/outputs
