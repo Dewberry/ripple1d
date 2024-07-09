@@ -56,7 +56,7 @@ def conflate_s3_model(
 ):
     """Conflate a model from s3."""
     # build conflation key and href
-    nwm_conflation_key = stac_item_s3_key.replace(".json", "-nwm_conflation.json")
+    nwm_conflation_key = stac_item_s3_key.replace(".json", ".conflation.json")
     nwm_conflation_href = s3_public_href(bucket, nwm_conflation_key)
 
     # conflate the mip ras model to nwm reaches

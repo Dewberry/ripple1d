@@ -45,7 +45,7 @@ class RippleSourceModel:
     @property
     def conflation_file(self):
         """Conflation file."""
-        return self.derive_path(".json")
+        return self.derive_path(".conflation.json")
 
     @property
     def ras_gpkg_file(self):
