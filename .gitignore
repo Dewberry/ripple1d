@@ -175,3 +175,4 @@ mip_models
 tests/ras-data/combined
 dev
 /api/logs/*.log
+tests/outputs
