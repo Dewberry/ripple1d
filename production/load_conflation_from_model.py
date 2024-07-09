@@ -20,11 +20,12 @@ def column_exists(cursor, table_name, column_name):
     return column_name in columns
 
 
-def insert_data_to_db(db_path, data):
+def insert_data_to_db(db_path, data, model_key):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     columns_to_add = {
+        "model_key": "TEXT",
         "us_xs_river": "TEXT",
         "us_xs_reach": "TEXT",
         "us_xs_id": "REAL",
@@ -45,22 +46,22 @@ def insert_data_to_db(db_path, data):
         ds_xs_reach = value.get("ds_xs", {}).get("reach", None)
         ds_xs_id = value.get("ds_xs", {}).get("xs_id", None)
 
-        print(us_xs_river, us_xs_reach, us_xs_id, ds_xs_river, ds_xs_reach, ds_xs_id, key)
         cursor.execute(
             """
             UPDATE conflation
-            SET us_xs_river = ?, us_xs_reach = ?, us_xs_id = ?, ds_xs_river = ?, ds_xs_reach = ?, ds_xs_id = ?
+            SET model_key = ?, us_xs_river = ?, us_xs_reach = ?, us_xs_id = ?, ds_xs_river = ?, ds_xs_reach = ?, ds_xs_id = ?
             WHERE reach_id = ?
         """,
-            (us_xs_river, us_xs_reach, us_xs_id, ds_xs_river, ds_xs_reach, ds_xs_id, key),
+            (model_key, us_xs_river, us_xs_reach, us_xs_id, ds_xs_river, ds_xs_reach, ds_xs_id, key),
         )
 
     conn.commit()
     conn.close()
 
 
-model_name = "Baxter"
-source_models_directory = ""
-json_data = load_json(r"D:\Users\abdul.siddiqui\workbench\repos\ripple\tests\ras-data\Baxter\baxter-ripple-params.json")
+model_key = "Baxter"
+source_models_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\source_models"
 
-insert_data_to_db(r"D:\Users\abdul.siddiqui\workbench\projects\production\conflation.sqlite", json_data)
+json_data = load_json(f"{source_models_directory}\\{model_key}\\{model_key}.conflation.json")
+
+insert_data_to_db(r"D:\Users\abdul.siddiqui\workbench\projects\production\conflation.sqlite", json_data, model_key)
