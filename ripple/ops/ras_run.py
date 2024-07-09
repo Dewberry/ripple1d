@@ -21,6 +21,7 @@ def create_model_run_normal_depth(
     num_of_discharges_for_initial_normal_depth_runs: int = 10,
     ras_version: str = "631",
 ):
+    """Write and compute initial normal depth runs to develop initial rating curves."""
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -32,7 +33,6 @@ def create_model_run_normal_depth(
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
-    """Write and compute initial normal depth runs to develop initial rating curves."""
     if conflation_parameters["us_xs"]["xs_id"] == "-9999":
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
     else:

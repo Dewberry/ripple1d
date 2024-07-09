@@ -32,27 +32,33 @@ class RippleSourceModel:
         return str(Path(self.model_directory) / f"{self.model_name}{extension}")
 
     def file_exists(self, file_path: str) -> bool:
+        """Check if file exists."""
         if os.path.exists(file_path):
             return True
         return False
 
     @property
     def ras_project_file(self):
+        """RAS Project file."""
         return self.derive_path(".prj")
 
     @property
     def conflation_file(self):
-        return self.derive_path(".json")
+        """Conflation file."""
+        return self.derive_path(".conflation.json")
 
     @property
     def ras_gpkg_file(self):
+        """RAS GeoPackage file."""
         return self.derive_path(".gpkg")
 
     @property
     def terrain_directory(self):
+        """Terrain directory."""
         f"{self.model_directory}/Terrain"
 
     def nwm_conflation_parameters(self, nwm_id: str):
+        """NWM Conflation parameters."""
         with open(self.conflation_file, "r") as f:
             conflation_parameters = json.loads(f.read())
         return conflation_parameters[nwm_id]
@@ -70,28 +76,34 @@ class NwmReachModel:
         return str(Path(self.model_directory) / f"{self.model_name}{extension}")
 
     def file_exists(self, file_path: str) -> bool:
+        """Check if file exists."""
         if os.path.exists(file_path):
             return True
         return False
 
     @property
     def ras_project_file(self):
+        """RAS Project file."""
         return self.derive_path(".prj")
 
     @property
     def conflation_file(self):
+        """Conflation file."""
         return self.derive_path(".ripple.json")
 
     @property
     def ras_gpkg_file(self):
+        """RAS GeoPackage file."""
         return self.derive_path(".gpkg")
 
     @property
     def terrain_directory(self):
+        """Terrain directory."""
         return str(Path(self.model_directory) / "Terrain")
 
     @property
     def ras_terrain_hdf(self):
+        """RAS Terrain HDF file."""
         return str(Path(self.terrain_directory) / f"{self.model_name}.hdf")
 
 
