@@ -16,8 +16,8 @@ from ripple.ripple_logger import configure_logging
 if __name__ == "__main__":
     configure_logging(level=logging.INFO)
 
-    SAMPLE_DATA = os.path.dirname(__file__).replace("production", "tests")
-    SAMPLE_DATA = f"{SAMPLE_DATA}\\outputs\\submodels\\2823932"
+    SAMPLE_DATA = os.path.dirname(__file__).replace("production", "tests\\ras-data\\Baxter")
+    SAMPLE_DATA = f"{SAMPLE_DATA}\\submodels\\2823932"
 
     r = run_known_wse(
         SAMPLE_DATA, "kwse", min_elevation=60.0, max_elevation=62.0, depth_increment=1.0, ras_version="631"

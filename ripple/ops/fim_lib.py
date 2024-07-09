@@ -47,8 +47,9 @@ def post_process_depth_grids(
                 flow = f"f_{profile_name}"
                 depth = "z_0_0"
 
-            os.makedirs(dest_directory, exist_ok=True)
-            dest_path = os.path.join(dest_directory, f"{flow}.tif")
+            flow_sub_directory = os.path.join(dest_directory, depth)
+            os.makedirs(flow_sub_directory, exist_ok=True)
+            dest_path = os.path.join(flow_sub_directory, f"{flow}.tif")
 
             copy_raster(src_path, dest_path)
 
