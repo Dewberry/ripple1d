@@ -1,9 +1,9 @@
-
+@echo off
 :: This sets environment variables based on file ".env".
 :: This is called by api-start.bat and by api-test.bat.
 
 :: Load KEY=VALUE pairs from .env file (https://stackoverflow.com/questions/232747/read-environment-variables-from-file-in-windows-batch-cmd-exe)
-echo Loading variables from .env.
+
 if not exist .env (
     echo Error: could not find path: .env
     echo Press enter to exit. & set /p input= & exit /b 1
