@@ -147,7 +147,7 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
     # determine primary plan
-    rp = detemine_primary_plan(ras_project, client, crs, ras_text_file_path, bucket)
+    rp = detemine_primary_plan(ras_project, crs, ras_text_file_path, client, bucket)
 
     # read flow string and write geopackage
     string = str_from_s3(rp.plan_steady_file, client, bucket)
@@ -182,7 +182,7 @@ def new_stac_item_s3(
     logging.debug("Creating item from gpkg")
     # Instantitate S3 resources
 
-    session, s3_client, s3_resource = init_s3_resources(dev_mode)
+    session, s3_client, s3_resource = init_s3_resources()
     asset_list = list_keys(s3_client, bucket, gpkg_s3_key.replace(Path(gpkg_s3_key).name, ""))
 
     gdfs = gpkg_to_geodataframe(f"s3://{bucket}/{gpkg_s3_key}")
