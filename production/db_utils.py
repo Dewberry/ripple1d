@@ -23,12 +23,16 @@ class PGFim:
         conn_string = f"dbname='{self.dbname}' user='{self.dbuser}' password='{self.dbpass}' host='{self.dbhost}' port='{self.dbport}'"
         return conn_string
 
-    def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition: str):
+    def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition: str = ""):
         """Read cases from the cases schema."""
         approved_conditons = [
             "AND stac_complete=true AND conflation_complete=true",
             "AND gpkg_complete=true AND stac_complete=false",
-            "AND stac_complete=true AND (conflation_complete=false or conflation_complete is null)",
+            "AND gpkg_complete=true AND stac_complete IS NULL",
+            "AND stac_complete=true AND conflation_complete IS NULL",
+            "AND stac_complete=true AND conflation_complete = false",
+            "AND stac_complete=true AND (conflation_complete=false or conflation_complete is NULL)",
+            "",
         ]
         if optional_condition not in approved_conditons:
             raise ValueError(f"optional_condition must be one of {approved_conditons} or None")
@@ -41,6 +45,7 @@ class PGFim:
             sql_query = sql.SQL(
                 f"SELECT {fields_str.rstrip(', ')} FROM cases.{table} WHERE mip_group='{mip_group}' {optional_condition};"
             )
+
             cursor.execute(sql_query)
             return cursor.fetchall()
 
