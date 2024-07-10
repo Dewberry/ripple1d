@@ -1,72 +1,112 @@
 """
-Needs to be reworked to use the ripple_to_id coloumn from database rather than implementing the same logic here
+This script processes KWSE runs of reaches by traversing the network. It gets the river network by querying conflation SQLite database 'conflation_to_id' column. It also creates fim libraries as those are needed for the processing upstream reach.
 """
 
+import json
+import os
 import sqlite3
-import subprocess
+import time
+from typing import List, Optional, Tuple
 
-ras_projects = r"D:\Users\abdul.siddiqui\workbench\projects\trial_run_ripple"
-db_path = r"D:\Users\abdul.siddiqui\workbench\projects\ripple_1d_outputs\production.db.sqlite"
-start_id = 1465570
+import requests
 
-conn = sqlite3.connect(db_path)
+submodels_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\submodels"
+conflation_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\conflation.sqlite"
+start_reach = 2821866
+
+wait_time = 5
+
+conn = sqlite3.connect(conflation_db_path)
 cursor = conn.cursor()
 
 
-def get_model_info(id):
-    cursor.execute("SELECT id, us_xs_river, us_xs_reach, us_xs_id, model FROM conflation_data WHERE id = ?", (id,))
-    return cursor.fetchone()
-
-
-def get_related_ids(model, us_xs_river, us_xs_reach, us_xs_id):
+def get_upstream_reaches(conflation_to_id: int) -> List[int]:
+    """Fetch upstream reach IDs from the 'conflation' table."""
     cursor.execute(
         """
-        SELECT id FROM conflation_data
-        WHERE model = ? AND ds_xs_river = ? AND ds_xs_reach = ? AND ds_xs_id = ?
+        SELECT reach_id FROM conflation
+        WHERE conflation_to_id = ?
     """,
-        (model, us_xs_river, us_xs_reach, us_xs_id),
+        (conflation_to_id,),
     )
     return [row[0] for row in cursor.fetchall()]
 
 
-def process_id(id, to_id):
-    model_info = get_model_info(id)
-    if model_info is None:
-        print(f"No information found for ID: {id}")
+def get_min_max_elevation(downstream_id: int) -> Tuple[Optional[float], Optional[float]]:
+    """Fetch min and max elevation from the submodel database."""
+    ds_submodel_db_path = os.path.join(submodels_directory, str(downstream_id), "fims", f"{downstream_id}.db")
+    if not os.path.exists(ds_submodel_db_path):
+        print(f"Submodel database not found for reach_id: {downstream_id}")
+        return None, None
+
+    ds_reach_conn = sqlite3.connect(ds_submodel_db_path)
+    ds_reach_cursor = ds_reach_conn.cursor()
+    ds_reach_cursor.execute(f"SELECT MIN(wse), MAX(wse) FROM `'{downstream_id}'`")
+    min_elevation, max_elevation = ds_reach_cursor.fetchone()
+    ds_reach_conn.close()
+    return min_elevation, max_elevation
+
+
+def check_job_status(job_id: str) -> bool:
+    """Poll job status until it completes or fails."""
+    url = f"http://localhost/jobs/{job_id}"
+    while True:
+        response = requests.get(url)
+        job_status = response.json().get("status")
+        if job_status == "successful":
+            return True
+        elif job_status == "failed":
+            print(f"Job {job_id} failed.")
+            return False
+        print(f"Waiting for job {job_id} to complete...")
+        time.sleep(wait_time)  # Wait for 10 seconds before checking again
+
+
+def process_reach(reach_id: int, downstream_id: Optional[int]) -> None:
+    """Process the given reach ID and recursively process related upstream reach IDs."""
+
+    submodel_directory_path = os.path.join(submodels_directory, str(reach_id))
+    headers = {"Content-Type": "application/json"}
+
+    if downstream_id:
+        min_elevation, max_elevation = get_min_max_elevation(downstream_id)
+        if min_elevation is None or max_elevation is None:
+            print(f"Could not retrieve min/max elevation for reach_id: {downstream_id}")
+            return
+
+        url = "http://localhost/processes/run_known_wse/execution"
+        payload = json.dumps(
+            {
+                "submodel_directory": submodel_directory_path,
+                "plan_suffix": "kwse",
+                "min_elevation": min_elevation,
+                "max_elevation": max_elevation,
+                "depth_increment": 1,
+                "ras_version": "631",
+            }
+        )
+
+        response = requests.post(url, headers=headers, data=payload)
+        response_json = response.json()
+        job_id = response_json.get("jobID")
+        if not job_id or not check_job_status(job_id):
+            print(f"KWSE run failed for {reach_id} api job ID: {job_id}")
+            return
+
+    fim_url = "http://localhost/processes/create_fim_lib/execution"
+    fim_payload = json.dumps({"submodel_directory": submodel_directory_path, "plans": ["nd", "kwse"]})
+    fim_response = requests.post(fim_url, headers=headers, data=fim_payload)
+    fim_response_json = fim_response.json()
+    fim_job_id = fim_response_json.get("jobID")
+    if not fim_job_id or not check_job_status(fim_job_id):
+        print(f"Create Fim Lib failed for {reach_id} api job ID: {fim_job_id}")
         return
 
-    id, us_xs_river, us_xs_reach, us_xs_id, model_name = model_info
-
-    ras_project_text_file = rf"{ras_projects}\{model_name}\{id}\{id}.prj"
-    subset_gpkg_path = rf"{ras_projects}\{model_name}\{id}\{id}.gpkg"
-    json_path = rf"{ras_projects}\{model_name}\{model_name}.json"
-    terrain_path = rf"{ras_projects}\{model_name}\{id}\Terrain.hdf"
-    if to_id:
-        ds_nwm_ras_project_file = rf"{ras_projects}\WFSJ Main\{to_id}\{to_id}.prj"
-
-        command = [
-            "python",
-            "-m",
-            "ripple.scripts.known_water_surface_elevation_run",
-            str(id),
-            ras_project_text_file,
-            subset_gpkg_path,
-            terrain_path,
-            json_path,
-            str(to_id),
-            ds_nwm_ras_project_file,
-        ]
-
-        print("\n>>>>>>>>>>>>>>>>>>>>>\n")
-        print(f"Executing command: {' '.join(command)}")
-        subprocess.run(command)
-
-    # process connected reaches
-    related_ids = get_related_ids(model_name, us_xs_river, us_xs_reach, us_xs_id)
-    for related_id in related_ids:
-        process_id(related_id, id)
+    upstream_reaches = get_upstream_reaches(reach_id)
+    for upstream_reach in upstream_reaches:
+        process_reach(upstream_reach, reach_id)
 
 
-process_id(start_id, 1465590)  # start traversing
+process_reach(start_reach, None)  # Start traversing
 
 conn.close()
