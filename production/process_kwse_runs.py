@@ -14,7 +14,7 @@ submodels_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\su
 conflation_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\conflation.sqlite"
 start_reach = 2821866
 
-wait_time = 5
+wait_time = 3
 
 conn = sqlite3.connect(conflation_db_path)
 cursor = conn.cursor()
@@ -62,51 +62,59 @@ def check_job_status(job_id: str) -> bool:
         time.sleep(wait_time)  # Wait for 10 seconds before checking again
 
 
-def process_reach(reach_id: int, downstream_id: Optional[int]) -> None:
-    """Process the given reach ID and recursively process related upstream reach IDs."""
+def process_network(start_reach: int) -> None:
+    """Process the given reach ID and iteratively process related upstream reach IDs."""
 
-    submodel_directory_path = os.path.join(submodels_directory, str(reach_id))
-    headers = {"Content-Type": "application/json"}
+    stack = [(start_reach, None)]  # Use a stack to avoid deep recursion
 
-    if downstream_id:
-        min_elevation, max_elevation = get_min_max_elevation(downstream_id)
-        if min_elevation is None or max_elevation is None:
-            print(f"Could not retrieve min/max elevation for reach_id: {downstream_id}")
-            return
+    while stack:
+        reach_id, downstream_id = stack.pop()
 
-        url = "http://localhost/processes/run_known_wse/execution"
-        payload = json.dumps(
-            {
-                "submodel_directory": submodel_directory_path,
-                "plan_suffix": "kwse",
-                "min_elevation": min_elevation,
-                "max_elevation": max_elevation,
-                "depth_increment": 1,
-                "ras_version": "631",
-            }
-        )
+        print(f"<<<<<< processing reach {reach_id}")
 
-        response = requests.post(url, headers=headers, data=payload)
-        response_json = response.json()
-        job_id = response_json.get("jobID")
-        if not job_id or not check_job_status(job_id):
-            print(f"KWSE run failed for {reach_id} api job ID: {job_id}")
-            return
+        submodel_directory_path = os.path.join(submodels_directory, str(reach_id))
+        headers = {"Content-Type": "application/json"}
 
-    fim_url = "http://localhost/processes/create_fim_lib/execution"
-    fim_payload = json.dumps({"submodel_directory": submodel_directory_path, "plans": ["nd", "kwse"]})
-    fim_response = requests.post(fim_url, headers=headers, data=fim_payload)
-    fim_response_json = fim_response.json()
-    fim_job_id = fim_response_json.get("jobID")
-    if not fim_job_id or not check_job_status(fim_job_id):
-        print(f"Create Fim Lib failed for {reach_id} api job ID: {fim_job_id}")
-        return
+        if downstream_id:
+            min_elevation, max_elevation = get_min_max_elevation(downstream_id)
+            if min_elevation is None or max_elevation is None:
+                print(f"Could not retrieve min/max elevation for reach_id: {downstream_id}")
+                continue
 
-    upstream_reaches = get_upstream_reaches(reach_id)
-    for upstream_reach in upstream_reaches:
-        process_reach(upstream_reach, reach_id)
+            url = "http://localhost/processes/run_known_wse/execution"
+            payload = json.dumps(
+                {
+                    "submodel_directory": submodel_directory_path,
+                    "plan_suffix": "kwse",
+                    "min_elevation": min_elevation,
+                    "max_elevation": max_elevation,
+                    "depth_increment": 1,
+                    "ras_version": "631",
+                }
+            )
+            print(f"<<<<<< payload for reach {reach_id}\n{payload}")
+
+            response = requests.post(url, headers=headers, data=payload)
+            response_json = response.json()
+            job_id = response_json.get("jobID")
+            if not job_id or not check_job_status(job_id):
+                print(f"KWSE run failed for {reach_id} api job ID: {job_id}")
+                continue
+
+        fim_url = "http://localhost/processes/create_fim_lib/execution"
+        fim_payload = json.dumps({"submodel_directory": submodel_directory_path, "plans": ["nd", "kwse"]})
+        fim_response = requests.post(fim_url, headers=headers, data=fim_payload)
+        fim_response_json = fim_response.json()
+        fim_job_id = fim_response_json.get("jobID")
+        if not fim_job_id or not check_job_status(fim_job_id):
+            print(f"Create Fim Lib failed for {reach_id} api job ID: {fim_job_id}")
+            continue
+
+        upstream_reaches = get_upstream_reaches(reach_id)
+        for upstream_reach in upstream_reaches:
+            stack.append((upstream_reach, reach_id))
 
 
-process_reach(start_reach, None)  # Start traversing
+process_network(start_reach)  # Start traversing
 
 conn.close()
