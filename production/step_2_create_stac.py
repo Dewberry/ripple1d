@@ -10,11 +10,11 @@ from ripple.ras_to_gpkg import new_stac_item_s3
 from ripple.ripple_logger import configure_logging
 
 
-def main(mip_group: str, table_name: str, bucket: str, ripple_version: str):
+def main(mip_group: str, processing_table_name: str, bucket: str, ripple_version: str):
     """Read from database a list of geopackages to create stac items."""
     db = PGFim()
     optional_condition = "AND gpkg_complete=true AND stac_complete IS NULL"
-    data = db.read_cases(table_name, ["case_id", "s3_key"], mip_group, optional_condition)
+    data = db.read_cases(processing_table_name, ["case_id", "s3_key"], mip_group, optional_condition)
     while data:
         for i, (mip_case, s3_ras_project_key) in enumerate(data):
             gpkg_key = s3_ras_project_key.replace(".prj", ".gpkg")
@@ -35,14 +35,18 @@ def main(mip_group: str, table_name: str, bucket: str, ripple_version: str):
                     mip_case,
                 )
 
-                db.update_case_status(mip_group, mip_case, s3_ras_project_key, True, None, None, "stac")
+                db.update_case_status(
+                    processing_table_name, mip_group, mip_case, s3_ras_project_key, True, None, None, "stac"
+                )
                 logging.debug(f"Successfully finished stac item for {s3_ras_project_key}")
             except Exception as e:
                 exc = str(e)
                 tb = str(traceback.format_exc())
                 logging.error(exc)
                 logging.error(tb)
-                db.update_case_status(mip_group, mip_case, s3_ras_project_key, False, exc, tb, "stac")
+                db.update_case_status(
+                    processing_table_name, mip_group, mip_case, s3_ras_project_key, False, exc, tb, "stac"
+                )
         sleep(1)
         data = db.read_cases(table_name, ["case_id", "s3_key"], mip_group, optional_condition)
 
@@ -50,9 +54,9 @@ def main(mip_group: str, table_name: str, bucket: str, ripple_version: str):
 if __name__ == "__main__":
     configure_logging(level=logging.INFO, logfile="create_stac.log")
 
-    mip_group = "tx_ble"
-    table_name = "processing "
+    mip_group = "b"
+    processing_table_name = "processing_v2"
     bucket = "fim"
     ripple_version = RIPPLE_VERSION
 
-    main(mip_group, table_name, bucket, ripple_version)
+    main(mip_group, processing_table_name, bucket, ripple_version)

@@ -50,14 +50,22 @@ class PGFim:
             return cursor.fetchall()
 
     def update_case_status(
-        self, mip_group: str, mip_case: str, key: str, status: bool, exc: str, traceback: str, process: str
+        self,
+        table_name: str,
+        mip_group: str,
+        mip_case: str,
+        key: str,
+        status: bool,
+        exc: str,
+        traceback: str,
+        process: str,
     ):
         """Update the status of a table in the cases schema."""
         with psycopg2.connect(self.__conn_string()) as connection:
             cursor = connection.cursor()
             insert_query = sql.SQL(
                 f"""
-                INSERT INTO cases.processing_v2(s3_key,mip_group, case_id, {process}_complete, {process}_exc, {process}_traceback) 
+                INSERT INTO cases.{table_name}(s3_key,mip_group, case_id, {process}_complete, {process}_exc, {process}_traceback) 
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (s3_key)
                 DO UPDATE SET
