@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import subprocess
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -98,6 +99,7 @@ def create_thumbnail_from_gpkg(gdfs: dict, png_s3_key: str, bucket: str, s3_clie
     buf = BytesIO()
     plt.savefig(buf, format="png")
     buf.seek(0)
+    plt.close()
 
     # Download the PNG to s3
     s3_client.put_object(Bucket=bucket, Key=png_s3_key, Body=buf, ContentType="image/png")
@@ -144,6 +146,8 @@ def create_geom_item(
         datetime=start_time,
         properties={
             "ripple: version": ripple_version,
+            "ripple git commit": subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip(),
+            "STAC creation date": datetime.datetime.utcnow().isoformat(),
             "ras version": xs["version"],
             "project title": xs["project_title"],
             "plan title": xs["plan_title"],
