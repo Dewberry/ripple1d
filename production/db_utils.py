@@ -57,14 +57,43 @@ class PGFim:
             cursor = connection.cursor()
             insert_query = sql.SQL(
                 f"""
-                INSERT INTO cases.processing(s3_key,mip_group, case_id, {process}_complete, {process}_exc, {process}_traceback) 
+                INSERT INTO cases.processing_v2(s3_key,mip_group, case_id, {process}_complete, {process}_exc, {process}_traceback) 
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (s3_key)
                 DO UPDATE SET
                 {process}_complete = EXCLUDED.{process}_complete,
                 {process}_exc = EXCLUDED.{process}_exc,
-                {process}_traceback = EXCLUDED.{process}_traceback
+                {process}_traceback = EXCLUDED.{process}_traceback;
                 """
             )
             cursor.execute(insert_query, (key, mip_group, mip_case, status, exc, traceback))
+            connection.commit()
+
+    def create_table(self, table_name: str):
+        """Create a table in the cases schema."""
+        with psycopg2.connect(self.__conn_string()) as connection:
+            cursor = connection.cursor()
+            sql_query = sql.SQL(
+                f"""
+                CREATE TABLE cases.{table_name}(
+                mip_group TEXT,
+                s3_key TEXT,
+                crs TEXT,
+                ratio_of_best_crs TEXT);
+                """
+            )
+            cursor.execute(f"DROP TABLE IF EXISTS cases.{table_name}")
+            cursor.execute(sql_query)
+            connection.commit()
+
+    def populate_crs_table(self, table_name: str, mip_group: str, key: str, crs: str, ratio_of_best_crs: str):
+        """Populate the crs table in the cases schema."""
+        with psycopg2.connect(self.__conn_string()) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                f"""
+                INSERT INTO cases.{table_name} (mip_group, s3_key, crs, ratio_of_best_crs) VALUES (%s, %s, %s, %s);
+                """,
+                (mip_group, key, crs, ratio_of_best_crs),
+            )
             connection.commit()
