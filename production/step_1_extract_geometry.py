@@ -51,6 +51,7 @@ def main(table_name: str, mip_group: str, bucket: str = None):
             exc = str(e)
             tb = str(traceback.format_exc())
             logging.error(exc)
+            logging.error(tb)
             db.update_case_status(mip_group, mip_case, key, False, exc, tb, "gpkg")
 
 

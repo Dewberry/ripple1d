@@ -58,7 +58,6 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
                     bucket,
                     stac_item_s3_key,
                     rfc,
-                    river_reach_name,
                 )
                 logging.debug(f"{item.id}: Successfully processed")
                 db.update_case_status(mip_group, mip_case, s3_ras_project_key, True, None, None, "conflation")
@@ -67,8 +66,9 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
                 exc = str(e)
                 tb = str(traceback.format_exc())
                 logging.error(exc)
+                logging.error(tb)
                 db.update_case_status(mip_group, mip_case, s3_ras_project_key, False, exc, tb, "conflation")
-        sleep(1)
+        sleep(360)
 
         data = db.read_cases(
             table_name,
@@ -83,8 +83,8 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
 
 if __name__ == "__main__":
     configure_logging(level=logging.INFO, logfile="create_stac.log")
-    mip_group = "tx_ble"
-    table_name = "processing"
+    mip_group = "b"
+    table_name = "processing_v2"
     bucket = "fim"
     nwm_pq_path = r"C:\Users\mdeshotel\Downloads\nwm_flows_v3.parquet"
 
