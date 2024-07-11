@@ -221,10 +221,10 @@ def enqueue_async_task(func: typing.Callable) -> tuple[Response, HTTPStatus]:
     try:
         kwargs = request.json  # can throw BadRequest when parsing body into json
         if not isinstance(kwargs, dict):
-            raise BadRequest
-    except BadRequest:
+            raise BadRequest(f"expected body to be a JSON dictionary, but got: {type(kwargs)}")
+    except BadRequest as e:
         return (
-            jsonify({"type": "process", "detail": "could not parse body to json dict"}),
+            jsonify({"type": "process", "detail": f"could not parse body to json dict. error: {e}"}),
             HTTPStatus.BAD_REQUEST,
         )
 
