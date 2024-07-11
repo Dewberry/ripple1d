@@ -20,6 +20,7 @@ def create_model_run_normal_depth(
     plan_suffix: str,
     num_of_discharges_for_initial_normal_depth_runs: int = 10,
     ras_version: str = "631",
+    show_ras: bool = False,
 ):
     """Write and compute initial normal depth runs to develop initial rating curves."""
     nwm_rm = NwmReachModel(submodel_directory)
@@ -62,6 +63,8 @@ def create_model_run_normal_depth(
             [fcl],
             initial_flows.astype(str),
             write_depth_grids=False,
+            show_ras=show_ras,
+            run_ras=True,
         )
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
@@ -72,6 +75,7 @@ def run_incremental_normal_depth(
     ras_version: str = "631",
     depth_increment=0.5,
     write_depth_grids: str = True,
+    show_ras: bool = False,
 ):
     """Write and compute incremental normal depth runs to develop rating curves and depth grids."""
     nwm_rm = NwmReachModel(submodel_directory)
@@ -116,6 +120,8 @@ def run_incremental_normal_depth(
         [fcl],
         flows.astype(str),
         write_depth_grids=True,
+        show_ras=show_ras,
+        run_ras=True,
     )
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
@@ -128,6 +134,7 @@ def run_known_wse(
     depth_increment=2,
     ras_version: str = "631",
     write_depth_grids: str = True,
+    show_ras: bool = False,
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
     nwm_rm = NwmReachModel(submodel_directory)
@@ -190,6 +197,8 @@ def run_known_wse(
             nwm_rm.model_name,
             rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
             write_depth_grids=write_depth_grids,
+            show_ras=show_ras,
+            run_ras=True,
         )
     return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}}
 

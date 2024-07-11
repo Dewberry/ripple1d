@@ -20,5 +20,11 @@ if __name__ == "__main__":
     SAMPLE_DATA = f"{SAMPLE_DATA}\\submodels\\2823932"
 
     r = run_known_wse(
-        SAMPLE_DATA, "kwse", min_elevation=60.0, max_elevation=62.0, depth_increment=1.0, ras_version="631"
+        SAMPLE_DATA,
+        "kwse",
+        min_elevation=60.0,
+        max_elevation=62.0,
+        depth_increment=1.0,
+        ras_version="631",
+        show_ras=True,
     )
