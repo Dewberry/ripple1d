@@ -146,8 +146,6 @@ def create_geom_item(
         datetime=start_time,
         properties={
             "ripple: version": ripple_version,
-            "ripple git commit": subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip(),
-            "STAC creation date": datetime.datetime.utcnow().isoformat(),
             "ras version": xs["version"],
             "project title": xs["project_title"],
             "plan title": xs["plan_title"],
