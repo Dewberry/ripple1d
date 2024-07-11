@@ -62,9 +62,14 @@ def post_process_depth_grids(
     return missing_grids_kwse, missing_grids_nd
 
 
-def create_fim_lib(submodel_directory: str, plans: list, fim_output_dir: str = None, ras_version: str = "631"):
+def create_fim_lib(
+    model_directory: str,
+    plans: list,
+    ras_version: str = "631",
+    table_name: str = "rating_curve",
+):
     """Create a new FIM library for a NWM id."""
-    nwm_rm = NwmReachModel(submodel_directory)
+    nwm_rm = NwmReachModel(model_directory)
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
@@ -73,18 +78,22 @@ def create_fim_lib(submodel_directory: str, plans: list, fim_output_dir: str = N
     rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
     ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
-    fim_results_directory = os.path.join(submodel_directory, "fims")
-
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
-        rm, ras_plans, fim_results_directory, except_missing_grid=True
+        rm, ras_plans, nwm_rm.fim_results_directory, except_missing_grid=True
     )
 
-    results_database = os.path.join(fim_results_directory, f"{nwm_rm.model_name}.db")
     if f"kwse" in plans:
         rating_curves_to_sqlite(
-            rm, f"{nwm_rm.model_name}_kwse", nwm_rm.model_name, missing_grids_kwse, results_database
+            rm,
+            f"{nwm_rm.model_name}_kwse",
+            nwm_rm.model_name,
+            missing_grids_kwse,
+            nwm_rm.fim_results_database,
+            table_name,
         )
     if f"nd" in plans:
-        zero_depth_to_sqlite(rm, f"{nwm_rm.model_name}_nd", nwm_rm.model_name, missing_grids_nd, results_database)
+        zero_depth_to_sqlite(
+            rm, f"{nwm_rm.model_name}_nd", nwm_rm.model_name, missing_grids_nd, nwm_rm.fim_results_database
+        )
 
-    return {"fim_results_directory": fim_results_directory, "results_database": results_database}
+    return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}

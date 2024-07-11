@@ -73,10 +73,10 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     return wses_t
 
 
-def zero_depth_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_nd: list, database_path: str):
+def zero_depth_to_sqlite(
+    rm: RasManager, plan_name: str, nwm_id: str, missing_grids_nd: list, database_path: str, table_name: str
+):
     """Export zero depth (normal depth) results to sqlite."""
-    table = rm.ras_project._ras_project_basename
-
     # set the plan
     rm.plan = rm.plans[plan_name]
 
@@ -105,15 +105,15 @@ def zero_depth_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_gr
     # add control id
     df["reach_id"] = [nwm_id] * len(df)
 
-    insert_data(database_path, table, df)
+    insert_data(database_path, table_name, df)
 
 
-def rating_curves_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing_grids_kwse: list, database_path: str):
+def rating_curves_to_sqlite(
+    rm: RasManager, plan_name: str, nwm_id: str, missing_grids_kwse: list, database_path: str, table_name: str
+):
     """Export rating curves to sqlite."""
     # create dabase and table
-    table = rm.ras_project._ras_project_basename
-
-    create_db_and_table(database_path, table)
+    create_db_and_table(database_path, table_name)
 
     # set the plan
     if plan_name not in rm.plans:
@@ -148,4 +148,4 @@ def rating_curves_to_sqlite(rm: RasManager, plan_name: str, nwm_id: str, missing
     thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.thalweg
     df["control_by_reach_depth"] = df["control_by_reach_wse"] - thalweg
 
-    insert_data(database_path, table, df)
+    insert_data(database_path, table_name, df)

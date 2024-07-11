@@ -106,6 +106,16 @@ class NwmReachModel:
         """RAS Terrain HDF file."""
         return str(Path(self.terrain_directory) / f"{self.model_name}.hdf")
 
+    @property
+    def fim_results_directory(self):
+        """FIM results directory."""
+        return str(Path(self.model_directory) / "fims")
+
+    @property
+    def fim_results_database(self):
+        """Results database."""
+        return str(Path(self.fim_results_directory) / f"{self.model_name}.db")
+
 
 @dataclass
 class FlowChangeLocation:
