@@ -1,9 +1,9 @@
 {
 	"info": {
-		"_postman_id": "605bba37-fe00-40f3-8e0c-9d0541fcfe01",
+		"_postman_id": "92164ce6-5902-4778-9e17-0abcd235c90c",
 		"name": "ripple",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "11115435"
+		"_exporter_id": "29128857"
 	},
 	"item": [
 		{
@@ -72,7 +72,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"C:\\\\Users\\\\slawler\\\\repos\\\\ripple\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"C:\\\\Users\\\\mdeshotel\\\\Downloads\\\\12040101_Models\\\\ripple2\\\\ripple\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -128,7 +128,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 10\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 5,\r\n    \"show_ras\":false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -156,7 +156,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 0.5,\r\n    \"ras_version\": \"631\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd9\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -184,7 +184,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"kwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"kwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":true\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -212,7 +212,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"]\r\n}",
+							"raw": "{\r\n    \"model_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -418,7 +418,7 @@
 		},
 		{
 			"key": "submodels_base_directory",
-			"value": "D:\\\\Users\\\\abdul.siddiqui\\\\workbench\\\\repos\\\\ripple\\\\tests\\\\outputs\\\\submodels",
+			"value": "~\\\\repos\\\\ripple\\\\tests\\\\outputs\\\\submodels",
 			"type": "string"
 		},
 		{
