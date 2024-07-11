@@ -15,7 +15,7 @@ def create_db_and_table(db_name: str, table_name: str):
         os.remove(db_name)
 
     sql_query = f"""
-        CREATE TABLE {[table_name]}(
+        CREATE TABLE {table_name}(
             control_by_reach_depth REAL,
             control_by_reach_wse REAL,
             flow REAL,
@@ -42,7 +42,7 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame, ripple_versio
     for row in data.itertuples():
         c.execute(
             f"""
-            INSERT OR REPLACE INTO {[table_name]} (control_by_reach_depth, control_by_reach_wse,flow, depth, wse, reach_id,ripple_version)
+            INSERT OR REPLACE INTO {table_name} (control_by_reach_depth, control_by_reach_wse,flow, depth, wse, reach_id,ripple_version)
             VALUES ( ?, ?, ?, ?, ?, ?, ?)
         """,
             (
@@ -87,20 +87,26 @@ def zero_depth_to_sqlite(
         flows.drop(columns=missing_grids_nd, inplace=True)
 
     # get river-reach-rs
-    river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs
+    us_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs
+    ds_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.river_reach_rs
 
     wses_t = wses.T
     wses_t["flow"] = wses_t.index
     wses_t["control_by_reach_depth"] = 0
-    df = wses_t.loc[:, [river_reach_rs, "flow", "control_by_reach_depth"]]
-    df.rename(columns={river_reach_rs: "wse"}, inplace=True)
+    df = wses_t.loc[:, [us_river_reach_rs, "flow", "control_by_reach_depth"]]
+    df.rename(columns={us_river_reach_rs: "wse"}, inplace=True)
 
-    # convert elevation to stage
-    thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.thalweg
-    df["depth"] = df["wse"] - thalweg
+    # convert elvation to stage for upstream cross section
+    us_thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.thalweg
+    df["depth"] = df["wse"] - us_thalweg
 
-    thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.thalweg
-    df["control_by_reach_wse"] = thalweg
+    # convert elvation to stage for downstream cross section
+    ds_df = wses_t.loc[:, [ds_river_reach_rs, "flow", "control_by_reach_depth"]]
+    ds_df.rename(columns={ds_river_reach_rs: "wse"}, inplace=True)
+    ds_thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.thalweg
+
+    df["control_by_reach_wse"] = ds_df["wse"]
+    df["control_by_reach_depth"] = df["control_by_reach_wse"] - ds_thalweg
 
     # add control id
     df["reach_id"] = [nwm_id] * len(df)

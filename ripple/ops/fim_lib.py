@@ -66,7 +66,7 @@ def create_fim_lib(
     model_directory: str,
     plans: list,
     ras_version: str = "631",
-    table_name: str = "rating_curve",
+    table_name: str = "rating_curves",
 ):
     """Create a new FIM library for a NWM id."""
     nwm_rm = NwmReachModel(model_directory)
@@ -93,7 +93,7 @@ def create_fim_lib(
         )
     if f"nd" in plans:
         zero_depth_to_sqlite(
-            rm, f"{nwm_rm.model_name}_nd", nwm_rm.model_name, missing_grids_nd, nwm_rm.fim_results_database
+            rm, f"{nwm_rm.model_name}_nd", nwm_rm.model_name, missing_grids_nd, nwm_rm.fim_results_database, table_name
         )
 
     return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
