@@ -45,12 +45,6 @@ def check_process(func):
     return wrapper
 
 
-@pytest.fixture(autouse=True)
-def slow_down_tests():
-    yield
-    time.sleep(10)
-
-
 class TestApi(unittest.TestCase):
 
     @check_process
