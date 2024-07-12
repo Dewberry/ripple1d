@@ -63,13 +63,13 @@ def post_process_depth_grids(
 
 
 def create_fim_lib(
-    model_directory: str,
+    submodel_directory: str,
     plans: list,
     ras_version: str = "631",
     table_name: str = "rating_curves",
 ):
     """Create a new FIM library for a NWM id."""
-    nwm_rm = NwmReachModel(model_directory)
+    nwm_rm = NwmReachModel(submodel_directory)
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
