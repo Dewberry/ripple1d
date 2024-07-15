@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import time
 import unittest
 
@@ -13,6 +14,10 @@ TEST_DIR = os.path.dirname(__file__)
 SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter")
 SUBMODELS_BASE_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter\\submodels")
 REACH_ID = "2823932"
+
+
+def start_server():
+    return subprocess.Popen(["python", "-m", "ripple_api", "start"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 def submit_job(process: str, payload: dict):
@@ -46,6 +51,10 @@ def check_process(func):
 
 
 class TestApi(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server_process = start_server()
+        time.sleep(5)  # Give the server some time to start
 
     @check_process
     def test1_extract_submodel(self):
@@ -70,7 +79,7 @@ class TestApi(unittest.TestCase):
         payload = {
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "plan_suffix": "ind",
-            "num_of_discharges_for_initial_normal_depth_runs": 5,
+            "num_of_discharges_for_initial_normal_depth_runs": 1,
             "show_ras": False,
         }
         process = "create_model_run_normal_depth"
@@ -81,7 +90,7 @@ class TestApi(unittest.TestCase):
         payload = {
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "plan_suffix": "nd",
-            "depth_increment": 1,
+            "depth_increment": 3,
             "ras_version": "631",
             "show_ras": False,
         }
@@ -94,7 +103,7 @@ class TestApi(unittest.TestCase):
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "plan_suffix": "kwse",
             "min_elevation": 60.0,
-            "max_elevation": 62.0,
+            "max_elevation": 61.0,
             "depth_increment": 1.0,
             "ras_version": "631",
             "show_ras": False,
@@ -107,3 +116,11 @@ class TestApi(unittest.TestCase):
         payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}", "plans": ["nd", "kwse"]}
         process = "create_fim_lib"
         return process, payload
+
+    def test7_cleanup(self):
+        # TODO: clean up the submodel directory
+        pass
+
+    def test8_shutdown(self):
+        r = subprocess.run(["python", "-m", "ripple_api", "stop"])
+        self.assertEqual(r.returncode, 0)
