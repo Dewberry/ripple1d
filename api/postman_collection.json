@@ -156,7 +156,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd9\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false\r\n}",
+							"raw": "{\r\n    \"model_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -212,7 +212,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"model_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"]\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -227,6 +227,34 @@
 							"path": [
 								"processes",
 								"create_fim_lib",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "fim_model_to_stac",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/fim_models/2823932/\",\r\n    \"bucket\": \"fim\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/fim_model_to_stac/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"fim_model_to_stac",
 								"execution"
 							]
 						}
@@ -418,7 +446,7 @@
 		},
 		{
 			"key": "submodels_base_directory",
-			"value": "~\\\\repos\\\\ripple\\\\tests\\\\outputs\\\\submodels",
+			"value": "~\\\\repos\\\\ripple\\\\tests\\\\ras-data\\\\Baxter\\\\submodels",
 			"type": "string"
 		},
 		{
