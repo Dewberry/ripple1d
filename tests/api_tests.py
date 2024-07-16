@@ -31,6 +31,7 @@ RESULT3_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.r
 FIM_LIB_DB = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\{REACH_ID}.db")
 DEPTH_GRIDS_ND = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_0_0")
 DEPTH_GRIDS_KWSE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_60_0")
+STAC_ITEM = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.stac.json")
 
 
 def start_server():
@@ -50,7 +51,7 @@ def wait_for_job(job_id: str):
         response = requests.get(url)
         job_status = response.json().get("status")
         if job_status in ["successful", "failed"]:
-            print(job_status)
+
             return job_status
         time.sleep(5)  # Wait for 10 seconds before checking again
 
@@ -141,10 +142,22 @@ class TestApi(unittest.TestCase):
         files = [FIM_LIB_DB, DEPTH_GRIDS_ND, DEPTH_GRIDS_KWSE]
         return process, payload, files
 
-    def test7_cleanup(self):
+    @check_process
+    def test7_fim_model_to_stac(self):
+        payload = {
+            "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
+            "ras_model_s3_prefix": "stac/test-data/fim_models/2823932/",
+            "bucket": "fim",
+            "ripple_version": RIPPLE_VERSION,
+        }
+        process = "fim_model_to_stac"
+        files = [STAC_ITEM]
+        return process, payload, files
+
+    def test8_cleanup(self):
         # TODO: clean up the submodel directory
         pass
 
-    def test8_shutdown(self):
+    def test9_shutdown(self):
         r = subprocess.run(["python", "-m", "ripple_api", "stop"])
         self.assertEqual(r.returncode, 0)
