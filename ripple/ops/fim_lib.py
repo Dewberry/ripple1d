@@ -17,7 +17,7 @@ from ripple.errors import DepthGridNotFoundError
 from ripple.ras import RasManager
 from ripple.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
 from ripple.utils.s3_utils import init_s3_resources
-from ripple.utils.sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
+from ripple.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
 def post_process_depth_grids(
@@ -86,19 +86,28 @@ def create_fim_lib(
         rm, ras_plans, nwm_rm.fim_results_directory, except_missing_grid=True
     )
 
-    if f"kwse" in plans:
-        rating_curves_to_sqlite(
-            rm,
-            f"{nwm_rm.model_name}_kwse",
-            nwm_rm.model_name,
-            missing_grids_kwse,
-            nwm_rm.fim_results_database,
-            table_name,
-        )
-    if f"nd" in plans:
-        zero_depth_to_sqlite(
-            rm, f"{nwm_rm.model_name}_nd", nwm_rm.model_name, missing_grids_nd, nwm_rm.fim_results_database, table_name
-        )
+    # create dabase and table
+    create_db_and_table(nwm_rm.fim_results_database, table_name)
+
+    for plan in plans:
+        if f"kwse" in plan:
+            rating_curves_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_kwse",
+                nwm_rm.model_name,
+                missing_grids_kwse,
+                nwm_rm.fim_results_database,
+                table_name,
+            )
+        if f"nd" in plan:
+            zero_depth_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_nd",
+                nwm_rm.model_name,
+                missing_grids_nd,
+                nwm_rm.fim_results_database,
+                table_name,
+            )
 
     return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
 
