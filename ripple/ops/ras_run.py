@@ -27,14 +27,11 @@ def create_model_run_normal_depth(
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
-    else:
-        with open(nwm_rm.conflation_file, "r") as f:
-            conflation_parameters = json.loads(f.read())
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
-    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
     else:
         logging.info(f"Working on initial normal depth run for nwm_id: {nwm_rm.model_name}")
@@ -44,8 +41,8 @@ def create_model_run_normal_depth(
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
-            max([conflation_parameters["low_flow_cfs"], MIN_FLOW]),
-            conflation_parameters["high_flow_cfs"],
+            max([nwm_rm.ripple_parameters["low_flow_cfs"], MIN_FLOW]),
+            nwm_rm.ripple_parameters["high_flow_cfs"],
             num_of_discharges_for_initial_normal_depth_runs,
         ).astype(int)
 
@@ -82,20 +79,20 @@ def run_incremental_normal_depth(
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
-    else:
-        with open(nwm_rm.conflation_file, "r") as f:
-            conflation_parameters = json.loads(f.read())
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
     logging.info(f"Working on normal depth run for nwm_id: {nwm_rm.model_name}")
-    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
-    else:
-        crs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").crs
 
-    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
+    rm = RasManager(
+        nwm_rm.ras_project_file,
+        version=ras_version,
+        terrain_path=nwm_rm.ras_terrain_hdf,
+        crs=nwm_rm.ripple_parameters["crs"],
+    )
 
     # determine flow increments
     flows, _, _ = determine_flow_increments(
@@ -141,9 +138,6 @@ def run_known_wse(
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
-    else:
-        with open(nwm_rm.conflation_file, "r") as f:
-            conflation_parameters = json.loads(f.read())
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")

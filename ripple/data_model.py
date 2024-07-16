@@ -1,5 +1,6 @@
 """Data model for shared utilities."""
 
+import glob
 import json
 import math
 import os
@@ -18,14 +19,24 @@ from ripple.utils.ripple_utils import (
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
 )
+from ripple.utils.s3_utils import init_s3_resources, read_json_from_s3
 
 
-class RippleSourceModel:
-    """Source Model structure for Ripple to create NwmReachModel's."""
+class RasModelStructure:
+    """Base Model structure for RAS models."""
 
     def __init__(self, model_directory: str):
         self.model_directory = model_directory
-        self.model_name = Path(model_directory).name
+        self.model_basename = Path(model_directory).name
+
+    def __init__(self, model_directory: str):
+        self.model_directory = model_directory
+        self.model_basename = Path(model_directory).name
+
+    @property
+    def model_name(self):
+        """Model name."""
+        return self.model_basename.replace(".prj", "")
 
     def derive_path(self, extension: str):
         """Derive path."""
@@ -43,19 +54,33 @@ class RippleSourceModel:
         return self.derive_path(".prj")
 
     @property
-    def conflation_file(self):
-        """Conflation file."""
-        return self.derive_path(".conflation.json")
-
-    @property
     def ras_gpkg_file(self):
         """RAS GeoPackage file."""
         return self.derive_path(".gpkg")
 
     @property
-    def terrain_directory(self):
-        """Terrain directory."""
-        f"{self.model_directory}/Terrain"
+    def assets(self):
+        """Model assets."""
+        return glob.glob(f"{self.model_directory}/Terrain/*") + [
+            f for f in glob.glob(f"{self.model_directory}/*") if not os.path.isdir(f)
+        ]
+
+    @property
+    def thumbnail_png(self):
+        """Thumbnail PNG."""
+        return self.derive_path(".png")
+
+
+class RippleSourceModel(RasModelStructure):
+    """Source Model structure for Ripple to create NwmReachModel's."""
+
+    def __init__(self, model_directory: str):
+        super().__init__(model_directory)
+
+    @property
+    def conflation_file(self):
+        """Conflation file."""
+        return self.derive_path(".conflation.json")
 
     def nwm_conflation_parameters(self, nwm_id: str):
         """NWM Conflation parameters."""
@@ -64,37 +89,11 @@ class RippleSourceModel:
         return conflation_parameters[nwm_id]
 
 
-class NwmReachModel:
+class NwmReachModel(RasModelStructure):
     """National Water Model reach-based HEC-RAS Model files and directory structure."""
 
     def __init__(self, model_directory: str):
-        self.model_directory = model_directory
-        self.model_name = Path(model_directory).name
-
-    def derive_path(self, extension: str):
-        """Derive path."""
-        return str(Path(self.model_directory) / f"{self.model_name}{extension}")
-
-    def file_exists(self, file_path: str) -> bool:
-        """Check if file exists."""
-        if os.path.exists(file_path):
-            return True
-        return False
-
-    @property
-    def ras_project_file(self):
-        """RAS Project file."""
-        return self.derive_path(".prj")
-
-    @property
-    def conflation_file(self):
-        """Conflation file."""
-        return self.derive_path(".ripple.json")
-
-    @property
-    def ras_gpkg_file(self):
-        """RAS GeoPackage file."""
-        return self.derive_path(".gpkg")
+        super().__init__(model_directory)
 
     @property
     def terrain_directory(self):
@@ -115,6 +114,39 @@ class NwmReachModel:
     def fim_results_database(self):
         """Results database."""
         return str(Path(self.fim_results_directory) / f"{self.model_name}.db")
+
+    @property
+    def crs(self):
+        """Coordinate Reference System."""
+        return self.ripple_parameters["crs"]
+
+    def upload_files_to_s3(self, ras_s3_prefix: str, bucket: str):
+        """Upload the model to s3."""
+        _, client, _ = init_s3_resources()
+        for file in self.assets:
+            key = f"{ras_s3_prefix}/{Path(file).name}"
+            client.upload_file(
+                Bucket=bucket,
+                Key=key,
+                Filename=file,
+            )
+
+    @property
+    def ripple_parameters(self):
+        """Ripple parameters."""
+        with open(self.conflation_file, "r") as f:
+            ripple_parameters = json.loads(f.read())
+        return ripple_parameters
+
+    @property
+    def conflation_file(self):
+        """Conflation file."""
+        return self.derive_path(".ripple.json")
+
+    @property
+    def stac_json_file(self):
+        """STAC JSON file."""
+        return self.derive_path(".stac.json")
 
 
 @dataclass
