@@ -75,7 +75,7 @@ def main(processing_table_name: str, mip_group: str, bucket: str, nwm_pq_path: s
         sleep(360)
 
         data = db.read_cases(
-            table_name,
+            processing_table_name,
             [
                 "case_id",
                 "s3_key",

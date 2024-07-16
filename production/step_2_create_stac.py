@@ -48,7 +48,7 @@ def main(mip_group: str, processing_table_name: str, bucket: str, ripple_version
                     processing_table_name, mip_group, mip_case, s3_ras_project_key, False, exc, tb, "stac"
                 )
         sleep(1)
-        data = db.read_cases(table_name, ["case_id", "s3_key"], mip_group, optional_condition)
+        data = db.read_cases(processing_table_name, ["case_id", "s3_key"], mip_group, optional_condition)
 
 
 if __name__ == "__main__":
