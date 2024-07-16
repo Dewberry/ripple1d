@@ -83,8 +83,8 @@ def check_s3_key_exists(bucket: str, key: str) -> bool:
 
 def read_json_from_s3(bucket: str, key: str) -> dict:
     """Read a JSON file from an S3 bucket and return its contents as a dictionary."""
-    s3 = boto3.client("s3")
-    response = s3.get_object(Bucket=bucket, Key=key)
+    s3_client = boto3.client("s3")
+    response = s3_client.get_object(Bucket=bucket, Key=key)
     file_content = response["Body"].read().decode("utf-8")
     json_content = json.loads(file_content)
     return json_content

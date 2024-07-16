@@ -67,16 +67,13 @@ def reproject(gdfs: dict, crs=4326) -> dict:
     return gdfs
 
 
-def create_thumbnail_from_gpkg(gdfs: dict, png_s3_key: str, bucket: str, s3_client: boto3.Session.client):
+def create_thumbnail_from_gpkg(gdfs: dict) -> plt.Figure:
     """
-    Generate a PNG thumbnail for a geopandas dataframe and uploads it to AWS S3.
+    Create a figure displaying the geopandas dataframe provided in the gdfs dictionary.
 
     Parameters
     ----------
     - gdf (dict): A dictionary of geopandas dataframes containing the geometries to plot.
-    - png_s3_key (str): The S3 path where the generated PNG thumbnail is to be stored.
-    - bucket (str): The S3 bucket
-    - s3_client: The AWS S3 client instance used for uploading the PNG.
     """
     # Define colors for each layer type
 
@@ -94,7 +91,20 @@ def create_thumbnail_from_gpkg(gdfs: dict, png_s3_key: str, bucket: str, s3_clie
     # Hide all axis text ticks or tick labels
     ax.set_xticks([])
     ax.set_yticks([])
+    return fig
 
+
+def write_thumbnail_to_s3(fig: plt.Figure, png_s3_key: str, bucket: str, s3_client: boto3.Session.client):
+    """
+    Write a PNG thumbnail to AWS S3.
+
+    Parameters
+    ----------
+    - fig (plt.Figure): The figure to export to png on s3.
+        - png_s3_key (str): The S3 path where the generated PNG thumbnail is to be stored.
+    - bucket (str): The S3 bucket
+    - s3_client: The AWS S3 client instance used for uploading the PNG.
+    """
     # Save plot to a bytes buffer
     buf = BytesIO()
     plt.savefig(buf, format="png")
@@ -106,37 +116,24 @@ def create_thumbnail_from_gpkg(gdfs: dict, png_s3_key: str, bucket: str, s3_clie
 
 
 def create_geom_item(
-    gpkg_key: str,
+    item_id: str,
     bbox: Polygon,
     footprint: list[float],
-    ripple_version: str,
-    xs: gpd.GeoDataFrame,
-    river_miles: float,
-    crs: CRS,
-    mip_case_no: str,
+    properties: dict,
 ) -> pystac.Item:
     """
     Create a PySTAC Item for a gpkg file stored in an AWS S3 bucket.
 
     Parameters
     ----------
-        gpkg_key (str): gpkg file key for item_id naming.
+        item_id (str): item_id.
         bbox (shapely.Polygon): Item bounding box.
         footprint (list[float]): Item Footprint.
-        ripple_version (str): Ripple version.
-        xs (gpd.GeoDataFrame): GeoDataFrame containing metadata.
-        river_miles (float): Total length of the river centerlines in miles.
-        crs (pyproj.CRS): Coordinate Reference System.
-        mip_case_no (str): MIP case number.
 
     Returns
     -------
         pystac.Item: The PySTAC Item representing the gpkg file.
     """
-    gpkg_name = gpkg_key.split("/")[-1].replace(".gpkg", "")
-
-    item_id = gpkg_name
-
     # TODO: Adjust start_time selection for item
     start_time = datetime.utcnow()
     item = pystac.Item(
@@ -144,19 +141,7 @@ def create_geom_item(
         geometry=json.loads(to_geojson(footprint)),
         bbox=bbox.tolist(),
         datetime=start_time,
-        properties={
-            "ripple: version": ripple_version,
-            "ras version": xs["version"],
-            "project title": xs["project_title"],
-            "plan title": xs["plan_title"],
-            "geom title": xs["geom_title"],
-            "flow title": xs["flow_title"],
-            "profile names": xs["profile_names"].splitlines(),
-            "MIP:case_ID": mip_case_no,
-            "river miles": str(river_miles),
-            "proj:wkt2": crs.to_wkt(),
-            "proj:epsg": crs.to_epsg(),
-        },
+        properties=properties,
     )
 
     return item
@@ -318,7 +303,7 @@ def parse_metadata(json_data, metadata_to_remove) -> dict:
     return comprehensive_data
 
 
-def get_asset_info(asset_key: str, bucket: str) -> dict:
+def get_asset_info(asset_key: str, bucket: str = None) -> dict:
     """
     Generate information for an asset based on its file extension.
 
@@ -355,6 +340,21 @@ def get_asset_info(asset_key: str, bucket: str) -> dict:
         roles.extend(["run", "hec-ras", pystac.MediaType.TEXT])
         description = """Run file for ras."""
 
+    elif re.match("rasmap", file_extension):
+        roles.extend(["rasmap", "hec-ras", pystac.MediaType.TEXT])
+        description = """Rasmapper file for ras."""
+
+    elif "rasmap.backup" in title:
+        roles.extend(["rasmap-backup", "hec-ras", pystac.MediaType.TEXT])
+        description = """Rasmapper backup file for ras."""
+
+    elif "computeMsgs.txt" in title:
+        roles.extend(["compute-messages", "hec-ras", pystac.MediaType.TEXT])
+        description = """Compute messages file for ras."""
+
+    elif file_extension == "hdf":
+        roles.extend(["hdf-file", "hec-ras", pystac.MediaType.HDF])
+
     elif re.match("png", file_extension):
         roles.extend(["thumbnail", pystac.MediaType.PNG])
         description = """PNG of geometry with OpenStreetMap basemap."""
@@ -365,15 +365,24 @@ def get_asset_info(asset_key: str, bucket: str) -> dict:
         description = """GeoPackage file with geometry data extracted from .gxx file."""
         title = "GeoPackage_file"
 
-    elif file_extension == "hdf":
-        roles.extend(["hdf-file", pystac.MediaType.HDF])
+    elif ".ripple.json" in title:
+        roles.extend(["ripple-parameters", pystac.MediaType.JSON])
+        description = """Json file containing Ripple parameters."""
+        title = "Ripple parameters"
 
     elif file_extension == "prj":
-        _, client, _ = init_s3_resources()
-        string = str_from_s3(asset_key, client, bucket)
+        if bucket:
+            _, client, _ = init_s3_resources()
+            string = str_from_s3(asset_key, client, bucket)
+        else:
+            with open(asset_key, "r") as file:
+                string = file.read()
         if "Proj Title=" in string:
             roles.extend(["project-file", "hec-ras", pystac.MediaType.TEXT])
             description = """Project file for ras."""
+        else:
+            roles.extend(["projection-file", pystac.MediaType.TEXT])
+            description = """Projection file for ras."""
 
     return {"roles": roles, "description": description, "title": title}
 
