@@ -302,7 +302,7 @@ def new_stac_item(
             item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
         else:
             metadata = {"file:size": os.path.getsize(asset_key), "last_modified": os.path.getmtime(asset_key)}
-            asset_info = get_asset_info(asset_key)
+            asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
             asset = pystac.Asset(
                 os.path.relpath(asset_key),
                 extra_fields=metadata,

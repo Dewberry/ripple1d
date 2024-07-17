@@ -5,7 +5,7 @@ import json
 import math
 import os
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import List
 
 import geopandas as gpd
@@ -24,10 +24,6 @@ from ripple.utils.s3_utils import init_s3_resources, read_json_from_s3
 
 class RasModelStructure:
     """Base Model structure for RAS models."""
-
-    def __init__(self, model_directory: str):
-        self.model_directory = model_directory
-        self.model_basename = Path(model_directory).name
 
     def __init__(self, model_directory: str):
         self.model_directory = model_directory
@@ -64,6 +60,11 @@ class RasModelStructure:
         return glob.glob(f"{self.model_directory}/Terrain/*") + [
             f for f in glob.glob(f"{self.model_directory}/*") if not os.path.isdir(f)
         ]
+
+    @property
+    def terrain_assets(self):
+        """Terrain assets."""
+        return glob.glob(f"{self.model_directory}/Terrain/*")
 
     @property
     def thumbnail_png(self):
@@ -124,7 +125,7 @@ class NwmReachModel(RasModelStructure):
         """Upload the model to s3."""
         _, client, _ = init_s3_resources()
         for file in self.assets:
-            key = f"{ras_s3_prefix}/{Path(file).name}"
+            key = str(PurePosixPath(Path(file.replace(self.model_directory, ras_s3_prefix))))
             client.upload_file(
                 Bucket=bucket,
                 Key=key,
