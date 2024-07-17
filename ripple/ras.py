@@ -878,7 +878,7 @@ class RasGeomText(RasTextFile):
             data += f"Reach XY= {len(coords)} \n"
 
             for i, (x, y) in enumerate(coords):
-                data += str(x).rjust(16) + str(y).rjust(16)
+                data += str(x)[:16].rjust(16) + str(y)[:16].rjust(16)
                 if i % 2 != 0:
                     data += "\n"
 
