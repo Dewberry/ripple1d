@@ -5,7 +5,7 @@ import logging
 import os
 import shutil
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import boto3
 import geopandas as gpd
@@ -15,7 +15,7 @@ from pyproj import CRS
 
 from ripple.data_model import NwmReachModel
 from ripple.errors import CouldNotIdentifyPrimaryPlanError
-from ripple.ras import RasFlowText, RasGeomText, RasPlanText, RasProject
+from ripple.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 from ripple.utils.dg_utils import bbox_to_polygon
 from ripple.utils.gpkg_utils import (
     create_geom_item,
@@ -260,14 +260,12 @@ def new_stac_item_s3(
     logging.debug("Program completed successfully")
 
 
-def new_stac_item(
-    ras_project_directory: str,
-    ripple_version: str,
-):
+def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix: str):
     """Create a new stac item from a geopackage locally ."""
     logging.debug("Creating item from gpkg")
 
     nwm_rm = NwmReachModel(ras_project_directory)
+    rm = RasManager(nwm_rm.ras_project_file, crs=nwm_rm.crs)
     gdfs = gpkg_to_geodataframe(nwm_rm.ras_gpkg_file)
 
     river_miles = get_river_miles(gdfs["River"])
@@ -285,12 +283,11 @@ def new_stac_item(
     data = gdfs["XS"].iloc[0]
     properties = {
         "ripple: version": ripple_version,
-        "ras version": data["version"],
-        "project title": data["project_title"],
-        "plan title": data["plan_title"],
-        "geom title": data["geom_title"],
-        "flow title": data["flow_title"],
-        "profile names": data["profile_names"].splitlines(),
+        "ras version": rm.version,
+        "project title": rm.ras_project.title,
+        "plan titles": list(rm.plans.keys()),
+        "geom titles": list(rm.geoms.keys()),
+        "flow titles": list(rm.flows.keys()),
         "river miles": str(river_miles),
         "proj:wkt2": crs.to_wkt(),
         "proj:epsg": crs.to_epsg(),
@@ -298,14 +295,15 @@ def new_stac_item(
     item = create_geom_item(nwm_rm.model_name, bbox, footprint, properties)
 
     for asset_key in nwm_rm.assets:
+
         if asset_key == nwm_rm.conflation_file:
             item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
         else:
-            metadata = {"file:size": os.path.getsize(asset_key), "last_modified": os.path.getmtime(asset_key)}
+            asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
             asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
             asset = pystac.Asset(
                 os.path.relpath(asset_key),
-                extra_fields=metadata,
+                extra_fields=asset_info["extra_fields"],
                 roles=asset_info["roles"],
                 description=asset_info["description"],
             )
