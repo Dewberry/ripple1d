@@ -48,7 +48,10 @@ def write_projection_file(crs: CRS, terrain_directory: str) -> str:
 
 
 def create_ras_terrain(
-    submodel_directory: str, terrain_source_url: str = MAP_DEM_UNCLIPPED_SRC_URL, resolution: float = None
+    submodel_directory: str,
+    terrain_source_url: str = MAP_DEM_UNCLIPPED_SRC_URL,
+    vertical_units: str = METERS_PER_FOOT,
+    resolution: float = None,
 ) -> None:
     """Create a RAS terrain file."""
     logging.info(f"Processing: {submodel_directory}")
@@ -78,7 +81,9 @@ def create_ras_terrain(
         src_path=terrain_source_url,
         dst_path=src_dem_clipped_localfile,
         mask_polygon=mask,
+        vertical_units=vertical_units,
     )
+
     # reproject/resample dem
     logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
     reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution)
