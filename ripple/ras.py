@@ -977,6 +977,32 @@ class RasGeomText(RasTextFile):
         """Geodataframe of all cross sections in the geometry text file."""
         return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
 
+    @property
+    @check_crs
+    def n_cross_sections(self):
+        """Number of cross sections in the HEC-RAS geometry file."""
+        return len(self.cross_sections)
+
+    @property
+    @check_crs
+    def n_reaches(self):
+        """Number of reaches in the HEC-RAS geometry file."""
+        return len(self.reaches)
+
+    @property
+    @check_crs
+    def n_junctions(self):
+        """Number of junctions in the HEC-RAS geometry file."""
+        return len(self.junctions)
+
+    @property
+    @check_crs
+    def n_rivers(self):
+        """Number of rivers in the HEC-RAS geometry file."""
+        return len(self.rivers)
+
+    @property
+    @check_crs
     def to_gpkg(self, gpkg_path: str):
         """Write the HEC-RAS Geometry file to geopackage."""
         self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
