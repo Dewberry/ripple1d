@@ -112,7 +112,7 @@ def create_fim_lib(
     return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
 
 
-def fim_model_to_stac(
+def nwm_reach_model_stac(
     ras_project_directory: str,
     ras_model_s3_prefix: str = None,
     bucket: str = None,
@@ -128,6 +128,7 @@ def fim_model_to_stac(
     new_stac_item(
         ras_project_directory,
         ripple_version,
+        ras_model_s3_prefix,
     )
 
     # upload to s3

@@ -143,7 +143,7 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test7_fim_model_to_stac(self):
+    def test7_nwm_reach_model_stac(self):
         payload = {
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "ras_model_s3_prefix": "stac/test-data/fim_models/2823932/",
