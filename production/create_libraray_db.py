@@ -31,7 +31,7 @@ cursor.execute(
     CREATE TABLE IF NOT EXISTS rating_curves (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         reach_id INTEGER,
-        us_flow REAL,
+        us_flow INTEGER,
         us_depth REAL,
         us_wse Real,
         ds_depth REAL,
