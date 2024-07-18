@@ -14,6 +14,7 @@ import fiona
 import geopandas as gpd
 import h5py
 import pandas as pd
+import pythoncom
 from pyproj import CRS
 
 from ripple.consts import (
@@ -98,7 +99,7 @@ def check_version_installed(version: str):
     def decorator(func):
         def wrapper(self, *args, **kwargs):
             try:
-                assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER")
+                assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER", pythoncom.CoInitialize())
                 self.version = version
             except com_error:
                 raise HECRASVersionNotInstalledError(
@@ -250,7 +251,7 @@ class RasManager:
         """
         compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
 
-        RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER")
+        RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER", pythoncom.CoInitialize())
         try:
             RC.Project_Open(self.ras_project._ras_text_file_path)
             if show_ras:
