@@ -146,11 +146,11 @@ class TestApi(unittest.TestCase):
     def test7_nwm_reach_model_stac(self):
         payload = {
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
-            "ras_model_s3_prefix": "stac/test-data/fim_models/2823932/",
+            "ras_model_s3_prefix": f"stac/test-data/fim_models/{REACH_ID}",
             "bucket": "fim",
             "ripple_version": RIPPLE_VERSION,
         }
-        process = "fim_model_to_stac"
+        process = "nwm_reach_model_stac"
         files = [STAC_ITEM]
         return process, payload, files
 

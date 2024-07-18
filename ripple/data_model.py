@@ -139,6 +139,13 @@ class NwmReachModel(RasModelStructure):
             ripple_parameters = json.loads(f.read())
         return ripple_parameters
 
+    def update_write_ripple_parameters(self, new_parameters: dict):
+        """Write Ripple parameters."""
+        parameters = self.ripple_parameters
+        parameters.update(new_parameters)
+        with open(self.conflation_file, "w") as f:
+            f.write(json.dumps(parameters, indent=4))
+
     @property
     def conflation_file(self):
         """Conflation file."""

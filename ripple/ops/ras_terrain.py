@@ -100,4 +100,5 @@ def create_ras_terrain(
         vertical_units=MAP_DEM_VERT_UNITS,
     )
     os.remove(src_dem_reprojected_localfile)
+    nwm_rm.update_write_ripple_parameters({"source_terrain": terrain_source_url})
     return result
