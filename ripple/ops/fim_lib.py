@@ -49,7 +49,7 @@ def post_process_depth_grids(
                 flow, depth = profile_name.split("-")
             elif "_nd" in plan_name:
                 flow = f"f_{profile_name}"
-                depth = "z_0_0"
+                depth = "z_nd"
 
             flow_sub_directory = os.path.join(dest_directory, depth)
             os.makedirs(flow_sub_directory, exist_ok=True)
