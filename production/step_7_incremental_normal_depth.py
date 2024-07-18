@@ -12,4 +12,4 @@ if __name__ == "__main__":
     SAMPLE_DATA = os.path.dirname(__file__).replace("production", "tests\\ras-data\\Baxter")
     SAMPLE_DATA = f"{SAMPLE_DATA}\\submodels\\2823932"
 
-    run_incremental_normal_depth(SAMPLE_DATA, f"nd", depth_increment=2)
+    run_incremental_normal_depth(SAMPLE_DATA, f"nd", depth_increment=2, show_ras=True)

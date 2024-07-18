@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
+import numpy as np
 import pystac
 import rasterio
 import rasterio.warp
@@ -178,7 +179,7 @@ def reproject_raster(src_path: str, dest_path: str, dst_crs: CRS, resolution: fl
                 )
 
 
-def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon):
+def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon, vertical_units: str):
     """Clip a raster file to a polygon and save the result to a new file."""
     if os.path.exists(dst_path):
         raise FileExistsError(dst_path)
@@ -205,7 +206,11 @@ def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon):
 
     logging.info(f"Writing as masked: {dst_path}")
     with rasterio.open(dst_path, "w", **out_meta) as dest:
-        dest.write(out_image)
+        if vertical_units in ["M", "m", "meters", "meter", "Meter", "Meters"]:
+            out_image_ft = np.where(out_image == out_meta["nodata"], out_meta["nodata"], out_image * 3.28084)
+            dest.write(out_image_ft)
+        else:
+            dest.write(out_image)
 
 
 def get_terrain_exe_path(ras_ver: str) -> str:

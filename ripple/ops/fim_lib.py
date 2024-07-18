@@ -6,14 +6,18 @@ import os
 from pathlib import Path
 
 import geopandas as gpd
+import pystac
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.shutil import copy as copy_raster
 
+from ripple.consts import RIPPLE_VERSION
 from ripple.data_model import NwmReachModel
 from ripple.errors import DepthGridNotFoundError
 from ripple.ras import RasManager
-from ripple.utils.sqlite_utils import rating_curves_to_sqlite, zero_depth_to_sqlite
+from ripple.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
+from ripple.utils.s3_utils import init_s3_resources
+from ripple.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
 def post_process_depth_grids(
@@ -62,7 +66,12 @@ def post_process_depth_grids(
     return missing_grids_kwse, missing_grids_nd
 
 
-def create_fim_lib(submodel_directory: str, plans: list, fim_output_dir: str = None, ras_version: str = "631"):
+def create_fim_lib(
+    submodel_directory: str,
+    plans: list,
+    ras_version: str = "631",
+    table_name: str = "rating_curves",
+):
     """Create a new FIM library for a NWM id."""
     nwm_rm = NwmReachModel(submodel_directory)
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
@@ -73,18 +82,73 @@ def create_fim_lib(submodel_directory: str, plans: list, fim_output_dir: str = N
     rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
     ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
-    fim_results_directory = os.path.join(submodel_directory, "fims")
-
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
-        rm, ras_plans, fim_results_directory, except_missing_grid=True
+        rm, ras_plans, nwm_rm.fim_results_directory, except_missing_grid=True
     )
 
-    results_database = os.path.join(fim_results_directory, f"{nwm_rm.model_name}.db")
-    if f"kwse" in plans:
-        rating_curves_to_sqlite(
-            rm, f"{nwm_rm.model_name}_kwse", nwm_rm.model_name, missing_grids_kwse, results_database
-        )
-    if f"nd" in plans:
-        zero_depth_to_sqlite(rm, f"{nwm_rm.model_name}_nd", nwm_rm.model_name, missing_grids_nd, results_database)
+    # create dabase and table
+    create_db_and_table(nwm_rm.fim_results_database, table_name)
 
-    return {"fim_results_directory": fim_results_directory, "results_database": results_database}
+    for plan in plans:
+        if f"kwse" in plan:
+            rating_curves_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_kwse",
+                nwm_rm.model_name,
+                missing_grids_kwse,
+                nwm_rm.fim_results_database,
+                table_name,
+            )
+        if f"nd" in plan:
+            zero_depth_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_nd",
+                nwm_rm.model_name,
+                missing_grids_nd,
+                nwm_rm.fim_results_database,
+                table_name,
+            )
+
+    return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
+
+
+def fim_model_to_stac(
+    ras_project_directory: str,
+    ras_model_s3_prefix: str = None,
+    bucket: str = None,
+    ripple_version: str = RIPPLE_VERSION,
+):
+    """Convert a FIM RAS model to a STAC item."""
+    nwm_rm = NwmReachModel(ras_project_directory)
+
+    # create a new gpkg
+    geom_flow_to_gdfs(nwm_rm.ras_project_file, nwm_rm.crs)
+
+    # create new stac item
+    new_stac_item(
+        ras_project_directory,
+        ripple_version,
+    )
+
+    # upload to s3
+    if bucket and ras_model_s3_prefix:
+        nwm_rm.upload_files_to_s3(ras_model_s3_prefix, bucket)
+
+        stac_item = pystac.read_file(nwm_rm.stac_json_file)
+        # update asset hrefs
+        for id, asset in stac_item.assets.items():
+            if "thumbnail" in asset.roles:
+                asset.href = f"https://{bucket}.s3.amazonaws.com/{ras_model_s3_prefix}/{Path(asset.href).name}"
+            else:
+                asset.href = f"s3://{bucket}/{ras_model_s3_prefix}/{Path(asset.href).name}"
+
+        stac_item.set_self_href(
+            f"https://{bucket}.s3.amazonaws.com/{ras_model_s3_prefix}/{Path(stac_item.self_href).name}"
+        )
+        # write updated stac item to s3
+        _, s3_client, _ = init_s3_resources()
+        s3_client.put_object(
+            Body=json.dumps(stac_item.to_dict()).encode(),
+            Bucket=bucket,
+            Key=f"{ras_model_s3_prefix}/{Path(nwm_rm.stac_json_file).name}",
+        )

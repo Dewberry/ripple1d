@@ -46,7 +46,8 @@ def start():
             f"{os.environ['VENV_PATH']}\\Scripts\\activate.bat && python -u {huey_consumer_path} api.tasks.huey -w {os.environ['HUEY_THREAD_COUNT']}",
         ],
         stdout=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NEW_CONSOLE,
+        # TODO: update config to use CREATE_NO_WINDOW or CREATE_NEW_CONSOLE as an option
+        creationflags=subprocess.CREATE_NO_WINDOW,
     )
 
     # Launch Flask app
@@ -54,7 +55,7 @@ def start():
     flask_result = subprocess.Popen(
         ["cmd", "/k", f"{os.environ['VENV_PATH']}\\Scripts\\activate.bat && flask run"],
         stdout=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NEW_CONSOLE,
+        creationflags=subprocess.CREATE_NO_WINDOW,
     )
 
     with open("pids.txt", "w") as f:

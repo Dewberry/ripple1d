@@ -20,20 +20,18 @@ def create_model_run_normal_depth(
     plan_suffix: str,
     num_of_discharges_for_initial_normal_depth_runs: int = 10,
     ras_version: str = "631",
+    show_ras: bool = False,
 ):
     """Write and compute initial normal depth runs to develop initial rating curves."""
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
-    else:
-        with open(nwm_rm.conflation_file, "r") as f:
-            conflation_parameters = json.loads(f.read())
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
-    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
     else:
         logging.info(f"Working on initial normal depth run for nwm_id: {nwm_rm.model_name}")
@@ -43,8 +41,8 @@ def create_model_run_normal_depth(
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
-            max([conflation_parameters["low_flow_cfs"], MIN_FLOW]),
-            conflation_parameters["high_flow_cfs"],
+            max([nwm_rm.ripple_parameters["low_flow_cfs"], MIN_FLOW]),
+            nwm_rm.ripple_parameters["high_flow_cfs"],
             num_of_discharges_for_initial_normal_depth_runs,
         ).astype(int)
 
@@ -62,6 +60,8 @@ def create_model_run_normal_depth(
             [fcl],
             initial_flows.astype(str),
             write_depth_grids=False,
+            show_ras=show_ras,
+            run_ras=True,
         )
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
@@ -72,26 +72,27 @@ def run_incremental_normal_depth(
     ras_version: str = "631",
     depth_increment=0.5,
     write_depth_grids: str = True,
+    show_ras: bool = False,
 ):
     """Write and compute incremental normal depth runs to develop rating curves and depth grids."""
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
-    else:
-        with open(nwm_rm.conflation_file, "r") as f:
-            conflation_parameters = json.loads(f.read())
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
     logging.info(f"Working on normal depth run for nwm_id: {nwm_rm.model_name}")
-    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
-    else:
-        crs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").crs
 
-    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
+    rm = RasManager(
+        nwm_rm.ras_project_file,
+        version=ras_version,
+        terrain_path=nwm_rm.ras_terrain_hdf,
+        crs=nwm_rm.ripple_parameters["crs"],
+    )
 
     # determine flow increments
     flows, _, _ = determine_flow_increments(
@@ -116,6 +117,8 @@ def run_incremental_normal_depth(
         [fcl],
         flows.astype(str),
         write_depth_grids=True,
+        show_ras=show_ras,
+        run_ras=True,
     )
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
@@ -128,15 +131,13 @@ def run_known_wse(
     depth_increment=2,
     ras_version: str = "631",
     write_depth_grids: str = True,
+    show_ras: bool = False,
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
-    else:
-        with open(nwm_rm.conflation_file, "r") as f:
-            conflation_parameters = json.loads(f.read())
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
@@ -190,6 +191,8 @@ def run_known_wse(
             nwm_rm.model_name,
             rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
             write_depth_grids=write_depth_grids,
+            show_ras=show_ras,
+            run_ras=True,
         )
     return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}}
 

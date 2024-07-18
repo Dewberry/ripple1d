@@ -3,7 +3,7 @@
 import json
 import logging
 from datetime import datetime
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 import boto3
 import pystac
@@ -28,7 +28,7 @@ def href_to_vsis(href: str, bucket: str) -> str:
 
 def s3_public_href(bucket: str, key: str) -> str:
     """Convert bucket and key to public href."""
-    return urlencode(f"https://{bucket}.s3.amazonaws.com/{key}")
+    return quote(f"https://{bucket}.s3.amazonaws.com/{key}")
 
 
 def conflate(rfc: RasFimConflater):

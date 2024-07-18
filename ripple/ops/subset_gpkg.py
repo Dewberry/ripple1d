@@ -96,9 +96,13 @@ def subset_gpkg(
     xs_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="XS", driver="GPKG")
     river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
 
-    # TODO: Fix this issue
-    max_flow = 0  # xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
-    min_flow = 0  # xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).min().min()
+    if "flows" in xs_subset_gdf.columns:
+        max_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
+        min_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).min().min()
+    else:
+        min_flow, max_flow = 10000000000000, 0
+        logging.warning(f"no flows specified in source model gpkg for {nwm_id}")
+
     return new_nwm_reach_model.ras_gpkg_file, xs_subset_gdf.crs.to_epsg(), max_flow, min_flow
 
 
@@ -170,7 +174,7 @@ def extract_submodel(
         ripple_parameters["crs"] = crs
         ripple_parameters["version"] = ripple_version
         ripple_parameters["high_flow_cfs"] = max([ripple_parameters["high_flow_cfs"], max_flow])
-        ripple_parameters["low_flow_cfs"] = max([ripple_parameters["low_flow_cfs"], min_flow])
+        ripple_parameters["low_flow_cfs"] = min([ripple_parameters["low_flow_cfs"], min_flow])
         if ripple_parameters["high_flow_cfs"] == max_flow:
             ripple_parameters["notes"] = ["high_flow_cfs computed from source model flows"]
         if ripple_parameters["low_flow_cfs"] == min_flow:
