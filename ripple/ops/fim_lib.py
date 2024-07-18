@@ -11,6 +11,7 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.shutil import copy as copy_raster
 
+from ripple.conflate.rasfim import RasFimConflater
 from ripple.consts import RIPPLE_VERSION
 from ripple.data_model import NwmReachModel
 from ripple.errors import DepthGridNotFoundError
@@ -120,9 +121,6 @@ def nwm_reach_model_stac(
 ):
     """Convert a FIM RAS model to a STAC item."""
     nwm_rm = NwmReachModel(ras_project_directory)
-
-    # create a new gpkg
-    geom_flow_to_gdfs(nwm_rm.ras_project_file, nwm_rm.crs)
 
     # create new stac item
     new_stac_item(

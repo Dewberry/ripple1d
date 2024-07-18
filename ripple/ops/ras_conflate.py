@@ -48,6 +48,8 @@ def conflate(rfc: RasFimConflater):
         candidate_reaches = rfc.local_nwm_reaches.query(f"ID in {potential_reach_path}")
         reach_metadata = ras_reaches_metadata(rfc, candidate_reaches)
         metadata.update(reach_metadata)
+    metadata["nwm_reach_source"] = rfc.nwm_pq
+
     return metadata
 
 

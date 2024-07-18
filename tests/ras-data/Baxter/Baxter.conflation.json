@@ -16,8 +16,10 @@
         },
         "low_flow_cfs": 5729.46,
         "high_flow_cfs": 22135.25,
+        "nwm_to_id": "2820002",
         "gage": "11290000",
-        "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=11290000&legacy=1"
+        "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=11290000&legacy=1",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2826228": {
         "us_xs": {
@@ -35,7 +37,9 @@
             "reach": "Upper Reach"
         },
         "low_flow_cfs": 5668.86,
-        "high_flow_cfs": 19588.71
+        "high_flow_cfs": 19588.71,
+        "nwm_to_id": "2823932",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2823932": {
         "us_xs": {
@@ -53,7 +57,9 @@
             "reach": "Upper Reach"
         },
         "low_flow_cfs": 5669.7,
-        "high_flow_cfs": 19588.81
+        "high_flow_cfs": 19588.81,
+        "nwm_to_id": "2826230",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2823960": {
         "us_xs": {
@@ -71,7 +77,9 @@
             "reach": "Tributary"
         },
         "low_flow_cfs": 5694.708,
-        "high_flow_cfs": 19607.89
+        "high_flow_cfs": 19607.89,
+        "nwm_to_id": "2823972",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2826230": {
         "us_xs": {
@@ -89,7 +97,9 @@
             "reach": "Upper Reach"
         },
         "low_flow_cfs": 5671.4039999999995,
-        "high_flow_cfs": 19588.97
+        "high_flow_cfs": 19588.97,
+        "nwm_to_id": "2823934",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2823934": {
         "us_xs": {
@@ -107,7 +117,9 @@
             "reach": "Upper Reach"
         },
         "low_flow_cfs": 5672.244,
-        "high_flow_cfs": 19589.16
+        "high_flow_cfs": 19589.16,
+        "nwm_to_id": "2826224",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2826224": {
         "us_xs": {
@@ -125,7 +137,9 @@
             "reach": "Upper Reach"
         },
         "low_flow_cfs": 5673.5160000000005,
-        "high_flow_cfs": 19588.96
+        "high_flow_cfs": 19588.96,
+        "nwm_to_id": "2823960",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2823920": {
         "us_xs": {
@@ -143,7 +157,9 @@
             "reach": "Lower Reach"
         },
         "low_flow_cfs": 550.0559999999999,
-        "high_flow_cfs": 9392.86
+        "high_flow_cfs": 9392.86,
+        "nwm_to_id": "2823972",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2821866": {
         "us_xs": {
@@ -161,7 +177,9 @@
             "reach": "Lower Reach"
         },
         "low_flow_cfs": 5707.416,
-        "high_flow_cfs": 21516.22
+        "high_flow_cfs": 21516.22,
+        "nwm_to_id": "2820026",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2820012": {
         "us_xs": {
@@ -179,7 +197,9 @@
             "reach": "Lower Reach"
         },
         "low_flow_cfs": 5707.416,
-        "high_flow_cfs": 21520.65
+        "high_flow_cfs": 21520.65,
+        "nwm_to_id": "2821866",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2820006": {
         "us_xs": {
@@ -197,7 +217,9 @@
             "reach": "Lower Reach"
         },
         "low_flow_cfs": 5707.416,
-        "high_flow_cfs": 21527.35
+        "high_flow_cfs": 21527.35,
+        "nwm_to_id": "2820012",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
     },
     "2820002": {
         "us_xs": {
@@ -215,6 +237,9 @@
             "reach": "Lower Reach"
         },
         "low_flow_cfs": 5707.416,
-        "high_flow_cfs": 21526.49
-    }
+        "high_flow_cfs": 21526.49,
+        "nwm_to_id": "2820006",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "nwm_reach_source": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
 }

@@ -289,6 +289,7 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
         "geom titles": list(rm.geoms.keys()),
         "flow titles": list(rm.flows.keys()),
         "river miles": str(river_miles),
+        "NWM to_id": nwm_rm.ripple_parameters["nwm_to_id"],
         "proj:wkt2": crs.to_wkt(),
         "proj:epsg": crs.to_epsg(),
     }
@@ -299,16 +300,17 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
         if asset_key == nwm_rm.conflation_file:
             item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
             item.add_derived_from(nwm_rm.ripple_parameters["source_terrain"])
-        else:
-            asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
-            asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
-            asset = pystac.Asset(
-                os.path.relpath(asset_key),
-                extra_fields=asset_info["extra_fields"],
-                roles=asset_info["roles"],
-                description=asset_info["description"],
-            )
-            item.add_asset(asset_info["title"], asset)
+            item.add_derived_from(nwm_rm.ripple_parameters["source_nwm_reach"])
+
+        asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
+        asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
+        asset = pystac.Asset(
+            os.path.relpath(asset_key),
+            extra_fields=asset_info["extra_fields"],
+            roles=asset_info["roles"],
+            description=asset_info["description"],
+        )
+        item.add_asset(asset_info["title"], asset)
     with open(nwm_rm.stac_json_file, "w") as dst:
         dst.write(json.dumps(item.to_dict()))
 

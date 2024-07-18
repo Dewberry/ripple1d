@@ -404,6 +404,11 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
         description = """Json file containing Ripple parameters."""
         title = "Ripple parameters"
 
+    elif ".stac.json" in title:
+        roles.extend(["stac-item", pystac.MediaType.JSON])
+        description = """Json for this stac-item."""
+        title = title
+
     elif file_extension == ".prj":
         if bucket:
             _, client, _ = init_s3_resources()
