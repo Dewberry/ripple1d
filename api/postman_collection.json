@@ -234,13 +234,13 @@
 					"response": []
 				},
 				{
-					"name": "nwm_reach_model_stac",
+					"name": "fim_model_to_stac",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/nwm_reach_models/{{nwm_reach_id}}/\",\r\n    \"bucket\": \"fim\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}\r\n",
+							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/fim_models/2823932/\",\r\n    \"bucket\": \"fim\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -248,13 +248,13 @@
 							}
 						},
 						"url": {
-							"raw": "{{url}}/processes/nwm_reach_model_stac/execution",
+							"raw": "{{url}}/processes/fim_model_to_stac/execution",
 							"host": [
 								"{{url}}"
 							],
 							"path": [
 								"processes",
-								"nwm_reach_model_stac",
+								"fim_model_to_stac",
 								"execution"
 							]
 						}
