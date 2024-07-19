@@ -90,7 +90,7 @@ class TestApi(unittest.TestCase):
 
     @check_process
     def test2_create_ras_terrain(self):
-        payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}", "vertical_units": "M"}
+        payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}"}
         process = "create_ras_terrain"
         files = [TERRAIN_HDF, TERRAIN_VRT]
         return process, payload, files
