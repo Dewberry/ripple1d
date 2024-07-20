@@ -335,7 +335,7 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int
             break
 
         to_value = result.iloc[0]["to_id"]
-        ids.append(to_value)
+        ids.append(int(to_value))
         current_id = to_value
         if current_id == stop_id:
             break
