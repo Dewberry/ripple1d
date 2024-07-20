@@ -422,16 +422,16 @@ def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
     else:
         xs = xs.iloc[0]
 
-    return {"min_elevation": xs["thalweg"], "max_elevation": xs["xs_max_elevation"]}
+    return {"min_elevation": float(xs["thalweg"]), "max_elevation": float(xs["xs_max_elevation"])}
 
 
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: bool = True):
     """Map the upstream and downstream cross sections for the reach."""
-    intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach)]
+    intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach.geometry)]
 
     if intersected_xs.empty:
         return None
-    start, end = endpoints_from_multiline(reach)
+    start, end = endpoints_from_multiline(reach.geometry)
 
     us_xs = nearest_line_to_point(intersected_xs, start, column_id="ID")
     ds_xs = nearest_line_to_point(intersected_xs, end, column_id="ID")
@@ -446,11 +446,8 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: boo
         # logging.warning(f"No downstream XS's")
         ds_data = ras_xs_geometry_data(rfc, ds_xs)
 
-    us_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0]
-    ds_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0]
-
-    us_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0]
-    ds_data["xs_id"] = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0]
+    us_data["xs_id"] = str(rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0])
+    ds_data["xs_id"] = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
 
     us_data["river"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river"].iloc[0]
     us_data["reach"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["reach"].iloc[0]
@@ -469,8 +466,7 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
     reach_metadata = OrderedDict()
     for reach in candidate_reaches.itertuples():
         # logging.debug(f"REACH: {reach.ID}")
-        reach_geom = reach.geometry
-        ras_xs_data = map_reach_xs(rfc, reach_geom)
+        ras_xs_data = map_reach_xs(rfc, reach)
 
         if ras_xs_data:
             reach_metadata[reach.ID] = ras_xs_data
@@ -481,14 +477,14 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
         if isinstance(flow_data["high_flow_threshold"], float):
-            reach_metadata[k]["low_flow_cfs"] = round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR
+            reach_metadata[k]["low_flow_cfs"] = int(round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR)
         else:
             reach_metadata[k]["low_flow_cfs"] = -9999
             logging.warning(f"No low flow data for {k}")
 
         try:
             high_flow = float(flow_data["f100year"])
-            reach_metadata[k]["high_flow_cfs"] = round(high_flow, 2)
+            reach_metadata[k]["high_flow_cfs"] = int(round(high_flow, 2))
         except:
             logging.warning(f"No high flow data for {k}")
             reach_metadata[k]["high_flow_cfs"] = -9999
