@@ -32,7 +32,7 @@ def s3_public_href(bucket: str, key: str) -> str:
 
 
 def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
-    """Conflate a HEC-RAS model with NWM reaches."""
+    """Conflate a HEC-RAS model with a specific NWM reach."""
     nwm_reach_id_identified = False
     for river_reach_name in rfc.ras_river_reach_names:
         ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)

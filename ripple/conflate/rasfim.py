@@ -72,6 +72,7 @@ class RasFimConflater:
 
         self._ras_centerlines = None
         self._ras_xs = None
+        self._ras_junctions = None
         self._common_crs = None
         self.__data_loaded = False
         if load_data:
@@ -96,7 +97,7 @@ class RasFimConflater:
             self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
         if "XS" in layers:
             self._ras_xs = gpd.read_file(self.ras_gpkg, layer="XS")
-        if "Junciton" in layers:
+        if "Junction" in layers:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
 
     def load_pq(self, nwm_pq: str):
@@ -411,7 +412,7 @@ def calculate_conflation_metrics(
 
 
 def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
-    """Return the geometry data for the specified cross section."""
+    """Return the geometry data (max/min xs elevation) for the specified cross section."""
     # TODO: Need to verify units in the RAS data
     xs = rfc.ras_xs[rfc.ras_xs["ID"] == xs_id]
     if xs.shape[0] > 1:
@@ -425,35 +426,102 @@ def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
     return {"min_elevation": float(xs["thalweg"]), "max_elevation": float(xs["xs_max_elevation"])}
 
 
-def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString, extend_ds_xs: bool = True):
-    """Map the upstream and downstream cross sections for the reach."""
+def get_us_most_xs_from_junction(rfc, us_river, us_reach):
+    """Search for river reaches at junctions and return xs closest ds reach at junciton."""
+    if rfc.ras_junctions is None:
+        raise TypeError("No junctions found in the HEC-RAS model.")
+
+    for row in rfc.ras_junctions.itertuples():
+        if us_river in row.us_rivers:
+            ds_rivers = row.ds_rivers.split(",")
+            ds_reaches = row.ds_reaches.split(",")
+            break
+
+    if len(ds_rivers) == 0:
+        raise ValueError(f"No downstream rivers found for {us_river}")
+    elif len(ds_rivers) > 1:
+        raise NotImplementedError(f"Multiple downstream rivers found for {us_river}")
+    else:
+        ds_river = ds_rivers[0]
+
+    if len(ds_reaches) == 0:
+        raise ValueError(f"No downstream reaches found for {us_river}")
+    elif len(ds_reaches) > 1:
+        raise NotImplementedError(f"Multiple downstream reaches found for {us_river}")
+    else:
+        ds_reach = ds_reaches[0]
+
+    ds_xs_id = int(rfc.ras_xs[(rfc.ras_xs["river"] == ds_river) & (rfc.ras_xs["reach"] == ds_reach)].iloc[0].ID)
+    return ds_xs_id
+
+
+def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
+    """
+    Map the upstream and downstream cross sections for the nwm reach.
+
+    TODO: This function needs helper functions to extract the datasets from the GeoDataFrames.
+    """
     intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach.geometry)]
+    has_junctions = rfc.ras_junctions is not None
 
     if intersected_xs.empty:
         return None
     start, end = endpoints_from_multiline(reach.geometry)
 
+    # Begin with us_xs data
     us_xs = nearest_line_to_point(intersected_xs, start, column_id="ID")
+    us_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0])
+    us_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river"].iloc[0]
+    us_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["reach"].iloc[0]
+
+    # Initialize us_xs data with min /max elevation, then build the dict with added info
+    us_data = ras_xs_geometry_data(rfc, us_xs)
+    us_data["river"] = us_river_name
+    us_data["reach"] = us_reach_name
+    us_data["xs_id"] = us_xs_station_name
+
+    # Add downstream xs data
     ds_xs = nearest_line_to_point(intersected_xs, end, column_id="ID")
 
-    us_data = ras_xs_geometry_data(rfc, us_xs)
-    if extend_ds_xs:
-        ds_xs += 1
-    try:
-        ds_data = ras_xs_geometry_data(rfc, ds_xs)
-    except ValueError as e:
+    # Extend the ds_xs to the next xs
+    ds_xs += 1
+    if ds_xs in rfc.ras_xs["ID"]:
+        # First, naievly try to get the downstream XS data assuming there is a downstream xs
+        ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+        ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
+        ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
+
+        # Check  if the next xs has the same river and reach name
+        if us_river_name != ds_river_name:
+            try:
+                ds_xs = get_us_most_xs_from_junction(rfc, us_river_name, us_reach_name)
+                ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
+                ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
+                ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+                ds_data = ras_xs_geometry_data(rfc, ds_xs)
+                logging.info(
+                    f"Conflating to junction for reach {reach.ID}: {us_river_name} {us_reach_name} to {ds_river_name} {ds_reach_name}"
+                )
+
+            except ValueError as e:
+                logging.warning(f"No downstream XS's: {e}")
+                ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+                ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
+                ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
+                ds_data = ras_xs_geometry_data(rfc, ds_xs)
+
+    # If there is no downstream XS get the last intersecting xs for the nwm reach
+    else:
+        logging.warning(f"No downstream XS's for {reach.ID}")
         ds_xs -= 1
-        # logging.warning(f"No downstream XS's")
-        ds_data = ras_xs_geometry_data(rfc, ds_xs)
+        ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+        ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
+        ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
 
-    us_data["xs_id"] = str(rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river_station"].iloc[0])
-    ds_data["xs_id"] = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
-
-    us_data["river"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["river"].iloc[0]
-    us_data["reach"] = rfc.ras_xs[rfc.ras_xs["ID"] == us_xs]["reach"].iloc[0]
-
-    ds_data["river"] = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
-    ds_data["reach"] = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
+    ds_data = ras_xs_geometry_data(rfc, ds_xs)
+    ds_data["xs_id"] = ds_xs_station_name
+    ds_data["river"] = ds_river_name
+    ds_data["reach"] = ds_reach_name
 
     return {
         "us_xs": us_data,
