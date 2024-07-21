@@ -3,11 +3,16 @@
 import json
 import logging
 import os
-from pathlib import Path
+from datetime import datetime
+from pathlib import Path, PurePosixPath
 
 import geopandas as gpd
 import pystac
 import rasterio
+import shapely
+from pyproj import CRS
+
+# from osgeo import gdal
 from rasterio.enums import Resampling
 from rasterio.shutil import copy as copy_raster
 
@@ -17,7 +22,8 @@ from ripple.data_model import NwmReachModel
 from ripple.errors import DepthGridNotFoundError
 from ripple.ras import RasManager
 from ripple.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
-from ripple.utils.s3_utils import init_s3_resources
+from ripple.utils.dg_utils import bbox_to_polygon, get_raster_bounds, get_raster_metadata
+from ripple.utils.s3_utils import get_basic_object_metadata, init_s3_resources
 from ripple.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
@@ -50,7 +56,7 @@ def post_process_depth_grids(
                 flow, depth = profile_name.split("-")
             elif "_nd" in plan_name:
                 flow = f"f_{profile_name}"
-                depth = "z_0_0"
+                depth = "z_nd"
 
             flow_sub_directory = os.path.join(dest_directory, depth)
             os.makedirs(flow_sub_directory, exist_ok=True)
@@ -155,7 +161,7 @@ def nwm_reach_model_stac(
     if bucket and ras_model_s3_prefix:
         nwm_rm.upload_files_to_s3(ras_model_s3_prefix, bucket)
 
-        stac_item = pystac.read_file(nwm_rm.stac_json_file)
+        stac_item = pystac.read_file(nwm_rm.model_stac_json_file)
         # update asset hrefs
         for id, asset in stac_item.assets.items():
             if "thumbnail" in asset.roles:
@@ -168,8 +174,119 @@ def nwm_reach_model_stac(
         )
         # write updated stac item to s3
         _, s3_client, _ = init_s3_resources()
+        key = f"{ras_model_s3_prefix}/{Path(nwm_rm.model_stac_json_file).name}"
         s3_client.put_object(
             Body=json.dumps(stac_item.to_dict()).encode(),
             Bucket=bucket,
-            Key=f"{ras_model_s3_prefix}/{Path(nwm_rm.stac_json_file).name}",
+            Key=key,
         )
+        nwm_rm.update_write_ripple_parameters({"model_stac_item": f"https://{bucket}.s3.amazonaws.com/{key}"})
+
+
+def update_stac_s3_location(stac_item_file: pystac.Item, bucket: str, s3_prefix: str):
+    """Update the href locations for a stac item and its assets."""
+    stac_item = pystac.read_file(stac_item_file)
+    _, s3_client, s3_resource = init_s3_resources()
+    s3_bucket = s3_resource.Bucket(bucket)
+
+    # update asset hrefs
+    for id, asset in stac_item.assets.items():
+        parts = list(Path(asset.href).parts[-2:])
+        file_name = "-".join(parts)
+        s3_key = f"{s3_prefix}/{file_name}"
+
+        s3_uri = f"s3://{bucket}/{s3_key}"
+        if "thumbnail" in asset.roles:
+            asset.href = f"https://{bucket}.s3.amazonaws.com/{s3_key}"
+        else:
+            asset.href = s3_uri
+
+        s3_obj = s3_bucket.Object(s3_key)
+        metadata = get_basic_object_metadata(s3_obj)
+        asset.extra_fields.update(metadata)
+
+    stac_item.set_self_href(f"https://{bucket}.s3.amazonaws.com/{s3_prefix}/{Path(stac_item.self_href).name}")
+    # write updated stac item to s3
+    s3_client.put_object(
+        Body=json.dumps(stac_item.to_dict()).encode(),
+        Bucket=bucket,
+        Key=f"{s3_prefix}/{Path(stac_item_file).name}",
+    )
+
+
+def fim_lib_item(local_fim_library: str, item_id: str, assets: list, stac_json: str, metadata: dict) -> pystac.Item:
+    """
+    Create a PySTAC Item for a fim_lib_item.
+
+    Parameters
+    ----------
+        local_fim_library (str): File path of the local_fim_library.
+        item_id (str): The ID to assign to the PySTAC Item.
+        assets (str): assets (files) to add to the stac item
+        stac_json (str): json file to write the stac item to
+
+    Returns
+    -------
+        pystac.Item: The PySTAC Item representing the raster file. The Item has an Asset with the raster file,
+        the title set to the name of the raster file, the media type set to COG, and the role
+        set to "ras-depth-grid". The Asset's extra fields are updated with the basic object metadata of the raster file
+        and the metadata of the raster file. The Item's bbox is set to the geographic bounds of the raster file in the
+        WGS 84 (EPSG:4326) coordinate reference system, the datetime is set to the current datetime, and the geometry
+        is set to the GeoJSON representation of the bbox.
+    """
+    bbox = get_raster_bounds(assets[0])
+    geometry = bbox_to_polygon(bbox)
+    item = pystac.Item(
+        id=item_id,
+        properties=metadata["properties"],
+        bbox=bbox,
+        datetime=datetime.now(),
+        geometry=json.loads(shapely.to_geojson(geometry)),
+    )
+    # add assets
+    for file in assets:
+        parts = list(Path(file).parts[-2:])
+        title = "-".join(parts).rstrip(".tif")
+        asset = pystac.Asset(
+            href=file,
+            title=title,
+            media_type=pystac.MediaType.COG,
+            roles=["fim"],
+        )
+
+        asset_metadata = get_raster_metadata(file)
+        if asset_metadata:
+            asset.extra_fields.update(asset_metadata)
+        item.add_asset(key=asset.title, asset=asset)
+    item.add_derived_from(metadata["derived_from"]["model_stac_item"])
+
+    with open(stac_json, "w") as f:
+        f.write(json.dumps(item.to_dict()))
+    return item
+
+
+def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str, bucket: str):
+    """Create a stac item for a fim library."""
+    nwm_rm = NwmReachModel(ras_project_directory)
+
+    metadata = {
+        "properties": {
+            "NOAA_NWM:FIM Reach ID": nwm_reach_id,
+            "NOAA_NWM:FIM to Reach ID": nwm_rm.ripple_parameters["nwm_to_id"],
+            "NOAA_NWM:FIM Depth units": "ft",
+            "NOAA_NWM:FIM Flow units": "cfs",
+            "NOAA_NWM:FIM Rating Curve (Flow, Depth)": nwm_rm.fim_rating_curve,
+            "proj:wkt2": CRS(nwm_rm.crs).to_wkt(),
+            "proj:epsg": CRS(nwm_rm.crs).to_epsg(),
+            "Ripple Version": RIPPLE_VERSION,
+        },
+        "derived_from": {"model_stac_item": nwm_rm.ripple_parameters["model_stac_item"]},
+    }
+    assets = nwm_rm.fim_lib_assets
+    fim_lib_item(
+        nwm_rm.fim_results_directory, nwm_reach_id, nwm_rm.fim_lib_assets, nwm_rm.fim_lib_stac_json_file, metadata
+    )
+
+    if s3_prefix and bucket:
+        nwm_rm.upload_fim_lib_assets(s3_prefix, bucket)
+        update_stac_s3_location(nwm_rm.fim_lib_stac_json_file, bucket, s3_prefix)

@@ -285,9 +285,9 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
         "ripple: version": ripple_version,
         "ras version": rm.version,
         "project title": rm.ras_project.title,
-        "plan titles": list(rm.plans.keys()),
-        "geom titles": list(rm.geoms.keys()),
-        "flow titles": list(rm.flows.keys()),
+        "plan titles": {key: val.file_extension for key, val in rm.plans.items()},
+        "geom titles": {key: val.file_extension for key, val in rm.geoms.items()},
+        "flow titles": {key: val.file_extension for key, val in rm.flows.items()},
         "river miles": str(river_miles),
         "NWM to_id": nwm_rm.ripple_parameters["nwm_to_id"],
         "proj:wkt2": crs.to_wkt(),
@@ -296,11 +296,6 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
     item = create_geom_item(nwm_rm.model_name, bbox, footprint, properties)
 
     for asset_key in nwm_rm.assets:
-
-        if asset_key == nwm_rm.conflation_file:
-            item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
-            item.add_derived_from(nwm_rm.ripple_parameters["source_terrain"])
-            item.add_derived_from(nwm_rm.ripple_parameters["source_nwm_reach"])
 
         asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
         asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
@@ -311,7 +306,10 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
             description=asset_info["description"],
         )
         item.add_asset(asset_info["title"], asset)
-    with open(nwm_rm.stac_json_file, "w") as dst:
+    item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
+    item.add_derived_from(nwm_rm.ripple_parameters["source_terrain"])
+    item.add_derived_from(nwm_rm.ripple_parameters["source_nwm_reach"])
+    with open(nwm_rm.model_stac_json_file, "w") as dst:
         dst.write(json.dumps(item.to_dict()))
 
     logging.debug("Program completed successfully")

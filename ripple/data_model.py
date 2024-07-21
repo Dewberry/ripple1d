@@ -4,6 +4,7 @@ import glob
 import json
 import math
 import os
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import List
@@ -112,9 +113,36 @@ class NwmReachModel(RasModelStructure):
         return str(Path(self.model_directory) / "fims")
 
     @property
+    def fim_lib_assets(self):
+        """Assets of the fim library."""
+        return glob.glob(f"{self.fim_results_directory}/*/*")
+
+    @property
+    def fim_lib_stac_json_file(self):
+        """FIM LIBRARY STAC JSON file."""
+        return str(Path(self.fim_results_directory) / f"{self.model_name}.fim_lib.stac.json")
+
+    @property
     def fim_results_database(self):
         """Results database."""
         return str(Path(self.fim_results_directory) / f"{self.model_name}.db")
+
+    @property
+    def fim_rating_curve(self):
+        """FIM rating curve."""
+        with sqlite3.connect(self.fim_results_database) as conn:
+            cursor = conn.cursor()
+            sql_query = f"""SELECT us_flow, us_wse, ds_wse
+            FROM rating_curves
+            WHERE reach_id={self.model_name}"""
+            cursor.execute(sql_query)
+
+            data = cursor.fetchall()
+        data_list = ["Flow | US WSE | DS WSE"]
+        for row in data:
+            data_list.append(" | ".join([str(r) for r in row]))
+
+        return data_list
 
     @property
     def crs(self):
@@ -131,6 +159,22 @@ class NwmReachModel(RasModelStructure):
                 Key=key,
                 Filename=file,
             )
+
+    def upload_fim_lib_assets(self, s3_prefix: str, bucket: str):
+        """Upload the fim lib to s3."""
+        _, client, _ = init_s3_resources()
+        for file in self.fim_lib_assets:
+            parts = list(Path(file).parts[-2:])
+            file_name = "-".join(parts)
+            key = f"{s3_prefix}/{file_name}"
+
+            client.upload_file(
+                Bucket=bucket,
+                Key=key,
+                Filename=file,
+            )
+        file_name = os.path.basename(self.fim_lib_stac_json_file)
+        client.upload_file(Bucket=bucket, Key=f"{s3_prefix}/{file_name}", Filename=self.fim_lib_stac_json_file)
 
     @property
     def ripple_parameters(self):
@@ -152,9 +196,9 @@ class NwmReachModel(RasModelStructure):
         return self.derive_path(".ripple.json")
 
     @property
-    def stac_json_file(self):
+    def model_stac_json_file(self):
         """STAC JSON file."""
-        return self.derive_path(".stac.json")
+        return self.derive_path(".model.stac.json")
 
 
 @dataclass
