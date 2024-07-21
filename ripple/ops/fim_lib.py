@@ -56,13 +56,35 @@ def post_process_depth_grids(
             os.makedirs(flow_sub_directory, exist_ok=True)
             dest_path = os.path.join(flow_sub_directory, f"{flow}.tif")
 
-            copy_raster(src_path, dest_path)
+            copy_raster(
+                src_path,
+                dest_path,
+                COMPRESS="DEFLATE",
+                PREDICTOR="3",
+                num_threads=4,
+                tiled="yes",
+                blockxsize=512,
+                blockysize=512,
+            )
 
+            # TODO currently the compression for the overviews does not seem to be working.
+            # need to figure out why this is not working.
             logging.debug(f"Building overviews for: {dest_path}")
-            with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
-                with rasterio.open(dest_path, "r+") as dst:
-                    dst.build_overviews([4, 8, 16], Resampling.nearest)
-                    dst.update_tags(ns="rio_overview", resampling="nearest")
+            # with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
+            with rasterio.open(dest_path, "r+") as dst:
+                dst.build_overviews([4, 8, 16], Resampling.nearest)
+                dst.update_tags(ns="rio_overview", resampling="nearest")
+
+            # gdal.UseExceptions()
+            # # open the file
+            # ds = gdal.Open(dest_path, gdal.GA_Update)  # GA_Update == 1, aka Write mode
+            # if ds is None:
+            #     raise RuntimeError(f"Could not open: {file_path}")
+            # ds.BuildOverviews(
+            #     "NEAREST", [4, 8, 16], options={"COMPRESS_OVERVIEW": "DEFLATE", "PREDICTOR_OVERVIEW": "3"}
+            # )
+            # # close the file
+            # del ds
 
     return missing_grids_kwse, missing_grids_nd
 
