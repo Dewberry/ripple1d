@@ -29,9 +29,10 @@ PLAN3_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.p03
 FLOW3_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.f03")
 RESULT3_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.r03")
 FIM_LIB_DB = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\{REACH_ID}.db")
-DEPTH_GRIDS_ND = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_0_0")
+DEPTH_GRIDS_ND = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_nd")
 DEPTH_GRIDS_KWSE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_60_0")
-STAC_ITEM = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.stac.json")
+MODEL_STAC_ITEM = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.model.stac.json")
+FIM_LIB_STAC_ITEM = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\{REACH_ID}.fim_lib.stac.json")
 
 
 def start_server():
@@ -77,7 +78,7 @@ class TestApi(unittest.TestCase):
         time.sleep(5)  # Give the server some time to start
 
     @check_process
-    def test1_extract_submodel(self):
+    def test_a_extract_submodel(self):
         payload = {
             "source_model_directory": SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
@@ -89,14 +90,14 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test2_create_ras_terrain(self):
+    def test_b_create_ras_terrain(self):
         payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}", "vertical_units": "M"}
         process = "create_ras_terrain"
         files = [TERRAIN_HDF, TERRAIN_VRT]
         return process, payload, files
 
     @check_process
-    def test3_create_model_run_normal_depth(self):
+    def test_c_create_model_run_normal_depth(self):
         payload = {
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "plan_suffix": "ind",
@@ -108,7 +109,7 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test4_run_incremental_normal_depth(self):
+    def test_d_run_incremental_normal_depth(self):
         payload = {
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "plan_suffix": "nd",
@@ -121,7 +122,7 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test5_run_known_wse(self):
+    def test_e_run_known_wse(self):
         payload = {
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "plan_suffix": "kwse",
@@ -136,28 +137,40 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test6_create_fim_lib(self):
+    def test_f_create_fim_lib(self):
         payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}", "plans": ["nd", "kwse"]}
         process = "create_fim_lib"
         files = [FIM_LIB_DB, DEPTH_GRIDS_ND, DEPTH_GRIDS_KWSE]
         return process, payload, files
 
     @check_process
-    def test7_nwm_reach_model_stac(self):
+    def test_g_nwm_reach_model_stac(self):
         payload = {
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
-            "ras_model_s3_prefix": f"stac/test-data/fim_models/{REACH_ID}",
+            "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
             "bucket": "fim",
             "ripple_version": RIPPLE_VERSION,
         }
         process = "nwm_reach_model_stac"
-        files = [STAC_ITEM]
+        files = [MODEL_STAC_ITEM]
         return process, payload, files
 
-    def test8_cleanup(self):
+    @check_process
+    def test_h_fim_lib_stac(self):
+        payload = {
+            "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
+            "nwm_reach_id": REACH_ID,
+            "s3_prefix": f"stac/test-data/fim_libs/{REACH_ID}",
+            "bucket": "fim",
+        }
+        process = "fim_lib_stac"
+        files = [FIM_LIB_STAC_ITEM]
+        return process, payload, files
+
+    def test_i_cleanup(self):
         # TODO: clean up the submodel directory
         pass
 
-    def test9_shutdown(self):
+    def test_j_shutdown(self):
         r = subprocess.run(["python", "-m", "ripple_api", "stop"])
         self.assertEqual(r.returncode, 0)
