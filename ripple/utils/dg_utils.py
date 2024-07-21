@@ -20,6 +20,9 @@ from rasterio.session import AWSSession
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 from shapely import Polygon
 
+from ripple.consts import METERS_PER_FOOT
+from ripple.errors import UnknownVerticalUnits
+
 from .s3_utils import *
 
 logging.getLogger("boto3").setLevel(logging.WARNING)
@@ -206,11 +209,13 @@ def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon, vertical_un
 
     logging.info(f"Writing as masked: {dst_path}")
     with rasterio.open(dst_path, "w", **out_meta) as dest:
-        if vertical_units in ["M", "m", "meters", "meter", "Meter", "Meters"]:
-            out_image_ft = np.where(out_image == out_meta["nodata"], out_meta["nodata"], out_image * 3.28084)
+        if vertical_units == "Meters":
+            out_image_ft = np.where(out_image == out_meta["nodata"], out_meta["nodata"], out_image / METERS_PER_FOOT)
             dest.write(out_image_ft)
-        else:
+        elif vertical_units == "Feet":
             dest.write(out_image)
+        else:
+            raise UnknownVerticalUnits(f"Expected Feet or Meters recieved {vertical_units}")
 
 
 def get_terrain_exe_path(ras_ver: str) -> str:
