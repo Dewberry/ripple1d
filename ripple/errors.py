@@ -88,3 +88,7 @@ class RASStoreAllMapsError(Exception):
 
 class DepthGridNotFoundError(Exception):
     """Raised when a depth grid is not found when clipping raw RAS output."""
+
+
+class UnknownVerticalUnits(Exception):
+    """Raised when unknown vertical units are specified."""

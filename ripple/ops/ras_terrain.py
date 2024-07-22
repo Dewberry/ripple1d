@@ -50,7 +50,7 @@ def write_projection_file(crs: CRS, terrain_directory: str) -> str:
 def create_ras_terrain(
     submodel_directory: str,
     terrain_source_url: str = MAP_DEM_UNCLIPPED_SRC_URL,
-    vertical_units: str = METERS_PER_FOOT,
+    vertical_units: str = MAP_DEM_VERT_UNITS,
     resolution: float = None,
 ) -> None:
     """Create a RAS terrain file."""

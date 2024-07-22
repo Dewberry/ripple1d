@@ -29,7 +29,7 @@ PLAN3_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.p03
 FLOW3_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.f03")
 RESULT3_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.r03")
 FIM_LIB_DB = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\{REACH_ID}.db")
-DEPTH_GRIDS_ND = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_0_0")
+DEPTH_GRIDS_ND = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_nd")
 DEPTH_GRIDS_KWSE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\z_60_0")
 STAC_ITEM = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.stac.json")
 
@@ -90,7 +90,7 @@ class TestApi(unittest.TestCase):
 
     @check_process
     def test2_create_ras_terrain(self):
-        payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}", "vertical_units": "M"}
+        payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}"}
         process = "create_ras_terrain"
         files = [TERRAIN_HDF, TERRAIN_VRT]
         return process, payload, files
