@@ -19,9 +19,9 @@ def process_reach_db(submodel, reach_db_path, library_conn):
     cursor.executemany(
         """
         INSERT INTO rating_curves (
-            reach_id, us_flow, us_depth, us_wse, ds_depth, ds_wse, ripple_version
+            reach_id, us_flow, us_depth, us_wse, ds_depth, ds_wse, boundary_condition, ripple_version
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         rows,
     )

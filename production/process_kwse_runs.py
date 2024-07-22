@@ -11,7 +11,7 @@ from typing import List, Optional, Tuple
 import requests
 
 submodels_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\submodels"
-conflation_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\conflation.sqlite"
+conflation_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
 start_reach = 2821866
 
 wait_time = 3
@@ -41,7 +41,7 @@ def get_min_max_elevation(downstream_id: int) -> Tuple[Optional[float], Optional
 
     ds_reach_conn = sqlite3.connect(ds_submodel_db_path)
     ds_reach_cursor = ds_reach_conn.cursor()
-    ds_reach_cursor.execute(f"SELECT MIN(wse), MAX(wse) FROM `'{downstream_id}'`")
+    ds_reach_cursor.execute(f"SELECT MIN(us_wse), MAX(us_wse) FROM rating_curves")
     min_elevation, max_elevation = ds_reach_cursor.fetchone()
     ds_reach_conn.close()
     return min_elevation, max_elevation
