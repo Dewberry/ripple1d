@@ -302,7 +302,7 @@ def convert_linestring_to_points(
 
 def cacl_avg_nearest_points(reference_gdf: gpd.GeoDataFrame, compare_points_gdf: gpd.GeoDataFrame) -> float:
     """Calculate the average distance between the reference points and the nearest points in the comparison GeoDataFrame."""
-    multipoint = compare_points_gdf.geometry.unary_union
+    multipoint = compare_points_gdf.geometry.union_all()
     reference_gdf["nearest_distance"] = reference_gdf.geometry.apply(
         lambda point: point.distance(nearest_points(point, multipoint)[1])
     )
