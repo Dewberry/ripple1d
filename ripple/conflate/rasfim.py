@@ -432,7 +432,7 @@ def get_us_most_xs_from_junction(rfc, us_river, us_reach):
         raise TypeError("No junctions found in the HEC-RAS model.")
 
     for row in rfc.ras_junctions.itertuples():
-        if us_river in row.us_rivers:
+        if (us_river in row.us_rivers) and (us_reach in row.us_reaches):
             ds_rivers = row.ds_rivers.split(",")
             ds_reaches = row.ds_reaches.split(",")
             break
@@ -487,17 +487,17 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     ds_xs += 1
     if ds_xs in rfc.ras_xs["ID"]:
         # First, naievly try to get the downstream XS data assuming there is a downstream xs
-        ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+        ds_xs_station_name = float(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
         ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
         ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
 
         # Check  if the next xs has the same river and reach name
-        if us_river_name != ds_river_name:
+        if (us_river_name != ds_river_name) or (us_reach_name != ds_reach_name):
             try:
                 ds_xs = get_us_most_xs_from_junction(rfc, us_river_name, us_reach_name)
                 ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
                 ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
-                ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+                ds_xs_station_name = float(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
                 ds_data = ras_xs_geometry_data(rfc, ds_xs)
                 logging.info(
                     f"Conflating to junction for reach {reach.ID}: {us_river_name} {us_reach_name} to {ds_river_name} {ds_reach_name}"
@@ -505,7 +505,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
 
             except ValueError as e:
                 logging.warning(f"No downstream XS's: {e}")
-                ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+                ds_xs_station_name = float(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
                 ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
                 ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
                 ds_data = ras_xs_geometry_data(rfc, ds_xs)
@@ -514,7 +514,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     else:
         logging.warning(f"No downstream XS's for {reach.ID}")
         ds_xs -= 1
-        ds_xs_station_name = str(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
+        ds_xs_station_name = float(rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river_station"].iloc[0])
         ds_river_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["river"].iloc[0]
         ds_reach_name = rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]["reach"].iloc[0]
 
