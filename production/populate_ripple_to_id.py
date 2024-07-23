@@ -18,12 +18,8 @@ def update_conflation_to_id(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Add new column to the conflation table if it doesn't exist
-    if not column_exists(cursor, "conflation", "conflation_to_id"):
-        cursor.execute("ALTER TABLE conflation ADD COLUMN conflation_to_id INTEGER")
-
     cursor.execute(
-        "SELECT reach_id, us_xs_river, us_xs_reach, us_xs_id, ds_xs_river, ds_xs_reach, ds_xs_id, model_key FROM conflation WHERE model_key IS NOT NULL"
+        "SELECT reach_id, us_xs_river, us_xs_reach, us_xs_id, ds_xs_river, ds_xs_reach, ds_xs_id, model_key FROM conflation WHERE model_key IS NOT NULL AND conflation_to_id IS NULL"
     )
     records = cursor.fetchall()
 
@@ -45,6 +41,6 @@ def update_conflation_to_id(db_path):
     conn.close()
 
 
-db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\conflation.sqlite"
+db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
 
 update_conflation_to_id(db_path)

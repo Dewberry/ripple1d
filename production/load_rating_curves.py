@@ -38,6 +38,9 @@ for submodel in os.listdir(library_dir):
         submodel,
         f"{submodel}.db",
     )
-    process_reach_db(submodel, sub_db_path, library_conn)
+    if os.path.exists(sub_db_path):
+        print(sub_db_path)
+        process_reach_db(submodel, sub_db_path, library_conn)
+        os.remove(sub_db_path)
 
 library_conn.close()

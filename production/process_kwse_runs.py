@@ -12,7 +12,8 @@ import requests
 
 submodels_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\submodels"
 conflation_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
-start_reach = 2821866
+start_reach = 1465976
+downstream_reach = 1466376  # assign None if unknown
 
 wait_time = 3
 
@@ -62,10 +63,10 @@ def check_job_status(job_id: str) -> bool:
         time.sleep(wait_time)  # Wait for 10 seconds before checking again
 
 
-def process_network(start_reach: int) -> None:
+def process_network(start_reach: int, downstream_reach: int) -> None:
     """Process the given reach ID and iteratively process related upstream reach IDs."""
 
-    stack = [(start_reach, None)]  # Use a stack to avoid deep recursion
+    stack = [(start_reach, downstream_reach)]  # Use a stack to avoid deep recursion
 
     while stack:
         reach_id, downstream_id = stack.pop()
@@ -115,6 +116,6 @@ def process_network(start_reach: int) -> None:
             stack.append((upstream_reach, reach_id))
 
 
-process_network(start_reach)  # Start traversing
+process_network(start_reach, downstream_reach)  # Start traversing
 
 conn.close()

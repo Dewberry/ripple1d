@@ -59,9 +59,9 @@ def insert_data_to_db(db_path, data, model_key):
     conn.close()
 
 
-model_key = "Baxter"
+model_key = "WFSJR 055"
 source_models_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\source_models"
 
 json_data = load_json(f"{source_models_directory}\\{model_key}\\{model_key}.conflation.json")
 
-insert_data_to_db(r"D:\Users\abdul.siddiqui\workbench\projects\production\conflation.sqlite", json_data, model_key)
+insert_data_to_db(r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite", json_data, model_key)

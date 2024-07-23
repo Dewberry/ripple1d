@@ -1,5 +1,5 @@
 """
-Copy all fims from the submodel folders to the FIM library location
+Move all fims from the submodel folders to the FIM library location
 """
 
 import os
@@ -13,7 +13,9 @@ for submodel in os.listdir(submodels_dir):
     if "fims" in dirs:
         source_path = os.path.join(submodels_dir, submodel, "fims")
         destination_path = os.path.join(library_dir, submodel)
-        print(source_path, destination_path)
-        shutil.copytree(source_path, destination_path)
+        if os.path.exists(source_path):
+            if not os.path.exists(destination_path):
+                shutil.copytree(source_path, destination_path)
+            shutil.rmtree(source_path)
 
 print("All fims have been copied to the library directory.")
