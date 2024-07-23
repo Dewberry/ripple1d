@@ -190,7 +190,7 @@ def update_stac_s3_location(stac_item_file: pystac.Item, bucket: str, s3_prefix:
     s3_bucket = s3_resource.Bucket(bucket)
 
     # update asset hrefs
-    for id, asset in stac_item.assets.items():
+    for asset in stac_item.assets.values():
         parts = list(Path(asset.href).parts[-2:])
         file_name = "-".join(parts)
         s3_key = f"{s3_prefix}/{file_name}"
