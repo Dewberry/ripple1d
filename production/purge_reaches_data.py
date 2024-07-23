@@ -8,7 +8,8 @@ submodels_dir = r"D:\Users\abdul.siddiqui\workbench\projects\production\submodel
 library_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
 delete_submodels = False
 delete_library = False
-delete_db_records = False
+delete_rc_records = False
+reset_conflation_records = False
 
 
 def delete_reach_data(
@@ -19,19 +20,38 @@ def delete_reach_data(
     delete_submodels=False,
     delete_library=False,
     delete_db_records=False,
+    reset_conflation_records=False,
 ):
     # Connect to the database
+    conn = sqlite3.connect(db_location)
+    cursor = conn.cursor()
 
     # Delete records from the database if option is enabled
     if delete_db_records:
-        conn = sqlite3.connect(db_location)
-        cursor = conn.cursor()
-
         placeholders = ", ".join("?" for _ in reach_ids)
-        cursor.execute(f"DELETE FROM rating_curves WHERE reach_id IN ({placeholders})", reach_ids)
+        cursor.execute(f"DELETE FROM rating_curves WHERE reach_id IN ({placeholders});", reach_ids)
         conn.commit()
 
-        conn.close()
+    # Reset conflation_records
+    if reset_conflation_records:
+        placeholders = ", ".join("?" for _ in reach_ids)
+        cursor.execute(
+            f"""
+                        UPDATE conflation
+                        SET us_xs_river = NULL,
+                            us_xs_reach = NULL,
+                            us_xs_id = NULL,
+                            ds_xs_river = NULL,
+                            ds_xs_reach = NULL,
+                            ds_xs_id = NULL,
+                            "model_key" = NULL
+                        WHERE reach_id IN ({placeholders});
+                        """,
+            reach_ids,
+        )
+        conn.commit()
+
+    conn.close()
 
     # Delete folders in submodels_dir if option is enabled
     if delete_submodels:
@@ -55,5 +75,6 @@ delete_reach_data(
     library_db_path,
     delete_submodels,
     delete_library,
-    delete_db_records,
+    delete_rc_records,
+    reset_conflation_records,
 )
