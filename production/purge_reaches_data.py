@@ -1,0 +1,59 @@
+import os
+import shutil
+import sqlite3
+
+reach_ids = []
+library_dir = r"D:\Users\abdul.siddiqui\workbench\projects\production\library"
+submodels_dir = r"D:\Users\abdul.siddiqui\workbench\projects\production\submodels"
+library_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
+delete_submodels = False
+delete_library = False
+delete_db_records = False
+
+
+def delete_reach_data(
+    reach_ids,
+    library_dir,
+    submodels_dir,
+    db_location,
+    delete_submodels=False,
+    delete_library=False,
+    delete_db_records=False,
+):
+    # Connect to the database
+
+    # Delete records from the database if option is enabled
+    if delete_db_records:
+        conn = sqlite3.connect(db_location)
+        cursor = conn.cursor()
+
+        placeholders = ", ".join("?" for _ in reach_ids)
+        cursor.execute(f"DELETE FROM rating_curves WHERE reach_id IN ({placeholders})", reach_ids)
+        conn.commit()
+
+        conn.close()
+
+    # Delete folders in submodels_dir if option is enabled
+    if delete_submodels:
+        for reach_id in reach_ids:
+            folder_path = os.path.join(submodels_dir, str(reach_id))
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
+
+    # Delete folders in library_dir if option is enabled
+    if delete_library:
+        for reach_id in reach_ids:
+            folder_path = os.path.join(library_dir, str(reach_id))
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
+
+
+delete_reach_data(
+    reach_ids,
+    library_dir,
+    submodels_dir,
+    library_db_path,
+    delete_submodels,
+    delete_library,
+    delete_db_records,
+)
