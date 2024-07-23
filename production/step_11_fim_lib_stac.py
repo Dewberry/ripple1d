@@ -6,7 +6,7 @@ if __name__ == "__main__":
 
     nwm_reach_id = "2823932"
     ras_project_directory = os.path.dirname(__file__).replace(
-        "production", f"tests\\ras-data\\Baxter\\submodels\\{reach_id}"
+        "production", f"tests\\ras-data\\Baxter\\submodels\\{nwm_reach_id}"
     )
     s3_prefix = "stac/test-data/fim_libs"
     bucket = "fim"
