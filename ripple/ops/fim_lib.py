@@ -214,13 +214,12 @@ def update_stac_s3_location(stac_item_file: pystac.Item, bucket: str, s3_prefix:
     )
 
 
-def fim_lib_item(local_fim_library: str, item_id: str, assets: list, stac_json: str, metadata: dict) -> pystac.Item:
+def fim_lib_item(item_id: str, assets: list, stac_json: str, metadata: dict) -> pystac.Item:
     """
     Create a PySTAC Item for a fim_lib_item.
 
     Parameters
     ----------
-        local_fim_library (str): File path of the local_fim_library.
         item_id (str): The ID to assign to the PySTAC Item.
         assets (str): assets (files) to add to the stac item
         stac_json (str): json file to write the stac item to
@@ -283,9 +282,7 @@ def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str, 
         "derived_from": {"model_stac_item": nwm_rm.ripple_parameters["model_stac_item"]},
     }
     assets = nwm_rm.fim_lib_assets
-    fim_lib_item(
-        nwm_rm.fim_results_directory, nwm_reach_id, nwm_rm.fim_lib_assets, nwm_rm.fim_lib_stac_json_file, metadata
-    )
+    fim_lib_item(nwm_reach_id, nwm_rm.fim_lib_assets, nwm_rm.fim_lib_stac_json_file, metadata)
 
     if s3_prefix and bucket:
         nwm_rm.upload_fim_lib_assets(s3_prefix, bucket)
