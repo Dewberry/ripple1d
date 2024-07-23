@@ -177,7 +177,7 @@ def run_known_wse(
 
     if not flows:
         logging.warning(
-            f"No controling known water surface elevations were identified for {nwm_id}; i.e., the depth of flooding\
+            f"No controling known water surface elevations were identified for {nwm_rm.model_name}; i.e., the depth of flooding\
  for the normal depth run for a given flow was alway higher than the known water surface elevations of the downstream reach"
         )
     else:
