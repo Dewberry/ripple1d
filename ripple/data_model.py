@@ -4,8 +4,9 @@ import glob
 import json
 import math
 import os
+import sqlite3
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import List
 
 import geopandas as gpd
@@ -24,10 +25,6 @@ from ripple.utils.s3_utils import init_s3_resources, read_json_from_s3
 
 class RasModelStructure:
     """Base Model structure for RAS models."""
-
-    def __init__(self, model_directory: str):
-        self.model_directory = model_directory
-        self.model_basename = Path(model_directory).name
 
     def __init__(self, model_directory: str):
         self.model_directory = model_directory
@@ -64,6 +61,11 @@ class RasModelStructure:
         return glob.glob(f"{self.model_directory}/Terrain/*") + [
             f for f in glob.glob(f"{self.model_directory}/*") if not os.path.isdir(f)
         ]
+
+    @property
+    def terrain_assets(self):
+        """Terrain assets."""
+        return glob.glob(f"{self.model_directory}/Terrain/*")
 
     @property
     def thumbnail_png(self):
@@ -111,9 +113,36 @@ class NwmReachModel(RasModelStructure):
         return str(Path(self.model_directory) / "fims")
 
     @property
+    def fim_lib_assets(self):
+        """Assets of the fim library."""
+        return glob.glob(f"{self.fim_results_directory}/*/*")
+
+    @property
+    def fim_lib_stac_json_file(self):
+        """FIM LIBRARY STAC JSON file."""
+        return str(Path(self.fim_results_directory) / f"{self.model_name}.fim_lib.stac.json")
+
+    @property
     def fim_results_database(self):
         """Results database."""
         return str(Path(self.fim_results_directory) / f"{self.model_name}.db")
+
+    @property
+    def fim_rating_curve(self):
+        """FIM rating curve."""
+        with sqlite3.connect(self.fim_results_database) as conn:
+            cursor = conn.cursor()
+            sql_query = f"""SELECT us_flow, us_wse, ds_wse
+            FROM rating_curves
+            WHERE reach_id={self.model_name}"""
+            cursor.execute(sql_query)
+
+            data = cursor.fetchall()
+        data_list = ["Flow | US WSE | DS WSE"]
+        for row in data:
+            data_list.append(" | ".join([str(r) for r in row]))
+
+        return data_list
 
     @property
     def crs(self):
@@ -124,12 +153,28 @@ class NwmReachModel(RasModelStructure):
         """Upload the model to s3."""
         _, client, _ = init_s3_resources()
         for file in self.assets:
-            key = f"{ras_s3_prefix}/{Path(file).name}"
+            key = str(PurePosixPath(Path(file.replace(self.model_directory, ras_s3_prefix))))
             client.upload_file(
                 Bucket=bucket,
                 Key=key,
                 Filename=file,
             )
+
+    def upload_fim_lib_assets(self, s3_prefix: str, bucket: str):
+        """Upload the fim lib to s3."""
+        _, client, _ = init_s3_resources()
+        for file in self.fim_lib_assets:
+            parts = list(Path(file).parts[-2:])
+            file_name = "-".join(parts)
+            key = f"{s3_prefix}/{file_name}"
+
+            client.upload_file(
+                Bucket=bucket,
+                Key=key,
+                Filename=file,
+            )
+        file_name = os.path.basename(self.fim_lib_stac_json_file)
+        client.upload_file(Bucket=bucket, Key=f"{s3_prefix}/{file_name}", Filename=self.fim_lib_stac_json_file)
 
     @property
     def ripple_parameters(self):
@@ -138,15 +183,22 @@ class NwmReachModel(RasModelStructure):
             ripple_parameters = json.loads(f.read())
         return ripple_parameters
 
+    def update_write_ripple_parameters(self, new_parameters: dict):
+        """Write Ripple parameters."""
+        parameters = self.ripple_parameters
+        parameters.update(new_parameters)
+        with open(self.conflation_file, "w") as f:
+            f.write(json.dumps(parameters, indent=4))
+
     @property
     def conflation_file(self):
         """Conflation file."""
         return self.derive_path(".ripple.json")
 
     @property
-    def stac_json_file(self):
+    def model_stac_json_file(self):
         """STAC JSON file."""
-        return self.derive_path(".stac.json")
+        return self.derive_path(".model.stac.json")
 
 
 @dataclass
