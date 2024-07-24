@@ -4,10 +4,12 @@ import subprocess
 import time
 import unittest
 
+import pandas as pd
 import pytest
 import requests
 
 from ripple.consts import RIPPLE_VERSION
+from ripple.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
 
@@ -142,6 +144,13 @@ class TestApi(unittest.TestCase):
         process = "create_fim_lib"
         files = [FIM_LIB_DB, DEPTH_GRIDS_ND, DEPTH_GRIDS_KWSE]
         return process, payload, files
+
+    def test6_1_check_flows_are_equal(self):
+        rf2 = pd.DataFrame(RasFlowText(FLOW2_FILE).flow_change_locations)
+        rf3 = pd.DataFrame(RasFlowText(FLOW3_FILE).flow_change_locations)
+        print(set(rf2["flows"].iloc[0]))
+        print(set(rf3["flows"].iloc[0]))
+        self.assertTrue(set(rf2["flows"].iloc[0]) == set(rf3["flows"].iloc[0]))
 
     @check_process
     def test_g_nwm_reach_model_stac(self):

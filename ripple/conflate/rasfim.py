@@ -14,6 +14,8 @@ from fiona.errors import DriverError
 from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
 from shapely.ops import linemerge, nearest_points, transform
 
+from ripple.utils.ripple_utils import xs_concave_hull
+
 HIGH_FLOW_FACTOR = 1.2
 
 NWM_CRS = """PROJCRS["USA_Contiguous_Albers_Equal_Area_Conic_USGS_version",
@@ -156,13 +158,18 @@ class RasFimConflater:
         """RAS junctions."""
         try:
             return self._ras_junctions.to_crs(self.common_crs)
-        except ValueError:
+        except AttributeError:
             return None
 
     @property
     def ras_xs_bbox(self) -> Polygon:
         """Return the bounding box for the RAS cross sections."""
         return self.get_projected_bbox(self.ras_xs)
+
+    @property
+    def ras_xs_concave_hull(self):
+        """Return the concave hull of the cross sections."""
+        return xs_concave_hull(self.ras_xs)
 
     @property
     def ras_banks(self):
@@ -184,7 +191,7 @@ class RasFimConflater:
     @property
     def local_nwm_reaches(self) -> gpd.GeoDataFrame:
         """NWM reaches that intersect the RAS cross sections."""
-        return self.nwm_reaches[self.nwm_reaches.intersects(self.ras_xs_bbox)]
+        return self.nwm_reaches[self.nwm_reaches.intersects(self.ras_xs_concave_hull["geometry"].iloc[0])]
 
     @property
     def local_gages(self) -> dict:
