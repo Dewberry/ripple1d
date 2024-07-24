@@ -93,7 +93,7 @@ class TestApi(unittest.TestCase):
 
     @check_process
     def test_b_create_ras_terrain(self):
-        payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}", "vertical_units": "M"}
+        payload = {"submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}"}
         process = "create_ras_terrain"
         files = [TERRAIN_HDF, TERRAIN_VRT]
         return process, payload, files
@@ -145,7 +145,7 @@ class TestApi(unittest.TestCase):
         files = [FIM_LIB_DB, DEPTH_GRIDS_ND, DEPTH_GRIDS_KWSE]
         return process, payload, files
 
-    def test6_1_check_flows_are_equal(self):
+    def test_g_check_flows_are_equal(self):
         rf2 = pd.DataFrame(RasFlowText(FLOW2_FILE).flow_change_locations)
         rf3 = pd.DataFrame(RasFlowText(FLOW3_FILE).flow_change_locations)
         print(set(rf2["flows"].iloc[0]))
@@ -153,7 +153,7 @@ class TestApi(unittest.TestCase):
         self.assertTrue(set(rf2["flows"].iloc[0]) == set(rf3["flows"].iloc[0]))
 
     @check_process
-    def test_g_nwm_reach_model_stac(self):
+    def test_h_nwm_reach_model_stac(self):
         payload = {
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
@@ -165,7 +165,7 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test_h_fim_lib_stac(self):
+    def test_i_fim_lib_stac(self):
         payload = {
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_reach_id": REACH_ID,
@@ -176,10 +176,10 @@ class TestApi(unittest.TestCase):
         files = [FIM_LIB_STAC_ITEM]
         return process, payload, files
 
-    def test_i_cleanup(self):
+    def test_j_cleanup(self):
         # TODO: clean up the submodel directory
         pass
 
-    def test_j_shutdown(self):
+    def test_k_shutdown(self):
         r = subprocess.run(["python", "-m", "ripple_api", "stop"])
         self.assertEqual(r.returncode, 0)
