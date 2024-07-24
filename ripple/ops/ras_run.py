@@ -153,7 +153,7 @@ def run_known_wse(
     rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
 
     # get resulting depths from the second normal depth runs_nd
-    rm.plan = rm.plans[f"{nwm_rm.model_name}_ind"]
+    rm.plan = rm.plans[f"{nwm_rm.model_name}_nd"]
     ds_flows, ds_depths, _ = get_flow_depth_arrays(
         rm,
         nwm_rm.model_name,
