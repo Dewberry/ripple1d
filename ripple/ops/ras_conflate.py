@@ -28,7 +28,7 @@ def href_to_vsis(href: str, bucket: str) -> str:
 
 def s3_public_href(bucket: str, key: str) -> str:
     """Convert bucket and key to public href."""
-    return quote(f"https://{bucket}.s3.amazonaws.com/{key}")
+    return f"https://{bucket}.s3.amazonaws.com/{quote(key)}"
 
 
 def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
