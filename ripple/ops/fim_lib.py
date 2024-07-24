@@ -28,7 +28,12 @@ from ripple.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqli
 
 
 def post_process_depth_grids(
-    rm: RasManager, plan_names: str, dest_directory: str, except_missing_grid: bool = False
+    rm: RasManager,
+    plan_names: str,
+    dest_directory: str,
+    except_missing_grid: bool = False,
+    tiled=False,
+    overviews=False,
 ) -> tuple[list[str]]:
     """Clip depth grids based on their associated NWM branch and respective cross sections."""
     missing_grids_kwse, missing_grids_nd = [], []
@@ -62,13 +67,17 @@ def post_process_depth_grids(
             os.makedirs(flow_sub_directory, exist_ok=True)
             dest_path = os.path.join(flow_sub_directory, f"{flow}.tif")
 
+            if tiled:
+                tiled = "yes"
+            else:
+                tiled = "no"
             copy_raster(
                 src_path,
                 dest_path,
                 COMPRESS="DEFLATE",
                 PREDICTOR="3",
                 num_threads=4,
-                tiled="yes",
+                tiled=tiled,
                 blockxsize=512,
                 blockysize=512,
             )
@@ -77,9 +86,10 @@ def post_process_depth_grids(
             # need to figure out why this is not working.
             logging.debug(f"Building overviews for: {dest_path}")
             # with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
-            with rasterio.open(dest_path, "r+") as dst:
-                dst.build_overviews([4, 8, 16], Resampling.nearest)
-                dst.update_tags(ns="rio_overview", resampling="nearest")
+            if overviews:
+                with rasterio.open(dest_path, "r+") as dst:
+                    dst.build_overviews([4, 8, 16], Resampling.nearest)
+                    dst.update_tags(ns="rio_overview", resampling="nearest")
 
             # gdal.UseExceptions()
             # # open the file
@@ -100,6 +110,8 @@ def create_fim_lib(
     plans: list,
     ras_version: str = "631",
     table_name: str = "rating_curves",
+    tiled=False,
+    overviews=False,
 ):
     """Create a new FIM library for a NWM id."""
     nwm_rm = NwmReachModel(submodel_directory)
@@ -112,7 +124,7 @@ def create_fim_lib(
     ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
-        rm, ras_plans, nwm_rm.fim_results_directory, except_missing_grid=True
+        rm, ras_plans, nwm_rm.fim_results_directory, except_missing_grid=True, tiled=tiled, overviews=overviews
     )
 
     # create dabase and table
