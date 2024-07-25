@@ -61,6 +61,8 @@ def geom_flow_to_gdfs(ras_text_file_path: str, crs: CRS) -> gpd.GeoDataFrame:
         layers["River"] = rg.reach_gdf
     if rg.junctions:
         layers["Junction"] = rg.junction_gdf
+    if rg.structures:
+        layers["Structure"] = rg.structures_gdf
     return layers
 
 
@@ -143,7 +145,7 @@ def detemine_primary_plan(
 
 def geom_to_gpkg(ras_text_file_path: str, crs: CRS, output_gpkg_path: str):
     """Write geometry and flow data to a geopackage locally."""
-    geom_flow_to_gpkg(geom_flow_to_gpkg, crs, output_gpkg_path)
+    geom_flow_to_gpkg(ras_text_file_path, crs, output_gpkg_path)
 
 
 def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):

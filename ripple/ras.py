@@ -955,6 +955,16 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_crs
+    def structures(self) -> dict:
+        """A dictionary of the structures contained in the HEC-RAS geometry file."""
+        structures = {}
+        for reach in self.reaches.values():
+            structures.update(reach.structures)
+
+        return structures
+
+    @property
+    @check_crs
     @add_fid_index
     def reach_gdf(self):
         """A GeodataFrame of the reaches contained in the HEC-RAS geometry file."""
@@ -980,9 +990,22 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_crs
+    @add_fid_index
+    def structures_gdf(self):
+        """Geodataframe of all structures in the geometry text file."""
+        return pd.concat([structure.gdf for structure in self.structures.values()], ignore_index=True)
+
+    @property
+    @check_crs
     def n_cross_sections(self):
         """Number of cross sections in the HEC-RAS geometry file."""
         return len(self.cross_sections)
+
+    @property
+    @check_crs
+    def n_structures(self):
+        """Number of structures in the HEC-RAS geometry file."""
+        return len(self.structures)
 
     @property
     @check_crs
@@ -1010,6 +1033,9 @@ class RasGeomText(RasTextFile):
         self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
             self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
+        if self.structures:
+            print("matt")
+            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
 
 
 class RasFlowText(RasTextFile):

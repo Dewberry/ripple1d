@@ -11,6 +11,7 @@ from typing import List
 
 import geopandas as gpd
 import pandas as pd
+from shapely import offset_curve
 from shapely.geometry import LineString, Point
 
 from ripple.utils.ripple_utils import (
@@ -333,6 +334,70 @@ class XS:
         )
 
 
+class Structure:
+    """Structure."""
+
+    def __init__(self, ras_data: list, river_reach: str, river: str, reach: str, crs: str, us_xs: XS):
+        self.ras_data = ras_data
+        self.crs = crs
+        self.river = river
+        self.reach = reach
+        self.river_reach = river_reach
+        self.river_reach_rs = f"{river} {reach} {self.river_station}"
+        self.us_xs = us_xs
+
+    def split_structure_header(self, position: int):
+        """
+        Split Structure header.
+
+        Example: Type RM Length L Ch R = 1 ,83554.  ,237.02,192.39,113.07.
+        """
+        header = search_contents(self.ras_data, "Type RM Length L Ch R ", expect_one=True)
+
+        return header.split(",")[position]
+
+    @property
+    def river_station(self):
+        """Structure river station."""
+        return float(self.split_structure_header(1))
+
+    def structure_data(self, position: int):
+        """Structure data."""
+        data = text_block_from_start_str_length(
+            "Deck Dist Width WeirC Skew NumUp NumDn MinLoCord MaxHiCord MaxSubmerge Is_Ogee", 1, self.ras_data
+        )
+        return data[0].split(",")[position]
+
+    @property
+    def distance(self):
+        """Distance to upstream cross section."""
+        return float(self.structure_data(0))
+
+    @property
+    def width(self):
+        """Structure width."""
+        return float(self.structure_data(1))
+
+    @property
+    def gdf(self):
+        """Structure geodataframe."""
+        return gpd.GeoDataFrame(
+            {
+                "geometry": [LineString(self.us_xs.coords).offset_curve(self.distance)],
+                "river": [self.river],
+                "reach": [self.reach],
+                "river_reach": [self.river_reach],
+                "river_station": [self.river_station],
+                "river_reach_rs": [self.river_reach_rs],
+                "distance": [self.distance],
+                "width": [self.width],
+                "ras_data": ["\n".join(self.ras_data)],
+            },
+            crs=self.crs,
+            geometry="geometry",
+        )
+
+
 class Reach:
     """HEC-RAS River Reach."""
 
@@ -397,7 +462,7 @@ class Reach:
         """Cross sections."""
         cross_sections = {}
         for header in self.reach_nodes:
-            type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")[:5]
+            type, _, _, _, _ = header.split(",")[:5]
             if type != " 1 ":
                 continue
             xs_lines = text_block_from_start_end_str(
@@ -410,6 +475,34 @@ class Reach:
             cross_sections[cross_section.river_reach_rs] = cross_section
 
         return cross_sections
+
+    @property
+    def structures(self):
+        """Structures."""
+        structures = {}
+        for header in self.reach_nodes:
+            type, _, _, _, _ = header.split(",")[:5]
+            if type == " 1 ":
+                xs_lines = text_block_from_start_end_str(
+                    f"Type RM Length L Ch R ={header}",
+                    "Exp/Cntr=",
+                    self.ras_data,
+                    include_end_line=True,
+                )
+                cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
+                continue
+            elif type == " 6 ":  # lateral structure
+                continue
+            structure_lines = text_block_from_start_end_str(
+                f"Type RM Length L Ch R ={header}",
+                "BC User HTab FreeFlow(D)=",
+                self.ras_data,
+                include_end_line=True,
+            )
+            structure = Structure(structure_lines, self.river_reach, self.river, self.reach, self.crs, cross_section)
+            structures[structure.river_reach_rs] = structure
+
+        return structures
 
     @property
     def gdf(self):
@@ -432,6 +525,11 @@ class Reach:
     def xs_gdf(self):
         """Cross section geodataframe."""
         return pd.concat([xs.gdf for xs in self.cross_sections.values()])
+
+    @property
+    def xs_gdf(self):
+        """Structures geodataframe."""
+        return pd.concat([structure.gdf for structure in self.structures.values()])
 
 
 class Junction:
