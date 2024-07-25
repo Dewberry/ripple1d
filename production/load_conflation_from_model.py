@@ -5,6 +5,9 @@ Expects conflation_data table with id and to_id coloumns already populated for e
 import json
 import sqlite3
 
+model_keys = ["WFSJR 055", "WFSJ Main", "STEWARTS CREEK"]
+source_models_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\source_models"
+
 
 def load_json(file_path):
     """"""
@@ -59,9 +62,6 @@ def insert_data_to_db(db_path, data, model_key):
     conn.close()
 
 
-model_key = "WFSJR 055"
-source_models_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\source_models"
-
-json_data = load_json(f"{source_models_directory}\\{model_key}\\{model_key}.conflation.json")
-
-insert_data_to_db(r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite", json_data, model_key)
+for model_key in model_keys:
+    json_data = load_json(f"{source_models_directory}\\{model_key}\\{model_key}.conflation.json")
+    insert_data_to_db(r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite", json_data, model_key)

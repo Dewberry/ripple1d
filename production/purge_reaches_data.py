@@ -38,7 +38,8 @@ def delete_reach_data(
         cursor.execute(
             f"""
                         UPDATE conflation
-                        SET us_xs_river = NULL,
+                        SET conflation_to_id = NULL,
+                            us_xs_river = NULL,
                             us_xs_reach = NULL,
                             us_xs_id = NULL,
                             ds_xs_river = NULL,
