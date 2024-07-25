@@ -1,6 +1,6 @@
 import os
 
-from ripple.ops.fim_lib import fim_model_to_stac
+from ripple.ops.fim_lib import nwm_reach_model_stac
 
 if __name__ == "__main__":
 
@@ -11,4 +11,4 @@ if __name__ == "__main__":
     )
     ras_model_s3_prefix = f"stac/test-data/fim_models/{reach_id}"
     bucket = "fim"
-    fim_model_to_stac(ras_project_directory, ras_model_s3_prefix, bucket)
+    nwm_reach_model_stac(ras_project_directory, ras_model_s3_prefix, bucket)

@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "92164ce6-5902-4778-9e17-0abcd235c90c",
+		"_postman_id": "22d602a5-053b-45ed-ae3a-191050fd1251",
 		"name": "ripple",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "29128857"
@@ -234,13 +234,13 @@
 					"response": []
 				},
 				{
-					"name": "fim_model_to_stac",
+					"name": "nwm_reach_model_stac",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/fim_models/2823932/\",\r\n    \"bucket\": \"fim\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}\r\n",
+							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/nwm_reach_models/{{nwm_reach_id}}\",\r\n    \"bucket\": \"fim\",\r\n    \"ripple_version\": \"{{ripple_version}}\"\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -248,13 +248,41 @@
 							}
 						},
 						"url": {
-							"raw": "{{url}}/processes/fim_model_to_stac/execution",
+							"raw": "{{url}}/processes/nwm_reach_model_stac/execution",
 							"host": [
 								"{{url}}"
 							],
 							"path": [
 								"processes",
-								"fim_model_to_stac",
+								"nwm_reach_model_stac",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "fim_lib_stac",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_reach_id\":\"{{nwm_reach_id}}\",\r\n    \"s3_prefix\":\"stac/test-data/fim_libs/{{nwm_reach_id}}\",\r\n    \"bucket\": \"fim\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/fim_lib_stac/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"fim_lib_stac",
 								"execution"
 							]
 						}

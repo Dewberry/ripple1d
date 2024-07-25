@@ -42,7 +42,7 @@ def main(processing_table_name: str, mip_group: str, bucket: str, nwm_pq_path: s
                 item = pystac.Item.from_file(stac_item_href)
 
                 for asset in item.get_assets(role="ras-geometry-gpkg"):
-                    ras_gpkg = href_to_vsis(item.assets[asset].href, bucket="fim")
+                    ras_gpkg = href_to_vsis(item.assets[asset].href, bucket=bucket)
 
                 if not rfc:
                     rfc = RasFimConflater(nwm_pq_path, ras_gpkg)

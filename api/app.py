@@ -10,7 +10,7 @@ from werkzeug.exceptions import BadRequest
 
 from api import tasks
 from api.utils import get_unexpected_and_missing_args
-from ripple.ops.fim_lib import create_fim_lib, fim_model_to_stac
+from ripple.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
 from ripple.ops.ras_run import (
     create_model_run_normal_depth,
     run_incremental_normal_depth,
@@ -58,10 +58,16 @@ def process__create_fim_lib():
     return enqueue_async_task(create_fim_lib)
 
 
-@app.route("/processes/fim_model_to_stac/execution", methods=["POST"])
-def process__fim_model_to_stac():
+@app.route("/processes/nwm_reach_model_stac/execution", methods=["POST"])
+def process__nwm_reach_model_stac():
     """Enqueue a task to create a stac item from a fim model."""
-    return enqueue_async_task(fim_model_to_stac)
+    return enqueue_async_task(nwm_reach_model_stac)
+
+
+@app.route("/processes/fim_lib_stac/execution", methods=["POST"])
+def process__fim_lib_stac():
+    """Enqueue a task to create a stac item from a fim library."""
+    return enqueue_async_task(fim_lib_stac)
 
 
 @app.route("/ping", methods=["GET"])
