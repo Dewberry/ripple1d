@@ -56,7 +56,6 @@ def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
     """
     layers = fiona.listlayers(gpkg_s3_uri)
     gdfs = {}
-
     for layer in layers:
         gdfs[layer] = gpd.read_file(gpkg_s3_uri, layer=layer)
 
@@ -85,7 +84,7 @@ def create_thumbnail_from_gpkg(gdfs: dict) -> plt.Figure:
 
     for layer, color in LAYER_COLORS.items():
         if layer in gdfs.keys():
-            gdfs[layer].plot(ax=ax, color=LAYER_COLORS[layer], linewidth=1, label=layer)
+            gdfs[layer].plot(ax=ax, color=color, linewidth=1, label=layer)
             crs = gdfs[layer].crs
     # Add openstreetmap basemap
     ctx.add_basemap(ax, crs=crs)

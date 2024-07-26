@@ -527,7 +527,7 @@ class Reach:
         return pd.concat([xs.gdf for xs in self.cross_sections.values()])
 
     @property
-    def xs_gdf(self):
+    def structures_gdf(self):
         """Structures geodataframe."""
         return pd.concat([structure.gdf for structure in self.structures.values()])
 

@@ -869,6 +869,13 @@ class RasGeomText(RasTextFile):
     def _river_reach_data_from_gpkg(self):
         river_gdf = gpd.read_file(self._gpkg_path, layer="River", driver="GPKG")
         xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
+
+        if "Structure" in fiona.listlayers(self._gpkg_path):
+            structure_gdf = gpd.read_file(self._gpkg_path, layer="Structure", driver="GPKG")
+            node_gdf = pd.concat([xs_gdf, structure_gdf]).sort_values(by="river_station", ascending=False)
+        else:
+            node_gdf = xs_gdf.sort_values(by="river_station", ascending=False)
+
         data = ""
         for _, row in river_gdf.iterrows():
             centroid = row.geometry.centroid
@@ -886,7 +893,7 @@ class RasGeomText(RasTextFile):
             data += f"\nRch Text X Y={centroid.x},{centroid.y}\nReverse River Text= 0 \n\n"
 
             # cross section data
-            data += xs_gdf.loc[xs_gdf["river_reach"] == row["river_reach"], "ras_data"].str.cat(sep="\n")
+            data += node_gdf.loc[node_gdf["river_reach"] == row["river_reach"], "ras_data"].str.cat(sep="\n")
 
         return data
 

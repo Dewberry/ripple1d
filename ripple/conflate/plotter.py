@@ -27,6 +27,8 @@ def plot_conflation_results(
     # Plot the centerline and cross-sections first
     rfc.ras_centerlines.plot(ax=ax, color="black", label="RAS Centerline", alpha=0.5, linestyle="dashed")
     rfc.ras_xs.plot(ax=ax, color="green", label="RAS XS", markersize=2, alpha=0.2)
+    if rfc.ras_structures is not None:
+        rfc.ras_structures.plot(ax=ax, color="grey", label="RAS Structure", markersize=2, alpha=0.2)
 
     # Get the current axis limits and create a rectangle geometry
     xlim = ax.get_xlim()

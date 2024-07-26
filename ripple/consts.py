@@ -37,7 +37,7 @@ LAYER_COLORS = OrderedDict(
         "BCLines": "brown",
         "BreakLines": "black",
         "Connections": "cyan",
-        "HydraulicStructures": "magenta",
+        "Structure": "black",
         "Mesh": "yellow",
         "River": "blue",
         "StorageAreas": "orange",

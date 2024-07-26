@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+import fiona
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString
@@ -30,6 +31,9 @@ def subset_gpkg(
     # read data
     xs_gdf = gpd.read_file(src_gpkg_path, layer="XS", driver="GPKG")
     river_gdf = gpd.read_file(src_gpkg_path, layer="River", driver="GPKG")
+    structures_gdf = None
+    if "Structure" in fiona.listlayers(src_gpkg_path):
+        structures_gdf = gpd.read_file(src_gpkg_path, layer="Structure", driver="GPKG")
     # if "Junction" in fiona.listlayers(src_gpkg_path):
     #     junction_gdf = gpd.read_file(src_gpkg_path, layer="Junction", driver="GPKG")
 
@@ -41,7 +45,13 @@ def subset_gpkg(
             & (xs_gdf["river_station"] >= float(ds_rs))
             & (xs_gdf["river_station"] <= float(us_rs))
         ]
-
+        if structures_gdf is not None:
+            structures_subset_gdf = structures_gdf.loc[
+                (structures_gdf["river"] == us_river)
+                & (structures_gdf["reach"] == us_reach)
+                & (structures_gdf["river_station"] >= float(ds_rs))
+                & (structures_gdf["river_station"] <= float(us_rs))
+            ]
         river_subset_gdf = river_gdf.loc[(river_gdf["river"] == us_river) & (river_gdf["reach"] == us_reach)]
     else:
         xs_us_reach = xs_gdf.loc[
@@ -50,6 +60,17 @@ def subset_gpkg(
         xs_ds_reach = xs_gdf.loc[
             (xs_gdf["river"] == ds_river) & (xs_gdf["reach"] == ds_reach) & (xs_gdf["river_station"] >= float(ds_rs))
         ]
+        if structures_gdf is not None:
+            structures_us_reach = structures_gdf.loc[
+                (structures_gdf["river"] == us_river)
+                & (structures_gdf["reach"] == us_reach)
+                & (structures_gdf["river_station"] <= float(us_rs))
+            ]
+            structures_ds_reach = structures_gdf.loc[
+                (structures_gdf["river"] == ds_river)
+                & (structures_gdf["reach"] == ds_reach)
+                & (structures_gdf["river_station"] >= float(ds_rs))
+            ]
 
         if xs_us_reach["river_station"].min() <= xs_ds_reach["river_station"].max():
             logging.warning(
@@ -60,8 +81,17 @@ def subset_gpkg(
             xs_us_reach["ras_data"] = xs_us_reach["ras_data"].apply(
                 lambda ras_data: update_river_station(ras_data, xs_ds_reach["river_station"].max())
             )
+            if structures_gdf is not None:
+                structures_us_reach["river_station"] = (
+                    structures_us_reach["river_station"] + structures_ds_reach["river_station"].max()
+                )
+                structures_us_reach["ras_data"] = structures_us_reach["ras_data"].apply(
+                    lambda ras_data: update_river_station(ras_data, structures_ds_reach["river_station"].max())
+                )
 
         xs_subset_gdf = pd.concat([xs_us_reach, xs_ds_reach])
+        if structures_gdf is not None:
+            structures_subset_gdf = pd.concat([structures_us_reach, structures_ds_reach])
 
         us_reach = river_gdf.loc[(river_gdf["river"] == us_river) & (river_gdf["reach"] == us_reach)]
         ds_reach = river_gdf.loc[(river_gdf["river"] == ds_river) & (river_gdf["reach"] == ds_reach)]
@@ -78,12 +108,22 @@ def subset_gpkg(
     xs_subset_gdf["reach"] = nwm_id
     xs_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
 
+    if structures_gdf is not None:
+        print(len(structures_subset_gdf))
+        structures_subset_gdf["river"] = nwm_id
+        structures_subset_gdf["reach"] = nwm_id
+        structures_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
+
     river_subset_gdf["river"] = nwm_id
     river_subset_gdf["reach"] = nwm_id
     river_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
 
     # clean river stations
     xs_subset_gdf["ras_data"] = xs_subset_gdf["ras_data"].apply(lambda ras_data: clean_river_stations(ras_data))
+    if structures_gdf is not None:
+        structures_subset_gdf["ras_data"] = structures_subset_gdf["ras_data"].apply(
+            lambda ras_data: clean_river_stations(ras_data)
+        )
 
     # check if only 1 cross section for nwm_reach
     if len(xs_subset_gdf) <= 1:
@@ -95,6 +135,8 @@ def subset_gpkg(
     new_nwm_reach_model = NwmReachModel(dst_project_dir)
     os.makedirs(dst_project_dir, exist_ok=True)
     xs_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="XS", driver="GPKG")
+    if structures_gdf is not None and len(structures_subset_gdf) > 0:
+        structures_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="Structure", driver="GPKG")
 
     # clip river to cross sections
     crs = xs_subset_gdf.crs

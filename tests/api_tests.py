@@ -13,7 +13,7 @@ from ripple.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
 
-REACH_ID = "2823932"
+REACH_ID = "2823960"
 SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter")
 SUBMODELS_BASE_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter\\submodels")
 GPKG_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.gpkg")
@@ -77,7 +77,7 @@ class TestApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.server_process = start_server()
-        time.sleep(5)  # Give the server some time to start
+        time.sleep(10)  # Give the server some time to start
 
     @check_process
     def test_a_extract_submodel(self):
