@@ -57,7 +57,6 @@ def subset_gpkg(
         ]
 
         if xs_intermediate_river_reaches:
-            print(xs_intermediate_river_reaches)
             for xs_intermediate_river_reach in xs_intermediate_river_reaches:
                 xs_intermediate_river_reach = xs_gdf.loc[xs_gdf["river_reach"] == xs_intermediate_river_reach]
                 if xs_us_reach["river_station"].min() <= xs_intermediate_river_reach["river_station"].max():
@@ -142,7 +141,6 @@ def subset_gpkg(
         if len(clipped_river_subset_gdf) == 1 & xs_subset_gdf.intersects(
             clipped_river_subset_gdf["geometry"].iloc[0]
         ).all() & isinstance(clipped_river_subset_gdf["geometry"].iloc[0], LineString):
-            print(f"buffer: {buffer}")
             break
         if buffer > 10000:
             raise ValueError(
