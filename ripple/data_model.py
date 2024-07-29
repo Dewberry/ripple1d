@@ -376,6 +376,7 @@ class Structure:
     @property
     def width(self):
         """Structure width."""
+        # TODO check units of the RAS model
         return float(self.structure_data(1))
 
     @property
@@ -492,6 +493,8 @@ class Reach:
                 cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
                 continue
             elif type == " 6 ":  # lateral structure
+                continue
+            elif type == " 5 ":  # inline structure
                 continue
             structure_lines = text_block_from_start_end_str(
                 f"Type RM Length L Ch R ={header}",

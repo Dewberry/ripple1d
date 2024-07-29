@@ -1041,7 +1041,6 @@ class RasGeomText(RasTextFile):
         if self.junctions:
             self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
         if self.structures:
-            print("matt")
             self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
 
 

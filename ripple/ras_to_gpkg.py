@@ -35,24 +35,36 @@ from ripple.utils.s3_utils import (
 )
 
 
-def geom_flow_to_gpkg(ras_text_file_path: str, crs: CRS, gpkg_file: str) -> None:
+def geom_flow_to_gpkg(
+    ras_project: RasProject, crs: CRS, gpkg_file: str, client: boto3.client = None, bucket: str = None
+) -> None:
     """Write geometry and flow data to a geopackage."""
-    layers = geom_flow_to_gdfs(ras_text_file_path, crs)
+    layers = geom_flow_to_gdfs(ras_project, crs, client, bucket)
     for layer, gdf in layers.items():
         gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
 
 
-def geom_flow_to_gdfs(ras_text_file_path: str, crs: CRS) -> gpd.GeoDataFrame:
+def geom_flow_to_gdfs(
+    ras_project: RasProject, crs: CRS, client: boto3.client = None, bucket: str = None
+) -> gpd.GeoDataFrame:
     """Write geometry and flow data to a geopackage."""
-    ras_project = RasProject(ras_text_file_path)
-
     # determine primary plan
-    plan_file = ras_text_file_path.replace(".prj", ras_project.current_plan)
-    rp = RasPlanText(plan_file, crs)
+    plan_file = ras_project._ras_text_file_path.replace(".prj", ras_project.current_plan)
 
-    rf = RasFlowText(rp.plan_steady_file)
+    if client and bucket:
+        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
 
-    rg = RasGeomText(rp.plan_geom_file, crs)
+        string = str_from_s3(rp.plan_steady_file, client, bucket)
+        rf = RasFlowText.from_str(string, " .f01")
+
+        string = str_from_s3(rp.plan_geom_file, client, bucket)
+        rg = RasGeomText.from_str(string, crs, " .g01")
+    else:
+        rp = RasPlanText(plan_file, crs)
+
+        rf = RasFlowText(rp.plan_steady_file)
+
+        rg = RasGeomText(rp.plan_geom_file, crs)
 
     layers = {}
     if rg.cross_sections:
@@ -61,8 +73,12 @@ def geom_flow_to_gdfs(ras_text_file_path: str, crs: CRS) -> gpd.GeoDataFrame:
         layers["River"] = rg.reach_gdf
     if rg.junctions:
         layers["Junction"] = rg.junction_gdf
+
     if rg.structures:
+
         layers["Structure"] = rg.structures_gdf
+        print("matt")
+        print(layers["Structure"])
     return layers
 
 
@@ -145,7 +161,8 @@ def detemine_primary_plan(
 
 def geom_to_gpkg(ras_text_file_path: str, crs: CRS, output_gpkg_path: str):
     """Write geometry and flow data to a geopackage locally."""
-    geom_flow_to_gpkg(ras_text_file_path, crs, output_gpkg_path)
+    ras_project = RasProject(ras_text_file_path)
+    geom_flow_to_gpkg(ras_project, crs, output_gpkg_path)
 
 
 def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
@@ -160,18 +177,7 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     string = str_from_s3(ras_text_file_path, client, bucket)
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
-    # determine primary plan
-    rp = detemine_primary_plan(ras_project, crs, ras_text_file_path, client, bucket)
-
-    # read flow string and write geopackage
-    string = str_from_s3(rp.plan_steady_file, client, bucket)
-    rf = RasFlowText.from_str(string, " .f01")
-
-    # read geom string and write geopackage
-    string = str_from_s3(rp.plan_geom_file, client, bucket)
-    rg = RasGeomText.from_str(string, crs, " .g01")
-
-    geom_flow_to_gpkg(ras_text_file_path, crs, temp_path)
+    geom_flow_to_gpkg(ras_project, crs, temp_path, client, bucket)
 
     # move geopackage to s3
     logging.debug(f"uploading {output_gpkg_path} to s3")
