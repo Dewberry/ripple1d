@@ -98,9 +98,23 @@ def subset_gpkg(
 
     # clip river to cross sections
     crs = xs_subset_gdf.crs
-    concave_hull = xs_concave_hull(xs_subset_gdf).to_crs(epsg=5070).buffer(10 * METERS_PER_FOOT).to_crs(crs)
-    clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
-    clipped_river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
+
+    buffer = 10
+    while True:
+        concave_hull = xs_concave_hull(xs_subset_gdf).to_crs(epsg=5070).buffer(buffer * METERS_PER_FOOT).to_crs(crs)
+        clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
+        clipped_river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
+        buffer += 10
+        if len(clipped_river_subset_gdf) == 1 & xs_subset_gdf.intersects(
+            clipped_river_subset_gdf["geometry"].iloc[0]
+        ).all() & isinstance(clipped_river_subset_gdf["geometry"].iloc[0], LineString):
+            print(f"buffer: {buffer}")
+            break
+        if buffer > 10000:
+            raise ValueError(
+                f"buffer too large (>10000ft) for clipping river to concave hull of cross sections. Check data for NWM Reach: {nwm_id}."
+            )
+            break
 
     if "flows" in xs_subset_gdf.columns:
         max_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
