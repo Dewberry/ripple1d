@@ -13,13 +13,13 @@ stac_endpoint = "https://stac2.dewberryanalytics.com"
 stac_collection = "ripple_test_data"
 source_models_dir = r"D:\Users\abdul.siddiqui\workbench\projects\production\source_models"
 aws_profile = "DewFIM"
+os.environ["AWS_PROFILE"] = aws_profile
 
 client = pystac_client.Client.open(stac_endpoint)
 collection = client.get_collection(stac_collection)
 
 session = boto3.Session(profile_name=aws_profile)
 s3_client = session.client("s3")
-
 models_data = {}
 for item in collection.get_items():
     models_data[item.id] = {}
@@ -38,9 +38,9 @@ for id, files in models_data.items():
         s3_client.download_file(bucket_name, key, local_gpkg_path)
 
         local_conflation_path = os.path.join(model_dir, f"{id}.conflation.json")
-        encoded_conflation_url = urllib.parse.quote(files["conflation"], safe=":/")
-        urllib.request.urlretrieve(encoded_conflation_url, local_conflation_path)
+        # encoded_conflation_url = urllib.parse.quote(files["conflation"], safe=":/")
+        urllib.request.urlretrieve(files["conflation"], local_conflation_path)
 
         print(f"Successfully downloaded files for {id}")
     except Exception as e:
-        print(f"Failed to download files for {id}: {e}")
+        print(f"Failed to download files for {id}: {e.__traceback__}")
