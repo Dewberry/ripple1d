@@ -5,7 +5,7 @@ Expects conflation_data table with id and to_id coloumns already populated for e
 import json
 import sqlite3
 
-model_keys = ["WFSJR 055", "WFSJ Main", "STEWARTS CREEK"]
+model_keys = ["TroupMeriwether"]
 source_models_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\source_models"
 
 
@@ -49,14 +49,36 @@ def insert_data_to_db(db_path, data, model_key):
         ds_xs_reach = value.get("ds_xs", {}).get("reach", None)
         ds_xs_id = value.get("ds_xs", {}).get("xs_id", None)
 
-        cursor.execute(
-            """
-            UPDATE conflation
-            SET model_key = ?, us_xs_river = ?, us_xs_reach = ?, us_xs_id = ?, ds_xs_river = ?, ds_xs_reach = ?, ds_xs_id = ?
-            WHERE reach_id = ?
-        """,
-            (model_key, us_xs_river, us_xs_reach, us_xs_id, ds_xs_river, ds_xs_reach, ds_xs_id, key),
-        )
+        if (us_xs_id, us_xs_reach, us_xs_river) == (str(ds_xs_id), ds_xs_reach, ds_xs_river):
+            print("single XS", model_key, us_xs_id, us_xs_reach, us_xs_river)
+            cursor.execute(
+                """
+                UPDATE conflation
+                SET
+                    model_key = ?,
+                    us_xs_id = -9999.0
+                WHERE reach_id = ?
+                AND us_xs_id IS NULL;
+            """,
+                (model_key, key),
+            )
+        else:
+            cursor.execute(
+                """
+                UPDATE conflation
+                SET
+                    model_key = ?,
+                    us_xs_river = ?,
+                    us_xs_reach = ?,
+                    us_xs_id = ?,
+                    ds_xs_river = ?,
+                    ds_xs_reach = ?,
+                    ds_xs_id = ?
+                WHERE reach_id = ?
+                AND (us_xs_id IS NULL OR us_xs_id = -9999.0);
+            """,
+                (model_key, us_xs_river, us_xs_reach, us_xs_id, ds_xs_river, ds_xs_reach, ds_xs_id, key),
+            )
 
     conn.commit()
     conn.close()

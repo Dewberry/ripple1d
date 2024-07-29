@@ -10,6 +10,7 @@ delete_submodels = False
 delete_library = False
 delete_rc_records = False
 reset_conflation_records = False
+reset_processing_records = False
 
 
 def delete_reach_data(
@@ -21,6 +22,7 @@ def delete_reach_data(
     delete_library=False,
     delete_db_records=False,
     reset_conflation_records=False,
+    reset_processing_records=False,
 ):
     # Connect to the database
     conn = sqlite3.connect(db_location)
@@ -46,6 +48,29 @@ def delete_reach_data(
                             ds_xs_reach = NULL,
                             ds_xs_id = NULL,
                             "model_key" = NULL
+                        WHERE reach_id IN ({placeholders});
+                        """,
+            reach_ids,
+        )
+        conn.commit()
+
+    if reset_processing_records:
+        placeholders = ", ".join("?" for _ in reach_ids)
+        cursor.execute(
+            f"""
+                        UPDATE processing
+                        SET extract_submodel_job_id = NULL,
+                            extract_submodel_status = NULL,
+                            create_ras_terrain_job_id = NULL,
+                            create_ras_terrain_status = NULL,
+                            create_model_run_normal_depth_job_id = NULL,
+                            create_model_run_normal_depth_status = NULL,
+                            run_incremental_normal_depth_job_id = NULL,
+                            run_incremental_normal_depth_status = NULL,
+                            run_known_wse_job_id = NULL,
+                            run_known_wse_status = NULL,
+                            create_fim_lib_job_id = NULL,
+                            create_fim_lib_status = NULL
                         WHERE reach_id IN ({placeholders});
                         """,
             reach_ids,
@@ -78,4 +103,5 @@ delete_reach_data(
     delete_library,
     delete_rc_records,
     reset_conflation_records,
+    reset_processing_records,
 )
