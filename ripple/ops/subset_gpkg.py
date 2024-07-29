@@ -116,7 +116,7 @@ def clean_river_stations(ras_data: str) -> str:
     """Clean up river station data."""
     lines = ras_data.splitlines()
     data = lines[0].split(",")
-    data[1] = str(float(lines[0].split(",")[1])).ljust(8)
+    data[1] = str(round(float(lines[0].split(",")[1]), 2)).ljust(8)
     lines[0] = ",".join(data)
     return "\n".join(lines) + "\n"
 
