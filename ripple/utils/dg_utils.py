@@ -89,13 +89,44 @@ def bbox_to_polygon(bbox) -> shapely.Polygon:
     )
 
 
-def reproject_raster(src_path: str, dest_path: str, dst_crs: CRS, resolution: float = None):
+def get_unit_name(crs: CRS):
+    """Get units from a crs object."""
+    unit_name = crs.axis_info[0].unit_name
+    english = ["ft," "FT", "feet", "Feet", "FEET", "foot", "Foot", "FOOT"]
+    metric = ["m", "M", "meter", "Meter", "METER", "meters", "Meters", "METERS"]
+    for name in english:
+        if name in unit_name:
+            return "Feet"
+    for name in metric:
+        if name in unit_name:
+            return "Meters"
+    raise ValueError(f"unrecognized units ")
+
+
+def convert_units(dst_crs: CRS, resolution: float, resolution_units: str) -> float:
+    """Convert resolution to match the units of the destination crs."""
+    dest_units = get_unit_name(dst_crs)
+    print(dest_units)
+    print(f"resolution: {resolution}")
+    if dest_units != resolution_units:
+        if resolution_units == "Feet" and dest_units == "Meters":
+            resolution = resolution * METERS_PER_FOOT
+        elif resolution_units == "Meters" and dest_units == "Feet":
+            resolution = resolution / METERS_PER_FOOT
+    print(f"resolution: {resolution}")
+    return resolution
+
+
+def reproject_raster(
+    src_path: str, dest_path: str, dst_crs: CRS, resolution: float = None, resolution_units: str = None
+):
     """Reproject/resample raster."""
     with rasterio.open(src_path) as src:
-        if not resolution:
+        if not resolution and not resolution_units:
             resolution = src.res[0]
             transform, width, height = calculate_default_transform(src.crs, dst_crs, src.width, src.height, *src.bounds)
         else:
+            resolution = convert_units(dst_crs, resolution, resolution_units)
             transform, width, height = calculate_default_transform(
                 src.crs, dst_crs, src.width, src.height, *src.bounds, resolution=resolution
             )
