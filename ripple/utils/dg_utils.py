@@ -106,14 +106,11 @@ def get_unit_name(crs: CRS):
 def convert_units(dst_crs: CRS, resolution: float, resolution_units: str) -> float:
     """Convert resolution to match the units of the destination crs."""
     dest_units = get_unit_name(dst_crs)
-    print(dest_units)
-    print(f"resolution: {resolution}")
     if dest_units != resolution_units:
         if resolution_units == "Feet" and dest_units == "Meters":
             resolution = resolution * METERS_PER_FOOT
         elif resolution_units == "Meters" and dest_units == "Feet":
             resolution = resolution / METERS_PER_FOOT
-    print(f"resolution: {resolution}")
     return resolution
 
 
