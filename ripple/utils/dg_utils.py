@@ -92,13 +92,13 @@ def bbox_to_polygon(bbox) -> shapely.Polygon:
 def get_unit_name(crs: CRS):
     """Get units from a crs object."""
     unit_name = crs.axis_info[0].unit_name
-    english = ["ft," "FT", "feet", "Feet", "FEET", "foot", "Foot", "FOOT"]
-    metric = ["m", "M", "meter", "Meter", "METER", "meters", "Meters", "METERS"]
+    english = ["ft", "feet", "foot"]
+    metric = ["m", "meter", "meters"]
     for name in english:
-        if name in unit_name:
+        if name.lower() in unit_name:
             return "Feet"
     for name in metric:
-        if name in unit_name:
+        if name.lower() in unit_name:
             return "Meters"
     raise ValueError(f"unrecognized units ")
 
