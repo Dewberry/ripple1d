@@ -52,9 +52,19 @@ def create_ras_terrain(
     terrain_source_url: str = MAP_DEM_UNCLIPPED_SRC_URL,
     vertical_units: str = MAP_DEM_VERT_UNITS,
     resolution: float = None,
+    resolution_units: str = None,
 ) -> None:
     """Create a RAS terrain file."""
     logging.info(f"Processing: {submodel_directory}")
+
+    if resolution and not resolution_units:
+        raise ValueError(
+            f"The 'resolution' arg has been provided but 'resolution_units' arg has not been provided. Please provide both"
+        )
+
+    if resolution_units:
+        if resolution_units not in ["Feet", "Meters"]:
+            raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
 
     nwm_rm = NwmReachModel(submodel_directory)
 
@@ -86,7 +96,7 @@ def create_ras_terrain(
 
     # reproject/resample dem
     logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
-    reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution)
+    reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution, resolution_units)
     os.remove(src_dem_clipped_localfile)
 
     # write projection file
