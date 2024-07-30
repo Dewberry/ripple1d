@@ -59,7 +59,7 @@ def create_ras_terrain(
 
     if resolution and not resolution_units:
         raise ValueError(
-            f"The 'resolution' arg has been provided but 'resolution_units' ar has not been provided. Please provide both"
+            f"The 'resolution' arg has been provided but 'resolution_units' arg has not been provided. Please provide both"
         )
 
     if resolution_units:
