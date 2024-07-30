@@ -95,10 +95,10 @@ def get_unit_name(crs: CRS):
     english = ["ft", "feet", "foot"]
     metric = ["m", "meter", "meters"]
     for name in english:
-        if name.lower() in unit_name:
+        if name in unit_name.lower():
             return "Feet"
     for name in metric:
-        if name.lower() in unit_name:
+        if name in unit_name.lower():
             return "Meters"
     raise ValueError(f"unrecognized units ")
 
