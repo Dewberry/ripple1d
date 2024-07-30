@@ -57,6 +57,11 @@ def create_ras_terrain(
     """Create a RAS terrain file."""
     logging.info(f"Processing: {submodel_directory}")
 
+    if resolution and not resolution_units:
+        raise ValueError(
+            f"The 'resolution' arg has been provided but 'resolution_units' ar has not been provided. Please provide both"
+        )
+
     if resolution_units:
         if resolution_units not in ["Feet", "Meters"]:
             raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
