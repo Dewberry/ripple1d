@@ -115,7 +115,16 @@ def convert_units(dst_crs: CRS, resolution: float, resolution_units: str) -> flo
 
 
 def reproject_raster(
-    src_path: str, dest_path: str, dst_crs: CRS, resolution: float = None, resolution_units: str = None
+    src_path: str,
+    dest_path: str,
+    dst_crs: CRS,
+    resolution: float = None,
+    resolution_units: str = None,
+    COMPRESS="DEFLATE",
+    PREDICTOR="3",
+    num_threads=4,
+    tiled=False,
+    blocksize=512,
 ):
     """Reproject/resample raster."""
     with rasterio.open(src_path) as src:
@@ -130,6 +139,17 @@ def reproject_raster(
         kwargs = src.meta.copy()
         kwargs.update({"crs": dst_crs, "transform": transform, "width": width, "height": height})
 
+        logging.info(resolution)
+        kwargs.update(
+            {
+                "blockysize": blocksize,
+                "blockxsize": blocksize,
+                "tiled": tiled,
+                "COMPRESS": COMPRESS,
+                "PREDICTOR": PREDICTOR,
+                "num_threads": num_threads,
+            }
+        )
         with rasterio.open(dest_path, "w", **kwargs) as dst:
             for i in range(1, src.count + 1):
                 reproject(
@@ -141,6 +161,7 @@ def reproject_raster(
                     dst_crs=dst_crs,
                     dst_resolution=resolution,
                     resampling=Resampling.nearest,
+                    kwarg=kwargs,
                 )
 
 

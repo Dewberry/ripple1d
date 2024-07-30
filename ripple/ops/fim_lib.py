@@ -22,7 +22,7 @@ from ripple.data_model import NwmReachModel
 from ripple.errors import DepthGridNotFoundError
 from ripple.ras import RasManager
 from ripple.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
-from ripple.utils.dg_utils import bbox_to_polygon, get_raster_bounds, get_raster_metadata
+from ripple.utils.dg_utils import bbox_to_polygon, get_raster_bounds, get_raster_metadata, reproject_raster
 from ripple.utils.s3_utils import get_basic_object_metadata, init_s3_resources
 from ripple.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqlite, zero_depth_to_sqlite
 
@@ -34,8 +34,20 @@ def post_process_depth_grids(
     except_missing_grid: bool = False,
     tiled=False,
     overviews=False,
+    dest_crs: CRS = 5070,
+    resolution: float = 3,
+    resolution_units: str = "Meters",
 ) -> tuple[list[str]]:
     """Clip depth grids based on their associated NWM branch and respective cross sections."""
+    if resolution and not resolution_units:
+        raise ValueError(
+            f"The 'resolution' arg has been provided but 'resolution_units' arg has not been provided. Please provide both"
+        )
+
+    if resolution_units:
+        if resolution_units not in ["Feet", "Meters"]:
+            raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
+
     missing_grids_kwse, missing_grids_nd = [], []
     for plan_name in plan_names:
         if plan_name not in rm.plans:
@@ -43,7 +55,11 @@ def post_process_depth_grids(
             continue
         for profile_name in rm.plans[plan_name].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
-            src_path = os.path.join(rm.ras_project._ras_dir, str(plan_name), f"Depth ({profile_name}).vrt")
+            src_path = os.path.join(
+                rm.ras_project._ras_dir,
+                str(plan_name),
+                f"Depth ({profile_name}).{rm.ras_project.title}.USGS_Seamless_DEM_13.tif",
+            )
 
             # if the depth grid path does not exists print a warning then continue to the next profile
             if not os.path.exists(src_path):
@@ -71,16 +87,17 @@ def post_process_depth_grids(
                 tiled = "yes"
             else:
                 tiled = "no"
-            copy_raster(
-                src_path,
-                dest_path,
-                COMPRESS="DEFLATE",
-                PREDICTOR="3",
-                num_threads=4,
-                tiled=tiled,
-                blockxsize=512,
-                blockysize=512,
-            )
+            # copy_raster(
+            #     src_path,
+            #     dest_path,
+            #     COMPRESS="DEFLATE",
+            #     PREDICTOR="3",
+            #     num_threads=4,
+            #     tiled=tiled,
+            #     blockxsize=512,
+            #     blockysize=512,
+            # )
+            reproject_raster(src_path, dest_path, CRS(dest_crs), resolution, resolution_units)
 
             # TODO currently the compression for the overviews does not seem to be working.
             # need to figure out why this is not working.
@@ -112,6 +129,8 @@ def create_fim_lib(
     table_name: str = "rating_curves",
     tiled=False,
     overviews=False,
+    resolution: float = 3,
+    resolution_units: str = "Meters",
 ):
     """Create a new FIM library for a NWM id."""
     nwm_rm = NwmReachModel(submodel_directory)
@@ -124,7 +143,14 @@ def create_fim_lib(
     ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
-        rm, ras_plans, nwm_rm.fim_results_directory, except_missing_grid=True, tiled=tiled, overviews=overviews
+        rm,
+        ras_plans,
+        nwm_rm.fim_results_directory,
+        except_missing_grid=True,
+        tiled=tiled,
+        overviews=overviews,
+        resolution=resolution,
+        resolution_units=resolution_units,
     )
 
     # create dabase and table
