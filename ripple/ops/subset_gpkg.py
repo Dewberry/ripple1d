@@ -116,7 +116,7 @@ def subset_gpkg(
 
     # clean river stations
     xs_subset_gdf["ras_data"] = xs_subset_gdf["ras_data"].apply(lambda ras_data: clean_river_stations(ras_data))
-    xs_subset_gdf["river_station"] = xs_subset_gdf["river_station"].round(2)
+    xs_subset_gdf["river_station"] = xs_subset_gdf["river_station"].round().astype(float)
 
     # check if only 1 cross section for nwm_reach
     if len(xs_subset_gdf) <= 1:
@@ -138,6 +138,7 @@ def subset_gpkg(
         clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
         clipped_river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
         buffer += 10
+        print(buffer)
         if len(clipped_river_subset_gdf) == 1 & xs_subset_gdf.intersects(
             clipped_river_subset_gdf["geometry"].iloc[0]
         ).all() & isinstance(clipped_river_subset_gdf["geometry"].iloc[0], LineString):
@@ -164,7 +165,9 @@ def walk_junctions(junction_gdf, us_river, us_reach, ds_river, ds_reach) -> tupl
     if not junction_gdf.empty:
         while True:
             for _, row in junction_gdf.iterrows():
+
                 us_rivers = row.us_rivers.split(",")
+                print(us_rivers)
                 us_reaches = row.us_reaches.split(",")
 
                 for river, reach in zip(us_rivers, us_reaches):
@@ -180,7 +183,7 @@ def clean_river_stations(ras_data: str) -> str:
     """Clean up river station data."""
     lines = ras_data.splitlines()
     data = lines[0].split(",")
-    data[1] = str(round(float(lines[0].split(",")[1]), 2)).ljust(8)
+    data[1] = str(float(round(float(lines[0].split(",")[1])))).ljust(8)
     lines[0] = ",".join(data)
     return "\n".join(lines) + "\n"
 
