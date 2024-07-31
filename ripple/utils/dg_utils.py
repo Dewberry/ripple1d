@@ -89,19 +89,67 @@ def bbox_to_polygon(bbox) -> shapely.Polygon:
     )
 
 
-def reproject_raster(src_path: str, dest_path: str, dst_crs: CRS, resolution: float = None):
+def get_unit_name(crs: CRS):
+    """Get units from a crs object."""
+    unit_name = crs.axis_info[0].unit_name
+    english = ["ft", "feet", "foot"]
+    metric = ["m", "meter", "meters"]
+    for name in english:
+        if name in unit_name.lower():
+            return "Feet"
+    for name in metric:
+        if name in unit_name.lower():
+            return "Meters"
+    raise ValueError(f"unrecognized units ")
+
+
+def convert_units(dst_crs: CRS, resolution: float, resolution_units: str) -> float:
+    """Convert resolution to match the units of the destination crs."""
+    dest_units = get_unit_name(dst_crs)
+    if dest_units != resolution_units:
+        if resolution_units == "Feet" and dest_units == "Meters":
+            resolution = resolution * METERS_PER_FOOT
+        elif resolution_units == "Meters" and dest_units == "Feet":
+            resolution = resolution / METERS_PER_FOOT
+    return resolution
+
+
+def reproject_raster(
+    src_path: str,
+    dest_path: str,
+    dst_crs: CRS,
+    resolution: float = None,
+    resolution_units: str = None,
+    COMPRESS="DEFLATE",
+    PREDICTOR="3",
+    num_threads=4,
+    tiled=False,
+    blocksize=512,
+):
     """Reproject/resample raster."""
     with rasterio.open(src_path) as src:
-        if not resolution:
+        if not resolution and not resolution_units:
             resolution = src.res[0]
             transform, width, height = calculate_default_transform(src.crs, dst_crs, src.width, src.height, *src.bounds)
         else:
+            resolution = convert_units(dst_crs, resolution, resolution_units)
             transform, width, height = calculate_default_transform(
                 src.crs, dst_crs, src.width, src.height, *src.bounds, resolution=resolution
             )
         kwargs = src.meta.copy()
         kwargs.update({"crs": dst_crs, "transform": transform, "width": width, "height": height})
 
+        logging.info(resolution)
+        kwargs.update(
+            {
+                "blockysize": blocksize,
+                "blockxsize": blocksize,
+                "tiled": tiled,
+                "COMPRESS": COMPRESS,
+                "PREDICTOR": PREDICTOR,
+                "num_threads": num_threads,
+            }
+        )
         with rasterio.open(dest_path, "w", **kwargs) as dst:
             for i in range(1, src.count + 1):
                 reproject(
@@ -113,6 +161,7 @@ def reproject_raster(src_path: str, dest_path: str, dst_crs: CRS, resolution: fl
                     dst_crs=dst_crs,
                     dst_resolution=resolution,
                     resampling=Resampling.nearest,
+                    kwarg=kwargs,
                 )
 
 
