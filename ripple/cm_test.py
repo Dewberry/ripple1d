@@ -1,7 +1,7 @@
 import json
 
 #from ripple.conflation_metrics import RiverConflation
-from conflation_metrics import RiverConflation
+from conflation_metrics import CoverageCalculator
 
 test_reaches = [
     2823972,
@@ -17,17 +17,22 @@ test_reaches = [
     2820002,
 ]
 
+
 if __name__ == "__main__":
-    conflation_file = r"/Users/ariellebiro/Dropbox/Mac/Desktop/py_scripts/ripple/tests/ras-data/Baxter/Baxter.conflation.json"
-    
-    river_id = test_reaches[1]
+    conflation_file = r"C:\Users\abiro\OneDrive - Dewberry\Documents\ripple\tests\ras-data\Baxter\Baxter.conflation.json"
+
+    river_id = test_reaches[3]
     try:
-        conflation = RiverConflation(
-            json_data_path=conflation_file,
-            parquet_data_path = r"/Users/ariellebiro/Dropbox/Mac/Desktop/py_scripts/ripple/tests/nwm-data/flows.parquet",
-            gpkg_data_path = r"/Users/ariellebiro/Dropbox/Mac/Desktop/py_scripts/ripple/tests/ras-data/Baxter/Baxter.gpkg",
+        calculator = CoverageCalculator(
+            json_data_path = conflation_file,
+            parquet_data_path = r"C:\Users\abiro\OneDrive - Dewberry\Documents\ripple\tests\nwm-data\flows.parquet",
+            gpkg_data_path= r"C:\Users\abiro\OneDrive - Dewberry\Documents\ripple\tests\ras-data\Baxter\Baxter.gpkg",
             river_id=river_id
         )
-        print(river_id, conflation.generate_conflation_results())
+        pct_coverage, us_point_gdf, ds_point_gdf, = calculator.calculate_coverage()
+        print("conflation results")
+        print(f"quantitative coverage: {round(pct_coverage, 2)}%")
+        print(f"upstream point: {us_point_gdf['section'].iloc[0]}")
+        print(f"downstream point: {ds_point_gdf['section'].iloc[0]}")
     except Exception as e:
         print(f"{river_id}:{e}")
