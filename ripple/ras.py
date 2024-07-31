@@ -174,7 +174,7 @@ class RasManager:
             ras_project_text_file,
             version,
             terrain_path=terrain_path,
-            crs=gpd.read_file(ras_gpkg_file_path).crs,
+            crs=gpd.read_file(ras_gpkg_file_path, layer="XS").crs,
             new_project=True,
         )
 
@@ -892,7 +892,7 @@ class RasGeomText(RasTextFile):
 
             data += f"\nRch Text X Y={centroid.x},{centroid.y}\nReverse River Text= 0 \n\n"
 
-            # cross section data
+            # cross section and structures data
             data += node_gdf.loc[node_gdf["river_reach"] == row["river_reach"], "ras_data"].str.cat(sep="\n")
 
         return data

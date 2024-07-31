@@ -13,7 +13,7 @@ from ripple.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
 
-REACH_ID = "2823960"
+REACH_ID = "2823932"
 SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter")
 SUBMODELS_BASE_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter\\submodels")
 GPKG_FILE = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.gpkg")
@@ -56,7 +56,7 @@ def wait_for_job(job_id: str):
         if job_status in ["successful", "failed"]:
 
             return job_status
-        time.sleep(5)  # Wait for 10 seconds before checking again
+        time.sleep(7)  # Wait for 10 seconds before checking again
 
 
 def check_process(func):
