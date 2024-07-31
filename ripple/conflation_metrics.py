@@ -1,40 +1,39 @@
-import pandas as pd
+import json
+
 import geopandas as gpd
+import pandas as pd
+from geopandas.tools import sjoin
 from shapely.geometry import LineString, Point
 from shapely.ops import unary_union
-from geopandas.tools import sjoin
-import json
+
 
 class CoverageCalculator:
     """Read and load in files"""
+
     def __init__(self, json_data_path, parquet_data_path, gpkg_data_path, river_id):
         self.parq = pd.read_parquet(parquet_data_path)
-        with open(json_data_path, 'r') as f:
+        with open(json_data_path, "r") as f:
             self.json_data = json.load(f)
-        self.xs = gpd.read_file(gpkg_data_path, layer='XS')
-        self.test = gpd.read_file(gpkg_data_path, layer='XS')  # Specify the correct layer
-        self.river = gpd.read_file(gpkg_data_path, layer='River')
+        self.xs = gpd.read_file(gpkg_data_path, layer="XS")
+        self.test = gpd.read_file(gpkg_data_path, layer="XS")  # Specify the correct layer
+        self.river = gpd.read_file(gpkg_data_path, layer="River")
         self.river_id = river_id
 
-    """Function to cut reaches in thirds"""
     def cut(self, line, distance):
+        """Cut reaches in thirds."""
         if distance <= 0.0 or distance >= line.length:
             return [LineString(line)]
         coords = list(line.coords)
         for i, p in enumerate(coords):
             pd = line.project(Point(p))
             if pd == distance:
-                return [
-                    LineString(coords[:i+1]),
-                    LineString(coords[i:])]
+                return [LineString(coords[: i + 1]), LineString(coords[i:])]
             if pd > distance:
                 cp = line.interpolate(distance)
-                return [
-                    LineString(coords[:i] + [(cp.x, cp.y)]),
-                    LineString([(cp.x, cp.y)] + coords[i:])]
+                return [LineString(coords[:i] + [(cp.x, cp.y)]), LineString([(cp.x, cp.y)] + coords[i:])]
 
-    """Cut river into thirds"""
     def split_river_into_thirds(self, baxter_reach):
+        """Cut river into thirds."""
         linestring = baxter_reach.geometry.iloc[0]
         total_length = linestring.length
 
@@ -42,33 +41,35 @@ class CoverageCalculator:
         third2, third3 = self.cut(remaining, total_length / 3)
 
         bu_thirds = gpd.GeoDataFrame(geometry=[third1, third2, third3], crs=baxter_reach.crs)
-        bu_thirds['section'] = ['upstream', 'middle', 'downstream']
-        
+        bu_thirds["section"] = ["upstream", "middle", "downstream"]
+
         bu_thirds_buffered = bu_thirds.copy()
         bu_thirds_buffered.geometry = bu_thirds.geometry.buffer(0.0001)
 
         return bu_thirds_buffered
 
-    """Calculate how much of the river is covered by crosssections"""
     def calculate_coverage(self):
+        """Calculate how much of the river is covered by crosssections."""
         parq_id = self.river_id
-        new_test = self.parq[self.parq['ID'] == parq_id]
+        new_test = self.parq[self.parq["ID"] == parq_id]
 
-        json_us_xsid = self.json_data[str(parq_id)]['us_xs']['xs_id']
-        json_ds_xsid = self.json_data[str(parq_id)]['ds_xs']['xs_id']
-        us_filtered = self.xs[self.xs['river_station'] == float(json_us_xsid)]
-        ds_filtered = self.xs[self.xs['river_station'] == float(json_ds_xsid)]
+        json_us_xsid = self.json_data[str(parq_id)]["us_xs"]["xs_id"]
+        json_ds_xsid = self.json_data[str(parq_id)]["ds_xs"]["xs_id"]
+        us_filtered = self.xs[self.xs["river_station"] == float(json_us_xsid)]
+        ds_filtered = self.xs[self.xs["river_station"] == float(json_ds_xsid)]
 
-        if us_filtered['reach'].values[0] != ds_filtered['reach'].values[0]:
-            reach_us = us_filtered['reach'].values[0]
-            reach_ds = ds_filtered['reach'].values[0]
-            riv_filtered = self.test[(self.test['reach'].isin([reach_us, reach_ds])) & 
-                                     (self.test['river_station'].isin([float(json_us_xsid), float(json_ds_xsid)]))]
+        if us_filtered["reach"].values[0] != ds_filtered["reach"].values[0]:
+            reach_us = us_filtered["reach"].values[0]
+            reach_ds = ds_filtered["reach"].values[0]
+            riv_filtered = self.test[
+                (self.test["reach"].isin([reach_us, reach_ds]))
+                & (self.test["river_station"].isin([float(json_us_xsid), float(json_ds_xsid)]))
+            ]
         else:
-            riv_filtered = self.test[self.test['river_station'] == float(json_us_xsid)]
+            riv_filtered = self.test[self.test["river_station"] == float(json_us_xsid)]
 
-        reaches_in_riv_filtered = riv_filtered['reach'].unique()
-        baxter_reach = self.river[self.river['reach'].isin(reaches_in_riv_filtered)]
+        reaches_in_riv_filtered = riv_filtered["reach"].unique()
+        baxter_reach = self.river[self.river["reach"].isin(reaches_in_riv_filtered)]
 
         combined_baxter_reach = baxter_reach.geometry.unary_union
 
@@ -108,8 +109,11 @@ class CoverageCalculator:
             bu_thirds_buffered = bu_thirds_buffered.to_crs(target_crs)
 
         """Figure out which part of the river is covered by xs"""
-        us_point_gdf = sjoin(us_point_gdf, bu_thirds_buffered, how='left', predicate='intersects')
-        ds_point_gdf = sjoin(ds_point_gdf, bu_thirds_buffered, how='left', predicate='intersects')
+        us_point_gdf = sjoin(us_point_gdf, bu_thirds_buffered, how="left", predicate="intersects")
+        ds_point_gdf = sjoin(ds_point_gdf, bu_thirds_buffered, how="left", predicate="intersects")
 
-        return pct_coverage, us_point_gdf, ds_point_gdf
-
+        return {
+            "pct_coverage": float(round(pct_coverage, 2)),
+            "upstream_xs": us_point_gdf["section"].iloc[0],
+            "ds_point_gdf": ds_point_gdf["section"].iloc[0],
+        }
