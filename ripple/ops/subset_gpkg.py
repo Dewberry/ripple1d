@@ -34,8 +34,8 @@ def subset_gpkg(
     structures_gdf = None
     if "Structure" in fiona.listlayers(src_gpkg_path):
         structures_gdf = gpd.read_file(src_gpkg_path, layer="Structure", driver="GPKG")
-    # if "Junction" in fiona.listlayers(src_gpkg_path):
-    #     junction_gdf = gpd.read_file(src_gpkg_path, layer="Junction", driver="GPKG")
+    if "Junction" in fiona.listlayers(src_gpkg_path):
+        junction_gdf = gpd.read_file(src_gpkg_path, layer="Junction", driver="GPKG")
 
     # subset data
     if us_river == ds_river and us_reach == ds_reach:
@@ -54,6 +54,10 @@ def subset_gpkg(
             ]
         river_subset_gdf = river_gdf.loc[(river_gdf["river"] == us_river) & (river_gdf["reach"] == us_reach)]
     else:
+        if "Junction" in fiona.listlayers(src_gpkg_path):
+            junction_gdf = gpd.read_file(src_gpkg_path, layer="Junction", driver="GPKG")
+            xs_intermediate_river_reaches = walk_junctions(junction_gdf, us_river, us_reach, ds_river, ds_reach)
+
         xs_us_reach = xs_gdf.loc[
             (xs_gdf["river"] == us_river) & (xs_gdf["reach"] == us_reach) & (xs_gdf["river_station"] <= float(us_rs))
         ]
@@ -71,6 +75,25 @@ def subset_gpkg(
                 & (structures_gdf["reach"] == ds_reach)
                 & (structures_gdf["river_station"] >= float(ds_rs))
             ]
+
+        if xs_intermediate_river_reaches:
+            for xs_intermediate_river_reach in xs_intermediate_river_reaches:
+                xs_intermediate_river_reach = xs_gdf.loc[xs_gdf["river_reach"] == xs_intermediate_river_reach]
+                if xs_us_reach["river_station"].min() <= xs_intermediate_river_reach["river_station"].max():
+                    logging.warning(
+                        f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
+                        f" than the highest river station on the intermediate reach ({xs_intermediate_river_reach['river_station'].max()}) for nwm_id: {nwm_id}"
+                    )
+                    xs_us_reach["river_station"] = (
+                        xs_us_reach["river_station"] + xs_intermediate_river_reach["river_station"].max()
+                    )
+                    xs_us_reach["ras_data"] = xs_us_reach["ras_data"].apply(
+                        lambda ras_data: update_river_station(
+                            ras_data, xs_intermediate_river_reach["river_station"].max()
+                        )
+                    )
+
+                xs_us_reach = pd.concat([xs_us_reach, xs_intermediate_river_reach])
 
         if xs_us_reach["river_station"].min() <= xs_ds_reach["river_station"].max():
             logging.warning(
@@ -95,7 +118,15 @@ def subset_gpkg(
 
         us_reach = river_gdf.loc[(river_gdf["river"] == us_river) & (river_gdf["reach"] == us_reach)]
         ds_reach = river_gdf.loc[(river_gdf["river"] == ds_river) & (river_gdf["reach"] == ds_reach)]
-        coords = list(us_reach.iloc[0]["geometry"].coords) + list(ds_reach.iloc[0]["geometry"].coords)
+
+        # handle river reach coords
+        coords = list(us_reach.iloc[0]["geometry"].coords)
+        if xs_intermediate_river_reaches:
+            for xs_intermediate_river_reach in xs_intermediate_river_reaches:
+                intermediate_river_reach = river_gdf.loc[river_gdf["river_reach"] == xs_intermediate_river_reach]
+                coords += list(intermediate_river_reach.iloc[0]["geometry"].coords)
+        coords += list(ds_reach.iloc[0]["geometry"].coords)
+
         river_subset_gdf = gpd.GeoDataFrame(
             {"geometry": [LineString(coords)], "river": [nwm_id], "reach": [nwm_id]},
             geometry="geometry",
@@ -124,6 +155,7 @@ def subset_gpkg(
         structures_subset_gdf["ras_data"] = structures_subset_gdf["ras_data"].apply(
             lambda ras_data: clean_river_stations(ras_data)
         )
+    xs_subset_gdf["river_station"] = xs_subset_gdf["river_station"].round().astype(float)
 
     # check if only 1 cross section for nwm_reach
     if len(xs_subset_gdf) <= 1:
@@ -140,9 +172,23 @@ def subset_gpkg(
 
     # clip river to cross sections
     crs = xs_subset_gdf.crs
-    concave_hull = xs_concave_hull(xs_subset_gdf).to_crs(epsg=5070).buffer(10 * METERS_PER_FOOT).to_crs(crs)
-    clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
-    clipped_river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
+
+    buffer = 10
+    while True:
+        concave_hull = xs_concave_hull(xs_subset_gdf).to_crs(epsg=5070).buffer(buffer * METERS_PER_FOOT).to_crs(crs)
+        clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
+        clipped_river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
+        buffer += 10
+        print(buffer)
+        if len(clipped_river_subset_gdf) == 1 & xs_subset_gdf.intersects(
+            clipped_river_subset_gdf["geometry"].iloc[0]
+        ).all() & isinstance(clipped_river_subset_gdf["geometry"].iloc[0], LineString):
+            break
+        if buffer > 10000:
+            raise ValueError(
+                f"buffer too large (>10000ft) for clipping river to concave hull of cross sections. Check data for NWM Reach: {nwm_id}."
+            )
+            break
 
     if "flows" in xs_subset_gdf.columns:
         max_flow = xs_subset_gdf["flows"].str.split("\n", expand=True).astype(float).max().max()
@@ -154,11 +200,31 @@ def subset_gpkg(
     return new_nwm_reach_model.ras_gpkg_file, xs_subset_gdf.crs.to_epsg(), max_flow, min_flow
 
 
+def walk_junctions(junction_gdf, us_river, us_reach, ds_river, ds_reach) -> tuple:
+    """Check if junctions are present for the given river-reaches."""
+    river_reaches = []
+    if not junction_gdf.empty:
+        while True:
+            for _, row in junction_gdf.iterrows():
+
+                us_rivers = row.us_rivers.split(",")
+                print(us_rivers)
+                us_reaches = row.us_reaches.split(",")
+
+                for river, reach in zip(us_rivers, us_reaches):
+                    if row.ds_rivers == ds_river and row.ds_reaches == ds_reach:
+                        return river_reaches
+                    if river == us_river and reach == us_reach:
+                        river_reaches.append(f"{row.ds_rivers.ljust(16)},{row.ds_reaches.ljust(16)}")
+                        us_river = row.ds_rivers
+                        us_reach = row.ds_reaches
+
+
 def clean_river_stations(ras_data: str) -> str:
     """Clean up river station data."""
     lines = ras_data.splitlines()
     data = lines[0].split(",")
-    data[1] = str(float(lines[0].split(",")[1])).ljust(8)
+    data[1] = str(float(round(float(lines[0].split(",")[1])))).ljust(8)
     lines[0] = ",".join(data)
     return "\n".join(lines) + "\n"
 

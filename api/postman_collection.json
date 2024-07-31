@@ -100,7 +100,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"resolution\": 3,\r\n    \"resolution_units\": \"Meters\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -156,7 +156,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"model_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -212,7 +212,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"]\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"resolution\":3,\r\n    \"resolution_units\":\"Meters\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
