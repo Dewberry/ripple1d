@@ -2,7 +2,7 @@
 [![CI](https://github.com/dewberry/ripple/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/dewberry/ripple/actions/workflows/ci.yaml)
 
 
-Utilities for updating HEC-RAS models for use in the development of Flood Inundation Maps (FIM's) in support of the Nationa Water Model. 
+Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) in support of the NOAA Office of Water Prediction. 
 
 ## Contents
 
