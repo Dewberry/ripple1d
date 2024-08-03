@@ -2,7 +2,7 @@
 [![CI](https://github.com/dewberry/ripple/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/dewberry/ripple/actions/workflows/ci.yaml)
 
 
-Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) in support of the NOAA Office of Water Prediction. 
+Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model network.
 
 ## Contents
 
