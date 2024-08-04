@@ -116,10 +116,11 @@ class RippleManager:
 
         # Check if Flask started successfully
         try:
-            flask_result.wait(timeout=10)
+            flask_result.wait(timeout=5)
             if flask_result.returncode != 0:
                 raise subprocess.CalledProcessError(flask_result.returncode, flask_command, stderr=flask_result.stderr)
             self.processes.append((flask_result, "flask"))
+            print("Success!")
         except subprocess.TimeoutExpired:
             self.processes.append((flask_result, "flask"))
         except subprocess.CalledProcessError as e:
@@ -135,19 +136,28 @@ class RippleManager:
             existing_pids = []
 
         # Append new PIDs to the existing list with start time, status, and type
-        new_pids = [
-            {
-                "pid": process[0].pid if process[0] else None,
-                "start_time": datetime.now().isoformat(),
-                "stop_time": None,
-                "status": "running" if process[0] and process[0].poll() is None else "failed",
-                "type": process[1],
+        new_pids = []
+        for process, process_type in self.processes:
+            pid = process.pid if process else None
+            start_time = datetime.now().isoformat()
+            stop_time = None
+            if pid:
+                status = "running"
+            else:
+                status = "failed"
+
+            pid_info = {
+                "pid": pid,
+                "start_time": start_time,
+                "stop_time": stop_time,
+                "status": status,
+                "type": process_type,
             }
-            for process in self.processes
-        ]
+
+            new_pids.append(pid_info)
+
         all_pids = existing_pids + new_pids
 
-        # Write the updated list of PIDs back to the file
         with open(self.pids_file, "w") as f:
             json.dump(all_pids, f, indent=4)
 
@@ -163,16 +173,13 @@ class RippleManager:
         for pid_info in pids_info:
             pid = pid_info["pid"]
             if pid is None:
-                continue
+                print(f"PID {pid} not found")
             try:
                 process = psutil.Process(pid)
-                if process.is_running() and process.status() != psutil.STATUS_ZOMBIE:
-                    pid_info["status"] = "running"
-                else:
-                    pid_info["status"] = "stopped"
-                    process.terminate()
-                    process.wait(timeout=5)
-                    pid_info["stop_time"] = datetime.now().isoformat()
+                process.terminate()
+                process.wait(timeout=5)
+                pid_info["status"] = "stopped"
+                pid_info["stop_time"] = datetime.now().isoformat()
             except psutil.NoSuchProcess:
                 error_message = f"Error terminating process PID: {pid}, error: process PID not found (pid={pid})"
                 print(error_message)
@@ -211,10 +218,6 @@ class RippleManager:
             print(
                 f"PID: {pid_info['pid']}, Type: {pid_info['type']}, Start Time: {pid_info['start_time']}, Stop Time: {pid_info['stop_time']}, Status: {pid_info['status']}"
             )
-
-        # Write the updated status back to the file
-        with open(self.pids_file, "w") as f:
-            json.dump(pids_info, f, indent=4)
 
 
 def main():
