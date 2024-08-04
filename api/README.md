@@ -1,35 +1,79 @@
-# API
+# Ripple Services Documentation
 
-The REST API server leverages huey for concurrent task (job) execution, and Flask as the user HTTP REST interface into the huey
+## Overview
+Ripple ships with a REST API server leverages huey for concurrent task (job) execution, and Flask as the user HTTP REST interface into the huey
 system. The HTTP endpoints adhere closely to [OGC Process API](https://ogcapi.ogc.org/processes/overview.html) standards.
 
-## Environment Requirements of the API
+This document provides an overview of the REST endpoints available in the application. The API allows you to manage various tasks related to the creation and execution of models, terrain, and other processes.
 
-1. Windows host with Desktop Experience, due to its usage of the HEC-RAS GUI.
-1. A virtual Python environment with dependencies installed per [pyproject.toml](../pyproject.toml).
-1. HEC-RAS installed, and EULA accepted. For each version of RAS, open the program once to read and accept the EULA.
+Included in this directory is a [postman collection](postman_collection.json) which provides example usage including inputs for each of the endpoints outlined here.
 
+## Endpoints
 
-## API Launch Steps
+### Health Check
 
-1. Initialize or edit `.env` as necessary to specify the virtual Python environment to use, the number of huey threads to use, data access credentials, etc. Care should be taken not to include the same variable names in [.flaskenv](../.flaskenv) and in `.env`.
-1. If necessary, edit [.flaskenv](../.flaskenv) (do not store any secrets or credentials in this file!)
+- **Endpoint**: `/ping`
+- **Method**: `GET`
+- **Description**: Check the health of the service.
+- **Response**: 
+  - `200 OK` with JSON `{"status": "healthy"}`
 
-### via python:
-1. Open a terminal with the virtual environment activated and navigate to the top level of the ripple directory.
-1. Run `python ripple_api.py start` to start the Huey and Flask servers. Two terminals should open. (A `pids.txt`) file will be created at the same level storing the pid's for both tasks.
-1. Run `python ripple_api.py stop` to shutdown the Huey and Flask servers. Running this command will kill all processes associated and remove the `pids.txt` file.
+### Task Execution Endpoints
 
-### via .bat script:
-1. Double-click [api-start.bat](../api-start.bat). This will cause two Windows terminals to open. One will be running huey and the other will be running Flask. **Warning: this will delete and re-initialize the `api\logs\` directory, which includes the huey tasks database in addition to the log files.**
-1. Double-click [api-test.bat](../api-test.bat). This will send some requests to the API confirming that it is online and ready to process jobs.
+- **Endpoint**: `/processes/extract_submodel/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to create a new GeoPackage.
 
-## API Administration Notes
+- **Endpoint**: `/processes/create_ras_terrain/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to create a new RAS terrain.
 
-**Warning: [api-start.bat](../api-start.bat) will delete and re-initialize the `api\logs\` directory, which includes the huey tasks database in addition to the log files.**
+- **Endpoint**: `/processes/create_model_run_normal_depth/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to calculate the initial normal depth.
 
-**huey** is configured to use a local SQLite database as its store for managing tasks and storing their returned values. If the db file
-does not exist, it will be created when the huey consumer is executed. If it does exist, it will be used as-is and not overridden.
-Therefore if the server administrator needs to ungracefully stop all tasks and/or re-start the server, then if they want to be sure that
-any existing tasks are fully cleared / removed from the system, they should manually delete the db file themselves before re-starting
-the server.
+- **Endpoint**: `/processes/run_incremental_normal_depth/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to calculate the incremental normal depth.
+
+- **Endpoint**: `/processes/run_known_wse/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to calculate the water surface elevation (WSE) based on known inputs.
+
+- **Endpoint**: `/processes/create_fim_lib/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to create a FIM library.
+
+- **Endpoint**: `/processes/nwm_reach_model_stac/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to create a stac item from a FIM model.
+
+- **Endpoint**: `/processes/fim_lib_stac/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task to create a stac item from a FIM library.
+
+- **Endpoint**: `/processes/test/execution`
+  - **Method**: `POST`
+  - **Description**: Test the execution and monitoring of an asynchronous task.
+
+- **Endpoint**: `/processes/sleep/execution`
+  - **Method**: `POST`
+  - **Description**: Enqueue a task that sleeps for 15 seconds.
+
+### Job Management Endpoints
+
+- **Endpoint**: `/jobs/<task_id>`
+  - **Method**: `GET`
+  - **Description**: Retrieve OGC status and result for one job.
+  - **Query Parameters**:
+    - `tb`: Choices are `['true', 'false']`. Defaults to `false`. If `true`, the job result's traceback will be included in the response.
+
+- **Endpoint**: `/jobs`
+  - **Method**: `GET`
+  - **Description**: Retrieve OGC status and result for all jobs.
+  - **Query Parameters**:
+    - `tb`: Choices are `['true', 'false']`. Defaults to `false`. If `true`, each job result's traceback will be included in the response.
+
+- **Endpoint**: `/jobs/<task_id>`
+  - **Method**: `DELETE`
+  - **Description**: Dismiss a specific task by its ID.
