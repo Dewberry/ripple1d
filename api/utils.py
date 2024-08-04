@@ -1,10 +1,12 @@
 """Generic utilities supporting the huey + Flask REST API."""
 
-from functools import wraps
 import inspect
 import logging
+import os
+import sysconfig
 import traceback
 import typing
+from functools import wraps
 
 
 def tracerbacker(func: typing.Callable) -> tuple[typing.Any, str | None, str | None]:
@@ -55,3 +57,17 @@ def get_unexpected_and_missing_args(func: typing.Callable, kwargs_provided: set)
         required = set(argspec.args)
     missing = required - kwargs_provided
     return sorted(unexpected), sorted(missing)
+
+
+def find_huey_consumer():
+    """Find the huey_consumer.py file in the installed packages and return its path."""
+    site_packages_path = sysconfig.get_paths()["purelib"]
+
+    for root, dirs, files in os.walk(site_packages_path):
+        if "huey_consumer.py" in files:
+            huey_consumer_path = os.path.join(root, "huey_consumer.py")
+            print(f"Found huey_consumer.py at: {huey_consumer_path}")
+            return huey_consumer_path
+
+    print("huey_consumer.py not found in installed packages.")
+    return None

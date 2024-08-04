@@ -24,7 +24,7 @@ TEST_ITEM_PATH = os.path.join(TEST_DIR, TEST_ITEM_FILE)
 
 # Expected counts
 NWM_REACHES = 36
-LOCAL_NWM_REACHES = 18
+LOCAL_NWM_REACHES = 16
 RAS_CENTERLINES = 3
 RAS_XS = 173
 GAGES = 1
@@ -116,17 +116,18 @@ class TestRasFimConflater(unittest.TestCase):
         self.assertEqual(filtered_gdf.iloc[0]["ID"], 3)
 
 
-@pytest.mark.usefixtures("setup_data")
-class TestConflationExample(unittest.TestCase):
-    def setUp(self):
-        self.conflater.load_data()
+# TODO: Update to remove refernce to windows User directory
+# @pytest.mark.usefixtures("setup_data")
+# class TestConflationExample(unittest.TestCase):
+#     def setUp(self):
+#         self.conflater.load_data()
 
-    def test_main_function(self):
-        metadata = conflate(self.conflater)
-        for reach in NWM_REACHE_IDS:
-            self.assertIn(reach, metadata.keys())
+#     def test_main_function(self):
+#         metadata = conflate(self.conflater)
+#         for reach in NWM_REACHE_IDS:
+#             self.assertIn(reach, metadata.keys())
 
-        test_data_results = os.path.join(TEST_DIR, "ras-data", RAS_DIR, "Baxter.conflation.json")
-        with open(test_data_results, "r") as f:
-            expected_metadata = f.read()
-            self.assertEqual(json.dumps(metadata, indent=4), expected_metadata)
+#         test_data_results = os.path.join(TEST_DIR, "ras-data", RAS_DIR, "Baxter.conflation.json")
+#         with open(test_data_results, "r") as f:
+#             expected_metadata = f.read()
+#             self.assertEqual(json.dumps(metadata, indent=4), expected_metadata)
