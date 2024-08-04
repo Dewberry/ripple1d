@@ -16,26 +16,9 @@ Utilities for repurposing HEC-RAS models for use in the production of Flood Inun
 
 Ripple requires Python version >=3.10 on a Windows host. 
 
-## Usage
-
-When successfully installed, a standalone executable will be available (stored in the path) allowing you to manage the Flask API and Huey consumer direcly by calling `ripple` in either a Command Prompt or PowerShell termiak. Below are the steps to start, stop, and check the status of the Ripple Manager..
-
-1. **Start the Ripple Services**:
-    ```powershell
-    ripple start  --flask_port 5000 --thread_count 5 
-    ```
-1. **Check the status**:
-    ```powershell
-    ripple status --pids_file ./process-ids.json
-    ```
-1. **Stop the Ripple Services**:
-    ```powershell
-    python ripple_manager.py stop --pids_file ./process-ids.json
-    ```
 
 
-
-For a full test of the REST API see the [REST API documentation](api/README.md).
+For a full test of the REST API see the [REST API documentation](docs/api/README.rst).
 
 ## Installing Ripple
 

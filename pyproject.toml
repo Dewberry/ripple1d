@@ -71,3 +71,8 @@ exclude = ["production"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ripple*", "api*"]
+
+
+[tool.sphinx]
+project = "ripple"
+author = "Seth Lawler"
