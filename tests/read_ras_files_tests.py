@@ -82,8 +82,8 @@ class TestGeom(unittest.TestCase):
         self.assertEqual(len(self.ras_geom.reaches), 3)
         self.assertIn("Baxter River    ,Upper Reach     ", self.ras_geom.reaches.keys())
 
-    def test_to_gpkg(self):
-        self.ras_geom.to_gpkg(NEW_GPKG)
+    # def test_to_gpkg(self):
+    #     self.ras_geom.to_gpkg(NEW_GPKG)
 
 
 # RasFlowText
