@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
     "boto3",
     "python-dotenv",
@@ -61,6 +61,7 @@ convention = "numpy"
 
 [tool.ruff]
 line-length = 120
+exclude = ["production"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D"]
