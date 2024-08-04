@@ -296,7 +296,6 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
     item = create_geom_item(nwm_rm.model_name, bbox, footprint, properties)
 
     for asset_key in nwm_rm.assets:
-
         asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
         asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
         asset = pystac.Asset(

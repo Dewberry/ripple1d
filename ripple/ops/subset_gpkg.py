@@ -61,8 +61,9 @@ def subset_gpkg(
                 xs_intermediate_river_reach = xs_gdf.loc[xs_gdf["river_reach"] == xs_intermediate_river_reach]
                 if xs_us_reach["river_station"].min() <= xs_intermediate_river_reach["river_station"].max():
                     logging.warning(
-                        f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
-                        f" than the highest river station on the intermediate reach ({xs_intermediate_river_reach['river_station'].max()}) for nwm_id: {nwm_id}"
+                        f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is "
+                        "less than the highest river station on the intermediate reach "
+                        f"({xs_intermediate_river_reach['river_station'].max()}) for nwm_id: {nwm_id}"
                     )
                     xs_us_reach["river_station"] = (
                         xs_us_reach["river_station"] + xs_intermediate_river_reach["river_station"].max()
@@ -77,8 +78,9 @@ def subset_gpkg(
 
         if xs_us_reach["river_station"].min() <= xs_ds_reach["river_station"].max():
             logging.warning(
-                f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
-                f" than the highest river station on the downstream reach ({xs_ds_reach['river_station'].max()}) for nwm_id: {nwm_id}"
+                f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less "
+                "than the highest river station on the downstream reach "
+                f"({xs_ds_reach['river_station'].max()}) for nwm_id: {nwm_id}"
             )
             xs_us_reach["river_station"] = xs_us_reach["river_station"] + xs_ds_reach["river_station"].max()
             xs_us_reach["ras_data"] = xs_us_reach["ras_data"].apply(
@@ -145,7 +147,8 @@ def subset_gpkg(
             break
         if buffer > 10000:
             raise ValueError(
-                f"buffer too large (>10000ft) for clipping river to concave hull of cross sections. Check data for NWM Reach: {nwm_id}."
+                "buffer too large (>10000ft) for clipping river to concave hull of "
+                f"cross sections. Check data for NWM Reach: {nwm_id}."
             )
             break
 
@@ -165,7 +168,6 @@ def walk_junctions(junction_gdf, us_river, us_reach, ds_river, ds_reach) -> tupl
     if not junction_gdf.empty:
         while True:
             for _, row in junction_gdf.iterrows():
-
                 us_rivers = row.us_rivers.split(",")
                 print(us_rivers)
                 us_reaches = row.us_reaches.split(",")
