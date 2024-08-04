@@ -1,7 +1,9 @@
 # ripple
 [![CI](https://github.com/dewberry/ripple/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/dewberry/ripple/actions/workflows/ci.yaml)
 
-Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model network.
+[![Documentation Status](https://readthedocs.org/projects/ripple/badge/?version=latest)](https://ripple.readthedocs.io/en/latest/?badge=latest)
+
+Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model network. Go to [ReadTheDocs](http://ripple.readthedocs.io/) for more information on ripple.
 
 ## Contents
 
@@ -9,6 +11,7 @@ Utilities for repurposing HEC-RAS models for use in the production of Flood Inun
  - [production](production/) : This directory contains scripts used by the development team for testing ripple outside of the API. The contents may not be stable and will often not be up to date.
  - [ripple](ripple/): Source code for the ripple library.
  - [tests](tests/): Unit tests.
+
 
 ## Requirements
 
