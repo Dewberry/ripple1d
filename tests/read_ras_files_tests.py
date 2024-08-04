@@ -17,7 +17,7 @@ RAS_PLAN = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.p01")
 RAS_GEOM = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.g02")
 RAS_FLOW = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter.f01")
 PROJECTION_FILE = os.path.join(TEST_DIR, "ras-data/Baxter/CA_SPCS_III_NAVD88.prj")
-NEW_GPKG = os.path.join(TEST_DIR, "ras-data/Baxter/new.gpkg")
+NEW_GPKG = os.path.join(TEST_DIR, "ras-data/Baxter/Baxter_test.gpkg")
 
 
 @pytest.fixture(scope="class")

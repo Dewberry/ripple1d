@@ -5,7 +5,7 @@ import logging
 import os
 import shutil
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import boto3
 import geopandas as gpd
@@ -13,8 +13,9 @@ import pandas as pd
 import pystac
 from pyproj import CRS
 
+from ripple.data_model import NwmReachModel
 from ripple.errors import CouldNotIdentifyPrimaryPlanError
-from ripple.ras import RasFlowText, RasGeomText, RasPlanText, RasProject
+from ripple.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 from ripple.utils.dg_utils import bbox_to_polygon
 from ripple.utils.gpkg_utils import (
     create_geom_item,
@@ -23,6 +24,7 @@ from ripple.utils.gpkg_utils import (
     get_river_miles,
     gpkg_to_geodataframe,
     reproject,
+    write_thumbnail_to_s3,
 )
 from ripple.utils.s3_utils import (
     get_basic_object_metadata,
@@ -33,14 +35,33 @@ from ripple.utils.s3_utils import (
 )
 
 
-def geom_flow_to_gpkg(rg: RasGeomText, flow, plan_title: str, project_title: str, gpkg_file: str):
+def geom_flow_to_gpkg(ras_text_file_path: str, crs: CRS, gpkg_file: str) -> None:
     """Write geometry and flow data to a geopackage."""
+    layers = geom_flow_to_gdfs(ras_text_file_path, crs)
+    for layer, gdf in layers.items():
+        gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
+
+
+def geom_flow_to_gdfs(ras_text_file_path: str, crs: CRS) -> gpd.GeoDataFrame:
+    """Write geometry and flow data to a geopackage."""
+    ras_project = RasProject(ras_text_file_path)
+
+    # determine primary plan
+    plan_file = ras_text_file_path.replace(".prj", ras_project.current_plan)
+    rp = RasPlanText(plan_file, crs)
+
+    rf = RasFlowText(rp.plan_steady_file)
+
+    rg = RasGeomText(rp.plan_geom_file, crs)
+
+    layers = {}
     if rg.cross_sections:
-        geom_flow_xs_gdf(rg, flow, plan_title, project_title).to_file(gpkg_file, driver="GPKG", layer="XS")
+        layers["XS"] = geom_flow_xs_gdf(rg, rf, rp.title, ras_project.title)
     if rg.reaches:
-        rg.reach_gdf.to_file(gpkg_file, driver="GPKG", layer="River")
+        layers["River"] = rg.reach_gdf
     if rg.junctions:
-        rg.junction_gdf.to_file(gpkg_file, driver="GPKG", layer="Junction")
+        layers["Junction"] = rg.junction_gdf
+    return layers
 
 
 def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str) -> gpd.GeoDataFrame:
@@ -122,16 +143,7 @@ def detemine_primary_plan(
 
 def geom_to_gpkg(ras_text_file_path: str, crs: CRS, output_gpkg_path: str):
     """Write geometry and flow data to a geopackage locally."""
-    ras_project = RasProject(ras_text_file_path)
-
-    # determine primary plan
-    rp = detemine_primary_plan(ras_project, crs, ras_text_file_path)
-
-    rf = RasFlowText(rp.plan_steady_file)
-
-    rg = RasGeomText(rp.plan_geom_file, crs)
-
-    geom_flow_to_gpkg(rg, rf, rp.title, ras_project.title, output_gpkg_path)
+    geom_flow_to_gpkg(geom_flow_to_gpkg, crs, output_gpkg_path)
 
 
 def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
@@ -147,7 +159,7 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
     # determine primary plan
-    rp = detemine_primary_plan(ras_project, client, crs, ras_text_file_path, bucket)
+    rp = detemine_primary_plan(ras_project, crs, ras_text_file_path, client, bucket)
 
     # read flow string and write geopackage
     string = str_from_s3(rp.plan_steady_file, client, bucket)
@@ -157,7 +169,7 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     string = str_from_s3(rp.plan_geom_file, client, bucket)
     rg = RasGeomText.from_str(string, crs, " .g01")
 
-    geom_flow_to_gpkg(rg, rf, rp.title, ras_project.title, temp_path)
+    geom_flow_to_gpkg(ras_text_file_path, crs, temp_path)
 
     # move geopackage to s3
     logging.debug(f"uploading {output_gpkg_path} to s3")
@@ -182,8 +194,11 @@ def new_stac_item_s3(
     logging.debug("Creating item from gpkg")
     # Instantitate S3 resources
 
-    session, s3_client, s3_resource = init_s3_resources(dev_mode)
-    asset_list = list_keys(s3_client, bucket, gpkg_s3_key.replace(Path(gpkg_s3_key).name, ""))
+    session, s3_client, s3_resource = init_s3_resources()
+    item_basename = Path(gpkg_s3_key).name
+    item_id = item_basename.replace(".gpkg", "")
+    prefix = gpkg_s3_key.replace(item_basename, "")
+    asset_list = list_keys(s3_client, bucket, prefix)
 
     gdfs = gpkg_to_geodataframe(f"s3://{bucket}/{gpkg_s3_key}")
     river_miles = get_river_miles(gdfs["River"])
@@ -191,21 +206,29 @@ def new_stac_item_s3(
     gdfs = reproject(gdfs)
 
     logging.debug("Creating png thumbnail")
-    create_thumbnail_from_gpkg(gdfs, thumbnail_png_s3_key, bucket, s3_client)
+    fig = create_thumbnail_from_gpkg(gdfs)
+    write_thumbnail_to_s3(fig, thumbnail_png_s3_key, bucket, s3_client)
 
     # Create item
     bbox = pd.concat(gdfs).total_bounds
     footprint = bbox_to_polygon(bbox)
-    item = create_geom_item(
-        gpkg_s3_key,
-        bbox,
-        footprint,
-        ripple_version,
-        gdfs["XS"].iloc[0],
-        river_miles,
-        crs,
-        mip_case_no,
-    )
+
+    data = gdfs["XS"].iloc[0]
+    properties = {
+        "ripple: version": ripple_version,
+        "ras version": data["version"],
+        "project title": data["project_title"],
+        "plan title": data["plan_title"],
+        "geom title": data["geom_title"],
+        "flow title": data["flow_title"],
+        "profile names": data["profile_names"].splitlines(),
+        "MIP:case_ID": mip_case_no,
+        "river miles": str(river_miles),
+        "proj:wkt2": crs.to_wkt(),
+        "proj:epsg": crs.to_epsg(),
+    }
+
+    item = create_geom_item(item_id, bbox, footprint, properties)
 
     asset_list = asset_list + [thumbnail_png_s3_key, gpkg_s3_key]
     for asset_key in asset_list:
@@ -233,5 +256,60 @@ def new_stac_item_s3(
         Bucket=bucket,
         Key=new_stac_item_s3_key,
     )
+
+    logging.debug("Program completed successfully")
+
+
+def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix: str):
+    """Create a new stac item from a geopackage locally ."""
+    logging.debug("Creating item from gpkg")
+
+    nwm_rm = NwmReachModel(ras_project_directory)
+    rm = RasManager(nwm_rm.ras_project_file, crs=nwm_rm.crs)
+    gdfs = gpkg_to_geodataframe(nwm_rm.ras_gpkg_file)
+
+    river_miles = get_river_miles(gdfs["River"])
+    crs = gdfs["River"].crs
+    gdfs = reproject(gdfs)
+
+    logging.debug("Creating png thumbnail")
+    fig = create_thumbnail_from_gpkg(gdfs)
+    fig.savefig(nwm_rm.thumbnail_png)
+
+    # Create item
+    bbox = pd.concat(gdfs).total_bounds
+    footprint = bbox_to_polygon(bbox)
+
+    data = gdfs["XS"].iloc[0]
+    properties = {
+        "ripple: version": ripple_version,
+        "ras version": rm.version,
+        "project title": rm.ras_project.title,
+        "plan titles": {key: val.file_extension for key, val in rm.plans.items()},
+        "geom titles": {key: val.file_extension for key, val in rm.geoms.items()},
+        "flow titles": {key: val.file_extension for key, val in rm.flows.items()},
+        "river miles": str(river_miles),
+        "NWM to_id": nwm_rm.ripple_parameters["nwm_to_id"],
+        "proj:wkt2": crs.to_wkt(),
+        "proj:epsg": crs.to_epsg(),
+    }
+    item = create_geom_item(nwm_rm.model_name, bbox, footprint, properties)
+
+    for asset_key in nwm_rm.assets:
+
+        asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
+        asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
+        asset = pystac.Asset(
+            os.path.relpath(asset_key),
+            extra_fields=asset_info["extra_fields"],
+            roles=asset_info["roles"],
+            description=asset_info["description"],
+        )
+        item.add_asset(asset_info["title"], asset)
+    item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
+    item.add_derived_from(nwm_rm.ripple_parameters["source_terrain"])
+    item.add_derived_from(nwm_rm.ripple_parameters["source_nwm_reach"])
+    with open(nwm_rm.model_stac_json_file, "w") as dst:
+        dst.write(json.dumps(item.to_dict()))
 
     logging.debug("Program completed successfully")

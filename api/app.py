@@ -10,52 +10,64 @@ from werkzeug.exceptions import BadRequest
 
 from api import tasks
 from api.utils import get_unexpected_and_missing_args
-from ripple.ops.create_fim_lib import new_fim_lib
-from ripple.ops.create_ras_terrain import new_ras_terrain
-from ripple.ops.run_ras_model import (
-    incremental_normal_depth,
-    initial_normal_depth,
-    known_wse,
+from ripple.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
+from ripple.ops.ras_run import (
+    create_model_run_normal_depth,
+    run_incremental_normal_depth,
+    run_known_wse,
 )
-from ripple.ops.subset_gpkg import new_gpkg
+from ripple.ops.ras_terrain import create_ras_terrain
+from ripple.ops.subset_gpkg import extract_submodel
 
 app = Flask(__name__)
 
 
-@app.route("/processes/new_gpkg/execution", methods=["POST"])
-def process__new_gpkg():
+@app.route("/processes/extract_submodel/execution", methods=["POST"])
+def process__extract_submodel():
     """Enqueue a task to create a new GeoPackage."""
-    return enqueue_async_task(new_gpkg)
+    return enqueue_async_task(extract_submodel)
 
 
-@app.route("/processes/new_ras_terrain/execution", methods=["POST"])
-def process__new_ras_terrain():
+@app.route("/processes/create_ras_terrain/execution", methods=["POST"])
+def process__create_ras_terrain():
     """Enqueue a task to create a new RAS terrain."""
-    return enqueue_async_task(new_ras_terrain)
+    return enqueue_async_task(create_ras_terrain)
 
 
-@app.route("/processes/initial_normal_depth/execution", methods=["POST"])
-def process__initial_normal_depth():
+@app.route("/processes/create_model_run_normal_depth/execution", methods=["POST"])
+def process__create_model_run_normal_depth():
     """Enqueue a task to calculate the initial normal depth."""
-    return enqueue_async_task(initial_normal_depth)
+    return enqueue_async_task(create_model_run_normal_depth)
 
 
-@app.route("/processes/incremental_normal_depth/execution", methods=["POST"])
-def process__incremental_normal_depth():
+@app.route("/processes/run_incremental_normal_depth/execution", methods=["POST"])
+def process__run_incremental_normal_depth():
     """Enqueue a task to calculate the incremental normal depth."""
-    return enqueue_async_task(incremental_normal_depth)
+    return enqueue_async_task(run_incremental_normal_depth)
 
 
-@app.route("/processes/known_wse/execution", methods=["POST"])
-def process__known_wse():
+@app.route("/processes/run_known_wse/execution", methods=["POST"])
+def process__run_known_wse():
     """Enqueue a task to calculate the water surface elevation (WSE) based on known inputs."""
-    return enqueue_async_task(known_wse)
+    return enqueue_async_task(run_known_wse)
 
 
-@app.route("/processes/new_fim_lib/execution", methods=["POST"])
-def process__new_fim_lib():
-    """Enqueue a task to create a new FIM library."""
-    return enqueue_async_task(new_fim_lib)
+@app.route("/processes/create_fim_lib/execution", methods=["POST"])
+def process__create_fim_lib():
+    """Enqueue a task to create a FIM library."""
+    return enqueue_async_task(create_fim_lib)
+
+
+@app.route("/processes/nwm_reach_model_stac/execution", methods=["POST"])
+def process__nwm_reach_model_stac():
+    """Enqueue a task to create a stac item from a fim model."""
+    return enqueue_async_task(nwm_reach_model_stac)
+
+
+@app.route("/processes/fim_lib_stac/execution", methods=["POST"])
+def process__fim_lib_stac():
+    """Enqueue a task to create a stac item from a fim library."""
+    return enqueue_async_task(fim_lib_stac)
 
 
 @app.route("/ping", methods=["GET"])
@@ -94,50 +106,97 @@ def process__sleep():
 
 
 @app.route("/jobs/<task_id>", methods=["GET"])
-def task_status(task_id):
-    """Retrieve the status of a specific task by its ID."""
-    status = tasks.ogc_status(task_id)
-    if status == "accepted":
-        return jsonify({"type": "process", "jobID": task_id, "status": status}), HTTPStatus.OK
-    if status == "running":
-        return jsonify({"type": "process", "jobID": task_id, "status": status}), HTTPStatus.OK
-    if status == "successful":
-        return (
-            jsonify({"type": "process", "jobID": task_id, "status": status, "detail": tasks.result_traceback(task_id)}),
-            HTTPStatus.OK,
-        )
-    if status == "failed":
-        return (
-            jsonify({"type": "process", "jobID": task_id, "status": status, "detail": tasks.result_traceback(task_id)}),
-            HTTPStatus.OK,
-        )
-    if status == "dismissed":
-        return (
-            jsonify({"type": "process", "jobID": task_id, "status": status, "detail": tasks.result_traceback(task_id)}),
-            HTTPStatus.OK,
-        )
-    if status == "notfound":
+def get_one_job(task_id):
+    """Retrieve OGC status and result for one job.
+
+    Query parameters:
+        tb: Choices are ['true', 'false']. Defaults to 'false'. If 'true', the job result's traceback will be included
+            in the response, as key 'tb'.
+    """
+    include_traceback, problem = parse_request_param__bool(param_name="tb", default=False)
+    if problem is not None:
+        return problem
+
+    task2metadata = tasks.task_status(only_task_id=task_id)
+
+    if len(task2metadata) == 0:
         return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
-    return jsonify({"type": "process", "detail": f"unexpected status: {status}"}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    if len(task2metadata) > 1:
+        return (
+            jsonify({"type": "process", "detail": f"multiple ({len(task2metadata)}) records matched job ID {task_id}"}),
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+
+    huey_metadata = task2metadata[task_id]
+    return get_ogc_job_metadata_from_huey_metadata(task_id, huey_metadata, include_traceback), HTTPStatus.OK
 
 
 @app.route("/jobs", methods=["GET"])
-def all_task_status():
-    """Retrieve the status of all tasks."""
-    return jsonify(tasks.all_task_status(), HTTPStatus.OK)
+def get_all_jobs():
+    """Retrieve OGC status and result for all jobs.
+
+    Query parameters:
+        tb: Choices are ['true', 'false']. Defaults to 'false'. If 'true', each job result's traceback will be included
+            in the response, as key 'tb'.
+    """
+    include_traceback, problem = parse_request_param__bool(param_name="tb", default=False)
+    if problem is not None:
+        return problem
+
+    task2metadata = tasks.task_status(only_task_id=None)
+    jobs = [
+        get_ogc_job_metadata_from_huey_metadata(task_id, huey_metadata, include_traceback)
+        for task_id, huey_metadata in task2metadata.items()
+    ]
+    links = []
+    ret = {"jobs": jobs, "links": links}
+    return jsonify(ret), HTTPStatus.OK
 
 
-@app.route("/jobs/<task_id>/results", methods=["GET"])
-def task_result(task_id):
-    """Retrieve the result of a specific task by its ID."""
-    try:
-        status = tasks.ogc_status(task_id)
-        if status == "notfound":
-            return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
-        else:
-            return jsonify({"type": "process", "detail": tasks.result_traceback(task_id)}), HTTPStatus.OK
-    except:
-        return jsonify({"type": "process", "detail": f"failed to fetch results"}), HTTPStatus.INTERNAL_SERVER_ERROR
+def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tuple]:
+    """Get the parameter, assert it is true or false, and return the appropriate Python boolean value as well as a status tuple.
+
+    If there is a problem, the status tuple has two elements: a response message, and a HTTP status to be returned by the endpoint.
+    If there is not a problem, the status tuple is actually None.
+    """
+    arg_tb = request.args.get(param_name)
+    if not arg_tb:
+        return (default, None)
+    elif arg_tb.lower() == "false":
+        return (False, None)
+    elif arg_tb.lower() == "true":
+        return (True, None)
+    else:
+        return (
+            None,
+            (
+                jsonify(
+                    {
+                        "type": "process",
+                        "detail": f"query param 'tb' should be 'true' or 'false', but got: {repr(arg_tb)}",
+                    }
+                ),
+                HTTPStatus.BAD_REQUEST,
+            ),
+        )
+
+
+def get_ogc_job_metadata_from_huey_metadata(task_id: str, huey_metadata: dict, include_traceback: bool) -> dict:
+    """Convert huey-style task status metadata into a OGC-style result dictionary."""
+    huey_result = tasks.huey.result(task_id, preserve=True)
+    if include_traceback is False and huey_result is not None:
+        del huey_result["tb"]  # remove the traceback
+    ogc_job_metadata = {
+        "jobID": task_id,
+        "updated": huey_metadata["status_time"],
+        "status": huey_metadata["ogc_status"],
+        "processID": huey_metadata["func_name"],
+        "type": "process",
+        "submitter": "",
+        "result": huey_result,
+    }
+    return ogc_job_metadata
 
 
 @app.route("/jobs/<task_id>", methods=["DELETE"])
@@ -174,10 +233,10 @@ def enqueue_async_task(func: typing.Callable) -> tuple[Response, HTTPStatus]:
     try:
         kwargs = request.json  # can throw BadRequest when parsing body into json
         if not isinstance(kwargs, dict):
-            raise BadRequest
-    except BadRequest:
+            raise BadRequest(f"expected body to be a JSON dictionary, but got: {type(kwargs)}")
+    except BadRequest as e:
         return (
-            jsonify({"type": "process", "detail": "could not parse body to json dict"}),
+            jsonify({"type": "process", "detail": f"could not parse body to json dict. error: {e}"}),
             HTTPStatus.BAD_REQUEST,
         )
 

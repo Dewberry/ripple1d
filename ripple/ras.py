@@ -14,12 +14,14 @@ import fiona
 import geopandas as gpd
 import h5py
 import pandas as pd
+import pythoncom
 from pyproj import CRS
 
 from ripple.consts import (
     FLOW_HDF_PATH,
     NORMAL_DEPTH,
     PROFILE_NAMES_HDF_PATH,
+    SHOW_RAS,
     SUPPORTED_LAYERS,
     TERRAIN_NAME,
     TERRAIN_PATH,
@@ -67,92 +69,6 @@ VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
 
 
 # Decorator Functions
-def write_new_plan_text_file(func):
-    """Write new plan text file decorator."""
-
-    def wrapper(self, *args, **kwargs):
-        title = args[0]
-        geom_title = args[1]
-        if title in self.plans.keys():
-            raise PlanTitleAlreadyExistsError(f"The specified plan title {title} already exists")
-
-        func(self, *args, **kwargs)
-
-        # get a new extension number for the new plan
-        new_extension_number = get_new_extension_number(self.plans)
-
-        text_file = self.ras_project._ras_root_path + f".p{new_extension_number}"
-
-        # create plan
-        plan_text_file = RasPlanText(text_file, self.crs, new_file=True)
-
-        if "write_depth_grids" in kwargs:
-            # populate new plan info
-            plan_text_file.new_plan_contents(
-                title,
-                title,
-                self.flows[title],
-                self.geoms[geom_title],
-                kwargs["write_depth_grids"],
-            )
-
-        # write content
-        plan_text_file.write_contents()
-
-        # add new plan to the ras class
-        self.plans[title] = plan_text_file
-        self.plan = plan_text_file
-
-        # add to ras project contents
-        self.ras_project.contents.append(f"Plan File=p{new_extension_number}")
-
-        # update the content of the RAS project file
-        self.contents = self.ras_project.set_current_plan(self.plans[title].file_extension)
-
-        # write the update RAS project file content
-        self.ras_project.write_updated_contents()
-
-        if "write_depth_grids" in kwargs:
-            if kwargs["write_depth_grids"]:
-                self.update_rasmapper_for_mapping()
-
-        # run the RAS plan
-        self.run_sim(close_ras=True, show_ras=True, ignore_store_all_maps_error=True)
-
-    return wrapper
-
-
-def write_new_flow_text_file(func):
-    """Write new flow text file decorator."""
-
-    def wrapper(self, *args, **kwargs):
-        title = args[0]
-        if title in self.flows.keys():
-            raise FlowTitleAlreadyExistsError(f"The specified flow title {title} already exists")
-
-        # get a new extension number for the new flow file
-        new_extension_number = get_new_extension_number(self.flows)
-        text_file = self.ras_project._ras_root_path + f".f{new_extension_number}"
-
-        # create new flow
-        flow_text_file = RasFlowText(text_file, new_file=True)
-
-        # call function
-        flow_text_file = func(self, flow_text_file, *args, **kwargs)
-
-        # write flow file content
-        flow_text_file.write_contents()
-
-        # add new flow to the ras class
-        self.flows[title] = flow_text_file
-        self.flow = flow_text_file
-
-        # add to ras project contents
-        self.ras_project.contents.append(f"Flow File=f{new_extension_number}")
-
-    return wrapper
-
-
 def check_crs(func):
     """Check CRS decorator."""
 
@@ -183,7 +99,7 @@ def check_version_installed(version: str):
     def decorator(func):
         def wrapper(self, *args, **kwargs):
             try:
-                assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER")
+                assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER", pythoncom.CoInitialize())
                 self.version = version
             except com_error:
                 raise HECRASVersionNotInstalledError(
@@ -331,11 +247,11 @@ class RasManager:
         Args:
             pid_running (_type_, optional): _description_. Defaults to None.
             close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
-            show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to True.
+            show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to False.
         """
         compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
 
-        RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER")
+        RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER", pythoncom.CoInitialize())
         try:
             RC.Project_Open(self.ras_project._ras_text_file_path)
             if show_ras:
@@ -366,40 +282,54 @@ class RasManager:
                 RC.Project_Close()
                 RC.QuitRas()
 
-    @write_new_plan_text_file
-    @write_new_flow_text_file
     def normal_depth_run(
         self,
-        flow_text_file,
         plan_flow_title: str,
         geom_title: str,
         flow_change_locations: list[FlowChangeLocation],
         profile_names: list[str],
         normal_depth: float = NORMAL_DEPTH,
         write_depth_grids: bool = False,
+        show_ras: bool = False,
+        run_ras: bool = True,
     ):
         """Create a new normal depth run."""
+        if plan_flow_title in self.flows.keys():
+            raise FlowTitleAlreadyExistsError(f"The specified flow title {plan_flow_title} already exists")
+
+        # get a new extension number for the new flow file
+        new_extension_number = get_new_extension_number(self.flows)
+        flow_text_file = self.ras_project._ras_root_path + f".f{new_extension_number}"
+
+        # create new flow
+        rft = RasFlowText(flow_text_file, new_file=True)
+
         # write headers
-        flow_text_file.contents += flow_text_file.write_headers(plan_flow_title, profile_names)
+        rft.contents += rft.write_headers(plan_flow_title, profile_names)
 
         for fcl in flow_change_locations:
             # write discharges
-            flow_text_file.contents += flow_text_file.write_discharges(fcl.flows, fcl.river, fcl.reach, fcl.rs)
+            rft.contents += rft.write_discharges(fcl.flows, fcl.river, fcl.reach, fcl.rs)
 
         for fcl in flow_change_locations:
             # write normal depth
-            flow_text_file.contents += flow_text_file.write_ds_normal_depth(
-                len(fcl.flows), normal_depth, fcl.river, fcl.reach
-            )
+            rft.contents += rft.write_ds_normal_depth(len(fcl.flows), normal_depth, fcl.river, fcl.reach)
 
-        return flow_text_file
+        # write flow file content
+        rft.write_contents()
 
-    @write_new_plan_text_file
-    @write_new_flow_text_file
+        # add new flow to the ras class
+        self.flows[plan_flow_title] = rft
+        self.flow = rft
+
+        # add to ras project contents
+        self.ras_project.contents.append(f"Flow File=f{new_extension_number}")
+
+        self.write_new_plan_text_file(plan_flow_title, geom_title, write_depth_grids, show_ras, run_ras)
+
     def kwses_run(
         self,
-        flow_text_file,
-        title: str,
+        plan_flow_title: str,
         geom_title: str,
         depths: List[float],
         wses: List[float],
@@ -408,20 +338,42 @@ class RasManager:
         reach: str,
         us_river_station: float,
         write_depth_grids: bool = False,
+        show_ras: bool = False,
+        run_ras: bool = True,
     ):
         """Create a new known water surface elevation run."""
+        if plan_flow_title in self.flows.keys():
+            raise FlowTitleAlreadyExistsError(f"The specified flow title {plan_flow_title} already exists")
+
+        # get a new extension number for the new flow file
+        new_extension_number = get_new_extension_number(self.flows)
+        flow_text_file = self.ras_project._ras_root_path + f".f{new_extension_number}"
+
+        # create new flow
+        rft = RasFlowText(flow_text_file, new_file=True)
+
         profile_names = [f"f_{flow}-z_{str(wse).replace('.','_')}" for flow, wse in zip(flows, wses)]
 
         # write headers
-        flow_text_file.contents += flow_text_file.write_headers(title, profile_names)
+        rft.contents += rft.write_headers(plan_flow_title, profile_names)
 
         # write discharges
-        flow_text_file.contents += flow_text_file.write_discharges(flows, river, reach, us_river_station)
+        rft.contents += rft.write_discharges(flows, river, reach, us_river_station)
 
         # write DS boundary conditions
-        flow_text_file.contents += flow_text_file.write_ds_known_wse(wses, river, reach)
+        rft.contents += rft.write_ds_known_wse(wses, river, reach)
 
-        return flow_text_file
+        # write flow file content
+        rft.write_contents()
+
+        # add new flow to the ras class
+        self.flows[plan_flow_title] = rft
+        self.flow = rft
+
+        # add to ras project contents
+        self.ras_project.contents.append(f"Flow File=f{new_extension_number}")
+
+        self.write_new_plan_text_file(plan_flow_title, geom_title, write_depth_grids, show_ras, run_ras)
 
     def new_geom_from_gpkg(
         self,
@@ -461,7 +413,58 @@ class RasManager:
         rasmap.add_result_layers(self.plan.title, self.plan.flow.profile_names, "Depth")
         rasmap.write()
 
-        return self
+    def write_new_plan_text_file(
+        self, plan_flow_title, geom_title, write_depth_grids: bool = False, show_ras=False, run_ras=True
+    ):
+        """Write new plan text file decorator."""
+        if plan_flow_title in self.plans.keys():
+            raise PlanTitleAlreadyExistsError(f"The specified plan title {plan_flow_title} already exists")
+
+        if plan_flow_title not in self.flows.keys():
+            raise ValueError(f"The specified flow title {plan_flow_title} does not exist")
+
+        if geom_title not in self.geoms.keys():
+            raise ValueError(f"The specified geom title {geom_title} does not exist")
+
+        # get a new extension number for the new plan
+        new_extension_number = get_new_extension_number(self.plans)
+
+        plan_text_file = self.ras_project._ras_root_path + f".p{new_extension_number}"
+
+        # create plan
+        rpt = RasPlanText(plan_text_file, self.crs, new_file=True)
+
+        # populate new plan info
+        rpt.new_plan_contents(
+            plan_flow_title,
+            plan_flow_title,
+            self.flows[plan_flow_title],
+            self.geoms[geom_title],
+            write_depth_grids,
+        )
+
+        # write content
+        rpt.write_contents()
+
+        # add new plan to the ras class
+        self.plans[plan_flow_title] = rpt
+        self.plan = rpt
+
+        # add to ras project contents
+        self.ras_project.contents.append(f"Plan File=p{new_extension_number}")
+
+        # update the content of the RAS project file
+        self.contents = self.ras_project.set_current_plan(self.plans[plan_flow_title].file_extension)
+
+        # write the update RAS project file content
+        self.ras_project.write_updated_contents()
+
+        if write_depth_grids:
+            self.update_rasmapper_for_mapping()
+
+        if run_ras:
+            # run the RAS plan
+            self.run_sim(close_ras=True, show_ras=show_ras, ignore_store_all_maps_error=True)
 
 
 class RasTextFile:
@@ -876,7 +879,7 @@ class RasGeomText(RasTextFile):
             data += f"Reach XY= {len(coords)} \n"
 
             for i, (x, y) in enumerate(coords):
-                data += str(x).rjust(16) + str(y).rjust(16)
+                data += str(x)[:16].rjust(16) + str(y)[:16].rjust(16)
                 if i % 2 != 0:
                     data += "\n"
 
@@ -975,6 +978,32 @@ class RasGeomText(RasTextFile):
         """Geodataframe of all cross sections in the geometry text file."""
         return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
 
+    @property
+    @check_crs
+    def n_cross_sections(self):
+        """Number of cross sections in the HEC-RAS geometry file."""
+        return len(self.cross_sections)
+
+    @property
+    @check_crs
+    def n_reaches(self):
+        """Number of reaches in the HEC-RAS geometry file."""
+        return len(self.reaches)
+
+    @property
+    @check_crs
+    def n_junctions(self):
+        """Number of junctions in the HEC-RAS geometry file."""
+        return len(self.junctions)
+
+    @property
+    @check_crs
+    def n_rivers(self):
+        """Number of rivers in the HEC-RAS geometry file."""
+        return len(self.rivers)
+
+    @property
+    @check_crs
     def to_gpkg(self, gpkg_path: str):
         """Write the HEC-RAS Geometry file to geopackage."""
         self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
@@ -1339,7 +1368,7 @@ def get_new_extension_number(dict_of_ras_subclasses: dict) -> str:
 def create_terrain(
     src_terrain_filepaths: list[str],
     projection_file: str,
-    terrain_hdf_filepath: str,
+    dst_terrain_filepath: str,
     vertical_units: str = "Feet",
     version: str = "631",
 ) -> str:
@@ -1347,23 +1376,12 @@ def create_terrain(
     Use the crs file and a list of terrain file paths to make the RAS terrain HDF file. Default location is {model_directory}\Terrain\Terrain.hdf.
 
     Returns the full path to the local directory containing the output files.
-
-    Parameters
-    ----------
-    src_terrain_filepaths : list[str]
-        a list of terrain raster filepaths, typically tifs, to use when creating the terrain HDF
-        can be a list of 1 filepath
-    terrain_dirname : str (default="Terrain")
-        the name of the directory to put the terrain HDF into
-    hdf_filename : str (default="Terrain")
-        the filename of the output HDF terrain file, with the extension
-    vertical_units : str (default="Feet")
-        vertical units to be used, must be one of ["Feet", "Meters"]
     """
     if vertical_units not in ["Feet", "Meters"]:
         raise ValueError(f"vertical_units must be either 'Feet' or 'Meters'; got: '{vertical_units}'")
 
     missing_files = [x for x in src_terrain_filepaths if not os.path.exists(x)]
+
     if missing_files:
         raise FileNotFoundError(str(missing_files))
 
@@ -1372,19 +1390,21 @@ def create_terrain(
         raise FileNotFoundError(terrain_exe)
 
     exe_parent_dir = os.path.split(terrain_exe)[0]
-
+    # TODO: Add documentation for the following to understand
+    # what files are created and where they are stored
     subproc_args = [
         terrain_exe,
         "CreateTerrain",
         f"units={vertical_units}",  # vertical units
         "stitch=true",
         f"prj={projection_file}",
-        f"out={terrain_hdf_filepath}",
+        f"out={dst_terrain_filepath}",
     ]
     # add list of input rasters from which to build the Terrain
     subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
     logging.debug(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
     subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
+    return f"Terrain written to {dst_terrain_filepath}"
 
     # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
     # # compress the output tif(s) that RasProcess.exe created (otherwise could be 1+ GB at HUC12 size)

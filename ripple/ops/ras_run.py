@@ -1,133 +1,171 @@
 """Run HEC-RAS models."""
 
 import json
+import logging
+import os
+from dataclasses import asdict
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 
 from ripple.consts import DEFAULT_EPSG, MIN_FLOW
-from ripple.data_model import FlowChangeLocation
+from ripple.data_model import FlowChangeLocation, NwmReachModel
 from ripple.ras import RasManager
 
 
-def initial_normal_depth(
-    nwm_id: str,
-    plan_name: str,
-    conflation_parameters: dict,
-    new_ras_project_text_file: str,
-    subset_gpkg_path: str,
-    terrain_path: str = None,
-    number_of_discharges_for_initial_normal_depth_runs: int = 10,
-    version: str = "631",
+def create_model_run_normal_depth(
+    submodel_directory: str,
+    plan_suffix: str,
+    num_of_discharges_for_initial_normal_depth_runs: int = 10,
+    ras_version: str = "631",
+    show_ras: bool = False,
 ):
     """Write and compute initial normal depth runs to develop initial rating curves."""
-    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        logging.warning(f"skipping {nwm_id}; no cross sections conflated.")
+    nwm_rm = NwmReachModel(submodel_directory)
+
+    if not nwm_rm.file_exists(nwm_rm.conflation_file):
+        raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
+
+    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
+        raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
+
+    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
+        logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
     else:
-        loging.info(f"Working on initial normal depth run for nwm_id: {nwm_id}")
+        logging.info(f"Working on initial normal depth run for nwm_id: {nwm_rm.model_name}")
 
         # create new ras manager class
-        rm = RasManager.from_gpkg(new_ras_project_text_file, nwm_id, subset_gpkg_path, version, terrain_path)
+        rm = RasManager.from_gpkg(nwm_rm.ras_project_file, nwm_rm.model_name, nwm_rm.ras_gpkg_file, ras_version)
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
-            max([conflation_parameters["low_flow_cfs"], MIN_FLOW]),
-            conflation_parameters["high_flow_cfs"],
-            number_of_discharges_for_initial_normal_depth_runs,
+            max([nwm_rm.ripple_parameters["low_flow_cfs"], MIN_FLOW]),
+            nwm_rm.ripple_parameters["high_flow_cfs"],
+            num_of_discharges_for_initial_normal_depth_runs,
         ).astype(int)
 
         # # write and compute initial normal depth runs to develop rating curves
         fcl = FlowChangeLocation(
-            nwm_id,
-            nwm_id,
-            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
-            initial_flows,
+            nwm_rm.model_name,
+            nwm_rm.model_name,
+            rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
+            initial_flows.tolist(),
         )
 
         rm.normal_depth_run(
-            plan_name,
-            nwm_id,
+            f"{nwm_rm.model_name}_{plan_suffix}",
+            nwm_rm.model_name,
             [fcl],
             initial_flows.astype(str),
             write_depth_grids=False,
+            show_ras=show_ras,
+            run_ras=True,
         )
+    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
 
-def incremental_normal_depth(
-    nwm_id: str,
-    plan_name: str,
-    initial_normal_depth_plan_title: str,
-    conflation_parameters: dict,
-    ras_project_text_file: str,
-    subset_gpkg_path: str,
-    terrain_path: str,
-    version: str = "631",
+def run_incremental_normal_depth(
+    submodel_directory: str,
+    plan_suffix: str,
+    ras_version: str = "631",
     depth_increment=0.5,
+    write_depth_grids: str = True,
+    show_ras: bool = False,
 ):
     """Write and compute incremental normal depth runs to develop rating curves and depth grids."""
-    logging.info(f"Working on normal depth run for nwm_id: {nwm_id}")
-    if conflation_parameters["us_xs"]["xs_id"] == "-9999":
-        logging.warning(f"skipping {nwm_id}; no cross sections conflated.")
-    else:
-        crs = gpd.read_file(subset_gpkg_path, layer="XS").crs
+    nwm_rm = NwmReachModel(submodel_directory)
 
-        rm = RasManager(ras_project_text_file, version=version, terrain_path=terrain_path, crs=crs)
+    if not nwm_rm.file_exists(nwm_rm.conflation_file):
+        raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
 
-        # determine flow increments
-        flows, depths, wses = determine_flow_increments(
-            rm, [initial_normal_depth_plan_title], nwm_id, nwm_id, nwm_id, depth_increment=depth_increment
-        )
+    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
+        raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
-        fcl = FlowChangeLocation(
-            nwm_id,
-            nwm_id,
-            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
-            flows,
-        )
-        # write and compute flow/plans for normal_depth run
-        rm.normal_depth_run(
-            plan_name,
-            nwm_id,
-            [fcl],
-            flows.astype(str),
-            write_depth_grids=True,
-        )
+    logging.info(f"Working on normal depth run for nwm_id: {nwm_rm.model_name}")
+    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
+        logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
+
+    rm = RasManager(
+        nwm_rm.ras_project_file,
+        version=ras_version,
+        terrain_path=nwm_rm.ras_terrain_hdf,
+        crs=nwm_rm.ripple_parameters["crs"],
+    )
+
+    # determine flow increments
+    flows, _, _ = determine_flow_increments(
+        rm,
+        [f"{nwm_rm.model_name}_ind"],
+        nwm_rm.model_name,
+        nwm_rm.model_name,
+        nwm_rm.model_name,
+        depth_increment=depth_increment,
+    )
+
+    fcl = FlowChangeLocation(
+        nwm_rm.model_name,
+        nwm_rm.model_name,
+        rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
+        flows.tolist(),
+    )
+    # write and compute flow/plans for normal_depth run
+    rm.normal_depth_run(
+        f"{nwm_rm.model_name}_{plan_suffix}",
+        nwm_rm.model_name,
+        [fcl],
+        flows.astype(str),
+        write_depth_grids=True,
+        show_ras=show_ras,
+        run_ras=True,
+    )
+    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
 
-def known_wse(
-    nwm_id: str,
-    plan_name: str,
-    incremental_normal_depth_plan_name: str,
-    ras_project_text_file: str,
-    subset_gpkg_path: str,
-    terrain_path: str,
+def run_known_wse(
+    submodel_directory: str,
+    plan_suffix: str,
     min_elevation: float,
     max_elevation: float,
-    depth_increment: float,
+    depth_increment=2,
+    ras_version: str = "631",
+    write_depth_grids: str = True,
+    show_ras: bool = False,
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
-    logging.info(f"Working on known water surface elevation run for nwm_id: {nwm_id}")
+    nwm_rm = NwmReachModel(submodel_directory)
+
+    if not nwm_rm.file_exists(nwm_rm.conflation_file):
+        raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
+
+    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
+        raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
+
+    logging.info(f"Working on known water surface elevation run for nwm_id: {nwm_rm.model_name}")
 
     start_elevation = np.floor(min_elevation * 2) / 2  # round down to nearest .0 or .5
     known_water_surface_elevations = np.arange(start_elevation, max_elevation + depth_increment, depth_increment)
 
-    crs = gpd.read_file(subset_gpkg_path, layer="XS").crs
+    crs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").crs
 
     # write and compute flow/plans for known water surface elevation runs
-    rm = RasManager(ras_project_text_file, version="631", terrain_path=terrain_path, crs=crs)
+    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
 
     # get resulting depths from the second normal depth runs_nd
-    rm.plan = rm.plans[incremental_normal_depth_plan_name]
+    rm.plan = rm.plans[f"{nwm_rm.model_name}_nd"]
     ds_flows, ds_depths, _ = get_flow_depth_arrays(
         rm,
-        nwm_id,
-        nwm_id,
-        rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.river_station,
-        rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.thalweg,
+        nwm_rm.model_name,
+        nwm_rm.model_name,
+        rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].ds_xs.river_station,
+        rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].ds_xs.thalweg,
     )
 
-    known_depths = known_water_surface_elevations - rm.geoms[nwm_id].rivers[nwm_id][nwm_id].ds_xs.thalweg
+    known_depths = (
+        known_water_surface_elevations
+        - rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].ds_xs.thalweg
+    )
 
     # filter known water surface elevations less than depths resulting from the second normal depth run
     depths, flows, wses = create_flow_depth_combinations(
@@ -139,21 +177,24 @@ def known_wse(
 
     if not flows:
         logging.warning(
-            f"No controling known water surface elevations were identified for {nwm_id}; i.e., the depth of flooding\
+            f"No controling known water surface elevations were identified for {nwm_rm.model_name}; i.e., the depth of flooding\
  for the normal depth run for a given flow was alway higher than the known water surface elevations of the downstream reach"
         )
     else:
         rm.kwses_run(
-            plan_name,
-            nwm_id,
+            f"{nwm_rm.model_name}_{plan_suffix}",
+            nwm_rm.model_name,
             depths,
             wses,
             flows,
-            nwm_id,
-            nwm_id,
-            rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station,
-            write_depth_grids=True,
+            nwm_rm.model_name,
+            nwm_rm.model_name,
+            rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
+            write_depth_grids=write_depth_grids,
+            show_ras=show_ras,
+            run_ras=True,
         )
+    return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}}
 
 
 def get_flow_depth_arrays(

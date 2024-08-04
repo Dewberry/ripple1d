@@ -8,12 +8,12 @@ import pystac
 
 from production.db_utils import PGFim
 from ripple.conflate.rasfim import RasFimConflater
-from ripple.ops.conflate_ras_model import conflate_s3_model, href_to_vsis
+from ripple.ops.ras_conflate import conflate_s3_model, href_to_vsis
 from ripple.ripple_logger import configure_logging
 from ripple.utils.s3_utils import init_s3_resources
 
 
-def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
+def main(processing_table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
     """Read from database a list of geopackages to create stac items."""
     db = PGFim()
 
@@ -21,7 +21,7 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
     rfc = None
     optional_condition = "AND stac_complete=true AND conflation_complete IS NULL"
     data = db.read_cases(
-        table_name,
+        processing_table_name,
         [
             "case_id",
             "s3_key",
@@ -42,7 +42,7 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
                 item = pystac.Item.from_file(stac_item_href)
 
                 for asset in item.get_assets(role="ras-geometry-gpkg"):
-                    ras_gpkg = href_to_vsis(item.assets[asset].href, bucket="fim")
+                    ras_gpkg = href_to_vsis(item.assets[asset].href, bucket=bucket)
 
                 if not rfc:
                     rfc = RasFimConflater(nwm_pq_path, ras_gpkg)
@@ -58,20 +58,24 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
                     bucket,
                     stac_item_s3_key,
                     rfc,
-                    river_reach_name,
                 )
                 logging.debug(f"{item.id}: Successfully processed")
-                db.update_case_status(mip_group, mip_case, s3_ras_project_key, True, None, None, "conflation")
+                db.update_case_status(
+                    processing_table_name, mip_group, mip_case, s3_ras_project_key, True, None, None, "conflation"
+                )
 
             except Exception as e:
                 exc = str(e)
                 tb = str(traceback.format_exc())
                 logging.error(exc)
-                db.update_case_status(mip_group, mip_case, s3_ras_project_key, False, exc, tb, "conflation")
-        sleep(1)
+                logging.error(tb)
+                db.update_case_status(
+                    processing_table_name, mip_group, mip_case, s3_ras_project_key, False, exc, tb, "conflation"
+                )
+        sleep(360)
 
         data = db.read_cases(
-            table_name,
+            processing_table_name,
             [
                 "case_id",
                 "s3_key",
@@ -83,9 +87,9 @@ def main(table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):
 
 if __name__ == "__main__":
     configure_logging(level=logging.INFO, logfile="create_stac.log")
-    mip_group = "tx_ble"
-    table_name = "processing"
+    mip_group = "b"
+    processing_table_name = "processing_v2"
     bucket = "fim"
     nwm_pq_path = r"C:\Users\mdeshotel\Downloads\nwm_flows_v3.parquet"
 
-    main(table_name, mip_group, bucket, nwm_pq_path)
+    main(processing_table_name, mip_group, bucket, nwm_pq_path)

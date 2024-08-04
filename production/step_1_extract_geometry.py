@@ -33,11 +33,11 @@ def process_one_geom(
     return f"s3://{bucket}/{gpkg_path}"
 
 
-def main(table_name: str, mip_group: str, bucket: str = None):
+def main(crs_table_name: str, processing_table: str, mip_group: str, bucket: str = None):
     """Read from database a list of ras files to convert to geopackage."""
     db = PGFim()
 
-    data = db.read_cases(table_name, ["mip_case", "s3_key", "crs"], mip_group)
+    data = db.read_cases(crs_table_name, ["mip_case", "s3_key", "crs"], mip_group)
 
     for i, (mip_case, key, crs) in enumerate(data):
         key = key.replace(f"s3://{bucket}/", "")
@@ -45,21 +45,23 @@ def main(table_name: str, mip_group: str, bucket: str = None):
         logging.info(f"Working on ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | key: {key}")
         try:
             _ = process_one_geom(key, crs, bucket)
-            db.update_case_status(mip_group, mip_case, key, True, None, None, "gpkg")
+            db.update_case_status(processing_table, mip_group, mip_case, key, True, None, None, "gpkg")
 
         except Exception as e:
             exc = str(e)
             tb = str(traceback.format_exc())
             logging.error(exc)
-            db.update_case_status(mip_group, mip_case, key, False, exc, tb, "gpkg")
+            logging.error(tb)
+            db.update_case_status(processing_table, mip_group, mip_case, key, False, exc, tb, "gpkg")
 
 
 if __name__ == "__main__":
     configure_logging(level=logging.INFO, logfile="extract_geometry.log")
     load_dotenv(find_dotenv())
 
-    table_name = "inferred_crs"
+    crs_table_name = "inferred_crs"
     bucket = "fim"
     mip_group = "tx_ble"
+    processing_table = "processing_v2"
 
-    main(table_name, mip_group, bucket)
+    main(crs_table_name, processing_table, mip_group, bucket)
