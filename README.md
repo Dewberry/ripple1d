@@ -79,4 +79,14 @@ For a full test of the REST API see the [REST API documentation](docs/api/README
     ```powershell
     pytest tests/
     ```
+### Credits and References
+1. NOAA Office of Water Prediction
+2. Dewberry
+3. Raytheon
+4. Earth Resources Technology, Inc.
+5. [ras2fim](https://github.com/NOAA-OWP/ras2fim)
+6. USACE [HEC-RAS](https://www.hec.usace.army.mil/software/hec-ras/)
+7. NOAA National Water Model
+
+
 
