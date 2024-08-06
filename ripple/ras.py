@@ -1087,7 +1087,7 @@ class RasFlowText(RasTextFile):
     @property
     def n_profiles(self):
         """Number of profiles."""
-        return int(search_contents(self.contents, "Number of Profiles"))
+        return len(self.profile_names)
 
     @property
     def profile_names(self):
