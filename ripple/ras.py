@@ -926,7 +926,7 @@ class RasGeomText(RasTextFile):
     @property
     def version(self):
         """The HEC-RAS version."""
-        return search_contents(self.contents, "Program Version")
+        return search_contents(self.contents, "Program Version", expect_one=True)
 
     @property
     @check_crs
