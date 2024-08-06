@@ -26,6 +26,7 @@ from ripple.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
+from ripple.utils.ripple_utils import get_path
 from ripple.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -135,7 +136,7 @@ def detemine_primary_plan(
     If no plans are found without encroachments, an error is raised.
     """
     if len(ras_project.plans) == 1:
-        plan_path = ras_project.plans[0]
+        plan_path = get_path(ras_project.plans[0], client, bucket)
         if client:
             string = str_from_s3(plan_path, client, bucket)
             return RasPlanText.from_str(string, crs, plan_path)
@@ -143,6 +144,7 @@ def detemine_primary_plan(
             return RasPlanText(plan_path, crs)
     candidate_plans = []
     for plan_path in ras_project.plans:
+        plan_path = get_path(ras_project.plans[0], client, bucket)
         if client:
             string = str_from_s3(plan_path, client, bucket)
 
@@ -155,7 +157,10 @@ def detemine_primary_plan(
                 if not string.__contains__("Encroach Node"):
                     candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
     if len(candidate_plans) > 1 or not candidate_plans:
-        raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
+        plan_path = ras_project._ras_root_path + "." + ras_project.current_plan.lstrip(".")
+        string = str_from_s3(plan_path, client, bucket)
+        return RasPlanText.from_str(string, crs, plan_path)
+        # raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
     else:
         return candidate_plans[0]
 
