@@ -237,7 +237,7 @@ class XS:
     @property
     def river_station(self):
         """Cross section river station."""
-        return float(self.split_xs_header(1))
+        return float(self.split_xs_header(1).replace("*", ""))
 
     @property
     def left_reach_length(self):
