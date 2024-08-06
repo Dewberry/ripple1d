@@ -1181,7 +1181,7 @@ class RasFlowText(RasTextFile):
     @property
     def flow_change_locations(self):
         """Retrieve flow change locations."""
-        flow_change_locations = []
+        flow_change_locations, locations = [], []
         for location in search_contents(self.contents, "River Rch & RM", expect_one=False):
             # parse river, reach, and river station for the flow change location
             river, reach, rs = location.split(",")
@@ -1189,6 +1189,9 @@ class RasFlowText(RasTextFile):
             flows = []
 
             for line in lines[1:]:
+
+                if "River Rch & RM" in line:
+                    break
                 for i in range(0, len(line), 8):
                     flows.append(float(line[i : i + 8].lstrip(" ")))
                     if len(flows) == self.n_profiles:
