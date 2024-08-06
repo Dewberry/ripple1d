@@ -555,6 +555,14 @@ class RasProject(RasTextFile):
         return search_contents(self.contents, "Proj Title")
 
     @property
+    def units(self):
+        """Units of the HEC-RAS project."""
+        if "English Units" in self.contents:
+            return "English"
+        else:
+            return "Metric"
+
+    @property
     @combine_root_extension
     def plans(self):
         """Get the plans associated with this project."""

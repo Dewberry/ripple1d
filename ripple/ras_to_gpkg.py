@@ -68,7 +68,7 @@ def geom_flow_to_gdfs(
 
     layers = {}
     if rg.cross_sections:
-        layers["XS"] = geom_flow_xs_gdf(rg, rf, rp.title, ras_project.title)
+        layers["XS"] = geom_flow_xs_gdf(rg, rf, rp.title, ras_project)
     if rg.reaches:
         layers["River"] = rg.reach_gdf
     if rg.junctions:
@@ -79,7 +79,7 @@ def geom_flow_to_gdfs(
     return layers
 
 
-def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str) -> gpd.GeoDataFrame:
+def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, ras_project: RasProject) -> gpd.GeoDataFrame:
     """Create a geodataframe with cross section geometry and flow data."""
     xs_gdf = rg.xs_gdf
     xs_gdf[["flows", "profile_names"]] = None, None
@@ -110,9 +110,13 @@ def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str)
             ] = "\n".join(row["profile_names"])
     xs_gdf["plan_title"] = plan_title
     xs_gdf["geom_title"] = rg.title
-    xs_gdf["version"] = rg.version
+    if rg.version:
+        xs_gdf["version"] = rg.version
+    else:
+        xs_gdf["version"] = None
+    xs_gdf["units"] = ras_project.units
     xs_gdf["flow_title"] = flow.title
-    xs_gdf["project_title"] = project_title
+    xs_gdf["project_title"] = ras_project.title
     return xs_gdf
 
 
