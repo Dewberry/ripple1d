@@ -12,7 +12,7 @@ import requests
 
 submodels_directory = r"D:\Users\abdul.siddiqui\workbench\projects\production\submodels"
 conflation_db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
-initial_reaches = [(6414614, None)]
+initial_reaches = [(10434118, None), (10434182, None)]
 
 use_central_db = False
 
@@ -174,7 +174,14 @@ def process_reach(reach_id: int, downstream_id: Optional[int], task_queue: Queue
             update_processing_table(reach_id, "run_known_wse", job_id, "successful")
 
         fim_url = "http://localhost/processes/create_fim_lib/execution"
-        fim_payload = json.dumps({"submodel_directory": submodel_directory_path, "plans": ["nd", "kwse"]})
+        fim_payload = json.dumps(
+            {
+                "submodel_directory": submodel_directory_path,
+                "plans": ["nd", "kwse"],
+                "resolution": 3,
+                "resolution_units": "Meters",
+            }
+        )
         response = requests.post(fim_url, headers=headers, data=fim_payload)
         fim_response_json = response.json()
         fim_job_id = fim_response_json.get("jobID")

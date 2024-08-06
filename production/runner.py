@@ -7,9 +7,9 @@ from time import sleep
 
 import requests
 
-runner_file = r"D:\Users\abdul.siddiqui\workbench\projects\lwoc_huc12\runner.csv"
+runner_file = r"D:\Users\abdul.siddiqui\workbench\projects\hc_sc_huc12s\runner.csv"
 db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
-process_name = "extract_submodel"
+process_name = "run_incremental_normal_depth"
 
 payload_templates = {
     "extract_submodel": {
@@ -19,7 +19,9 @@ payload_templates = {
         "ripple_version": "0.0.1",
     },
     "create_ras_terrain": {
-        "submodel_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\submodels\\{nwm_reach_id}"
+        "submodel_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\submodels\\{nwm_reach_id}",
+        "resolution": 3.0,
+        "resolution_units": "Meters",
     },
     "create_model_run_normal_depth": {
         "submodel_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\submodels\\{nwm_reach_id}",
@@ -40,13 +42,14 @@ def format_payload(template, nwm_reach_id, model_key):
     payload = {}
     for key, value in template.items():
         if type(value) != str:
-            continue
-        payload[key] = value.format(nwm_reach_id=nwm_reach_id, model_key=model_key)
+            payload[key] = value
+        else:
+            payload[key] = value.format(nwm_reach_id=nwm_reach_id, model_key=model_key)
     return payload
 
 
 def execute_request(nwm_reach_id, model_key, process_name):
-    sleep(random.uniform(0, 3))  # Sleep to avoid database locked error on Ripple API side
+    sleep(random.uniform(1, 4))  # Sleep to avoid database locked error on Ripple API side
     url = f"http://localhost/processes/{process_name}/execution"
     payload = json.dumps(format_payload(payload_templates[process_name], nwm_reach_id, model_key))
     headers = {"Content-Type": "application/json"}
@@ -69,6 +72,12 @@ def execute_process(csv_file, process_name):
     with open(csv_file, mode="r") as file:
         csv_reader = csv.DictReader(file)
         rows = [(row["nwm_reach_id"], row["model_key"]) for row in csv_reader]
+
+        # rows = [
+        #     (row["nwm_reach_id"], row["model_key"])
+        #     for row in csv_reader
+        #     if row["nwm_reach_id"] in ("6414640", "6414600", "6414710")
+        # ]
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
