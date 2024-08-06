@@ -14,8 +14,8 @@ import pystac
 from pyproj import CRS
 
 from ripple.data_model import NwmReachModel
-from ripple.errors import CouldNotIdentifyPrimaryPlanError
-from ripple.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
+from ripple.errors import CouldNotIdentifyPrimaryPlanError, NoFlowFileSpecifiedError, NoGeometryFileSpecifiedError
+from ripple.ras import VALID_GEOMS, VALID_STEADY_FLOWS, RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 from ripple.utils.dg_utils import bbox_to_polygon
 from ripple.utils.gpkg_utils import (
     create_geom_item,
@@ -45,6 +45,19 @@ def geom_flow_to_gpkg(
         gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
 
 
+def find_a_valid_file(
+    directory: str, valid_extensions: list[str], client: boto3.client = None, bucket: str = None
+) -> str:
+    """Find a file in the directory that contains a valid extension. Returns the first valid file found."""
+    if client and bucket:
+        paths = list_keys(client, bucket, directory)
+    else:
+        paths = glob.glob(directory)
+    for path in paths:
+        if Path(path).suffix in valid_extensions:
+            return path
+
+
 def geom_flow_to_gdfs(
     ras_project: RasProject, crs: CRS, client: boto3.client = None, bucket: str = None
 ) -> gpd.GeoDataFrame:
@@ -53,12 +66,27 @@ def geom_flow_to_gdfs(
     plan_file = ras_project._ras_text_file_path.replace(".prj", ras_project.current_plan)
 
     if client and bucket:
+        plan_file = get_path(plan_file, client, bucket)
         rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
 
-        string = str_from_s3(rp.plan_steady_file, client, bucket)
+        # get steady flow file
+        try:
+            plan_steady_file = get_path(rp.plan_steady_file, client, bucket)
+        except NoFlowFileSpecifiedError as e:
+            logging.warning(e)
+            plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS, client, bucket)
+
+        string = str_from_s3(plan_steady_file, client, bucket)
         rf = RasFlowText.from_str(string, " .f01")
 
-        string = str_from_s3(rp.plan_geom_file, client, bucket)
+        # get geometry file
+        try:
+            plan_geom_file = get_path(rp.plan_geom_file, client, bucket)
+        except NoFlowFileSpecifiedError:
+            logging.warning(e)
+            plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS, client, bucket)
+
+        string = str_from_s3(plan_geom_file, client, bucket)
         rg = RasGeomText.from_str(string, crs, " .g01")
     else:
         rp = RasPlanText(plan_file, crs)
