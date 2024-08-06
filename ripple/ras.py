@@ -86,9 +86,9 @@ def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         if isinstance(extensions, list):
-            return [self._ras_root_path + "." + extension.lstrip(".") for extension in extensions]
+            return [self._ras_root_path + "." + extension.replace(" ", "").lstrip(".") for extension in extensions]
         else:
-            return self._ras_root_path + "." + extensions.lstrip(".")
+            return self._ras_root_path + "." + extensions.replace(" ", "").lstrip(".")
 
     return wrapper
 
