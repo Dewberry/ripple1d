@@ -92,6 +92,7 @@ def replace_line_in_contents(lines: list, search_string: str, replacement: str, 
 
 def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, include_end_line=False) -> list[str]:
     """Search for an exact match to the start_str and return all lines from there to a line that contains the end_str."""
+    start_str = handle_spaces(start_str, lines)
     results = []
     in_block = False
     for line in lines:
@@ -114,6 +115,7 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, inc
 
 def text_block_from_start_str_to_empty_line(start_str: str, lines: list) -> list[str]:
     """Search for an exact match to the start_str and return all lines from there to the next empty line."""
+    start_str = handle_spaces(start_str, lines)
     results = []
     in_block = False
     for line in lines:
@@ -133,6 +135,7 @@ def text_block_from_start_str_to_empty_line(start_str: str, lines: list) -> list
 
 def text_block_from_start_str_length(start_str: str, number_of_lines: int, lines: list) -> list[str]:
     """Search for an exact match to the start token and return a number of lines equal to number_of_lines."""
+    start_str = handle_spaces(start_str, lines)
     results = []
     in_block = False
     for line in lines:
@@ -157,6 +160,29 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
             pairs.append((float(x), float(y)))
 
     return pairs
+
+
+def handle_spaces(line: str, lines: list[str]):
+    """Handle spaces in the line."""
+    if line in lines:
+        return line
+    elif handle_spaces_arround_equals(line.rstrip(" "), lines):
+        return handle_spaces_arround_equals(line.rstrip(" "), lines)
+    elif handle_spaces_arround_equals(line + " ", lines) in lines:
+        return handle_spaces_arround_equals(line + " ", lines)
+    else:
+        raise ValueError(f"line: {line} not found in lines")
+
+
+def handle_spaces_arround_equals(line: str, lines: list[str]) -> str:
+    """Handle spaces in the line."""
+    if line in lines:
+        return line
+    elif "= " in line:
+        if line.replace("= ", "=") in lines:
+            return line.replace("= ", "=")
+    else:
+        return line.replace("=", "= ")
 
 
 def assert_no_mesh_error(compute_message_file: str, require_exists: bool):
