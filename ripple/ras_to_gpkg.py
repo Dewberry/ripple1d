@@ -299,6 +299,7 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
     properties = {
         "ripple: version": ripple_version,
         "ras version": rm.version,
+        "ras_units": rm.ras_project.ras_units,
         "project title": rm.ras_project.title,
         "plan titles": {key: val.file_extension for key, val in rm.plans.items()},
         "geom titles": {key: val.file_extension for key, val in rm.geoms.items()},
