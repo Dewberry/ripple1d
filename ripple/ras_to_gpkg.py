@@ -186,7 +186,7 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     geom_flow_to_gpkg(ras_project, crs, temp_path, client, bucket)
 
     # move geopackage to s3
-    output_gpkg_path = output_gpkg_path.lstrip(f"s3://{bucket}/")
+    output_gpkg_path = output_gpkg_path.replace(f"s3://{bucket}/", "")
     logging.debug(f"uploading {output_gpkg_path} to s3")
     client.upload_file(
         Bucket=bucket,
