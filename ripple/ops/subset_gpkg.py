@@ -140,7 +140,6 @@ def subset_gpkg(
     xs_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
 
     if structures_gdf is not None:
-        print(len(structures_subset_gdf))
         structures_subset_gdf["river"] = nwm_id
         structures_subset_gdf["reach"] = nwm_id
         structures_subset_gdf["river_reach"] = f"{nwm_id.ljust(16)},{nwm_id.ljust(16)}"
@@ -179,7 +178,6 @@ def subset_gpkg(
         clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
         clipped_river_subset_gdf.to_file(new_nwm_reach_model.ras_gpkg_file, layer="River", driver="GPKG")
         buffer += 10
-        print(buffer)
         if len(clipped_river_subset_gdf) == 1 & xs_subset_gdf.intersects(
             clipped_river_subset_gdf["geometry"].iloc[0]
         ).all() & isinstance(clipped_river_subset_gdf["geometry"].iloc[0], LineString):
@@ -208,7 +206,6 @@ def walk_junctions(junction_gdf, us_river, us_reach, ds_river, ds_reach) -> tupl
             for _, row in junction_gdf.iterrows():
 
                 us_rivers = row.us_rivers.split(",")
-                print(us_rivers)
                 us_reaches = row.us_reaches.split(",")
 
                 for river, reach in zip(us_rivers, us_reaches):

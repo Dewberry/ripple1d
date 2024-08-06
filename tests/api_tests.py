@@ -148,8 +148,6 @@ class TestApi(unittest.TestCase):
     def test_g_check_flows_are_equal(self):
         rf2 = pd.DataFrame(RasFlowText(FLOW2_FILE).flow_change_locations)
         rf3 = pd.DataFrame(RasFlowText(FLOW3_FILE).flow_change_locations)
-        print(set(rf2["flows"].iloc[0]))
-        print(set(rf3["flows"].iloc[0]))
         self.assertTrue(set(rf2["flows"].iloc[0]) == set(rf3["flows"].iloc[0]))
 
     @check_process
