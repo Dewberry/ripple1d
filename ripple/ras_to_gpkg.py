@@ -62,13 +62,9 @@ def geom_flow_to_gdfs(
     ras_project: RasProject, crs: CRS, client: boto3.client = None, bucket: str = None
 ) -> gpd.GeoDataFrame:
     """Write geometry and flow data to a geopackage."""
-    # determine primary plan
-    plan_file = ras_project._ras_text_file_path.replace(".prj", ras_project.current_plan)
-
     if client and bucket:
-        plan_file = get_path(plan_file, client, bucket)
-        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
 
+        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
         # get steady flow file
         try:
             plan_steady_file = get_path(rp.plan_steady_file, client, bucket)
@@ -89,7 +85,7 @@ def geom_flow_to_gdfs(
         string = str_from_s3(plan_geom_file, client, bucket)
         rg = RasGeomText.from_str(string, crs, " .g01")
     else:
-        rp = RasPlanText(plan_file, crs)
+        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path)
 
         rf = RasFlowText(rp.plan_steady_file)
 
@@ -97,7 +93,21 @@ def geom_flow_to_gdfs(
 
     layers = {}
     if rg.cross_sections:
-        layers["XS"] = geom_flow_xs_gdf(rg, rf, rp.title, ras_project)
+        xs_gdf = rg.xs_gdf
+        if "u" in Path(plan_steady_file).suffix:
+            xs_gdf["flow_tile"] = rf.title
+        else:
+            xs_gdf = geom_flow_xs_gdf(rg, rf, xs_gdf)
+        xs_gdf["plan_title"] = rp.title
+        xs_gdf["geom_title"] = rg.title
+        if len(rg.version) >= 1:
+            xs_gdf["version"] = rg.version[0]
+        else:
+            xs_gdf["version"] = None
+        xs_gdf["units"] = ras_project.units
+        xs_gdf["project_title"] = ras_project.title
+        layers["XS"] = xs_gdf
+
     if rg.reaches:
         layers["River"] = rg.reach_gdf
     if rg.junctions:
@@ -108,12 +118,11 @@ def geom_flow_to_gdfs(
     return layers
 
 
-def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, ras_project: RasProject) -> gpd.GeoDataFrame:
+def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Create a geodataframe with cross section geometry and flow data."""
-    xs_gdf = rg.xs_gdf
     xs_gdf[["flows", "profile_names"]] = None, None
 
-    fcls = pd.DataFrame(flow.flow_change_locations)
+    fcls = pd.DataFrame(rf.flow_change_locations)
     fcls["river_reach"] = fcls["river"] + fcls["reach"]
 
     for river_reach in fcls["river_reach"].unique():
@@ -137,15 +146,8 @@ def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, ras_project: RasPro
                 & (xs_gdf["river_station"] <= row["rs"]),
                 "profile_names",
             ] = "\n".join(row["profile_names"])
-    xs_gdf["plan_title"] = plan_title
-    xs_gdf["geom_title"] = rg.title
-    if rg.version:
-        xs_gdf["version"] = rg.version
-    else:
-        xs_gdf["version"] = None
-    xs_gdf["units"] = ras_project.units
-    xs_gdf["flow_title"] = flow.title
-    xs_gdf["project_title"] = ras_project.title
+
+    xs_gdf["flow_title"] = rf.title
     return xs_gdf
 
 
