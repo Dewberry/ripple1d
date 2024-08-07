@@ -58,10 +58,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          $uploadUrl = '${{ steps.create_release.outputs.upload_url }}'
           $files = Get-ChildItem -Path dist
           foreach ($file in $files) {
             $filePath = $file.FullName
             $fileName = $file.Name
             echo "Uploading $fileName"
-            gh release upload ${{ steps.create_release.outputs.upload_url }} $filePath --clobber
+            gh release upload $uploadUrl $filePath --clobber
           }
