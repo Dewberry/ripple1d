@@ -7,30 +7,32 @@ from time import sleep
 
 import requests
 
-runner_file = r"D:\Users\abdul.siddiqui\workbench\projects\hc_sc_huc12s\runner.csv"
-db_path = r"D:\Users\abdul.siddiqui\workbench\projects\production\library.sqlite"
+runner_file = r"D:\Users\abdul.siddiqui\workbench\projects\test_production\runner.csv"
+db_path = r"D:\Users\abdul.siddiqui\workbench\projects\test_production\library.sqlite"
+source_model_directory = r"D:\\Users\\abdul.siddiqui\\workbench\\projects\\test_production\\source_models"
+submodels_directory = r"D:\\Users\\abdul.siddiqui\\workbench\\projects\\test_production\\submodels"
 process_name = "run_incremental_normal_depth"
 
 payload_templates = {
     "extract_submodel": {
-        "source_model_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\source_models\\{model_key}",
-        "submodel_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\submodels\\{nwm_reach_id}",
+        "source_model_directory": "{source_model_directory}\\{model_key}",
+        "submodel_directory": "{submodels_directory}\\{nwm_reach_id}",
         "nwm_id": "{nwm_reach_id}",
         "ripple_version": "0.0.1",
     },
     "create_ras_terrain": {
-        "submodel_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\submodels\\{nwm_reach_id}",
+        "submodel_directory": "{submodels_directory}\\{nwm_reach_id}",
         "resolution": 3.0,
         "resolution_units": "Meters",
     },
     "create_model_run_normal_depth": {
-        "submodel_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\submodels\\{nwm_reach_id}",
+        "submodel_directory": "{submodels_directory}\\{nwm_reach_id}",
         "plan_suffix": "ind",
         "num_of_discharges_for_initial_normal_depth_runs": 10,
         "ras_version": "631",
     },
     "run_incremental_normal_depth": {
-        "submodel_directory": "D:\\Users\\abdul.siddiqui\\workbench\\projects\\production\\submodels\\{nwm_reach_id}",
+        "submodel_directory": "{submodels_directory}\\{nwm_reach_id}",
         "plan_suffix": "nd",
         "depth_increment": 0.5,
         "ras_version": "631",
@@ -44,7 +46,12 @@ def format_payload(template, nwm_reach_id, model_key):
         if type(value) != str:
             payload[key] = value
         else:
-            payload[key] = value.format(nwm_reach_id=nwm_reach_id, model_key=model_key)
+            payload[key] = value.format(
+                nwm_reach_id=nwm_reach_id,
+                model_key=model_key,
+                source_model_directory=source_model_directory,
+                submodels_directory=submodels_directory,
+            )
     return payload
 
 

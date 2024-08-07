@@ -33,6 +33,14 @@ def insert_table_to_sqlite(table, sqlite_db):
         table,
     )
 
+    cursor.executemany(
+        """
+        INSERT INTO processing (reach_id)
+        VALUES (?)
+        """,
+        [(row[0],) for row in table],
+    )
+
     conn.commit()
     conn.close()
 
