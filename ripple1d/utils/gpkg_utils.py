@@ -18,12 +18,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pystac
 from pyproj import CRS
+from shapely import Polygon, to_geojson
+
 from ripple1d.consts import LAYER_COLORS
 from ripple1d.data_model import NwmReachModel
 from ripple1d.errors import UnkownCRSUnitsError
 from ripple1d.ras import RasManager
 from ripple1d.utils.s3_utils import init_s3_resources, str_from_s3
-from shapely import Polygon, to_geojson
 
 
 def get_river_miles(river_gdf: gpd.GeoDataFrame):
@@ -55,7 +56,6 @@ def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
     """
     layers = fiona.listlayers(gpkg_s3_uri)
     gdfs = {}
-
     for layer in layers:
         gdfs[layer] = gpd.read_file(gpkg_s3_uri, layer=layer)
 
@@ -84,7 +84,7 @@ def create_thumbnail_from_gpkg(gdfs: dict) -> plt.Figure:
 
     for layer, color in LAYER_COLORS.items():
         if layer in gdfs.keys():
-            gdfs[layer].plot(ax=ax, color=LAYER_COLORS[layer], linewidth=1, label=layer)
+            gdfs[layer].plot(ax=ax, color=color, linewidth=1, label=layer)
             crs = gdfs[layer].crs
     # Add openstreetmap basemap
     ctx.add_basemap(ax, crs=crs)
@@ -243,7 +243,7 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
         title = title
 
     elif ".ripple1d.json" in title:
-        roles.extend(["ripple1d-parameters", pystac.MediaType.JSON])
+        roles.extend(["ripple-parameters", pystac.MediaType.JSON])
         description = """Json file containing Ripple parameters."""
         title = "Ripple parameters"
 

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from pyproj import CRS
+
 from ripple1d.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 
 TEST_DIR = os.path.dirname(__file__)
@@ -75,7 +76,7 @@ class TestPlan(unittest.TestCase):
 class TestGeom(unittest.TestCase):
     def test_load_data(self):
         self.assertEqual(self.ras_geom.title, "Imported GIS Data +Bridges")
-        self.assertEqual(self.ras_geom.version, "5.00")
+        self.assertEqual(self.ras_geom.version, ["5.00"])
 
     def test_parser(self):
         self.assertEqual(len(self.ras_geom.reaches), 3)

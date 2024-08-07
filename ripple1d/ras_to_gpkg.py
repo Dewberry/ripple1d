@@ -12,6 +12,7 @@ import geopandas as gpd
 import pandas as pd
 import pystac
 from pyproj import CRS
+
 from ripple1d.data_model import NwmReachModel
 from ripple1d.errors import CouldNotIdentifyPrimaryPlanError
 from ripple1d.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
@@ -25,6 +26,7 @@ from ripple1d.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
+from ripple1d.utils.ripple_utils import get_path
 from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -34,41 +36,93 @@ from ripple1d.utils.s3_utils import (
 )
 
 
-def geom_flow_to_gpkg(ras_text_file_path: str, crs: CRS, gpkg_file: str) -> None:
+def geom_flow_to_gpkg(
+    ras_project: RasProject, crs: CRS, gpkg_file: str, client: boto3.client = None, bucket: str = None
+) -> None:
     """Write geometry and flow data to a geopackage."""
-    layers = geom_flow_to_gdfs(ras_text_file_path, crs)
+    layers = geom_flow_to_gdfs(ras_project, crs, client, bucket)
     for layer, gdf in layers.items():
         gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
 
 
-def geom_flow_to_gdfs(ras_text_file_path: str, crs: CRS) -> gpd.GeoDataFrame:
+def find_a_valid_file(
+    directory: str, valid_extensions: list[str], client: boto3.client = None, bucket: str = None
+) -> str:
+    """Find a file in the directory that contains a valid extension. Returns the first valid file found."""
+    if client and bucket:
+        paths = list_keys(client, bucket, directory)
+    else:
+        paths = glob.glob(directory)
+    for path in paths:
+        if Path(path).suffix in valid_extensions:
+            return path
+
+
+def geom_flow_to_gdfs(
+    ras_project: RasProject, crs: CRS, client: boto3.client = None, bucket: str = None
+) -> gpd.GeoDataFrame:
     """Write geometry and flow data to a geopackage."""
-    ras_project = RasProject(ras_text_file_path)
+    if client and bucket:
 
-    # determine primary plan
-    plan_file = ras_text_file_path.replace(".prj", ras_project.current_plan)
-    rp = RasPlanText(plan_file, crs)
+        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
+        # get steady flow file
+        try:
+            plan_steady_file = get_path(rp.plan_steady_file, client, bucket)
+        except NoFlowFileSpecifiedError as e:
+            logging.warning(e)
+            plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS, client, bucket)
 
-    rf = RasFlowText(rp.plan_steady_file)
+        string = str_from_s3(plan_steady_file, client, bucket)
+        rf = RasFlowText.from_str(string, " .f01")
 
-    rg = RasGeomText(rp.plan_geom_file, crs)
+        # get geometry file
+        try:
+            plan_geom_file = get_path(rp.plan_geom_file, client, bucket)
+        except NoFlowFileSpecifiedError:
+            logging.warning(e)
+            plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS, client, bucket)
+
+        string = str_from_s3(plan_geom_file, client, bucket)
+        rg = RasGeomText.from_str(string, crs, " .g01")
+    else:
+        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path)
+
+        rf = RasFlowText(rp.plan_steady_file)
+
+        rg = RasGeomText(rp.plan_geom_file, crs)
 
     layers = {}
     if rg.cross_sections:
-        layers["XS"] = geom_flow_xs_gdf(rg, rf, rp.title, ras_project.title)
+        xs_gdf = rg.xs_gdf
+        if "u" in Path(plan_steady_file).suffix:
+            xs_gdf["flow_tile"] = rf.title
+        else:
+            xs_gdf = geom_flow_xs_gdf(rg, rf, xs_gdf)
+        xs_gdf["plan_title"] = rp.title
+        xs_gdf["geom_title"] = rg.title
+        if len(rg.version) >= 1:
+            xs_gdf["version"] = rg.version[0]
+        else:
+            xs_gdf["version"] = None
+        xs_gdf["units"] = ras_project.units
+        xs_gdf["project_title"] = ras_project.title
+        layers["XS"] = xs_gdf
+
     if rg.reaches:
         layers["River"] = rg.reach_gdf
     if rg.junctions:
         layers["Junction"] = rg.junction_gdf
+
+    if rg.structures:
+        layers["Structure"] = rg.structures_gdf
     return layers
 
 
-def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str) -> gpd.GeoDataFrame:
+def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Create a geodataframe with cross section geometry and flow data."""
-    xs_gdf = rg.xs_gdf
     xs_gdf[["flows", "profile_names"]] = None, None
 
-    fcls = pd.DataFrame(flow.flow_change_locations)
+    fcls = pd.DataFrame(rf.flow_change_locations)
     fcls["river_reach"] = fcls["river"] + fcls["reach"]
 
     for river_reach in fcls["river_reach"].unique():
@@ -92,11 +146,8 @@ def geom_flow_xs_gdf(rg: RasGeomText, flow, plan_title: str, project_title: str)
                 & (xs_gdf["river_station"] <= row["rs"]),
                 "profile_names",
             ] = "\n".join(row["profile_names"])
-    xs_gdf["plan_title"] = plan_title
-    xs_gdf["geom_title"] = rg.title
-    xs_gdf["version"] = rg.version
-    xs_gdf["flow_title"] = flow.title
-    xs_gdf["project_title"] = project_title
+
+    xs_gdf["flow_title"] = rf.title
     return xs_gdf
 
 
@@ -115,7 +166,7 @@ def detemine_primary_plan(
     If no plans are found without encroachments, an error is raised.
     """
     if len(ras_project.plans) == 1:
-        plan_path = ras_project.plans[0]
+        plan_path = get_path(ras_project.plans[0], client, bucket)
         if client:
             string = str_from_s3(plan_path, client, bucket)
             return RasPlanText.from_str(string, crs, plan_path)
@@ -123,6 +174,7 @@ def detemine_primary_plan(
             return RasPlanText(plan_path, crs)
     candidate_plans = []
     for plan_path in ras_project.plans:
+        plan_path = get_path(ras_project.plans[0], client, bucket)
         if client:
             string = str_from_s3(plan_path, client, bucket)
 
@@ -135,14 +187,18 @@ def detemine_primary_plan(
                 if not string.__contains__("Encroach Node"):
                     candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
     if len(candidate_plans) > 1 or not candidate_plans:
-        raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
+        plan_path = ras_project._ras_root_path + "." + ras_project.current_plan.lstrip(".")
+        string = str_from_s3(plan_path, client, bucket)
+        return RasPlanText.from_str(string, crs, plan_path)
+        # raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
     else:
         return candidate_plans[0]
 
 
 def geom_to_gpkg(ras_text_file_path: str, crs: CRS, output_gpkg_path: str):
     """Write geometry and flow data to a geopackage locally."""
-    geom_flow_to_gpkg(geom_flow_to_gpkg, crs, output_gpkg_path)
+    ras_project = RasProject(ras_text_file_path)
+    geom_flow_to_gpkg(ras_project, crs, output_gpkg_path)
 
 
 def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
@@ -157,20 +213,10 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     string = str_from_s3(ras_text_file_path, client, bucket)
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
-    # determine primary plan
-    rp = detemine_primary_plan(ras_project, crs, ras_text_file_path, client, bucket)
-
-    # read flow string and write geopackage
-    string = str_from_s3(rp.plan_steady_file, client, bucket)
-    rf = RasFlowText.from_str(string, " .f01")
-
-    # read geom string and write geopackage
-    string = str_from_s3(rp.plan_geom_file, client, bucket)
-    rg = RasGeomText.from_str(string, crs, " .g01")
-
-    geom_flow_to_gpkg(ras_text_file_path, crs, temp_path)
+    geom_flow_to_gpkg(ras_project, crs, temp_path, client, bucket)
 
     # move geopackage to s3
+    output_gpkg_path = output_gpkg_path.replace(f"s3://{bucket}/", "")
     logging.debug(f"uploading {output_gpkg_path} to s3")
     client.upload_file(
         Bucket=bucket,
@@ -185,7 +231,7 @@ def new_stac_item_s3(
     new_stac_item_s3_key: str,
     thumbnail_png_s3_key: str,
     bucket: str,
-    ripple1d_version: str,
+    ripple_version: str,
     mip_case_no: str,
     dev_mode: bool = False,
 ):
@@ -214,7 +260,7 @@ def new_stac_item_s3(
 
     data = gdfs["XS"].iloc[0]
     properties = {
-        "ripple1d: version": ripple1d_version,
+        "ripple: version": ripple_version,
         "ras version": data["version"],
         "project title": data["project_title"],
         "plan title": data["plan_title"],
@@ -259,7 +305,7 @@ def new_stac_item_s3(
     logging.debug("Program completed successfully")
 
 
-def new_stac_item(ras_project_directory: str, ripple1d_version: str, ras_s3_prefix: str):
+def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix: str):
     """Create a new stac item from a geopackage locally ."""
     logging.debug("Creating item from gpkg")
 
@@ -281,20 +327,22 @@ def new_stac_item(ras_project_directory: str, ripple1d_version: str, ras_s3_pref
 
     data = gdfs["XS"].iloc[0]
     properties = {
-        "ripple1d: version": ripple1d_version,
+        "ripple: version": ripple_version,
         "ras version": rm.version,
+        "ras_units": rm.ras_project.ras_units,
         "project title": rm.ras_project.title,
         "plan titles": {key: val.file_extension for key, val in rm.plans.items()},
         "geom titles": {key: val.file_extension for key, val in rm.geoms.items()},
         "flow titles": {key: val.file_extension for key, val in rm.flows.items()},
         "river miles": str(river_miles),
-        "NWM to_id": nwm_rm.ripple1d_parameters["nwm_to_id"],
+        "NWM to_id": nwm_rm.ripple_parameters["nwm_to_id"],
         "proj:wkt2": crs.to_wkt(),
         "proj:epsg": crs.to_epsg(),
     }
     item = create_geom_item(nwm_rm.model_name, bbox, footprint, properties)
 
     for asset_key in nwm_rm.assets:
+
         asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
         asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
         asset = pystac.Asset(
@@ -304,9 +352,9 @@ def new_stac_item(ras_project_directory: str, ripple1d_version: str, ras_s3_pref
             description=asset_info["description"],
         )
         item.add_asset(asset_info["title"], asset)
-    item.add_derived_from(nwm_rm.ripple1d_parameters["source_model"])
-    item.add_derived_from(nwm_rm.ripple1d_parameters["source_terrain"])
-    item.add_derived_from(nwm_rm.ripple1d_parameters["source_nwm_reach"])
+    item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
+    item.add_derived_from(nwm_rm.ripple_parameters["source_terrain"])
+    item.add_derived_from(nwm_rm.ripple_parameters["source_nwm_reach"])
     with open(nwm_rm.model_stac_json_file, "w") as dst:
         dst.write(json.dumps(item.to_dict()))
 

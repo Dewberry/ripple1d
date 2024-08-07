@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import glob
+import os
+from pathlib import Path
+
 import geopandas as gpd
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
+from shapely.geometry import Point, Polygon
+
 from ripple1d.errors import (
     RASComputeError,
     RASComputeMeshError,
     RASGeometryError,
     RASStoreAllMapsError,
 )
-from shapely.geometry import Point, Polygon
+from ripple1d.utils.s3_utils import list_keys
 
 load_dotenv(find_dotenv())
 
@@ -21,6 +27,24 @@ def decode(df: pd.DataFrame):
     for c in df.columns:
         df[c] = df[c].str.decode("utf-8")
     return df
+
+
+def get_path(expected_path: str, client: boto3.client = None, bucket: str = None) -> str:
+    """Get the path for a file."""
+    if client and bucket:
+        path = Path(expected_path)
+        prefix = path.parent.as_posix().replace("s3:/", "s3://")
+        paths = list_keys(client, bucket, prefix, path.suffix)
+    else:
+        prefix = os.path.dirname(expected_path)
+        paths = glob.glob(rf"{prefix}\*{os.path.splitext(expected_path)[1]}")
+
+    if expected_path in paths:
+        return expected_path
+    else:
+        for path in paths:
+            if path.endswith(Path(expected_path).suffix):
+                return path
 
 
 def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -66,11 +90,12 @@ def replace_line_in_contents(lines: list, search_string: str, replacement: str, 
         return lines
 
 
-def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, include_end_line=False) -> list[str]:
+def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, additional_lines: int = None) -> list[str]:
     """Search for an exact match to the start_str and return all lines from there to a line that contains the end_str."""
+    start_str = handle_spaces(start_str, lines)
     results = []
     in_block = False
-    for line in lines:
+    for i, line in enumerate(lines):
         if line == start_str:
             in_block = True
             results.append(line)
@@ -78,8 +103,9 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, inc
 
         if in_block:
             if end_str in line:
-                if include_end_line:
-                    results.append(line)
+                if additional_lines:
+                    for additional_line in lines[i : i + additional_lines]:
+                        results.append(additional_line)
                     return results
                 else:
                     return results
@@ -90,6 +116,7 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, inc
 
 def text_block_from_start_str_to_empty_line(start_str: str, lines: list) -> list[str]:
     """Search for an exact match to the start_str and return all lines from there to the next empty line."""
+    start_str = handle_spaces(start_str, lines)
     results = []
     in_block = False
     for line in lines:
@@ -109,13 +136,13 @@ def text_block_from_start_str_to_empty_line(start_str: str, lines: list) -> list
 
 def text_block_from_start_str_length(start_str: str, number_of_lines: int, lines: list) -> list[str]:
     """Search for an exact match to the start token and return a number of lines equal to number_of_lines."""
+    start_str = handle_spaces(start_str, lines)
     results = []
     in_block = False
     for line in lines:
         if line == start_str:
             in_block = True
             continue
-
         if in_block:
             if len(results) >= number_of_lines:
                 return results
@@ -133,6 +160,29 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
             pairs.append((float(x), float(y)))
 
     return pairs
+
+
+def handle_spaces(line: str, lines: list[str]):
+    """Handle spaces in the line."""
+    if line in lines:
+        return line
+    elif handle_spaces_arround_equals(line.rstrip(" "), lines):
+        return handle_spaces_arround_equals(line.rstrip(" "), lines)
+    elif handle_spaces_arround_equals(line + " ", lines) in lines:
+        return handle_spaces_arround_equals(line + " ", lines)
+    else:
+        raise ValueError(f"line: {line} not found in lines")
+
+
+def handle_spaces_arround_equals(line: str, lines: list[str]) -> str:
+    """Handle spaces in the line."""
+    if line in lines:
+        return line
+    elif "= " in line:
+        if line.replace("= ", "=") in lines:
+            return line.replace("= ", "=")
+    else:
+        return line.replace("=", "= ")
 
 
 def assert_no_mesh_error(compute_message_file: str, require_exists: bool):
