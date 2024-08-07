@@ -178,3 +178,4 @@ dev
 /api/logs/*.log
 tests/outputs
 pids.txt
+*.log*
