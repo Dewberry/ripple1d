@@ -53,16 +53,12 @@ jobs:
           release_name: Release v${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
-      - name: Upload Release Assets
-        shell: pwsh
+      - name: Upload Source Distribution
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          $uploadUrl = '${{ steps.create_release.outputs.upload_url }}'
-          $files = Get-ChildItem -Path dist
-          foreach ($file in $files) {
-            $filePath = $file.FullName
-            $fileName = $file.Name
-            echo "Uploading $fileName"
-            gh release upload $uploadUrl $filePath --clobber
-          }
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/*.tar.gz
+          asset_name: ripple1d-v${{ steps.get_version.outputs.VERSION }}.tar.gz
+          asset_content_type: application/gzi
