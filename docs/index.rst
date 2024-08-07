@@ -36,7 +36,7 @@ Below are the steps to start, stop, and check the status of the Ripple Manager..
 
    .. code-block:: powershell
 
-      python ripple1d_manager.py stop --pids_file ./process-ids.json
+      ripple1d stop --pids_file ./process-ids.json
 
 
 
