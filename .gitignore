@@ -169,12 +169,13 @@ tests/ras-data/Baxter/test
 tests/ras-data/Baxter/nwm_models
 tests/ras-data/Baxter/Terrain
 tests/ras-data/WFSJMAIN/
-/ripple/models/
+/ripple1d/models/
 .vscode/settings.json
 mip_models
 tests/ras-data/Baxter/submodels/
-ripple/tests/
+ripple1d/tests/
 dev
 /api/logs/*.log
 tests/outputs
 pids.txt
+py312/

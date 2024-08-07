@@ -4,8 +4,8 @@ import json
 import logging
 import os
 
-from ripple.ops.fim_lib import create_fim_lib
-from ripple.ripple_logger import configure_logging
+from ripple1d.ops.fim_lib import create_fim_lib
+from ripple1d.ripple1d_logger import configure_logging
 
 if __name__ == "__main__":
     configure_logging(level=logging.INFO)

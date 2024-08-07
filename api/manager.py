@@ -74,7 +74,7 @@ class RippleManager:
         else:
             python_executable = sys.executable
 
-        print("Starting ripple-huey")
+        print("Starting ripple1d-huey")
         huey_command = [
             python_executable,
             "-u",
@@ -93,7 +93,7 @@ class RippleManager:
 
         self.processes.append((huey_result, "huey"))
 
-        print("Starting ripple-flask")
+        print("Starting ripple1d-flask")
         flask_command = [
             python_executable,
             "-m",

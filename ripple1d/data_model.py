@@ -13,14 +13,14 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString, Point
 
-from ripple.utils.ripple_utils import (
+from ripple1d.utils.ripple_utils import (
     data_pairs_from_text_block,
     search_contents,
     text_block_from_start_end_str,
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
 )
-from ripple.utils.s3_utils import init_s3_resources, read_json_from_s3
+from ripple1d.utils.s3_utils import init_s3_resources, read_json_from_s3
 
 
 class RasModelStructure:
@@ -147,7 +147,7 @@ class NwmReachModel(RasModelStructure):
     @property
     def crs(self):
         """Coordinate Reference System."""
-        return self.ripple_parameters["crs"]
+        return self.ripple1d_parameters["crs"]
 
     def upload_files_to_s3(self, ras_s3_prefix: str, bucket: str):
         """Upload the model to s3."""
@@ -177,15 +177,15 @@ class NwmReachModel(RasModelStructure):
         client.upload_file(Bucket=bucket, Key=f"{s3_prefix}/{file_name}", Filename=self.fim_lib_stac_json_file)
 
     @property
-    def ripple_parameters(self):
+    def ripple1d_parameters(self):
         """Ripple parameters."""
         with open(self.conflation_file, "r") as f:
-            ripple_parameters = json.loads(f.read())
-        return ripple_parameters
+            ripple1d_parameters = json.loads(f.read())
+        return ripple1d_parameters
 
-    def update_write_ripple_parameters(self, new_parameters: dict):
+    def update_write_ripple1d_parameters(self, new_parameters: dict):
         """Write Ripple parameters."""
-        parameters = self.ripple_parameters
+        parameters = self.ripple1d_parameters
         parameters.update(new_parameters)
         with open(self.conflation_file, "w") as f:
             f.write(json.dumps(parameters, indent=4))
@@ -193,7 +193,7 @@ class NwmReachModel(RasModelStructure):
     @property
     def conflation_file(self):
         """Conflation file."""
-        return self.derive_path(".ripple.json")
+        return self.derive_path(".ripple1d.json")
 
     @property
     def model_stac_json_file(self):

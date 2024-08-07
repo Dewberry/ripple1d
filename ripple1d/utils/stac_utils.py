@@ -12,8 +12,7 @@ import boto3
 import pystac
 import pystac_client
 import requests
-
-from ripple.utils.s3_utils import s3_get_output_s3path
+from ripple1d.utils.s3_utils import s3_get_output_s3path
 
 
 def key_to_uri(key: str, bucket: str) -> str:

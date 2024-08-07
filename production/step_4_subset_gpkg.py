@@ -4,8 +4,8 @@ import json
 import logging
 import os
 
-from ripple.ops.subset_gpkg import extract_submodel
-from ripple.ripple_logger import configure_logging
+from ripple1d.ops.subset_gpkg import extract_submodel
+from ripple1d.ripple1d_logger import configure_logging
 
 if __name__ == "__main__":
     configure_logging(level=logging.INFO)
@@ -20,4 +20,4 @@ if __name__ == "__main__":
         nwm_id,
     )
     # with open(conflation_json_path, "w") as f:
-    #     json.dump(ripple_parameters, f, indent=4)
+    #     json.dump(ripple1d_parameters, f, indent=4)

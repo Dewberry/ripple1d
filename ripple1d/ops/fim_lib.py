@@ -15,16 +15,15 @@ from pyproj import CRS
 # from osgeo import gdal
 from rasterio.enums import Resampling
 from rasterio.shutil import copy as copy_raster
-
-from ripple.conflate.rasfim import RasFimConflater
-from ripple.consts import RIPPLE_VERSION
-from ripple.data_model import NwmReachModel
-from ripple.errors import DepthGridNotFoundError
-from ripple.ras import RasManager
-from ripple.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
-from ripple.utils.dg_utils import bbox_to_polygon, get_raster_bounds, get_raster_metadata, reproject_raster
-from ripple.utils.s3_utils import get_basic_object_metadata, init_s3_resources
-from ripple.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqlite, zero_depth_to_sqlite
+from ripple1d.conflate.rasfim import RasFimConflater
+from ripple1d.consts import RIPPLE_VERSION
+from ripple1d.data_model import NwmReachModel
+from ripple1d.errors import DepthGridNotFoundError
+from ripple1d.ras import RasManager
+from ripple1d.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
+from ripple1d.utils.dg_utils import bbox_to_polygon, get_raster_bounds, get_raster_metadata, reproject_raster
+from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources
+from ripple1d.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqlite, zero_depth_to_sqlite
 
 
 def post_process_depth_grids(
@@ -183,7 +182,7 @@ def nwm_reach_model_stac(
     ras_project_directory: str,
     ras_model_s3_prefix: str = None,
     bucket: str = None,
-    ripple_version: str = RIPPLE_VERSION,
+    ripple1d_version: str = RIPPLE_VERSION,
 ):
     """Convert a FIM RAS model to a STAC item."""
     nwm_rm = NwmReachModel(ras_project_directory)
@@ -191,7 +190,7 @@ def nwm_reach_model_stac(
     # create new stac item
     new_stac_item(
         ras_project_directory,
-        ripple_version,
+        ripple1d_version,
         ras_model_s3_prefix,
     )
 
@@ -218,7 +217,7 @@ def nwm_reach_model_stac(
             Bucket=bucket,
             Key=key,
         )
-        nwm_rm.update_write_ripple_parameters({"model_stac_item": f"https://{bucket}.s3.amazonaws.com/{key}"})
+        nwm_rm.update_write_ripple1d_parameters({"model_stac_item": f"https://{bucket}.s3.amazonaws.com/{key}"})
 
 
 def update_stac_s3_location(stac_item_file: pystac.Item, bucket: str, s3_prefix: str):
@@ -309,7 +308,7 @@ def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str, 
     metadata = {
         "properties": {
             "NOAA_NWM:FIM Reach ID": nwm_reach_id,
-            "NOAA_NWM:FIM to Reach ID": nwm_rm.ripple_parameters["nwm_to_id"],
+            "NOAA_NWM:FIM to Reach ID": nwm_rm.ripple1d_parameters["nwm_to_id"],
             "NOAA_NWM:FIM Depth units": "ft",
             "NOAA_NWM:FIM Flow units": "cfs",
             "NOAA_NWM:FIM Rating Curve (Flow, Depth)": nwm_rm.fim_rating_curve,
@@ -317,7 +316,7 @@ def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str, 
             "proj:epsg": CRS(nwm_rm.crs).to_epsg(),
             "Ripple Version": RIPPLE_VERSION,
         },
-        "derived_from": {"model_stac_item": nwm_rm.ripple_parameters["model_stac_item"]},
+        "derived_from": {"model_stac_item": nwm_rm.ripple1d_parameters["model_stac_item"]},
     }
     assets = nwm_rm.fim_lib_assets
     fim_lib_item(nwm_reach_id, nwm_rm.fim_lib_assets, nwm_rm.fim_lib_stac_json_file, metadata)

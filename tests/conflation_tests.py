@@ -6,9 +6,7 @@ import unittest
 import geopandas as gpd
 import pandas as pd
 import pytest
-from shapely.geometry import LineString, MultiLineString, Point, Polygon
-
-from ripple.conflate.rasfim import (
+from ripple1d.conflate.rasfim import (
     RasFimConflater,
     cacl_avg_nearest_points,
     count_intersecting_lines,
@@ -16,7 +14,8 @@ from ripple.conflate.rasfim import (
     filter_gdf,
     nearest_line_to_point,
 )
-from ripple.ops.ras_conflate import conflate
+from ripple1d.ops.ras_conflate import conflate
+from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/Baxter.json"

@@ -7,7 +7,7 @@ TODO: Refactor, this script was written in one setting and needs to be revised s
 # import argparse
 # import logging
 
-# from ripple.utils.s3_utils import read_json_from_s3
+# from ripple1d.utils.s3_utils import read_json_from_s3
 
 # from .fim_collection import FIMCollection, FIMCollectionRasItem
 
@@ -31,18 +31,18 @@ TODO: Refactor, this script was written in one setting and needs to be revised s
 
 #         fci.map_topo_assets()
 
-#         conflated = fci.add_ripple_params()
+#         conflated = fci.add_ripple1d_params()
 
 #         fci.add_s3_key_to_assets()
 
 #         fci.ensure_asset_roles_unique()
 
 #         if conflated:
-#             params_json = fci.item.assets["ripple_parameters.json"].extra_fields["s3_key"]
+#             params_json = fci.item.assets["ripple1d_parameters.json"].extra_fields["s3_key"]
 #             data = read_json_from_s3("fim", params_json)
 
 #             fci.item.properties["FIM:Branch Metadata"] = data
 #         else:
-#             logging.error(f"Failed to add ripple params for {fci.item.id}")
+#             logging.error(f"Failed to add ripple1d params for {fci.item.id}")
 
 #         fci.post_item_updates()

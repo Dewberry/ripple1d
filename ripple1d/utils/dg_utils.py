@@ -18,10 +18,9 @@ from pyproj import CRS
 from rasterio import mask
 from rasterio.session import AWSSession
 from rasterio.warp import Resampling, calculate_default_transform, reproject
+from ripple1d.consts import METERS_PER_FOOT
+from ripple1d.errors import UnknownVerticalUnits
 from shapely import Polygon
-
-from ripple.consts import METERS_PER_FOOT
-from ripple.errors import UnknownVerticalUnits
 
 from .s3_utils import *
 

@@ -4,9 +4,8 @@ import os
 import sqlite3
 
 import pandas as pd
-
-from ripple.consts import RIPPLE_VERSION
-from ripple.ras import RasManager
+from ripple1d.consts import RIPPLE_VERSION
+from ripple1d.ras import RasManager
 
 
 def create_db_and_table(db_name: str, table_name: str):
@@ -22,7 +21,7 @@ def create_db_and_table(db_name: str, table_name: str):
             us_flow INTEGER,
             us_depth REAL,
             us_wse REAL,
-            ripple_version TEXT,
+            ripple1d_version TEXT,
             boundary_condition TEXT, -- [kwse, nd]
             UNIQUE(reach_id, us_flow, ds_wse, boundary_condition)
         )
@@ -36,7 +35,7 @@ def create_db_and_table(db_name: str, table_name: str):
 
 
 def insert_data(
-    db_name: str, table_name: str, data: pd.DataFrame, boundary_condition: str, ripple_version: str = RIPPLE_VERSION
+    db_name: str, table_name: str, data: pd.DataFrame, boundary_condition: str, ripple1d_version: str = RIPPLE_VERSION
 ):
     """Insert data into the sqlite database."""
     conn = sqlite3.connect(db_name)
@@ -45,7 +44,7 @@ def insert_data(
     for row in data.itertuples():
         c.execute(
             f"""
-            INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, ripple_version, boundary_condition)
+            INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, ripple1d_version, boundary_condition)
             VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
@@ -55,7 +54,7 @@ def insert_data(
                 round(float(row.us_flow), 1),
                 round(float(row.us_depth), 1),
                 round(float(row.us_wse), 1),
-                str(ripple_version),
+                str(ripple1d_version),
                 str(boundary_condition),
             ),
         )

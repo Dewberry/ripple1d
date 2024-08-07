@@ -6,12 +6,12 @@ import os
 
 import numpy as np
 
-from ripple.ops.ras_run import (
+from ripple1d.ops.ras_run import (
     establish_order_of_nwm_ids,
     get_kwse_from_ds_model,
     run_known_wse,
 )
-from ripple.ripple_logger import configure_logging
+from ripple1d.ripple1d_logger import configure_logging
 
 if __name__ == "__main__":
     configure_logging(level=logging.INFO)

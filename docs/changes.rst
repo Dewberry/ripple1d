@@ -2,7 +2,7 @@ Change Log
 ==========
 
 
-Go to the `Releases <https://github.com/Dewberry/ripple/releases.html>`__  page for a list of all releases.
+Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`__  page for a list of all releases.
 
 0.1.0 (2024-7-3)
 ~~~~~~~~~~~~~~~

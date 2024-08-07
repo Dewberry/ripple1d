@@ -7,7 +7,7 @@ SUPPRESS_LOGS = ["boto3", "botocore", "geopandas", "fiona", "rasterios"]
 
 
 def configure_logging(level, logfile: str = None, milliseconds: bool = False, verbose: str = False):
-    """Configure logging for ripple."""
+    """Configure logging for ripple1d."""
     if milliseconds:
         datefmt = "%Y-%m-%dT%H:%M:%S.%fZ"
     else:

@@ -18,13 +18,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pystac
 from pyproj import CRS
+from ripple1d.consts import LAYER_COLORS
+from ripple1d.data_model import NwmReachModel
+from ripple1d.errors import UnkownCRSUnitsError
+from ripple1d.ras import RasManager
+from ripple1d.utils.s3_utils import init_s3_resources, str_from_s3
 from shapely import Polygon, to_geojson
-
-from ripple.consts import LAYER_COLORS
-from ripple.data_model import NwmReachModel
-from ripple.errors import UnkownCRSUnitsError
-from ripple.ras import RasManager
-from ripple.utils.s3_utils import init_s3_resources, str_from_s3
 
 
 def get_river_miles(river_gdf: gpd.GeoDataFrame):
@@ -243,8 +242,8 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
         description = """GeoPackage file with geometry data extracted from .gxx file."""
         title = title
 
-    elif ".ripple.json" in title:
-        roles.extend(["ripple-parameters", pystac.MediaType.JSON])
+    elif ".ripple1d.json" in title:
+        roles.extend(["ripple1d-parameters", pystac.MediaType.JSON])
         description = """Json file containing Ripple parameters."""
         title = "Ripple parameters"
 

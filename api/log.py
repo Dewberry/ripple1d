@@ -51,7 +51,7 @@ def initialize_log() -> None:
 
 def _get_log_filename_prefix():
     """Return a string of the current UTC timestamp, to be used as the left-hand portion of the log file name."""
-    return f"{datetime.now(tz=timezone.utc).isoformat().replace(':','-')}-ripple"
+    return f"{datetime.now(tz=timezone.utc).isoformat().replace(':','-')}-ripple1d"
 
 
 def _get_log_filename_suffix():

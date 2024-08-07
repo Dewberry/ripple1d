@@ -11,8 +11,8 @@ TODO: Refactor, this script was written in one setting and needs to be revised s
 # import pystac
 # from dotenv import load_dotenv
 
-# from ripple.utils.s3_utils import init_s3_resources, list_keys
-# from ripple.utils.stac_utils import (
+# from ripple1d.utils.s3_utils import init_s3_resources, list_keys
+# from ripple1d.utils.stac_utils import (
 #     create_collection,
 #     key_to_uri,
 #     upsert_collection,
