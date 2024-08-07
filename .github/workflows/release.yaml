@@ -25,6 +25,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install build twine toml
+      - name: Verify toml installation
+        run: |
+          python -c "import toml; print('toml module is installed')"
       - name: Extract version from pyproject.toml
         id: get_version
         shell: pwsh
@@ -41,23 +44,3 @@ jobs:
           TWINE_REPOSITORY_URL: https://upload.pypi.org/legacy/
         run: |
           twine upload dist/*
-      - name: Create and tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ env.VERSION }}
-          git push origin v${{ env.VERSION }}
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
-          body: |
-            Release notes for v${{ env.VERSION }}
-          draft: false
-          prerelease: false
