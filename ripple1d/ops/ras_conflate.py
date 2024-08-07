@@ -6,7 +6,9 @@ from datetime import datetime
 from urllib.parse import quote
 
 import boto3
+import pandas as pd
 import pystac
+
 from ripple1d.conflate.plotter import plot_conflation_results
 from ripple1d.conflate.rasfim import (
     RasFimConflater,
@@ -33,13 +35,18 @@ def s3_public_href(bucket: str, key: str) -> str:
 def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
     """Conflate a HEC-RAS model with a specific NWM reach."""
     nwm_reach_id_identified = False
+    model_local_nwm_reaches = rfc.local_nwm_reaches()
     for river_reach_name in rfc.ras_river_reach_names:
-        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
-        us_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_start_point)
-        ds_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_stop_point)
+        local_nwm_reaches = model_local_nwm_reaches.intersects(
+            rfc.ras_xs_concave_hull(river_reach_name)["geometry"].iloc[0]
+        )
 
-        potential_reach_path = walk_network(rfc.local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
-        candidate_reaches = rfc.local_nwm_reaches.query(f"ID in {potential_reach_path}")
+        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
+        us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point)
+        ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
+
+        potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
+        candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
         if len(candidate_reaches.query(f"ID == {nwm_reach_id}")) == 1:
             nwm_reach_id_identified = True
             return ras_reaches_metadata(rfc, candidate_reaches[candidate_reaches["ID"] == nwm_reach_id])
@@ -50,20 +57,50 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
 def conflate(rfc: RasFimConflater):
     """Conflate a HEC-RAS model with NWM reaches."""
     metadata = {}
+    # get nwm reaches that intersect the convex hull of the ras model
+    model_local_nwm_reaches = rfc.local_nwm_reaches()
     for river_reach_name in rfc.ras_river_reach_names:
-        # logging.info(f"Processing {river_reach_name}")
+
+        # get the concave hull of the this river reach
+        concave_hull = rfc.ras_xs_concave_hull(river_reach_name)
+
+        # get the nwm reaches that intersect the concave hull of the cross section of this river reach using the convex hull for this model
+        local_nwm_reaches = model_local_nwm_reaches[
+            model_local_nwm_reaches.intersects(concave_hull["geometry"].iloc[0])
+        ]
+
+        # get the start and end points of the river reach
         ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
-        # TODO: Add check / alt method for when ras_start_point is associated  with the wrong reach
-        us_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_start_point)
-        ds_most_reach_id = nearest_line_to_point(rfc.local_nwm_reaches, ras_stop_point)
-        logging.debug(
+
+        # get the nearest upstream and downstream nwm reaches to the start and end points of the river reach
+        if len(rfc.ras_river_reach_names) == 1:
+            # if there are multiple river reaches, don't raise error; quitely continue to the next river reach
+            us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point)
+            ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
+        else:
+            # if this is the only river reach, raise error
+            try:
+                us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point)
+                ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
+            except ValueError as e:
+                logging.error(f"Error: {e}")
+                continue
+
+        logging.info(
             f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
         )
 
-        potential_reach_path = walk_network(rfc.local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
-        candidate_reaches = rfc.local_nwm_reaches.query(f"ID in {potential_reach_path}")
+        # walk network to get the potential reach ids
+        potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
+        potential_reach_path = list(set(potential_reach_path) - set(metadata.keys()))
+
+        # get gdf of the candidate reaches
+        candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
+
         reach_metadata = ras_reaches_metadata(rfc, candidate_reaches)
         metadata.update(reach_metadata)
+
+    rfc.write_hulls()
     metadata["nwm_reach_source"] = rfc.nwm_pq
 
     return metadata
@@ -87,7 +124,7 @@ def conflate_s3_model(
         Key=nwm_conflation_key,
     )
 
-    # Add ripple1d parameters asset to item
+    # Add ripple parameters asset to item
     item.add_asset(
         "NWM_Conflation",
         pystac.Asset(
@@ -108,7 +145,7 @@ def conflate_s3_model(
 
     ids = [r for r in conflation_results.keys() if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]]
 
-    fim_stream = rfc.local_nwm_reaches[rfc.local_nwm_reaches["ID"].isin(ids)]
+    fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
 
     plot_conflation_results(
         rfc,

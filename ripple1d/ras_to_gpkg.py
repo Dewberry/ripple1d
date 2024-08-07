@@ -12,6 +12,7 @@ import geopandas as gpd
 import pandas as pd
 import pystac
 from pyproj import CRS
+
 from ripple1d.data_model import NwmReachModel
 from ripple1d.errors import CouldNotIdentifyPrimaryPlanError
 from ripple1d.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
@@ -135,7 +136,10 @@ def detemine_primary_plan(
                 if not string.__contains__("Encroach Node"):
                     candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
     if len(candidate_plans) > 1 or not candidate_plans:
-        raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
+        plan_path = ras_project._ras_root_path + "." + ras_project.current_plan.lstrip(".")
+        string = str_from_s3(plan_path, client, bucket)
+        return RasPlanText.from_str(string, crs, plan_path)
+        # raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
     else:
         return candidate_plans[0]
 
@@ -295,6 +299,7 @@ def new_stac_item(ras_project_directory: str, ripple1d_version: str, ras_s3_pref
     item = create_geom_item(nwm_rm.model_name, bbox, footprint, properties)
 
     for asset_key in nwm_rm.assets:
+
         asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
         asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
         asset = pystac.Asset(
