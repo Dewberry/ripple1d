@@ -25,7 +25,7 @@ Utilities for repurposing HEC-RAS models for use in the production of Flood Inun
 
 ### Using pip
 
-1. Activate virtual environment as shown below and install the `ripple1d` package using `pip`:
+1. Activate virtual environment as shown below and install the `ripple1d` package using `pip` using PowerShell:
 
     ```powershell
     pip install ripple1d
@@ -33,10 +33,21 @@ Utilities for repurposing HEC-RAS models for use in the production of Flood Inun
 
 ### Building from source 
 
-1. Activate virtual environment as shown below and install the `ripple1d` package using `pip`:
+1. Activate virtual environment as shown below and build from source:
 
     ```powershell
-    pip install ripple1d
+    git clone https://github.com/dewberry/ripple1d.git
+    cd ripple1d
+
+    # if needed install build tools
+    pip install setuptools wheel build
+    python -m build_wheel
+    pip install dist/*.whl
+
+    # Either have PowerShell get the file name or look in the dist/ directory for the latest .whl file
+    # Example filename: `ripple1d-0.3.0-py3-none-any.whl`
+     $wheel = Get-ChildItem -Path dist -Filter *.whl | Select-Object -First 1
+     pip install $wheel.FullName
     ```
 
     ---
