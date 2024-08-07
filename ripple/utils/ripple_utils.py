@@ -29,21 +29,21 @@ def decode(df: pd.DataFrame):
     return df
 
 
-def get_path(expcted_path: str, client: boto3.client = None, bucket: str = None) -> str:
+def get_path(expected_path: str, client: boto3.client = None, bucket: str = None) -> str:
     """Get the path for a file."""
     if client and bucket:
-        path = Path(expcted_path)
+        path = Path(expected_path)
         prefix = path.parent.as_posix().replace("s3:/", "s3://")
         paths = list_keys(client, bucket, prefix, path.suffix)
     else:
-        prefix = os.path.dirname(expcted_path)
-        paths = glob.glob(rf"{prefix}\*{os.path.splitext(expcted_path)[1]}")
+        prefix = os.path.dirname(expected_path)
+        paths = glob.glob(rf"{prefix}\*{os.path.splitext(expected_path)[1]}")
 
-    if expcted_path in paths:
-        return expcted_path
+    if expected_path in paths:
+        return expected_path
     else:
         for path in paths:
-            if path.endswith(Path(expcted_path).suffix):
+            if path.endswith(Path(expected_path).suffix):
                 return path
 
 
