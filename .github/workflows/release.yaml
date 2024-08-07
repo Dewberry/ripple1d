@@ -21,26 +21,27 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Print Python version
+        run: python --version
       - name: Install release dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build twine toml
+          python -m pip install build twine toml
       - name: Verify toml installation
-        run: |
-          python -c "import toml; print('toml module is installed')"
+        run: python -c "import toml; print('toml module is installed')"
       - name: Extract version from pyproject.toml
         id: get_version
         shell: pwsh
+        env:
+          pythonLocation: ${{ env.pythonLocation }}
         run: |
           $version = python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])"
           Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$version"
       - name: Build wheel and source distribution
-        run: |
-          python -m build
+        run: python -m build
       - name: Publish package
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
           TWINE_REPOSITORY_URL: https://upload.pypi.org/legacy/
-        run: |
-          twine upload dist/*
+        run: twine upload dist/*
