@@ -90,12 +90,12 @@ def replace_line_in_contents(lines: list, search_string: str, replacement: str, 
         return lines
 
 
-def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, include_end_line=False) -> list[str]:
+def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, additional_lines: int = None) -> list[str]:
     """Search for an exact match to the start_str and return all lines from there to a line that contains the end_str."""
     start_str = handle_spaces(start_str, lines)
     results = []
     in_block = False
-    for line in lines:
+    for i, line in enumerate(lines):
         if line == start_str:
             in_block = True
             results.append(line)
@@ -103,8 +103,9 @@ def text_block_from_start_end_str(start_str: str, end_str: str, lines: list, inc
 
         if in_block:
             if end_str in line:
-                if include_end_line:
-                    results.append(line)
+                if additional_lines:
+                    for additional_line in lines[i : i + additional_lines]:
+                        results.append(additional_line)
                     return results
                 else:
                     return results
@@ -142,7 +143,6 @@ def text_block_from_start_str_length(start_str: str, number_of_lines: int, lines
         if line == start_str:
             in_block = True
             continue
-
         if in_block:
             if len(results) >= number_of_lines:
                 return results
