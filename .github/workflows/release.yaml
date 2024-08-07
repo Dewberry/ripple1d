@@ -27,8 +27,10 @@ jobs:
           pip install build twine toml
       - name: Extract version from pyproject.toml
         id: get_version
+        shell: pwsh
         run: |
-          echo "VERSION=$(python -c 'import toml; print(toml.load("pyproject.toml")["tool"]["poetry"]["version"])')" >> $GITHUB_ENV
+          $version = python -c "import toml; print(toml.load('pyproject.toml')['tool']['poetry']['version'])"
+          Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$version"
       - name: Build wheel and source distribution
         run: |
           python -m build
@@ -39,7 +41,7 @@ jobs:
           TWINE_REPOSITORY_URL: https://upload.pypi.org/legacy/
         run: |
           twine upload dist/*
-      - name: Create and push tag
+      - name: Create and tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
