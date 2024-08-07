@@ -17,7 +17,7 @@ contextily==1.6.0
 contourpy==1.2.1
 cycler==0.12.1
 decorator==5.1.1
-docutils==0.21.2
+# docutils==0.21.2
 executing==2.0.1
 fiona==1.9.6
 Flask==3.0.3
@@ -47,8 +47,7 @@ kiwisolver==1.4.5
 Markdown==3.6
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
-matplotlib==3.9.1
-matplotlib-inline==0.1.7
+# matplotlib==3.9.1
 mdit-py-plugins==0.4.1
 mdurl==0.1.2
 mercantile==1.2.1
@@ -58,7 +57,7 @@ mkdocs-get-deps==0.2.0
 mock==5.1.0
 more-itertools==10.4.0
 mypy-boto3-s3==1.34.120
-myst-parser==3.0.1
+myst-parser
 nest-asyncio==1.6.0
 nh3==0.2.18
 numpy==2.0.1
@@ -112,6 +111,7 @@ sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
+sphinx-rtd-theme==2.0.0
 stack-data==0.6.3
 tabulate==0.9.0
 toml==0.10.2
