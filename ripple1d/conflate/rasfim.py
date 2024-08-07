@@ -14,7 +14,7 @@ from fiona.errors import DriverError
 from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
 from shapely.ops import linemerge, nearest_points, transform
 
-from ripple.utils.ripple_utils import xs_concave_hull
+from ripple1d.utils.ripple_utils import xs_concave_hull
 
 HIGH_FLOW_FACTOR = 1.2
 

@@ -5,13 +5,13 @@ on:
     branches: [ "main" ]
     paths:
       - 'api/**'
-      - 'ripple/**'
+      - 'ripple1d/**'
       - 'tests/**'
   pull_request:
     branches: [ "main" ]
     paths:
       - 'api/**'
-      - 'ripple/**'
+      - 'ripple1d/**'
       - 'tests/**'
 
 permissions:
@@ -33,7 +33,6 @@ jobs:
         os: ["windows-latest"]
 
     runs-on: ${{ matrix.os }}
-    environment: ci-env
 
     steps:
     - uses: actions/checkout@v4

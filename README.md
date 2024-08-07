@@ -1,16 +1,16 @@
-# ripple
-[![CI](https://github.com/dewberry/ripple/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/dewberry/ripple/actions/workflows/ci.yaml)
-[![Documentation Status](https://readthedocs.org/projects/ripple/badge/?version=latest)](https://ripple.readthedocs.io/en/latest/?badge=latest)
-[![Release](https://github.com/dewberry/ripple/actions/workflows/release.yaml/badge.svg)](https://github.com/dewberry/ripple/actions/workflows/release.yaml)
-[![PyPI version](https://badge.fury.io/py/ripple.svg)](https://badge.fury.io/py/ripple)
+# ripple1d
+[![CI](https://github.com/dewberry/ripple1d/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/dewberry/ripple1d/actions/workflows/ci.yaml)
+[![Documentation Status](https://readthedocs.org/projects/ripple1d/badge/?version=latest)](https://ripple1d.readthedocs.io/en/latest/?badge=latest)
+[![Release](https://github.com/dewberry/ripple1d/actions/workflows/release.yaml/badge.svg)](https://github.com/dewberry/ripple1d/actions/workflows/release.yaml)
+[![PyPI version](https://badge.fury.io/py/ripple1d.svg)](https://badge.fury.io/py/ripple1d)
 
-Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model network. Go to [ReadTheDocs](http://ripple.readthedocs.io/) for more information on ripple.
+Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model network. Go to [ReadTheDocs](http://ripple1d.readthedocs.io/) for more information on ripple1d.
 
 ## Contents
 
  - [api](api/) : Source code for the [Flask](https://flask.palletsprojects.com/en/3.0.x/) API and [Huey](https://huey.readthedocs.io/en/latest/) queueing system for managing parallel compute. 
- - [production](production/) (*Deprecation Warning*) : This directory contains scripts used by the development team for testing ripple outside of the API. The contents are not included in the PyPi package and may not be stable or up to date. 
- - [ripple](ripple/): Source code for the ripple library.
+ - [production](production/) (*Deprecation Warning*) : This directory contains scripts used by the development team for testing ripple1d outside of the API. The contents are not included in the PyPi package and may not be stable or up to date. 
+ - [ripple1d](ripple1d/): Source code for the ripple1d library.
  - [tests](tests/): Unit tests.up
 
 
@@ -25,29 +25,40 @@ Utilities for repurposing HEC-RAS models for use in the production of Flood Inun
 
 ### Using pip
 
-1. Activate virtual environment as shown below and install the `ripple` package using `pip`:
+1. Activate virtual environment as shown below and install the `ripple1d` package using `pip` using PowerShell:
 
     ```powershell
-    pip install ripple
+    pip install ripple1d
     ```
 
 ### Building from source 
 
-1. Activate virtual environment as shown below and install the `ripple` package using `pip`:
+1. Activate virtual environment as shown below and build from source:
 
     ```powershell
-    pip install ripple
+    git clone https://github.com/dewberry/ripple1d.git
+    cd ripple1d
+
+    # if needed install build tools
+    pip install setuptools wheel build
+    python -m build_wheel
+    pip install dist/*.whl
+
+    # Either have PowerShell get the file name or look in the dist/ directory for the latest .whl file
+    # Example filename: `ripple1d-0.3.0-py3-none-any.whl`
+     $wheel = Get-ChildItem -Path dist -Filter *.whl | Select-Object -First 1
+     pip install $wheel.FullName
     ```
 
     ---
 
 ### Testing the Installation
 
-1. Verify the installation by importing `ripple` in a Python shell:
+1. Verify the installation by importing `ripple1d` in a Python shell:
     ```powershell
     python
-    >>> import ripple
-    >>> print(ripple.__version__)
+    >>> import ripple1d
+    >>> print(ripple1d.__version__)
     ```
 
 2. Run the unit tests to ensure everything is working correctly:

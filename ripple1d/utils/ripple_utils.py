@@ -1,18 +1,17 @@
-"""General utils used by ripple."""
+"""General utils used by ripple1d."""
 
 from __future__ import annotations
 
 import geopandas as gpd
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
-from shapely.geometry import Point, Polygon
-
-from ripple.errors import (
+from ripple1d.errors import (
     RASComputeError,
     RASComputeMeshError,
     RASGeometryError,
     RASStoreAllMapsError,
 )
+from shapely.geometry import Point, Polygon
 
 load_dotenv(find_dotenv())
 

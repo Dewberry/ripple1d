@@ -7,10 +7,10 @@ from time import sleep
 import pystac
 
 from production.db_utils import PGFim
-from ripple.conflate.rasfim import RasFimConflater
-from ripple.ops.ras_conflate import conflate_s3_model, href_to_vsis
-from ripple.ripple_logger import configure_logging
-from ripple.utils.s3_utils import init_s3_resources
+from ripple1d.conflate.rasfim import RasFimConflater
+from ripple1d.ops.ras_conflate import conflate_s3_model, href_to_vsis
+from ripple1d.ripple1d_logger import configure_logging
+from ripple1d.utils.s3_utils import init_s3_resources
 
 
 def main(processing_table_name: str, mip_group: str, bucket: str, nwm_pq_path: str):

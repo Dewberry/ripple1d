@@ -37,7 +37,7 @@ class RippleManager:
         print("Huey Consumer Configuration:", self.huey)
         print("Logs Directory:", self.logs_dir)
         print("Processes File:", self.pids_file)
-        print("Virtual Environment Path:", self.venv_path)
+        # print("Virtual Environment Path:", self.venv_path)
 
     def _handle_remove_readonly(self, func, path, exc_info):
         """Handle the read-only file deletion error."""
@@ -74,7 +74,7 @@ class RippleManager:
         else:
             python_executable = sys.executable
 
-        print("Starting ripple-huey")
+        print("Starting ripple1d-huey")
         huey_command = [
             python_executable,
             "-u",
@@ -93,7 +93,7 @@ class RippleManager:
 
         self.processes.append((huey_result, "huey"))
 
-        print("Starting ripple-flask")
+        print("Starting ripple1d-flask")
         flask_command = [
             python_executable,
             "-m",
@@ -232,7 +232,7 @@ def main():
     )
 
     start_parser.add_argument("--flask_debug", action="store_true", help="Debug mode for Flask API (default: False)")
-    start_parser.add_argument("--flask_port", type=int, default=5000, help="Port for Flask API (default: 5000)")
+    start_parser.add_argument("--flask_port", type=int, default=80, help="Port for Flask API (default: 80)")
     start_parser.add_argument("--flask_host", type=str, default="0.0.0.0", help="Host for Flask API (default: 0.0.0.0)")
     start_parser.add_argument("--thread_count", type=int, default=1, help="Thread count for Huey Consumer (default: 1)")
     start_parser.add_argument(

@@ -9,9 +9,9 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString
 
-from ripple.consts import METERS_PER_FOOT, RIPPLE_VERSION
-from ripple.data_model import NwmReachModel, RippleSourceModel
-from ripple.utils.ripple_utils import xs_concave_hull
+from ripple1d.consts import METERS_PER_FOOT, RIPPLE_VERSION
+from ripple1d.data_model import NwmReachModel, RippleSourceModel
+from ripple1d.utils.ripple_utils import xs_concave_hull
 
 
 def subset_gpkg(
@@ -211,9 +211,9 @@ def extract_submodel(
     source_model_directory: str,
     submodel_directory: str,
     nwm_id: int,
-    ripple_version: str = RIPPLE_VERSION,
+    ripple1d_version: str = RIPPLE_VERSION,
 ):
-    """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
+    """Use ripple1d conflation data to create a new GPKG from an existing ras geopackage."""
     rsm = RippleSourceModel(source_model_directory)
     logging.info(f"Preparing to extract NWM ID {nwm_id} from {rsm.ras_project_file}")
 
@@ -223,34 +223,34 @@ def extract_submodel(
     if not rsm.file_exists(rsm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {rsm.conflation_file}, please ensure file exists")
 
-    ripple_parameters = rsm.nwm_conflation_parameters(str(nwm_id))
-    if ripple_parameters["us_xs"]["xs_id"] == "-9999":
-        ripple_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
-        logging.warning(ripple_parameters["messages"])
+    ripple1d_parameters = rsm.nwm_conflation_parameters(str(nwm_id))
+    if ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
+        ripple1d_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
+        logging.warning(ripple1d_parameters["messages"])
 
     else:
         subset_gpkg_path, crs, max_flow, min_flow = subset_gpkg(
             rsm.ras_gpkg_file,
             submodel_directory,
             nwm_id,
-            ripple_parameters["ds_xs"]["xs_id"],
-            ripple_parameters["us_xs"]["xs_id"],
-            ripple_parameters["us_xs"]["river"],
-            ripple_parameters["us_xs"]["reach"],
-            ripple_parameters["ds_xs"]["river"],
-            ripple_parameters["ds_xs"]["reach"],
+            ripple1d_parameters["ds_xs"]["xs_id"],
+            ripple1d_parameters["us_xs"]["xs_id"],
+            ripple1d_parameters["us_xs"]["river"],
+            ripple1d_parameters["us_xs"]["reach"],
+            ripple1d_parameters["ds_xs"]["river"],
+            ripple1d_parameters["ds_xs"]["reach"],
         )
-        ripple_parameters["source_model"] = rsm.ras_project_file
-        ripple_parameters["crs"] = crs
-        ripple_parameters["version"] = ripple_version
-        ripple_parameters["high_flow_cfs"] = max([ripple_parameters["high_flow_cfs"], max_flow])
-        ripple_parameters["low_flow_cfs"] = min([ripple_parameters["low_flow_cfs"], min_flow])
-        if ripple_parameters["high_flow_cfs"] == max_flow:
-            ripple_parameters["notes"] = ["high_flow_cfs computed from source model flows"]
-        if ripple_parameters["low_flow_cfs"] == min_flow:
-            ripple_parameters["notes"] = ["low_flow_cfs computed from source model flows"]
+        ripple1d_parameters["source_model"] = rsm.ras_project_file
+        ripple1d_parameters["crs"] = crs
+        ripple1d_parameters["version"] = ripple1d_version
+        ripple1d_parameters["high_flow_cfs"] = max([ripple1d_parameters["high_flow_cfs"], max_flow])
+        ripple1d_parameters["low_flow_cfs"] = min([ripple1d_parameters["low_flow_cfs"], min_flow])
+        if ripple1d_parameters["high_flow_cfs"] == max_flow:
+            ripple1d_parameters["notes"] = ["high_flow_cfs computed from source model flows"]
+        if ripple1d_parameters["low_flow_cfs"] == min_flow:
+            ripple1d_parameters["notes"] = ["low_flow_cfs computed from source model flows"]
 
-        with open(os.path.join(submodel_directory, f"{nwm_id}.ripple.json"), "w") as f:
-            json.dump(ripple_parameters, f, indent=4)
+        with open(os.path.join(submodel_directory, f"{nwm_id}.ripple1d.json"), "w") as f:
+            json.dump(ripple1d_parameters, f, indent=4)
 
-    return ripple_parameters
+    return ripple1d_parameters

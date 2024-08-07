@@ -1,4 +1,4 @@
-.. ripple documentation master file, created by
+.. ripple1d documentation master file, created by
    sphinx-quickstart on Sun Aug  4 09:14:49 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
@@ -6,7 +6,7 @@
 Ripple
 ======
 
-:code:`ripple` is a Python utility for repurposing HEC-RAS models for use in the production 
+:code:`ripple1d` is a Python utility for repurposing HEC-RAS models for use in the production 
 of Flood Inundation Maps (FIMs) and rating curves for use in near-real-time flood forecasting 
 on the NOAA National Water Model network.
 
@@ -17,26 +17,26 @@ Usage
 ~~~~~
 
 When successfully installed, a standalone executable will be available (stored in the path) allowing you to manage the 
-Flask API and Huey consumer direcly by calling ``ripple`` in either a Command Prompt or PowerShell terminal
+Flask API and Huey consumer direcly by calling ``ripple1d`` in either a Command Prompt or PowerShell terminal
 Below are the steps to start, stop, and check the status of the Ripple Manager..
 
 **Start the Ripple Services**:
 
    .. code-block:: powershell
 
-      ripple start  --flask_port 5000 --thread_count 5 
+      ripple1d start  --flask_port 5000 --thread_count 5 
 
 **Check the status**:
 
    .. code-block:: powershell
 
-      ripple status --pids_file ./process-ids.json
+      ripple1d status --pids_file ./process-ids.json
 
 **Stop the Ripple Services**:
 
    .. code-block:: powershell
 
-      python ripple_manager.py stop --pids_file ./process-ids.json
+      python ripple1d_manager.py stop --pids_file ./process-ids.json
 
 
 
@@ -44,7 +44,7 @@ Below are the steps to start, stop, and check the status of the Ripple Manager..
    :maxdepth: 2
    :caption: Contents:
 
-   ripple/index
+   ripple1d/index
    api/index
    changes.rst
 

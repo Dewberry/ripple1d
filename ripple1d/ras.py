@@ -17,7 +17,7 @@ import pandas as pd
 import pythoncom
 from pyproj import CRS
 
-from ripple.consts import (
+from ripple1d.consts import (
     FLOW_HDF_PATH,
     NORMAL_DEPTH,
     PROFILE_NAMES_HDF_PATH,
@@ -28,8 +28,8 @@ from ripple.consts import (
     WSE_HDF_PATH,
     XS_NAMES_HDF_PATH,
 )
-from ripple.data_model import FlowChangeLocation, Junction, Reach
-from ripple.errors import (
+from ripple1d.data_model import FlowChangeLocation, Junction, Reach
+from ripple1d.errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
     NoCrossSectionLayerError,
@@ -41,9 +41,9 @@ from ripple.errors import (
 )
 
 # ToManyPlansError,
-from ripple.rasmap import PLAN, RASMAP_631, TERRAIN
-from ripple.utils.dg_utils import get_terrain_exe_path
-from ripple.utils.ripple_utils import (
+from ripple1d.rasmap import PLAN, RASMAP_631, TERRAIN
+from ripple1d.utils.dg_utils import get_terrain_exe_path
+from ripple1d.utils.ripple_utils import (
     assert_no_mesh_error,
     assert_no_ras_compute_error_message,
     assert_no_ras_geometry_error,

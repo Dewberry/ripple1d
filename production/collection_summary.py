@@ -5,8 +5,8 @@ import logging
 import pystac_client
 
 from production.headers import get_auth_header
-from ripple.ripple_logger import configure_logging
-from ripple.utils.stac_utils import (
+from ripple1d.ripple1d_logger import configure_logging
+from ripple1d.utils.stac_utils import (
     upsert_collection,
 )
 

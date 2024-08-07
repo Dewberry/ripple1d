@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 
 from production.db_utils import PGFim
 from production.headers import get_auth_header
-from ripple.ripple_logger import configure_logging
-from ripple.utils.stac_utils import (
+from ripple1d.ripple1d_logger import configure_logging
+from ripple1d.utils.stac_utils import (
     collection_exists,
     create_collection,
     delete_collection,
@@ -74,7 +74,7 @@ GROUP_2b = {
 GROUP_3 = {
     "pg_group": "tx_ble",
     "sql_condition": "AND stac_complete=true AND conflation_complete=true",
-    "collection_id": "ripple_test_data",
+    "collection_id": "ripple1d_test_data",
     "collection_title": "Test collection for Ripple using Texas BLE data.",
     "description": "Test collection for Ripple using Texas BLE data accessed via https://webapps.usgs.gov/infrm/estbfe/",
 }

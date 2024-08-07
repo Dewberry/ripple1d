@@ -7,9 +7,8 @@ import unittest
 import pandas as pd
 import pytest
 import requests
-
-from ripple.consts import RIPPLE_VERSION
-from ripple.ras import RasFlowText
+from ripple1d.consts import RIPPLE_VERSION
+from ripple1d.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_PORT = 5000
@@ -39,7 +38,7 @@ FIM_LIB_STAC_ITEM = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\{
 
 def start_server():
     return subprocess.Popen(
-        ["ripple", "start"],
+        ["ripple1d", "start"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -87,7 +86,7 @@ class TestApi(unittest.TestCase):
             "source_model_directory": SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_id": REACH_ID,
-            "ripple_version": RIPPLE_VERSION,
+            "ripple1d_version": RIPPLE_VERSION,
         }
         process = "extract_submodel"
         files = [GPKG_FILE]
@@ -160,7 +159,7 @@ class TestApi(unittest.TestCase):
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
             "bucket": "fim",
-            "ripple_version": RIPPLE_VERSION,
+            "ripple1d_version": RIPPLE_VERSION,
         }
         process = "nwm_reach_model_stac"
         files = [MODEL_STAC_ITEM]
@@ -183,7 +182,7 @@ class TestApi(unittest.TestCase):
         pass
 
     def test_k_shutdown(self):
-        r = subprocess.run(["ripple", "stop"])
+        r = subprocess.run(["ripple1d", "stop"])
         self.assertEqual(r.returncode, 0)
 
 

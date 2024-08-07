@@ -7,15 +7,14 @@ from urllib.parse import quote
 
 import boto3
 import pystac
-
-from ripple.conflate.plotter import plot_conflation_results
-from ripple.conflate.rasfim import (
+from ripple1d.conflate.plotter import plot_conflation_results
+from ripple1d.conflate.rasfim import (
     RasFimConflater,
     nearest_line_to_point,
     ras_reaches_metadata,
     walk_network,
 )
-from ripple.consts import RIPPLE_VERSION
+from ripple1d.consts import RIPPLE_VERSION
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
@@ -88,7 +87,7 @@ def conflate_s3_model(
         Key=nwm_conflation_key,
     )
 
-    # Add ripple parameters asset to item
+    # Add ripple1d parameters asset to item
     item.add_asset(
         "NWM_Conflation",
         pystac.Asset(
@@ -96,7 +95,7 @@ def conflate_s3_model(
             title="NWM_Conflation",
             roles=[pystac.MediaType.JSON, "nwm-conflation"],
             extra_fields={
-                "software": f"ripple {RIPPLE_VERSION}",
+                "software": f"ripple1d {RIPPLE_VERSION}",
                 "date_created": datetime.now().isoformat(),
             },
         ),
@@ -127,7 +126,7 @@ def conflate_s3_model(
             title="ThumbnailConflationResults",
             roles=[pystac.MediaType.PNG, "thumbnail"],
             extra_fields={
-                "software": f"ripple {RIPPLE_VERSION}",
+                "software": f"ripple1d {RIPPLE_VERSION}",
                 "date_created": datetime.now().isoformat(),
             },
             description="""PNG of NWM conflation results with OpenStreetMap basemap.""",

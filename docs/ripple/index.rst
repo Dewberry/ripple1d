@@ -24,4 +24,4 @@ mapping results from NWM reach-HEC-RAS models. The Utils module contains helper 
    errors
    ras_to_gpkg
    ras
-   ripple_logger
+   ripple1d_logger

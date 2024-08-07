@@ -12,12 +12,11 @@ import geopandas as gpd
 import pandas as pd
 import pystac
 from pyproj import CRS
-
-from ripple.data_model import NwmReachModel
-from ripple.errors import CouldNotIdentifyPrimaryPlanError
-from ripple.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
-from ripple.utils.dg_utils import bbox_to_polygon
-from ripple.utils.gpkg_utils import (
+from ripple1d.data_model import NwmReachModel
+from ripple1d.errors import CouldNotIdentifyPrimaryPlanError
+from ripple1d.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
+from ripple1d.utils.dg_utils import bbox_to_polygon
+from ripple1d.utils.gpkg_utils import (
     create_geom_item,
     create_thumbnail_from_gpkg,
     get_asset_info,
@@ -26,7 +25,7 @@ from ripple.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
-from ripple.utils.s3_utils import (
+from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
     list_keys,
@@ -186,7 +185,7 @@ def new_stac_item_s3(
     new_stac_item_s3_key: str,
     thumbnail_png_s3_key: str,
     bucket: str,
-    ripple_version: str,
+    ripple1d_version: str,
     mip_case_no: str,
     dev_mode: bool = False,
 ):
@@ -215,7 +214,7 @@ def new_stac_item_s3(
 
     data = gdfs["XS"].iloc[0]
     properties = {
-        "ripple: version": ripple_version,
+        "ripple1d: version": ripple1d_version,
         "ras version": data["version"],
         "project title": data["project_title"],
         "plan title": data["plan_title"],
@@ -260,7 +259,7 @@ def new_stac_item_s3(
     logging.debug("Program completed successfully")
 
 
-def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix: str):
+def new_stac_item(ras_project_directory: str, ripple1d_version: str, ras_s3_prefix: str):
     """Create a new stac item from a geopackage locally ."""
     logging.debug("Creating item from gpkg")
 
@@ -282,14 +281,14 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
 
     data = gdfs["XS"].iloc[0]
     properties = {
-        "ripple: version": ripple_version,
+        "ripple1d: version": ripple1d_version,
         "ras version": rm.version,
         "project title": rm.ras_project.title,
         "plan titles": {key: val.file_extension for key, val in rm.plans.items()},
         "geom titles": {key: val.file_extension for key, val in rm.geoms.items()},
         "flow titles": {key: val.file_extension for key, val in rm.flows.items()},
         "river miles": str(river_miles),
-        "NWM to_id": nwm_rm.ripple_parameters["nwm_to_id"],
+        "NWM to_id": nwm_rm.ripple1d_parameters["nwm_to_id"],
         "proj:wkt2": crs.to_wkt(),
         "proj:epsg": crs.to_epsg(),
     }
@@ -305,9 +304,9 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
             description=asset_info["description"],
         )
         item.add_asset(asset_info["title"], asset)
-    item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
-    item.add_derived_from(nwm_rm.ripple_parameters["source_terrain"])
-    item.add_derived_from(nwm_rm.ripple_parameters["source_nwm_reach"])
+    item.add_derived_from(nwm_rm.ripple1d_parameters["source_model"])
+    item.add_derived_from(nwm_rm.ripple1d_parameters["source_terrain"])
+    item.add_derived_from(nwm_rm.ripple1d_parameters["source_nwm_reach"])
     with open(nwm_rm.model_stac_json_file, "w") as dst:
         dst.write(json.dumps(item.to_dict()))
 

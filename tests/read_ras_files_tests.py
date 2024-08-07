@@ -5,8 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from pyproj import CRS
-
-from ripple.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
+from ripple1d.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/baxter.json"

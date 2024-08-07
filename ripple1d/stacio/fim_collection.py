@@ -8,9 +8,8 @@ from pathlib import Path
 import pystac
 import pystac_client
 import pystac_client.errors
-
-from ripple.utils.s3_utils import check_s3_key_exists
-from ripple.utils.stac_utils import (
+from ripple1d.utils.s3_utils import check_s3_key_exists
+from ripple1d.utils.stac_utils import (
     key_to_uri,
     upsert_collection,
     upsert_item,
@@ -174,7 +173,7 @@ class FIMCollectionRasItem(FIMCollection):
     def map_topo_assets(
         self,
         date_aquired: str = datetime.now().isoformat(),
-        software: str = "ripple v0.1.0-alpha.1",
+        software: str = "ripple1d v0.1.0-alpha.1",
         topo_filename: str = "MapTerrain",
         asset_role: str = "ras-geometry-gpkg",
         source: str = "USGS_Seamless_DEM_13",
@@ -244,15 +243,15 @@ class FIMCollectionRasItem(FIMCollection):
             ),
         )
 
-    def add_ripple_params(
+    def add_ripple1d_params(
         self,
         date_created: str = datetime.now().isoformat(),
-        software: str = "ripple v0.1.0-alpha.1",
+        software: str = "ripple1d v0.1.0-alpha.1",
         asset_role: str = "project-file",
         bucket: str = "fim",
     ) -> bool:
         """
-        TODO: Placeholder function for adding ripple-params to FIM collection items.
+        TODO: Placeholder function for adding ripple1d-params to FIM collection items.
 
         This assumes the conflation output is in the same directory as the `project-file` asset
         """
@@ -262,19 +261,19 @@ class FIMCollectionRasItem(FIMCollection):
         for asset_name in self.item.get_assets(role=asset_role):
             asset_href = self.item.assets[asset_name].href
 
-        ripple_parameters_href = str((Path(asset_href).parent / "ripple_parameters.json")).replace(
+        ripple1d_parameters_href = str((Path(asset_href).parent / "ripple1d_parameters.json")).replace(
             "https:/", "https://"
         )
-        ripple_parameters_key = uri_to_key(ripple_parameters_href, bucket)
+        ripple1d_parameters_key = uri_to_key(ripple1d_parameters_href, bucket)
 
-        # logging.debug(ripple_parameters_key)
-        if check_s3_key_exists(bucket, ripple_parameters_key):
+        # logging.debug(ripple1d_parameters_key)
+        if check_s3_key_exists(bucket, ripple1d_parameters_key):
             self.item.add_asset(
-                "ripple_parameters.json",
+                "ripple1d_parameters.json",
                 pystac.Asset(
-                    ripple_parameters_href,
+                    ripple1d_parameters_href,
                     title="ConflationParameters",
-                    roles=[pystac.MediaType.JSON, "ripple-params"],
+                    roles=[pystac.MediaType.JSON, "ripple1d-params"],
                     extra_fields={
                         "software": software,
                         "date_created": date_created,

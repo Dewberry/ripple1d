@@ -135,11 +135,11 @@ TODO: Refactor, this script was written in one setting and needs to be revised s
 #         except KeyError:
 #             logging.error(f"FIM:Branch Metadata does not exist for {item.id}")
 
-#         prefix = f"mip/dev/ripple/output/collections/{ras_collection_id}/items/{item.id}"
+#         prefix = f"mip/dev/ripple1d/output/collections/{ras_collection_id}/items/{item.id}"
 #         model_db = f"{prefix}/{item.id}.db"
-#         ripple_succeed = f"{prefix}/ripple-succeed.json"
+#         ripple1d_succeed = f"{prefix}/ripple1d-succeed.json"
 
-#         if check_s3_key_exists("fim", ripple_succeed):
+#         if check_s3_key_exists("fim", ripple1d_succeed):
 #             # logging.debug(f"Model database exists for {item.id}")
 #             fim_dict = map_output_fims(bucket_name, f"{prefix}/", s3_client)
 #             fci = FIMCollectionRasItem(API_URL, ras_collection_id, item.id)
@@ -158,7 +158,7 @@ TODO: Refactor, this script was written in one setting and needs to be revised s
 #                     asset.extra_fields["s3_key"] = uri_to_key(asset.href, bucket_name)
 #                 dg_item.properties["FIM:Branch Metadata"] = item.properties["FIM:Branch Metadata"][branch_id]
 
-#                 dg_item.properties["software"] = "ripple v0.1.0-alpha.1"
+#                 dg_item.properties["software"] = "ripple1d v0.1.0-alpha.1"
 
 #                 new_dg_items.append(dg_item)
 

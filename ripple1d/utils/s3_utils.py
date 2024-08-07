@@ -278,7 +278,7 @@ def s3_upload_status_file(
     also have keys "err" and "traceback" containing the exception as a string and the Python
     traceback of the exception, respectively.
     """
-    s3_output_key_succeed, s3_output_key_fail = s3_get_ripple_status_file_key_names(stac_href, s3_bucket, s3_client)
+    s3_output_key_succeed, s3_output_key_fail = s3_get_ripple1d_status_file_key_names(stac_href, s3_bucket, s3_client)
 
     time_now_str = datetime.now(tz=timezone.utc).isoformat()
     if e is None:
@@ -309,9 +309,11 @@ def s3_upload_status_file(
     )
 
 
-def s3_ripple_status_succeed_file_exists(stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient) -> bool:
-    """Check if the standard ripple succeed sentinel file exists.  If it does, return True, otherwise return False."""
-    s3_output_key_succeed, _ = s3_get_ripple_status_file_key_names(stac_href, s3_bucket, s3_client)
+def s3_ripple1d_status_succeed_file_exists(
+    stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient
+) -> bool:
+    """Check if the standard ripple1d succeed sentinel file exists.  If it does, return True, otherwise return False."""
+    s3_output_key_succeed, _ = s3_get_ripple1d_status_file_key_names(stac_href, s3_bucket, s3_client)
     logging.debug(f"Checking if s3 file exists: s3://{s3_bucket}/{s3_output_key_succeed}")
     try:
         s3_client.head_object(Bucket=s3_bucket, Key=s3_output_key_succeed)
@@ -323,7 +325,7 @@ def s3_ripple_status_succeed_file_exists(stac_href: str, s3_bucket: str, s3_clie
     return True
 
 
-def s3_get_ripple_status_file_key_names(
+def s3_get_ripple1d_status_file_key_names(
     stac_href: str, s3_bucket: str, s3_client: botocore.client.BaseClient
 ) -> tuple[str, str]:
     """Return two S3 key paths, the first to a succeed sentinel file, the second t oa failure sentinel file.
@@ -331,11 +333,11 @@ def s3_get_ripple_status_file_key_names(
     This function does not check if the keys exist.
     """
     _, s3_output_dir_key = extract_bucketname_and_keyname(s3_get_output_s3path(s3_bucket, stac_href))
-    s3_output_key_succeed = posixpath.join(s3_output_dir_key, "ripple-succeed.json")
-    s3_output_key_fail = posixpath.join(s3_output_dir_key, "ripple-fail.json")
+    s3_output_key_succeed = posixpath.join(s3_output_dir_key, "ripple1d-succeed.json")
+    s3_output_key_fail = posixpath.join(s3_output_dir_key, "ripple1d-fail.json")
     return s3_output_key_succeed, s3_output_key_fail
 
 
 def s3_get_output_s3path(s3_bucket: str, stac_href: str) -> str:
     """Return the s3 path to the output directory for the given stac_href."""
-    return f"s3://{s3_bucket}/mip/dev/ripple/output{urlparse(stac_href).path}/"
+    return f"s3://{s3_bucket}/mip/dev/ripple1d/output{urlparse(stac_href).path}/"

@@ -9,10 +9,9 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-
-from ripple.consts import DEFAULT_EPSG, MIN_FLOW
-from ripple.data_model import FlowChangeLocation, NwmReachModel
-from ripple.ras import RasManager
+from ripple1d.consts import DEFAULT_EPSG, MIN_FLOW
+from ripple1d.data_model import FlowChangeLocation, NwmReachModel
+from ripple1d.ras import RasManager
 
 
 def create_model_run_normal_depth(
@@ -31,7 +30,7 @@ def create_model_run_normal_depth(
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
-    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
     else:
         logging.info(f"Working on initial normal depth run for nwm_id: {nwm_rm.model_name}")
@@ -41,8 +40,8 @@ def create_model_run_normal_depth(
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
-            max([nwm_rm.ripple_parameters["low_flow_cfs"], MIN_FLOW]),
-            nwm_rm.ripple_parameters["high_flow_cfs"],
+            max([nwm_rm.ripple1d_parameters["low_flow_cfs"], MIN_FLOW]),
+            nwm_rm.ripple1d_parameters["high_flow_cfs"],
             num_of_discharges_for_initial_normal_depth_runs,
         ).astype(int)
 
@@ -84,14 +83,14 @@ def run_incremental_normal_depth(
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
     logging.info(f"Working on normal depth run for nwm_id: {nwm_rm.model_name}")
-    if nwm_rm.ripple_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
 
     rm = RasManager(
         nwm_rm.ras_project_file,
         version=ras_version,
         terrain_path=nwm_rm.ras_terrain_hdf,
-        crs=nwm_rm.ripple_parameters["crs"],
+        crs=nwm_rm.ripple1d_parameters["crs"],
     )
 
     # determine flow increments

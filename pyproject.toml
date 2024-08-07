@@ -3,13 +3,15 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ripple"
+name = "ripple1d"
+version = "0.3.0"
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
     { name = "Seth Lawler", email = "slawler@dewberry.com" },
     { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" },
-    { name = "Max Kipp", email = "jkipp@dewberry.com" }
+    { name = "Max Kipp", email = "jkipp@dewberry.com" },
+    { name = "Abdul Siddiqui", email = "abdul.siddiqui@ertcorp.com" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -20,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-version = "0.2.0"
+
 dependencies = [
     "boto3",
     "python-dotenv",
@@ -36,7 +38,7 @@ dependencies = [
     "rasterio==1.3.10",
     "requests>=2.32.3",
     "pywin32==306",
-    "contextily==1.6.0"
+    "toml==0.10.2",
 ]
 
 [project.optional-dependencies]
@@ -44,13 +46,13 @@ dev = ["pre-commit", "ruff", "pytest", "pytest-cov"]
 docs = ["sphinx", "numpydoc", "sphinx_rtd_theme"]
 
 [project.urls]
-repository = "https://github.com/dewberry/ripple"
+repository = "https://github.com/dewberry/ripple1d"
 
 [project.scripts]
-ripple = "api.manager:main"
+ripple1d = "api.manager:main"
 
 [tool.pytest.ini_options]
-pythonpath = "ripple"
+pythonpath = "ripple1d"
 testpaths = "tests"
 
 [tool.ruff.lint]
@@ -70,9 +72,9 @@ exclude = ["production"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ripple*", "api*"]
+include = ["ripple1d*", "api*"]
 
 
 [tool.sphinx]
-project = "ripple"
+project = "ripple1d"
 author = "Seth Lawler"
