@@ -24,3 +24,17 @@ Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`__  pag
 * API for managing parallel execution with Huey queue for task scheduling
 
 * Example scripts for using the library natively (without the API)
+
+
+0.2.0 (2024-8-3)
+~~~~~~~~~~~~~~~
+
+## What's Changed
+Operational changes in the development code in preparation for initial testing.
+
+## New Contributors
+* @BradfordBates-NOAA made their first contribution in https://github.com/Dewberry/ripple/pull/100
+
+**Full Changelog**: https://github.com/Dewberry/ripple/compare/v0.2.0...v0.3.0
+
+0.2.0 (2024-8-7)
