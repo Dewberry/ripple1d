@@ -1,9 +1,9 @@
 # Production Scripts
-The scripts contained in this `production` directory are example scripts that run all of the processes necessary to leverage FEMA MIP models to develop FIM libraries using ripple. Each script/process is outlined below. 
+The scripts contained in this `production` directory are example scripts that run all of the processes necessary to leverage FEMA MIP models to develop FIM libraries using ripple1d. Each script/process is outlined below. 
 
 ### [step_1_extract_geometry.py](step_1_extract_geometry.py)
 ---
-Extract the geometry of an existing HEC-RAS model and create a geopackage. Currently, this script reads from an s3 location but ripple does have built in capacity to read from local. 
+Extract the geometry of an existing HEC-RAS model and create a geopackage. Currently, this script reads from an s3 location but ripple1d does have built in capacity to read from local. 
 
 The discharges applied to the existing model are also extracted.
 

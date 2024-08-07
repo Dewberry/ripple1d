@@ -8,11 +8,11 @@ import pandas as pd
 import pytest
 import requests
 
-from ripple.consts import RIPPLE_VERSION
-from ripple.ras import RasFlowText
+from ripple1d.consts import RIPPLE_VERSION
+from ripple1d.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
-
+TEST_PORT = 5000
 REACH_ID = "2823932"
 SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter")
 SUBMODELS_BASE_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter\\submodels")
@@ -38,29 +38,31 @@ FIM_LIB_STAC_ITEM = os.path.join(SUBMODELS_BASE_DIRECTORY, f"{REACH_ID}\\fims\\{
 
 
 def start_server():
-    return subprocess.Popen(["python", "-m", "ripple_api", "start"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return subprocess.Popen(
+        ["ripple1d", "start"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
 
 def submit_job(process: str, payload: dict):
     headers = {"Content-Type": "application/json"}
-    url = f"http://localhost/processes/{process}/execution"
+    url = f"http://localhost:5000/processes/{process}/execution"
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     return json.loads(response.text)
 
 
 def wait_for_job(job_id: str):
-    url = f"http://localhost/jobs/{job_id}"
+    url = f"http://localhost:5000/jobs/{job_id}"
     while True:
         response = requests.get(url)
         job_status = response.json().get("status")
         if job_status in ["successful", "failed"]:
-
             return job_status
         time.sleep(7)  # Wait for 10 seconds before checking again
 
 
 def check_process(func):
-
     def wrapper(self, *args, **kwargs):
         process, payload, files = func(self)
         response = submit_job(process, payload)
@@ -85,7 +87,7 @@ class TestApi(unittest.TestCase):
             "source_model_directory": SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_id": REACH_ID,
-            "ripple_version": RIPPLE_VERSION,
+            "ripple1d_version": RIPPLE_VERSION,
         }
         process = "extract_submodel"
         files = [GPKG_FILE]
@@ -158,7 +160,7 @@ class TestApi(unittest.TestCase):
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
             "bucket": "fim",
-            "ripple_version": RIPPLE_VERSION,
+            "ripple1d_version": RIPPLE_VERSION,
         }
         process = "nwm_reach_model_stac"
         files = [MODEL_STAC_ITEM]
@@ -181,5 +183,9 @@ class TestApi(unittest.TestCase):
         pass
 
     def test_k_shutdown(self):
-        r = subprocess.run(["python", "-m", "ripple_api", "stop"])
+        r = subprocess.run(["ripple1d", "stop"])
         self.assertEqual(r.returncode, 0)
+
+
+# if __name__ == "__main__":
+#     unittest.main()

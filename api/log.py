@@ -1,9 +1,9 @@
 """Logging utilities supporting the huey + Flask REST API."""
 
-from datetime import datetime, timezone
 import inspect
 import logging
 import os
+from datetime import datetime, timezone
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 LOGS: dict[str, logging.RootLogger] = {}  # global that is modified by initialize_log()
@@ -51,18 +51,18 @@ def initialize_log() -> None:
 
 def _get_log_filename_prefix():
     """Return a string of the current UTC timestamp, to be used as the left-hand portion of the log file name."""
-    return f"{datetime.now(tz=timezone.utc).isoformat().replace(':','-')}-ripple"
+    return f"{datetime.now(tz=timezone.utc).isoformat().replace(':','-')}-ripple1d"
 
 
 def _get_log_filename_suffix():
-    """Return a string indicating whether this function is being called from a huey consumer or from a Flask instance.
-
-    The string is to be used as the right-hand portino of the log file name.
-    """
     stack_filenames = [frame.filename for frame in inspect.stack()]
-    if stack_filenames[-1].endswith("huey_consumer.py"):
+
+    # Check for specific patterns in the stack filenames
+    if any("huey" in filename for filename in stack_filenames):
         return "huey"
-    for fn in stack_filenames:
-        if "flask.exe" in fn:
-            return "flask"
-    raise ValueError(f"Could not determine if process invoked by huey or by flask. Stack filenames: {stack_filenames}")
+    elif any("flask" in filename for filename in stack_filenames):
+        return "flask"
+    else:
+        raise ValueError(
+            f"Could not determine if process invoked by huey or by flask. Stack filenames: {stack_filenames}"
+        )

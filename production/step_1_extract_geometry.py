@@ -6,11 +6,11 @@ import traceback
 from dotenv import find_dotenv, load_dotenv
 
 from production.db_utils import PGFim
-from ripple.errors import (
+from ripple1d.errors import (
     NotAPrjFile,
 )
-from ripple.ras_to_gpkg import geom_to_gpkg_s3
-from ripple.ripple_logger import configure_logging
+from ripple1d.ras_to_gpkg import geom_to_gpkg_s3
+from ripple1d.ripple1d_logger import configure_logging
 
 load_dotenv()
 

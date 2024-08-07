@@ -147,7 +147,6 @@ def task_status(only_task_id: str | None) -> dict[str, dict]:
         status_time,
         finish_duration_minutes,
     ) in results_raw:
-
         if only_task_id is not None and task_id != only_task_id:
             continue
 
@@ -200,7 +199,9 @@ def sleep15():
     return ("Slept for 15", 123.456)
 
 
-@huey.task()  # If needing the worker to know about its own task, then use `@huey.task(context=True)`` and add `task=None` to the task function definition.
+# If needing the worker to know about its own task, then use `@huey.task(context=True)``
+# and add `task=None` to the task function definition.
+@huey.task()
 @tracerbacker
 def _process(func: typing.Callable, kwargs: dict = {}):
     """Execute generic huey task that calls the provided func with provided kwargs, asynchronously."""
@@ -232,7 +233,8 @@ def _handle_signals(signal, task, exc=None):
 
         case sigs.SIGNAL_REVOKED:
             # Set huey status, then short-circuit without setting "ogc_status" or time field.
-            # OGC status and dismiss time field are handled at time of revoke call, rather than waiting for the revoke signal which happens later.
+            # OGC status and dismiss time field are handled at time of revoke call, rather than waiting
+            # for the revoke signal which happens later.
             huey.storage.sql(
                 """update "task_status" set huey_status = ? where "task_id" = ?""", (signal, task.id), True
             )

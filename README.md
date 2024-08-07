@@ -1,57 +1,108 @@
-# ripple
-[![CI](https://github.com/dewberry/ripple/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/dewberry/ripple/actions/workflows/ci.yaml)
+# ripple1d
+[![CI](https://github.com/dewberry/ripple1d/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/dewberry/ripple1d/actions/workflows/ci.yaml)
+[![Documentation Status](https://readthedocs.org/projects/ripple1d/badge/?version=latest)](https://ripple1d.readthedocs.io/en/latest/?badge=latest)
+[![Release](https://github.com/dewberry/ripple1d/actions/workflows/release.yaml/badge.svg)](https://github.com/dewberry/ripple1d/actions/workflows/release.yaml)
+[![PyPI version](https://badge.fury.io/py/ripple1d.svg)](https://badge.fury.io/py/ripple1d)
 
-
-Utilities for updating HEC-RAS models for use in the development of Flood Inundation Maps (FIM's) in support of the Nationa Water Model. 
+Utilities for repurposing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model network. Go to [ReadTheDocs](http://ripple1d.readthedocs.io/) for more information on ripple1d.
 
 ## Contents
 
- - [api](api/) : Source code for a Flask API and Huey queueing system for managing parallel compute. 
- - [production](production/) : Stand alone scripts providing examples of using the ripple library without the API.
- - [ripple](ripple/): Source code for the ripple library.
- - [tests](tests/): Unit tests.
-
-## Getting Started
-
-*OS Dependency*: Ripple requires a Windows environment with Desktop Experience (GUI, not a headless Windows server) and [HEC-RAS](https://www.hec.usace.army.mil/software/hec-ras/download.aspx) installed (currently version 6.3.1 is supported).
+ - [api](api/) : Source code for the [Flask](https://flask.palletsprojects.com/en/3.0.x/) API and [Huey](https://huey.readthedocs.io/en/latest/) queueing system for managing parallel compute. 
+ - [production](production/) (*Deprecation Warning*) : This directory contains scripts used by the development team for testing ripple1d outside of the API. The contents are not included in the PyPi package and may not be stable or up to date. 
+ - [ripple1d](ripple1d/): Source code for the ripple1d library.
+ - [tests](tests/): Unit tests.up
 
 
-These steps assume you will be using Python version 3.12 on a Windows host. Alternate versions of Python can typically be used by replacing "312" in the below steps, e.g. use "311" for Python 3.11.
+## Requirements
 
-All commands should be ran within a standard Terminal (not PowerShell)
+*OS Dependency*: Ripple requires Python version >=3.10 and a Windows environment with Desktop Experience (GUI, not a headless Windows server) and [HEC-RAS](https://www.hec.usace.army.mil/software/hec-ras/download.aspx) installed (currently version 6.3.1 is supported).
 
-### Python Virtual Environment
-Using a python virtual environment is highly recommended. 
 
-#### Example setup
-1. Install [Python](https://www.python.org/downloads/)
-1. Create a virtual Python environment: 
-    ```bat
-    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" -m venv "%homepath%\venvs\ripple-py312"
+## Installing Ripple
+
+##### *NOTE: Using a python virtual environment is not required but is highly recommended.*
+
+### Using pip
+
+1. Activate virtual environment as shown below and install the `ripple1d` package using `pip`:
+
+    ```powershell
+    pip install ripple1d
     ```
-1. Activate (enter) the new virtual environment: 
-    ```bat 
-    "%homepath%\venvs\ripple-py312\Scripts\activate.bat"
+
+### Building from source 
+
+1. Activate virtual environment as shown below and install the `ripple1d` package using `pip`:
+
+    ```powershell
+    pip install ripple1d
     ```
-1. Confirm that the activation worked.
-    1. You should see that a parenthetical `(ripple-py312)` has been added to the left side of your current line in the terminal
-    1. Enter `where python` and confirm that the top result is sourcing Python from the new directory
 
-### Installing Dependencies
-
-1. Activate (enter) the new virtual environment (if not already): 
-    ```bat
-    "%homepath%\venvs\ripple-py312\Scripts\activate.bat"
-    ```
-1. Update pip: `python -m pip install --upgrade pip`
-1. Change directory into the root of this repository: `cd C:\path\to\this\repo`
-1. Install dependencies from [pyproject.toml](pyproject.toml). In this example we would like to include the optional "dev" dependency group, in addition to the required dependencies: `python -m pip install ".[dev]"`
-
-### Configuring Ripple Environment Variables
-
-1. Copy [.env.example](.env.example) and rename the copy to `.env`
-1. Edit `.env` as necessary to specify the path to the virtual Python environment, to specify the number of huey threads, etc. `.env` must at least contain the variables `VENV_PATH` and `HUEY_THREAD_COUNT`.
+    ---
 
 ### Testing the Installation
 
-For a full test of the REST API see the [REST API documentation](api/README.md).
+1. Verify the installation by importing `ripple1d` in a Python shell:
+    ```powershell
+    python
+    >>> import ripple1d
+    >>> print(ripple1d.__version__)
+    ```
+
+2. Run the unit tests to ensure everything is working correctly:
+    ```powershell
+    pytest tests/
+    ```
+
+See the [REST API documentation](docs/api/README.rst) for available endpoints and usage.
+
+### Setting up a virtual environment
+
+1. Install [Python](https://www.python.org/downloads/)
+2. Create a virtual Python environment using Command Prompt or PowerShell:
+    
+    *Option 1:* Windows Command Prompt
+    ```bat
+    %LOCALAPPDATA%\Programs\Python\Python312\python.exe -m venv %homepath%\venvs\venv-py312
+    ```
+
+    *Option 2:* Windows PowerShell
+    ```powershell
+    $pythonExe = "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
+    $venvPath = "$env:USERPROFILE\venvs\venv-py312"
+    & $pythonExe -m venv $venvPath
+    ```
+
+3. Activate (enter) the new virtual environment:
+
+    *Option 1:* Windows Command Prompt
+    ```bat
+    %homepath%\venvs\venv-py312\Scripts\activate.bat
+    ```
+
+    *Option 2:* Windows PowerShell
+    ```powershell
+    & "$env:USERPROFILE\venvs\venv-py312\Scripts\Activate.ps1"
+    ```
+
+4. Confirm that the activation worked.
+    1. You should see that a parenthetical `(venv-py312)` has been added to the left side of your current line in the terminal.
+    2. Enter `where python` and confirm that the top result is sourcing Python from the new directory.
+
+---
+
+
+### Credits and References
+1. [Office of Water Prediction (OWP)](https://water.noaa.gov/)
+1. [Dewberry](https://www.dewberry.com/)
+1. [Raytheon](https://www.rtx.com/)
+1. [ Earth Resources Technology, Inc.](https://www.ertcorp.com/)
+1. [ras2fim](https://github.com/NOAA-OWP/ras2fim)
+1. [USACE HEC-RAS](https://www.hec.usace.army.mil/software/hec-ras/)
+1. NOAA National Water Model [(NWM)](https://water.noaa.gov/about/nwm)
+
+
+
+
+**Special Thanks to:** David Bascom (FEMA), Paul Rooney (FEMA),  Julia Signell and Dan Pilone of [Element84](https://www.element84.com/), and the developers of [STAC](https://stacspec.org/en).

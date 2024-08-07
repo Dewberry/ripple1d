@@ -1,6 +1,6 @@
 import os
 
-from ripple.ops.fim_lib import nwm_reach_model_stac
+from ripple1d.ops.fim_lib import nwm_reach_model_stac
 
 if __name__ == "__main__":
 
