@@ -105,7 +105,6 @@ snowballstemmer==2.2.0
 snuggs==1.4.7
 Sphinx==7.4.7
 sphinx-autodoc-typehints==2.2.3
-sphinx-rtd-theme==2.0.0
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0
