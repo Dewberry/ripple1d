@@ -61,11 +61,11 @@ if platform.system() == "Windows":
 
 RAS_FILE_TYPES = ["Plan", "Flow", "Geometry", "Project"]
 
-VALID_PLANS = [f".p{i:02d}" for i in range(1, 100)]
-VALID_GEOMS = [f".g{i:02d}" for i in range(1, 100)]
-VALID_STEADY_FLOWS = [f".f{i:02d}" for i in range(1, 100)]
-VALID_UNSTEADY_FLOWS = [f".u{i:02d}" for i in range(1, 100)]
-VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
+VALID_PLANS = [f".p{i:02d}" for i in range(1, 100)] + [f".P{i:02d}" for i in range(1, 100)]
+VALID_GEOMS = [f".g{i:02d}" for i in range(1, 100)] + [f".G{i:02d}" for i in range(1, 100)]
+VALID_STEADY_FLOWS = [f".f{i:02d}" for i in range(1, 100)] + [f".F{i:02d}" for i in range(1, 100)]
+VALID_UNSTEADY_FLOWS = [f".u{i:02d}" for i in range(1, 100)] + [f".U{i:02d}" for i in range(1, 100)]
+VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)] + [f".Q{i:02d}" for i in range(1, 100)]
 
 
 # Decorator Functions
@@ -86,9 +86,11 @@ def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         if isinstance(extensions, list):
-            return [self._ras_root_path + "." + extension.replace(" ", "").lstrip(".") for extension in extensions]
+            return [
+                self._ras_root_path + "." + extension.replace(" ", "").lstrip(".").lower() for extension in extensions
+            ]
         else:
-            return self._ras_root_path + "." + extensions.replace(" ", "").lstrip(".")
+            return self._ras_root_path + "." + extensions.replace(" ", "").lstrip(".").lower()
 
     return wrapper
 
@@ -1185,7 +1187,9 @@ class RasFlowText(RasTextFile):
         for location in search_contents(self.contents, "River Rch & RM", expect_one=False):
             # parse river, reach, and river station for the flow change location
             river, reach, rs = location.split(",")
-            lines = text_block_from_start_end_str(f"River Rch & RM={location}", "River Rch & RM", self.contents)
+            lines = text_block_from_start_end_str(
+                f"River Rch & RM={location}", ["River Rch & RM", "Boundary for River Rch & Prof#"], self.contents
+            )
             flows = []
 
             for line in lines[1:]:
