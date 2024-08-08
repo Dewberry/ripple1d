@@ -6,8 +6,6 @@ This package provides tools and utilities for managing 1-dimensional HEC-RAS sim
 
 import os
 
-import toml
-
 
 def get_version():
     """Get version info for build."""
@@ -18,5 +16,5 @@ def get_version():
 
 try:
     __version__ = get_version()
-except FileNotFoundError as e:
+except Exception as e:
     __version__ == ""
