@@ -88,9 +88,11 @@ def geom_flow_to_gdfs(
     else:
         rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path)
 
-        rf = RasFlowText(rp.plan_steady_file)
+        plan_steady_file = get_path(rp.plan_steady_file)
+        rf = RasFlowText(plan_steady_file)
 
-        rg = RasGeomText(rp.plan_geom_file, crs)
+        plan_geom_file = get_path(rp.plan_geom_file)
+        rg = RasGeomText(plan_geom_file, crs)
 
     layers = {}
     if rg.cross_sections:
@@ -167,11 +169,12 @@ def detemine_primary_plan(
     If no plans are found without encroachments, an error is raised.
     """
     if len(ras_project.plans) == 1:
-        plan_path = get_path(ras_project.plans[0], client, bucket)
         if client:
+            plan_path = get_path(ras_project.plans[0], client, bucket)
             string = str_from_s3(plan_path, client, bucket)
             return RasPlanText.from_str(string, crs, plan_path)
         else:
+            plan_path = get_path(ras_project.plans[0])
             return RasPlanText(plan_path, crs)
     candidate_plans = []
     for plan_path in ras_project.plans:
@@ -192,8 +195,11 @@ def detemine_primary_plan(
                     candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
     if len(candidate_plans) > 1 or not candidate_plans:
         plan_path = ras_project._ras_root_path + "." + ras_project.current_plan.lstrip(".")
-        string = str_from_s3(plan_path, client, bucket)
-        return RasPlanText.from_str(string, crs, plan_path)
+        if client:
+            string = str_from_s3(plan_path, client, bucket)
+            return RasPlanText.from_str(string, crs, plan_path)
+        else:
+            return RasPlanText(plan_path, crs)
         # raise CouldNotIdentifyPrimaryPlanError(f"Could not identfiy a primary plan for {ras_text_file_path}")
     else:
         return candidate_plans[0]
