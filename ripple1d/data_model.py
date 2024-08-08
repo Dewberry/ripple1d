@@ -381,7 +381,7 @@ class Structure:
             # data = text_block_from_start_str_length(
             #     "IW Dist,WD,Coef,Skew,MaxSub,Min_El,Is_Ogee,SpillHt,DesHd", 1, self.ras_data
             # )
-            data = self.ras_data[-1]
+            data = self.ras_data[-2]
             return data.split(",")[position]
         elif self.type == 6:  # lateral structure
             return 0
@@ -422,7 +422,7 @@ class Reach:
     """HEC-RAS River Reach."""
 
     def __init__(self, ras_data: list, river_reach: str, crs: str):
-        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", "River Reach", ras_data)
+        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", ["River Reach"], ras_data, -1)
         self.ras_data = reach_lines
         self.crs = crs
         self.river_reach = river_reach
@@ -487,9 +487,8 @@ class Reach:
                 continue
             xs_lines = text_block_from_start_end_str(
                 f"Type RM Length L Ch R ={header}",
-                "Exp/Cntr=",
+                ["Type RM Length L Ch R", "River Reach"],
                 self.ras_data,
-                additional_lines=1,
             )
             cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
             cross_sections[cross_section.river_reach_rs] = cross_section
@@ -505,44 +504,20 @@ class Reach:
             if int(type) == 1:
                 xs_lines = text_block_from_start_end_str(
                     f"Type RM Length L Ch R ={header}",
-                    "Exp/Cntr=",
+                    ["Type RM Length L Ch R", "River Reach"],
                     self.ras_data,
-                    additional_lines=1,
                 )
                 cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
                 continue
-            elif int(type) == 6:  # lateral structure
+            elif int(type) in [2, 3, 4, 5, 6]:  # culvert or bridge or multiple openeing
                 structure_lines = text_block_from_start_end_str(
                     f"Type RM Length L Ch R ={header}",
-                    "LW Div RC=",
+                    ["Type RM Length L Ch R", "River Reach"],
                     self.ras_data,
-                    additional_lines=1,
                 )
-            elif int(type) == 5:  # inline structure
-                structure_lines = text_block_from_start_end_str(
-                    f"Type RM Length L Ch R ={header}",
-                    "IW Dist,WD,Coef,Skew,MaxSub,Min_El,Is_Ogee,SpillHt,DesHd",
-                    self.ras_data,
-                    additional_lines=2,
-                )
-            elif int(type) in [2, 3, 4]:  # culvert or bridge
-                structure_lines = text_block_from_start_end_str(
-                    f"Type RM Length L Ch R ={header}",
-                    "BC User HTab FreeFlow(D)=",
-                    self.ras_data,
-                    additional_lines=1,
-                )
-                # one ras version terminates structures with "BC Design="
-                if len(search_contents(structure_lines, "Type RM Length L Ch R ", expect_one=False)) > 1:
-                    structure_lines = text_block_from_start_end_str(
-                        f"Type RM Length L Ch R ={header}",
-                        "BC Design=",
-                        self.ras_data,
-                        additional_lines=1,
-                    )
             else:
                 raise TypeError(
-                    f"Unsupported structure type: {int(type)}. Supported structure types are 2, 3, 6, and 7 corresponding to culvert, bridge, lateral structure, and inline weir, respectively"
+                    f"Unsupported structure type: {int(type)}. Supported structure types are 2, 3, 4, 5, and 6 corresponding to culvert, bridge, multiple openeing, inline structure, lateral structure, respectively"
                 )
 
             structure = Structure(structure_lines, self.river_reach, self.river, self.reach, self.crs, cross_section)
