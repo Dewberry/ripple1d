@@ -265,14 +265,16 @@ class XS:
     @property
     def thalweg(self):
         """Cross section thalweg elevation."""
-        _, y = list(zip(*self.station_elevation_points))
-        return min(y)
+        if self.station_elevation_points:
+            _, y = list(zip(*self.station_elevation_points))
+            return min(y)
 
     @property
     def xs_max_elevation(self):
         """Cross section maximum elevation."""
-        _, y = list(zip(*self.station_elevation_points))
-        return max(y)
+        if self.station_elevation_points:
+            _, y = list(zip(*self.station_elevation_points))
+            return max(y)
 
     @property
     def coords(self):
@@ -293,12 +295,15 @@ class XS:
     @property
     def station_elevation_points(self):
         """Station elevation points."""
-        lines = text_block_from_start_str_length(
-            f"#Sta/Elev= {self.number_of_station_elevation_points} ",
-            math.ceil(self.number_of_station_elevation_points / 5),
-            self.ras_data,
-        )
-        return data_pairs_from_text_block(lines, 16)
+        try:
+            lines = text_block_from_start_str_length(
+                f"#Sta/Elev= {self.number_of_station_elevation_points} ",
+                math.ceil(self.number_of_station_elevation_points / 5),
+                self.ras_data,
+            )
+            return data_pairs_from_text_block(lines, 16)
+        except ValueError as e:
+            return None
 
     @property
     def bank_stations(self):
