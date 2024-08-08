@@ -35,15 +35,19 @@ def get_path(expected_path: str, client: boto3.client = None, bucket: str = None
         path = Path(expected_path)
         prefix = path.parent.as_posix().replace("s3:/", "s3://")
         paths = list_keys(client, bucket, prefix, path.suffix)
+        if not paths:
+            paths = list_keys(client, bucket, prefix, path.suffix.upper())
     else:
         prefix = os.path.dirname(expected_path)
         paths = glob.glob(rf"{prefix}\*{os.path.splitext(expected_path)[1]}")
+        if not paths:
+            paths = glob.glob(rf"{prefix}\*{os.path.splitext(expected_path)[1].upper()}")
 
     if expected_path in paths:
         return expected_path
     else:
         for path in paths:
-            if path.endswith(Path(expected_path).suffix):
+            if path.endswith(Path(expected_path).suffix.upper()):
                 return path
 
 
