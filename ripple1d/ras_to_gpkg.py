@@ -11,11 +11,12 @@ import boto3
 import geopandas as gpd
 import pandas as pd
 import pystac
+from botocore.exceptions import ParamValidationError
 from pyproj import CRS
 
 from ripple1d.data_model import NwmReachModel
-from ripple1d.errors import CouldNotIdentifyPrimaryPlanError
-from ripple1d.ras import RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
+from ripple1d.errors import CouldNotIdentifyPrimaryPlanError, NoFlowFileSpecifiedError
+from ripple1d.ras import VALID_GEOMS, VALID_STEADY_FLOWS, RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.utils.gpkg_utils import (
     create_geom_item,
@@ -176,8 +177,11 @@ def detemine_primary_plan(
     for plan_path in ras_project.plans:
         plan_path = get_path(ras_project.plans[0], client, bucket)
         if client:
-            string = str_from_s3(plan_path, client, bucket)
-
+            try:
+                string = str_from_s3(plan_path, client, bucket)
+            except ParamValidationError as e:
+                logging.warning(f"Missing plan file {plan_path} in {ras_project._ras_text_file_path}")
+                continue
             if not string.__contains__("Encroach Node"):
                 candidate_plans.append(RasPlanText.from_str(string, crs, plan_path))
         else:
