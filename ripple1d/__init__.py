@@ -16,4 +16,7 @@ def get_version():
         return f.readline().strip()
 
 
-__version__ = get_version()
+try:
+    __version__ = get_version()
+except FileNotFoundError as e:
+    __version__ == ""
