@@ -11,10 +11,9 @@ import toml
 
 def get_version():
     """Get version info for build."""
-    pyproject_path = os.path.join(os.path.dirname(__file__), "..", "pyproject.toml")
+    pyproject_path = os.path.join(os.path.dirname(__file__), "__version__.py")
     with open(pyproject_path, "r") as f:
-        pyproject_data = toml.load(f)
-    return pyproject_data["project"]["version"]
+        return f.readline().strip()
 
 
 __version__ = get_version()
