@@ -14,7 +14,7 @@ import pystac
 from botocore.exceptions import ParamValidationError
 from pyproj import CRS
 
-from ripple1d.data_model import NwmReachModel
+from ripple1d.data_model import NwmReachModel, RippleSourceModel
 from ripple1d.errors import CouldNotIdentifyPrimaryPlanError, NoFlowFileSpecifiedError
 from ripple1d.ras import VALID_GEOMS, VALID_STEADY_FLOWS, RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
 from ripple1d.utils.dg_utils import bbox_to_polygon
@@ -240,6 +240,7 @@ def new_stac_item_s3(
     gpkg_s3_key: str,
     new_stac_item_s3_key: str,
     thumbnail_png_s3_key: str,
+    s3_ras_project_key: str,
     bucket: str,
     ripple_version: str,
     mip_case_no: str,
@@ -250,9 +251,9 @@ def new_stac_item_s3(
     # Instantitate S3 resources
 
     session, s3_client, s3_resource = init_s3_resources()
-    item_basename = Path(gpkg_s3_key).name
-    item_id = item_basename.replace(".gpkg", "")
-    prefix = gpkg_s3_key.replace(item_basename, "")
+    item_basename = Path(s3_ras_project_key).name
+    item_id = item_basename.replace(".prj", "")
+    prefix = Path(s3_ras_project_key).parent.as_posix()
     asset_list = list_keys(s3_client, bucket, prefix)
 
     gdfs = gpkg_to_geodataframe(f"s3://{bucket}/{gpkg_s3_key}")
@@ -276,7 +277,7 @@ def new_stac_item_s3(
         "plan title": data["plan_title"],
         "geom title": data["geom_title"],
         "flow title": data["flow_title"],
-        "profile names": data["profile_names"].splitlines(),
+        # "profile names": data["profile_names"].splitlines(),
         "MIP:case_ID": mip_case_no,
         "river miles": str(river_miles),
         "proj:wkt2": crs.to_wkt(),
@@ -284,12 +285,14 @@ def new_stac_item_s3(
     }
 
     item = create_geom_item(item_id, bbox, footprint, properties)
+    rsm = RippleSourceModel(s3_ras_project_key, crs)
 
     asset_list = asset_list + [thumbnail_png_s3_key, gpkg_s3_key]
     for asset_key in asset_list:
         obj = s3_resource.Bucket(bucket).Object(asset_key)
         metadata = get_basic_object_metadata(obj)
-        asset_info = get_asset_info(asset_key, bucket)
+
+        asset_info = get_asset_info(asset_key, rsm, bucket)
         if asset_key == thumbnail_png_s3_key:
             asset = pystac.Asset(
                 s3_key_public_url_converter(f"s3://{bucket}/{asset_key}"),
@@ -353,7 +356,7 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
 
     for asset_key in nwm_rm.assets:
 
-        asset_info = get_asset_info(asset_key, nwm_rm.model_directory)
+        asset_info = get_asset_info(asset_key, nwm_rm)
         asset_key = str(PurePosixPath(Path(asset_key.replace(nwm_rm.model_directory, ras_s3_prefix))))
         asset = pystac.Asset(
             os.path.relpath(asset_key),

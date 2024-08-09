@@ -17,9 +17,13 @@ def main(mip_group: str, processing_table_name: str, bucket: str, ripple1d_versi
     data = db.read_cases(processing_table_name, ["case_id", "s3_key"], mip_group, optional_condition)
     while data:
         for i, (mip_case, s3_ras_project_key) in enumerate(data):
-            gpkg_key = s3_ras_project_key.replace(".prj", ".gpkg")
-            thumbnail_png_s3_key = s3_ras_project_key.replace("mip", "stac").replace(".prj", ".png")
-            new_stac_item_s3_key = s3_ras_project_key.replace("mip", "stac").replace(".prj", ".json")
+            gpkg_key = s3_ras_project_key.replace(".prj", ".gpkg").replace("dev2", "gpkg_tx_ble_1")
+            thumbnail_png_s3_key = (
+                s3_ras_project_key.replace("mip", "stac").replace("dev2", "tx_ble_1").replace(".prj", ".png")
+            )
+            new_stac_item_s3_key = (
+                s3_ras_project_key.replace("mip", "stac").replace("dev2", "tx_ble_1").replace(".prj", ".json")
+            )
 
             logging.info(
                 f"Progress: ({i+1}/{len(data)} | {round(100*(i+1)/len(data),1)}% | working on key: {s3_ras_project_key}"
@@ -30,6 +34,7 @@ def main(mip_group: str, processing_table_name: str, bucket: str, ripple1d_versi
                     gpkg_key,
                     new_stac_item_s3_key,
                     thumbnail_png_s3_key,
+                    s3_ras_project_key,
                     bucket,
                     ripple1d_version,
                     mip_case,
@@ -54,8 +59,8 @@ def main(mip_group: str, processing_table_name: str, bucket: str, ripple1d_versi
 if __name__ == "__main__":
     configure_logging(level=logging.INFO, logfile="create_stac.log")
 
-    mip_group = "b"
-    processing_table_name = "processing_v2"
+    mip_group = "tx_ble_1"
+    processing_table_name = "processing_tx_ble_1"
     bucket = "fim"
     ripple1d_version = RIPPLE_VERSION
 
