@@ -116,4 +116,4 @@ See the [REST API documentation](docs/api/README.rst) for available endpoints an
 
 
 
-**Special Thanks to:** David Bascom (FEMA), Paul Rooney (FEMA),  Julia Signell and Dan Pilone of [Element84](https://www.element84.com/), and the developers of [STAC](https://stacspec.org/en).
+**Special Thanks to:** David Bascom (FEMA), Christina Lindemer (FEMA), Dave Rosa (FEMA), Paul Rooney (FEMA),  Julia Signell and Dan Pilone of [Element84](https://www.element84.com/), and the developers of [STAC](https://stacspec.org/en).
