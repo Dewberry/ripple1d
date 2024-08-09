@@ -17,4 +17,4 @@ def get_version():
 try:
     __version__ = get_version()
 except Exception as e:
-    __version__ == ""
+    __version__ = ""
