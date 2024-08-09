@@ -26,19 +26,14 @@ Below are the steps to start, stop, and check the status of the Ripple Manager..
 
       ripple1d start  --flask_port 5000 --thread_count 5 
 
-**Check the status**:
+
+**Help for the Ripple Services**:
 
    .. code-block:: powershell
 
-      ripple1d status --pids_file ./process-ids.json
+      ripple1d -h
 
-**Stop the Ripple Services**:
-
-   .. code-block:: powershell
-
-      ripple1d stop --pids_file ./process-ids.json
-
-
+      ripple1d start -h
 
 .. toctree::
    :maxdepth: 2
