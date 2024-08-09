@@ -11,6 +11,7 @@ from typing import List
 
 import geopandas as gpd
 import pandas as pd
+from pyproj import CRS
 from shapely.geometry import LineString, Point
 
 from ripple1d.utils.ripple_utils import (
@@ -73,11 +74,52 @@ class RasModelStructure:
         return self.derive_path(".png")
 
 
-class RippleSourceModel(RasModelStructure):
+class RippleSourceModel:
     """Source Model structure for Ripple to create NwmReachModel's."""
 
-    def __init__(self, model_directory: str):
-        super().__init__(model_directory)
+    def __init__(self, ras_project_file: str, crs: CRS):
+
+        self.crs = crs
+        self.ras_project_file = ras_project_file
+        self.model_directory = Path(ras_project_file).parent
+        self.model_basename = Path(ras_project_file)
+
+    @property
+    def model_name(self):
+        """Model name."""
+        return self.model_basename.replace(".prj", "")
+
+    def derive_path(self, extension: str):
+        """Derive path."""
+        return str(Path(self.model_directory) / f"{self.model_name}{extension}")
+
+    def file_exists(self, file_path: str) -> bool:
+        """Check if file exists."""
+        if os.path.exists(file_path):
+            return True
+        return False
+
+    @property
+    def ras_gpkg_file(self):
+        """RAS GeoPackage file."""
+        return self.derive_path(".gpkg")
+
+    @property
+    def assets(self):
+        """Model assets."""
+        return glob.glob(f"{self.model_directory}/Terrain/*") + [
+            f for f in glob.glob(f"{self.model_directory}/*") if not os.path.isdir(f)
+        ]
+
+    @property
+    def terrain_assets(self):
+        """Terrain assets."""
+        return glob.glob(f"{self.model_directory}/Terrain/*")
+
+    @property
+    def thumbnail_png(self):
+        """Thumbnail PNG."""
+        return self.derive_path(".png")
 
     @property
     def conflation_file(self):
