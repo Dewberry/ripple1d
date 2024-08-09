@@ -25,6 +25,7 @@ platform_tag = "win_amd64"
 
 
 with open(os.path.join(os.path.dirname(__file__), "ripple1d", "__version__.py"), "w") as f:
+    f.write('"""Auto-generated ripple1d version file."""\n')
     f.write(f'__version__ = "{get_version()}"')
 
 subprocess.check_call([os.sys.executable, "-m", "build"])
