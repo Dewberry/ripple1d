@@ -51,9 +51,9 @@ jobs:
       run: |
         python -m build_wheel
 
-    - name: Install the built wheel
-      run: |
-        pip install dist/*.whl
+    - name: Install the built wheel 
+      run: | 
+        python -c "import glob; import subprocess; wheel_files = glob.glob('dist/*.whl'); subprocess.check_call(['pip', 'install', wheel_files[0]])" 
 
     - name: Lint (ruff)
       run: |
