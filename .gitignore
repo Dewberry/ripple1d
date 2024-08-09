@@ -179,3 +179,4 @@ dev
 tests/outputs
 pids.txt
 py312/
+__version__.py
