@@ -57,7 +57,7 @@ jobs:
 
     - name: Lint (ruff)
       run: |
-        ruff check
+        ruff check . --exclude __version__.py
         ruff format --check
 
     - name: Run tests with coverage
