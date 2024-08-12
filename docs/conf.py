@@ -8,7 +8,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../"))
+sys.path.insert(0, os.path.abspath("../"))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.abspath("../../"))
 project = "ripple1d"
 copyright = "2024, Dewberry"
 author = "Seth Lawler, Matt Deshotel, Max Kipp, Abdul Siddiqui"
-release = "v0.2.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

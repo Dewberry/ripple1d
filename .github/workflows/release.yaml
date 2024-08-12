@@ -35,12 +35,34 @@ jobs:
         shell: pwsh
         run: |
           $version = python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])"
-          echo "VERSION=$version" >> $GITHUB_ENV
+          echo "::set-output name=VERSION::$version"
       - name: Build wheel and source distribution
         run: python -m build
+      - name: List dist directory contents
+        run: dir dist
       - name: Publish package
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-          TWINE_REPOSITORY_URL: https://upload.pypi.org/legacy/
         run: python -m twine upload dist/*
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          release_name: Release v${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+      - name: List dist directory contents again
+        run: dir dist
+      - name: Upload Source Distribution
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/ripple1d-${{ steps.get_version.outputs.VERSION }}.tar.gz
+          asset_name: ripple1d-v${{ steps.get_version.outputs.VERSION }}.tar.gz
+          asset_content_type: application/gzip
