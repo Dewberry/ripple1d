@@ -181,3 +181,4 @@ pids.txt
 py312/
 *.log*
 __version__.py
+venv3*

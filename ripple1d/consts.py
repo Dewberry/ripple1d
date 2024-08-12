@@ -46,5 +46,5 @@ LAYER_COLORS = OrderedDict(
     }
 )
 
-RIPPLE_VERSION = "0.3.1"
+RIPPLE_VERSION = "0.3.12-rc.1"
 SHOW_RAS = False

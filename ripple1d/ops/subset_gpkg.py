@@ -9,6 +9,8 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString
 
+from ripple1d.consts import RIPPLE_VERSION
+
 
 def subset_gpkg(
     src_gpkg_path: str,
