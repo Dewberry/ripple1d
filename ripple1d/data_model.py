@@ -81,8 +81,8 @@ class RippleSourceModel:
 
         self.crs = crs
         self.ras_project_file = ras_project_file
-        self.model_directory = Path(ras_project_file).parent
-        self.model_basename = Path(ras_project_file)
+        self.model_directory = Path(ras_project_file).parent.as_posix()
+        self.model_basename = Path(ras_project_file).as_posix()
 
     @property
     def model_name(self):
@@ -115,6 +115,68 @@ class RippleSourceModel:
     def terrain_assets(self):
         """Terrain assets."""
         return glob.glob(f"{self.model_directory}/Terrain/*")
+
+    @property
+    def thumbnail_png(self):
+        """Thumbnail PNG."""
+        return self.derive_path(".png")
+
+    @property
+    def conflation_file(self):
+        """Conflation file."""
+        return self.derive_path(".conflation.json")
+
+    def nwm_conflation_parameters(self, nwm_id: str):
+        """NWM Conflation parameters."""
+        with open(self.conflation_file, "r") as f:
+            conflation_parameters = json.loads(f.read())
+        return conflation_parameters[nwm_id]
+
+
+class RippleSourceDirectory:
+    """Source Directory for Ripple to create NwmReachModel's. Should contain the conflation.json file and gpkg file for the source model."""
+
+    def __init__(self, source_directory: str):
+
+        self.source_directory = source_directory
+        self.model_basename = os.path.basename(self.source_directory)
+
+    @property
+    def model_name(self):
+        """Model name."""
+        return self.model_basename
+
+    def derive_path(self, extension: str):
+        """Derive path."""
+        return str(Path(self.source_directory) / f"{self.model_name}{extension}")
+
+    def file_exists(self, file_path: str) -> bool:
+        """Check if file exists."""
+        if os.path.exists(file_path):
+            return True
+        return False
+
+    @property
+    def ras_gpkg_file(self):
+        """RAS GeoPackage file."""
+        return self.derive_path(".gpkg")
+
+    @property
+    def ras_project_file(self):
+        """RAS Project file."""
+        return self.derive_path(".prj")
+
+    @property
+    def assets(self):
+        """Model assets."""
+        return glob.glob(f"{self.source_directory}/Terrain/*") + [
+            f for f in glob.glob(f"{self.source_directory}/*") if not os.path.isdir(f)
+        ]
+
+    @property
+    def terrain_assets(self):
+        """Terrain assets."""
+        return glob.glob(f"{self.source_directory}/Terrain/*")
 
     @property
     def thumbnail_png(self):

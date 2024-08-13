@@ -248,14 +248,14 @@ def extract_submodel(
     ripple_version: str = RIPPLE_VERSION,
 ):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
-    rsm = RippleSourceModel(source_model_directory)
-    logging.info(f"Preparing to extract NWM ID {nwm_id} from {rsm.ras_project_file}")
+    rsd = RippleSourceDirectory(source_model_directory)
+    logging.info(f"Preparing to extract NWM ID {nwm_id} from {rsd.ras_project_file}")
 
-    if not rsm.file_exists(rsm.ras_gpkg_file):
-        raise FileNotFoundError(f"cannot find file ras-geometry file {rsm.ras_gpkg_file}, please ensure file exists")
+    if not rsd.file_exists(rsd.ras_gpkg_file):
+        raise FileNotFoundError(f"cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists")
 
-    if not rsm.file_exists(rsm.conflation_file):
-        raise FileNotFoundError(f"cannot find conflation file {rsm.conflation_file}, please ensure file exists")
+    if not rsd.file_exists(rsd.conflation_file):
+        raise FileNotFoundError(f"cannot find conflation file {rsd.conflation_file}, please ensure file exists")
 
     ripple_parameters = rsm.nwm_conflation_parameters(str(nwm_id))
     if ripple_parameters["us_xs"]["xs_id"] == "-9999":
@@ -264,7 +264,7 @@ def extract_submodel(
 
     else:
         subset_gpkg_path, crs, max_flow, min_flow = subset_gpkg(
-            rsm.ras_gpkg_file,
+            rsd.ras_gpkg_file,
             submodel_directory,
             nwm_id,
             ripple_parameters["ds_xs"]["xs_id"],
