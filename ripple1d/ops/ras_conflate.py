@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 import boto3
 import pystac
+
 from ripple1d.conflate.plotter import plot_conflation_results
 from ripple1d.conflate.rasfim import (
     RasFimConflater,
@@ -64,7 +65,6 @@ def conflate(rfc: RasFimConflater):
         candidate_reaches = rfc.local_nwm_reaches.query(f"ID in {potential_reach_path}")
         reach_metadata = ras_reaches_metadata(rfc, candidate_reaches)
         metadata.update(reach_metadata)
-    metadata["nwm_reach_source"] = rfc.nwm_pq
 
     return metadata
 
