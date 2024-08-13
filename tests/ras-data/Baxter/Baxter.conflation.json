@@ -240,6 +240,5 @@
         "high_flow_cfs": 21526,
         "nwm_to_id": "2820006",
         "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
-    },
-    "nwm_reach_source": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    }
 }
