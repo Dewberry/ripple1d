@@ -342,13 +342,13 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
     properties = {
         "ripple: version": ripple_version,
         "ras version": rm.version,
-        "ras_units": rm.ras_project.ras_units,
+        "ras_units": rm.ras_project.units,
         "project title": rm.ras_project.title,
         "plan titles": {key: val.file_extension for key, val in rm.plans.items()},
         "geom titles": {key: val.file_extension for key, val in rm.geoms.items()},
         "flow titles": {key: val.file_extension for key, val in rm.flows.items()},
         "river miles": str(river_miles),
-        "NWM to_id": nwm_rm.ripple_parameters["nwm_to_id"],
+        "NWM to_id": nwm_rm.ripple1d_parameters["nwm_to_id"],
         "proj:wkt2": crs.to_wkt(),
         "proj:epsg": crs.to_epsg(),
     }
@@ -365,9 +365,9 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
             description=asset_info["description"],
         )
         item.add_asset(asset_info["title"], asset)
-    item.add_derived_from(nwm_rm.ripple_parameters["source_model"])
-    item.add_derived_from(nwm_rm.ripple_parameters["source_terrain"])
-    item.add_derived_from(nwm_rm.ripple_parameters["source_nwm_reach"])
+    item.add_derived_from(nwm_rm.ripple1d_parameters["source_model"])
+    item.add_derived_from(nwm_rm.ripple1d_parameters["source_terrain"])
+    item.add_derived_from(nwm_rm.ripple1d_parameters["source_nwm_reach"])
     with open(nwm_rm.model_stac_json_file, "w") as dst:
         dst.write(json.dumps(item.to_dict()))
 

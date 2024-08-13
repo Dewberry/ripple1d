@@ -251,7 +251,7 @@ class NwmReachModel(RasModelStructure):
     @property
     def crs(self):
         """Coordinate Reference System."""
-        return self.ripple_parameters["crs"]
+        return self.ripple1d_parameters["crs"]
 
     def upload_files_to_s3(self, ras_s3_prefix: str, bucket: str):
         """Upload the model to s3."""
@@ -281,15 +281,15 @@ class NwmReachModel(RasModelStructure):
         client.upload_file(Bucket=bucket, Key=f"{s3_prefix}/{file_name}", Filename=self.fim_lib_stac_json_file)
 
     @property
-    def ripple_parameters(self):
+    def ripple1d_parameters(self):
         """Ripple parameters."""
         with open(self.conflation_file, "r") as f:
-            ripple_parameters = json.loads(f.read())
-        return ripple_parameters
+            ripple1d_parameters = json.loads(f.read())
+        return ripple1d_parameters
 
-    def update_write_ripple_parameters(self, new_parameters: dict):
+    def update_write_ripple1d_parameters(self, new_parameters: dict):
         """Write Ripple parameters."""
-        parameters = self.ripple_parameters
+        parameters = self.ripple1d_parameters
         parameters.update(new_parameters)
         with open(self.conflation_file, "w") as f:
             f.write(json.dumps(parameters, indent=4))
