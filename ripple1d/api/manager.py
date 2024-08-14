@@ -15,6 +15,7 @@ class RippleManager:
     def __init__(self, args):
         if args.command == "start":
             self.flask = {
+                "flask_app": args.flask_app,
                 "flask_debug": args.flask_debug,
                 "flask_port": args.flask_port,
                 "flask_host": args.flask_host,
@@ -70,7 +71,7 @@ class RippleManager:
             python_executable,
             "-u",
             huey_consumer_path,
-            "api.tasks.huey",
+            "ripple1d.api.tasks.huey",
             "-w",
             str(self.huey["thread_count"]),
         ]
@@ -79,6 +80,8 @@ class RippleManager:
 
         else:
             subprocess.Popen(["start", "cmd", "/k", " ".join(huey_command)], shell=True)
+
+        os.environ["FLASK_APP"] = self.flask["flask_app"]
 
         print("Starting ripple1d-flask")
         flask_command = [
@@ -130,6 +133,9 @@ def main():
     start_parser.add_argument("--flask_debug", action="store_true", help="Debug mode for Flask API (default: False)")
     start_parser.add_argument("--flask_port", type=int, default=80, help="Port for Flask API (default: 80)")
     start_parser.add_argument("--flask_host", type=str, default="0.0.0.0", help="Host for Flask API (default: 0.0.0.0)")
+    start_parser.add_argument(
+        "--flask_app", type=str, default="ripple1d.api.app", help="Flask App (default: ripple1d.api.app)"
+    )
     start_parser.add_argument("--thread_count", type=int, default=1, help="Thread count for Huey Consumer (default: 1)")
     start_parser.add_argument(
         "--hide_huey_shell", action="store_true", help="Launch terminal for Huey Consumer (default: False)"
