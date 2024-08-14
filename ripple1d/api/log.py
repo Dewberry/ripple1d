@@ -7,7 +7,7 @@ import os
 import traceback
 from datetime import datetime, timezone
 
-from ripple1d.ripple_logger import RippleLogFormatter
+from ripple1d.ripple1d_logger import RippleLogFormatter
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 LOGS: dict[str, logging.Logger] = {}  # global that is modified by initialize_log()
