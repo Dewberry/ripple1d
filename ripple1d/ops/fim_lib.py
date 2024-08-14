@@ -15,6 +15,7 @@ from pyproj import CRS
 # from osgeo import gdal
 from rasterio.enums import Resampling
 from rasterio.shutil import copy as copy_raster
+
 from ripple1d.conflate.rasfim import RasFimConflater
 from ripple1d.consts import RIPPLE_VERSION
 from ripple1d.data_model import NwmReachModel

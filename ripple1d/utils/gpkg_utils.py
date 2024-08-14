@@ -180,7 +180,6 @@ def get_asset_info(asset_key: str, rms: RasModelStructure, bucket: str = None) -
     -------
         dict: A dictionary with the roles, the description, and the title of the asset.
     """
-    logging.debug(f"asset: {asset_key}")
     if bucket:
         _, client, s3_resource = init_s3_resources()
         obj = s3_resource.Bucket(bucket).Object(asset_key)
@@ -260,22 +259,7 @@ def get_asset_info(asset_key: str, rms: RasModelStructure, bucket: str = None) -
         roles.extend(["compute-messages", "hec-ras", pystac.MediaType.TEXT])
         description = """Compute messages file for ras."""
 
-    elif isinstance(rms, NwmReachModel):
-        if file_extension == ".hdf":
-            if asset_key in rms.terrain_assets:
-                roles.extend(["Terrain", pystac.MediaType.HDF])
-            else:
-                roles.extend(["hec-ras", pystac.MediaType.HDF])
-
-        elif file_extension == ".vrt":
-            if asset_key in rms.terrain_assets:
-                roles.extend(["Terrain", pystac.MediaType.XML])
-
-        elif file_extension == ".tif":
-            if asset_key in rms.terrain_assets:
-                roles.extend(["Terrain", pystac.MediaType.GEOTIFF])
-
-    elif re.match(".png", file_extension):
+    elif file_extension == ".png":
         roles.extend(["thumbnail", pystac.MediaType.PNG])
         description = """PNG of geometry with OpenStreetMap basemap."""
         title = "Thumbnail"
@@ -312,6 +296,21 @@ def get_asset_info(asset_key: str, rms: RasModelStructure, bucket: str = None) -
                 else:
                     roles.extend(["projection-file", pystac.MediaType.TEXT])
                 description = """Projection file for ras."""
+
+    if isinstance(rms, NwmReachModel):
+        if file_extension == ".hdf":
+            if asset_key in rms.terrain_assets:
+                roles.extend(["Terrain", pystac.MediaType.HDF])
+            else:
+                roles.extend(["hec-ras", pystac.MediaType.HDF])
+
+        elif file_extension == ".vrt":
+            if asset_key in rms.terrain_assets:
+                roles.extend(["Terrain", pystac.MediaType.XML])
+
+        elif file_extension == ".tif":
+            if asset_key in rms.terrain_assets:
+                roles.extend(["Terrain", pystac.MediaType.GEOTIFF])
 
     return {"roles": roles, "description": description, "title": title, "extra_fields": extra_fields}
 
