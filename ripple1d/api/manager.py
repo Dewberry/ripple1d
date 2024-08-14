@@ -15,6 +15,7 @@ class RippleManager:
     def __init__(self, args):
         if args.command == "start":
             self.flask = {
+                "flask_app": args.flask_app,
                 "flask_debug": args.flask_debug,
                 "flask_port": args.flask_port,
                 "flask_host": args.flask_host,
@@ -24,14 +25,14 @@ class RippleManager:
                 "thread_count": args.thread_count,
                 "hide_huey_shell": args.hide_huey_shell,
             }
-            self.logs_dir = args.logs
+            # self.logs_dir = args.logs
         self.processes = []
 
     def print_config(self):
         """Pring configuration settings for the Ripple Manager."""
         print("Flask API Configuration:", self.flask)
         print("Huey Consumer Configuration:", self.huey)
-        print("Logs Directory:", self.logs_dir)
+        print("Logs Directory:", os.getcwd())
 
     def _handle_remove_readonly(self, func, path, exc_info):
         """Handle the read-only file deletion error."""
@@ -51,17 +52,17 @@ class RippleManager:
             print("Error: huey consumer script was not discoverable.")
             exit(1)
 
-        if os.path.exists(self.logs_dir):
-            shutil.rmtree(self.logs_dir, onerror=self._handle_remove_readonly)
+        # if os.path.exists(self.logs_dir):
+        #     shutil.rmtree(self.logs_dir, onerror=self._handle_remove_readonly)
 
-        if os.path.exists(self.logs_dir):
-            print(f"Error: could not delete {self.logs_dir}")
-            exit(1)
+        # if os.path.exists(self.logs_dir):
+        #     print(f"Error: could not delete {self.logs_dir}")
+        #     exit(1)
 
-        os.makedirs(self.logs_dir, exist_ok=True)
-        if not os.path.exists(self.logs_dir):
-            print(f"Error: could not create {self.logs_dir}")
-            exit(1)
+        # os.makedirs(self.logs_dir, exist_ok=True)
+        # if not os.path.exists(self.logs_dir):
+        #     print(f"Error: could not create {self.logs_dir}")
+        #     exit(1)
 
         python_executable = sys.executable
 
@@ -70,7 +71,7 @@ class RippleManager:
             python_executable,
             "-u",
             huey_consumer_path,
-            "api.tasks.huey",
+            "ripple1d.api.tasks.huey",
             "-w",
             str(self.huey["thread_count"]),
         ]
@@ -79,6 +80,8 @@ class RippleManager:
 
         else:
             subprocess.Popen(["start", "cmd", "/k", " ".join(huey_command)], shell=True)
+
+        os.environ["FLASK_APP"] = self.flask["flask_app"]
 
         print("Starting ripple1d-flask")
         flask_command = [
@@ -130,16 +133,19 @@ def main():
     start_parser.add_argument("--flask_debug", action="store_true", help="Debug mode for Flask API (default: False)")
     start_parser.add_argument("--flask_port", type=int, default=80, help="Port for Flask API (default: 80)")
     start_parser.add_argument("--flask_host", type=str, default="0.0.0.0", help="Host for Flask API (default: 0.0.0.0)")
+    start_parser.add_argument(
+        "--flask_app", type=str, default="ripple1d.api.app", help="Flask App (default: ripple1d.api.app)"
+    )
     start_parser.add_argument("--thread_count", type=int, default=1, help="Thread count for Huey Consumer (default: 1)")
     start_parser.add_argument(
         "--hide_huey_shell", action="store_true", help="Launch terminal for Huey Consumer (default: False)"
     )
-    start_parser.add_argument(
-        "--logs",
-        type=str,
-        default=os.path.join(os.getcwd(), "logs"),
-        help="Logs directory (default: current directory/logs)",
-    )
+    # start_parser.add_argument(
+    #     "--logs",
+    #     type=str,
+    #     default=os.path.join(os.getcwd(), "logs"),
+    #     help="Logs directory (default: current directory/logs)",
+    # )
 
     args = parser.parse_args()
 

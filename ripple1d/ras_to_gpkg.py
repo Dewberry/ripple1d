@@ -242,13 +242,15 @@ def new_stac_item_s3(
     thumbnail_png_s3_key: str,
     s3_ras_project_key: str,
     bucket: str,
-    ripple_version: str,
-    mip_case_no: str,
+    mip_case_no: str = None,
     dev_mode: bool = False,
 ):
     """Create a new stac item from a geopackage on s3."""
     logging.debug("Creating item from gpkg")
     # Instantitate S3 resources
+
+    if mip_case_no is None:
+        mip_case_no = "N/A"
 
     session, s3_client, s3_resource = init_s3_resources()
     item_basename = Path(s3_ras_project_key).name
@@ -271,7 +273,7 @@ def new_stac_item_s3(
 
     data = gdfs["XS"].iloc[0]
     properties = {
-        "ripple: version": ripple_version,
+        "ripple: version": ripple1d.__version__,
         "ras version": data["version"],
         "project title": data["project_title"],
         "plan title": data["plan_title"],
@@ -318,7 +320,7 @@ def new_stac_item_s3(
     logging.debug("Program completed successfully")
 
 
-def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix: str):
+def new_stac_item(ras_project_directory: str, ras_s3_prefix: str):
     """Create a new stac item from a geopackage locally ."""
     logging.debug("Creating item from gpkg")
 
@@ -340,7 +342,7 @@ def new_stac_item(ras_project_directory: str, ripple_version: str, ras_s3_prefix
 
     data = gdfs["XS"].iloc[0]
     properties = {
-        "ripple: version": ripple_version,
+        "ripple: version": ripple1d.__version__,
         "ras version": rm.version,
         "ras_units": rm.ras_project.units,
         "project title": rm.ras_project.title,
