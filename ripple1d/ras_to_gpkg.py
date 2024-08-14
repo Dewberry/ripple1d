@@ -14,6 +14,7 @@ import pystac
 from botocore.exceptions import ParamValidationError
 from pyproj import CRS
 
+import ripple1d
 from ripple1d.data_model import NwmReachModel, RippleSourceModel
 from ripple1d.errors import CouldNotIdentifyPrimaryPlanError, NoFlowFileSpecifiedError
 from ripple1d.ras import VALID_GEOMS, VALID_STEADY_FLOWS, RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
