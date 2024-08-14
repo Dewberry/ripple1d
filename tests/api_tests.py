@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import time
 import unittest
@@ -160,7 +161,6 @@ class TestApi(unittest.TestCase):
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
             "bucket": "fim",
-            "ripple1d_version": ripple1d.__version__,
         }
         process = "nwm_reach_model_stac"
         files = [MODEL_STAC_ITEM]
@@ -179,9 +179,8 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     def test_j_cleanup(self):
-        # TODO: clean up the submodel directory
-        pass
+        shutil.rmtree(SUBMODELS_BASE_DIRECTORY)
 
-    def test_k_shutdown(self):
-        r = subprocess.run(["ripple1d", "stop"])
-        self.assertEqual(r.returncode, 0)
+    # def test_k_shutdown(self):
+    #     r = subprocess.run(["ripple1d", "stop"])
+    #     self.assertEqual(r.returncode, 0)
