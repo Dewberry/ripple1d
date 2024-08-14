@@ -9,8 +9,8 @@ import huey.signals as sigs
 from huey import SqliteHuey
 from huey.api import Result
 
-from api.log import LOG_DIR, initialize_log
-from api.utils import tracerbacker
+from ripple1d.api.log import LOG_DIR, initialize_log
+from ripple1d.api.utils import tracerbacker
 
 LOG = initialize_log()
 
