@@ -9,12 +9,12 @@ import huey.signals as sigs
 from huey import SqliteHuey
 from huey.api import Result
 
-from ripple1d.api.log import LOG_DIR, initialize_log
+from ripple1d.api.log import initialize_log
 from ripple1d.api.utils import tracerbacker
 
 LOG = initialize_log()
 
-huey = SqliteHuey(filename=os.path.join(LOG_DIR, "huey.db"), results=True)
+huey = SqliteHuey(filename=os.path.join("huey.db"), results=True)
 
 # Create custom table task_status
 huey.storage.sql(

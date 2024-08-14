@@ -25,14 +25,14 @@ class RippleManager:
                 "thread_count": args.thread_count,
                 "hide_huey_shell": args.hide_huey_shell,
             }
-            self.logs_dir = args.logs
+            # self.logs_dir = args.logs
         self.processes = []
 
     def print_config(self):
         """Pring configuration settings for the Ripple Manager."""
         print("Flask API Configuration:", self.flask)
         print("Huey Consumer Configuration:", self.huey)
-        print("Logs Directory:", self.logs_dir)
+        print("Logs Directory:", os.getcwd())
 
     def _handle_remove_readonly(self, func, path, exc_info):
         """Handle the read-only file deletion error."""
@@ -52,17 +52,17 @@ class RippleManager:
             print("Error: huey consumer script was not discoverable.")
             exit(1)
 
-        if os.path.exists(self.logs_dir):
-            shutil.rmtree(self.logs_dir, onerror=self._handle_remove_readonly)
+        # if os.path.exists(self.logs_dir):
+        #     shutil.rmtree(self.logs_dir, onerror=self._handle_remove_readonly)
 
-        if os.path.exists(self.logs_dir):
-            print(f"Error: could not delete {self.logs_dir}")
-            exit(1)
+        # if os.path.exists(self.logs_dir):
+        #     print(f"Error: could not delete {self.logs_dir}")
+        #     exit(1)
 
-        os.makedirs(self.logs_dir, exist_ok=True)
-        if not os.path.exists(self.logs_dir):
-            print(f"Error: could not create {self.logs_dir}")
-            exit(1)
+        # os.makedirs(self.logs_dir, exist_ok=True)
+        # if not os.path.exists(self.logs_dir):
+        #     print(f"Error: could not create {self.logs_dir}")
+        #     exit(1)
 
         python_executable = sys.executable
 
@@ -140,12 +140,12 @@ def main():
     start_parser.add_argument(
         "--hide_huey_shell", action="store_true", help="Launch terminal for Huey Consumer (default: False)"
     )
-    start_parser.add_argument(
-        "--logs",
-        type=str,
-        default=os.path.join(os.getcwd(), "logs"),
-        help="Logs directory (default: current directory/logs)",
-    )
+    # start_parser.add_argument(
+    #     "--logs",
+    #     type=str,
+    #     default=os.path.join(os.getcwd(), "logs"),
+    #     help="Logs directory (default: current directory/logs)",
+    # )
 
     args = parser.parse_args()
 

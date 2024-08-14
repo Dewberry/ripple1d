@@ -5,7 +5,7 @@ import traceback
 from time import sleep
 
 from production.db_utils import PGFim
-from ripple1d.consts import RIPPLE_VERSION
+import ripple1d
 from ripple1d.ras_to_gpkg import new_stac_item_s3
 from ripple1d.ripple1d_logger import configure_logging
 
@@ -36,7 +36,6 @@ def main(mip_group: str, processing_table_name: str, bucket: str, ripple1d_versi
                     thumbnail_png_s3_key,
                     s3_ras_project_key,
                     bucket,
-                    ripple1d_version,
                     mip_case,
                 )
 
@@ -62,6 +61,6 @@ if __name__ == "__main__":
     mip_group = "tx_ble_1"
     processing_table_name = "processing_tx_ble_1"
     bucket = "fim"
-    ripple1d_version = RIPPLE_VERSION
+    ripple1d_version = ripple1d.__version__
 
     main(mip_group, processing_table_name, bucket, ripple1d_version)

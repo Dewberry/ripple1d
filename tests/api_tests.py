@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 import requests
 
-from ripple1d.consts import RIPPLE_VERSION
+import ripple1d
 from ripple1d.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
@@ -89,7 +89,7 @@ class TestApi(unittest.TestCase):
             "source_model_directory": SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_id": REACH_ID,
-            "ripple_version": RIPPLE_VERSION,
+            "ripple_version": ripple1d.__version__,
         }
         process = "extract_submodel"
         files = [GPKG_FILE]
@@ -160,7 +160,7 @@ class TestApi(unittest.TestCase):
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
             "bucket": "fim",
-            "ripple1d_version": RIPPLE_VERSION,
+            "ripple1d_version": ripple1d.__version__,
         }
         process = "nwm_reach_model_stac"
         files = [MODEL_STAC_ITEM]

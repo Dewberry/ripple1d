@@ -9,7 +9,8 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString
 
-from ripple1d.consts import METERS_PER_FOOT, RIPPLE_VERSION
+import ripple1d
+from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
 from ripple1d.utils.ripple_utils import xs_concave_hull
 
@@ -247,7 +248,7 @@ def extract_submodel(
     source_model_directory: str,
     submodel_directory: str,
     nwm_id: int,
-    ripple_version: str = RIPPLE_VERSION,
+    ripple_version: str = ripple1d.__version__,
 ):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
     rsd = RippleSourceDirectory(source_model_directory)
@@ -278,7 +279,7 @@ def extract_submodel(
         )
         ripple1d_parameters["source_model"] = rsd.ras_project_file
         ripple1d_parameters["crs"] = crs
-        ripple1d_parameters["version"] = ripple_version
+        ripple1d_parameters["version"] = ripple1d.__version__
         ripple1d_parameters["high_flow_cfs"] = max([ripple1d_parameters["high_flow_cfs"], max_flow])
         ripple1d_parameters["low_flow_cfs"] = min([ripple1d_parameters["low_flow_cfs"], min_flow])
         if ripple1d_parameters["high_flow_cfs"] == max_flow:
