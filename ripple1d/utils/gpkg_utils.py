@@ -17,6 +17,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 import pystac
+import requests
 from pyproj import CRS
 from shapely import Polygon, to_geojson
 
@@ -97,8 +98,15 @@ def create_thumbnail_from_gpkg(gdfs: dict) -> plt.Figure:
             crs = gdfs[layer].crs
 
     # Add openstreetmap basemap
-    # ctx.add_basemap(ax, crs=crs)
+    try:
+        ctx.add_basemap(ax, crs=crs, source=ctx.providers.USGS.USTopo)
+    except requests.exceptions.HTTPError as e:
+        try:
+            ctx.add_basemap(ax, crs=crs, source=ctx.providers.Esri.WorldStreetMap)
+        except requests.exceptions.HTTPError as e:
+            ctx.add_basemap(ax, crs=crs, source=ctx.providers.OpenStreetMap.Mapnik)
     ax.legend()
+
     # Hide all axis text ticks or tick labels
     ax.set_xticks([])
     ax.set_yticks([])
