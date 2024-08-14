@@ -1,16 +1,20 @@
-"""Logging utilities supporting the huey + Flask REST API."""
+"""API Lofging module for Ripple1D."""
 
 import inspect
+import json
 import logging
 import os
+import traceback
 from datetime import datetime, timezone
 
+from ripple1d.ripple_logger import RippleLogFormatter
+
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-LOGS: dict[str, logging.RootLogger] = {}  # global that is modified by initialize_log()
+LOGS: dict[str, logging.Logger] = {}  # global that is modified by initialize_log()
 
 
-def initialize_log() -> None:
-    """Initialize log with json-style formatting and throttled level for AWS libs.
+def initialize_log() -> logging.Logger:
+    """Initialize log with JSON-LD style formatting and throttled level for AWS libs.
 
     By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead.
     """
@@ -27,7 +31,7 @@ def initialize_log() -> None:
 
     log = logging.getLogger()
     log.setLevel(logging.INFO)
-    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
+    formatter = RippleLogFormatter()
 
     if filename:
         print(f"Initializing log file: {filename}")
