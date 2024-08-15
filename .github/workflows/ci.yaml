@@ -4,13 +4,11 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'api/**'
       - 'ripple1d/**'
       - 'tests/**'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
     paths:
-      - 'api/**'
       - 'ripple1d/**'
       - 'tests/**'
 

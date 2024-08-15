@@ -40,7 +40,6 @@ Below are the steps to start, stop, and check the status of the Ripple Manager..
    :caption: Contents:
 
    ripple1d/index
-   api/index
    changes.rst
 
 

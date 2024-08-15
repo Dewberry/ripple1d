@@ -74,6 +74,7 @@ class RasFimConflater:
 
         self._ras_centerlines = None
         self._ras_xs = None
+        self._ras_structures = None
         self._ras_junctions = None
         self._common_crs = None
         self.__data_loaded = False
@@ -101,6 +102,8 @@ class RasFimConflater:
             self._ras_xs = gpd.read_file(self.ras_gpkg, layer="XS")
         if "Junction" in layers:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
+        if "Structure" in layers:
+            self._ras_structures = gpd.read_file(self.ras_gpkg, layer="Structure")
 
     def load_pq(self, nwm_pq: str):
         """Load the NWM data from the Parquet file."""
@@ -151,6 +154,13 @@ class RasFimConflater:
     def ras_xs(self) -> gpd.GeoDataFrame:
         """RAS cross sections."""
         return self._ras_xs.to_crs(self.common_crs)
+
+    @property
+    @ensure_data_loaded
+    def ras_structures(self) -> gpd.GeoDataFrame:
+        """RAS structures."""
+        logging.info("RAS structures")
+        return self._ras_structures.to_crs(self.common_crs)
 
     @property
     @ensure_data_loaded

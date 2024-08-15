@@ -19,5 +19,3 @@ if __name__ == "__main__":
         submodel_dir,
         nwm_id,
     )
-    # with open(conflation_json_path, "w") as f:
-    #     json.dump(ripple1d_parameters, f, indent=4)
