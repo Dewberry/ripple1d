@@ -1048,7 +1048,6 @@ class RasGeomText(RasTextFile):
         """Number of rivers in the HEC-RAS geometry file."""
         return len(self.rivers)
 
-    @property
     @check_crs
     def to_gpkg(self, gpkg_path: str):
         """Write the HEC-RAS Geometry file to geopackage."""
