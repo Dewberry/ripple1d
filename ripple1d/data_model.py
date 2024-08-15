@@ -482,11 +482,10 @@ class Structure:
             )
             return data[0].split(",")[position]
         elif self.type == 5:  # inline weir
-            # data = text_block_from_start_str_length(
-            #     "IW Dist,WD,Coef,Skew,MaxSub,Min_El,Is_Ogee,SpillHt,DesHd", 1, self.ras_data
-            # )
-            data = self.ras_data[-2]
-            return data.split(",")[position]
+            data = text_block_from_start_str_length(
+                "IW Dist,WD,Coef,Skew,MaxSub,Min_El,Is_Ogee,SpillHt,DesHd", 1, self.ras_data
+            )
+            return data[0].split(",")[position]
         elif self.type == 6:  # lateral structure
             return 0
 
