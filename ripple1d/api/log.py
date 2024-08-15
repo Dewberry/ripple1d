@@ -1,22 +1,25 @@
-"""Logging utilities supporting the huey + Flask REST API."""
+"""API Lofging module for Ripple1D."""
 
 import inspect
+import json
 import logging
 import os
+import traceback
 from datetime import datetime, timezone
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-LOGS: dict[str, logging.RootLogger] = {}  # global that is modified by initialize_log()
+from ripple1d.ripple1d_logger import RippleLogFormatter
+
+LOGS: dict[str, logging.Logger] = {}  # global that is modified by initialize_log()
 
 
-def initialize_log() -> None:
-    """Initialize log with json-style formatting and throttled level for AWS libs.
+def initialize_log(log_dir: str = "") -> logging.Logger:
+    """Initialize log with JSON-LD style formatting and throttled level for AWS libs.
 
     By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead.
     """
     global LOGS
 
-    filename = os.path.join(LOG_DIR, f"{_get_log_filename_prefix()}-{_get_log_filename_suffix()}.log")
+    filename = os.path.join(log_dir, f"{_get_log_filename_prefix()}-{_get_log_filename_suffix()}.log")
 
     # If this log has already been initialized, just return it
     if filename in LOGS:
@@ -27,7 +30,7 @@ def initialize_log() -> None:
 
     log = logging.getLogger()
     log.setLevel(logging.INFO)
-    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
+    formatter = RippleLogFormatter()
 
     if filename:
         print(f"Initializing log file: {filename}")

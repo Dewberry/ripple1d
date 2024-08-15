@@ -179,3 +179,5 @@ dev
 tests/outputs
 pids.txt
 py312/
+*.log*
+venv3/

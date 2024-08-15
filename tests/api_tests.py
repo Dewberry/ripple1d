@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import time
 import unittest
@@ -7,11 +8,12 @@ import unittest
 import pandas as pd
 import pytest
 import requests
-from ripple1d.consts import RIPPLE_VERSION
+
+import ripple1d
 from ripple1d.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
-TEST_PORT = 5000
+
 REACH_ID = "2823932"
 SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter")
 SUBMODELS_BASE_DIRECTORY = os.path.join(TEST_DIR, "ras-data\\Baxter\\submodels")
@@ -46,22 +48,24 @@ def start_server():
 
 def submit_job(process: str, payload: dict):
     headers = {"Content-Type": "application/json"}
-    url = f"http://localhost:5000/processes/{process}/execution"
+    url = f"http://localhost/processes/{process}/execution"
     response = requests.post(url, data=json.dumps(payload), headers=headers)
     return json.loads(response.text)
 
 
 def wait_for_job(job_id: str):
-    url = f"http://localhost:5000/jobs/{job_id}"
+    url = f"http://localhost/jobs/{job_id}"
     while True:
         response = requests.get(url)
         job_status = response.json().get("status")
         if job_status in ["successful", "failed"]:
+
             return job_status
-        time.sleep(5)  # Wait for 5 seconds before checking again
+        time.sleep(7)  # Wait for 10 seconds before checking again
 
 
 def check_process(func):
+
     def wrapper(self, *args, **kwargs):
         process, payload, files = func(self)
         response = submit_job(process, payload)
@@ -78,7 +82,7 @@ class TestApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.server_process = start_server()
-        time.sleep(5)  # Give the server some time to start
+        time.sleep(10)  # Give the server some time to start
 
     @check_process
     def test_a_extract_submodel(self):
@@ -86,7 +90,7 @@ class TestApi(unittest.TestCase):
             "source_model_directory": SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_id": REACH_ID,
-            "ripple1d_version": RIPPLE_VERSION,
+            "ripple_version": ripple1d.__version__,
         }
         process = "extract_submodel"
         files = [GPKG_FILE]
@@ -149,8 +153,6 @@ class TestApi(unittest.TestCase):
     def test_g_check_flows_are_equal(self):
         rf2 = pd.DataFrame(RasFlowText(FLOW2_FILE).flow_change_locations)
         rf3 = pd.DataFrame(RasFlowText(FLOW3_FILE).flow_change_locations)
-        print(set(rf2["flows"].iloc[0]))
-        print(set(rf3["flows"].iloc[0]))
         self.assertTrue(set(rf2["flows"].iloc[0]) == set(rf3["flows"].iloc[0]))
 
     @check_process
@@ -159,7 +161,6 @@ class TestApi(unittest.TestCase):
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
             "bucket": "fim",
-            "ripple1d_version": RIPPLE_VERSION,
         }
         process = "nwm_reach_model_stac"
         files = [MODEL_STAC_ITEM]
@@ -178,13 +179,8 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     def test_j_cleanup(self):
-        # TODO: clean up the submodel directory
-        pass
+        shutil.rmtree(SUBMODELS_BASE_DIRECTORY)
 
-    def test_k_shutdown(self):
-        r = subprocess.run(["ripple1d", "stop"])
-        self.assertEqual(r.returncode, 0)
-
-
-# if __name__ == "__main__":
-#     unittest.main()
+    # def test_k_shutdown(self):
+    #     r = subprocess.run(["ripple1d", "stop"])
+    #     self.assertEqual(r.returncode, 0)

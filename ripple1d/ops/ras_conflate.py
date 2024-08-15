@@ -9,6 +9,7 @@ import boto3
 import pandas as pd
 import pystac
 
+import ripple1d
 from ripple1d.conflate.plotter import plot_conflation_results
 from ripple1d.conflate.rasfim import (
     RasFimConflater,
@@ -16,7 +17,6 @@ from ripple1d.conflate.rasfim import (
     ras_reaches_metadata,
     walk_network,
 )
-from ripple1d.consts import RIPPLE_VERSION
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
@@ -132,7 +132,7 @@ def conflate_s3_model(
             title="NWM_Conflation",
             roles=[pystac.MediaType.JSON, "nwm-conflation"],
             extra_fields={
-                "software": f"ripple1d {RIPPLE_VERSION}",
+                "software": f"ripple1d {ripple1d.__version__}",
                 "date_created": datetime.now().isoformat(),
             },
         ),
@@ -163,7 +163,7 @@ def conflate_s3_model(
             title="ThumbnailConflationResults",
             roles=[pystac.MediaType.PNG, "thumbnail"],
             extra_fields={
-                "software": f"ripple1d {RIPPLE_VERSION}",
+                "software": f"ripple1d {ripple1d.__version__}",
                 "date_created": datetime.now().isoformat(),
             },
             description="""PNG of NWM conflation results with OpenStreetMap basemap.""",

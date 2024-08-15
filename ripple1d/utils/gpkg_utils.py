@@ -17,13 +17,24 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 import pystac
+import requests
 from pyproj import CRS
-from ripple1d.consts import LAYER_COLORS
-from ripple1d.data_model import NwmReachModel
-from ripple1d.errors import UnkownCRSUnitsError
-from ripple1d.ras import RasManager
-from ripple1d.utils.s3_utils import init_s3_resources, str_from_s3
 from shapely import Polygon, to_geojson
+
+from ripple1d.consts import LAYER_COLORS
+from ripple1d.data_model import NwmReachModel, RasModelStructure
+from ripple1d.errors import UnkownCRSUnitsError
+from ripple1d.ras import (
+    VALID_GEOMS,
+    VALID_PLANS,
+    VALID_STEADY_FLOWS,
+    RasFlowText,
+    RasGeomText,
+    RasManager,
+    RasPlanText,
+    RasProject,
+)
+from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources, str_from_s3
 
 
 def get_river_miles(river_gdf: gpd.GeoDataFrame):
@@ -55,7 +66,6 @@ def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
     """
     layers = fiona.listlayers(gpkg_s3_uri)
     gdfs = {}
-
     for layer in layers:
         gdfs[layer] = gpd.read_file(gpkg_s3_uri, layer=layer)
 
@@ -84,12 +94,19 @@ def create_thumbnail_from_gpkg(gdfs: dict) -> plt.Figure:
 
     for layer, color in LAYER_COLORS.items():
         if layer in gdfs.keys():
-            gdfs[layer].plot(ax=ax, color=LAYER_COLORS[layer], linewidth=1, label=layer)
+            gdfs[layer].plot(ax=ax, color=color, linewidth=1, label=layer)
             crs = gdfs[layer].crs
-    # Add openstreetmap basemap
-    ctx.add_basemap(ax, crs=crs)
 
+    # Add openstreetmap basemap
+    try:
+        ctx.add_basemap(ax, crs=crs, source=ctx.providers.USGS.USTopo)
+    except requests.exceptions.HTTPError as e:
+        try:
+            ctx.add_basemap(ax, crs=crs, source=ctx.providers.Esri.WorldStreetMap)
+        except requests.exceptions.HTTPError as e:
+            ctx.add_basemap(ax, crs=crs, source=ctx.providers.OpenStreetMap.Mapnik)
     ax.legend()
+
     # Hide all axis text ticks or tick labels
     ax.set_xticks([])
     ax.set_yticks([])
@@ -149,31 +166,47 @@ def create_geom_item(
     return item
 
 
-def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None) -> dict:
+def get_asset_info(asset_key: str, rms: RasModelStructure, bucket: str = None) -> dict:
     """
     Generate information for an asset based on its file extension.
 
     Parameters
     ----------
         asset_key (str): The S3 key of the asset.
-        ras_model_directory (str): The directory where the ras model is stored.
+        rms (str): The RasModelStructure.
         bucket (str): The S3 bucket where the asset is stored.
 
     Returns
     -------
         dict: A dictionary with the roles, the description, and the title of the asset.
     """
-    nwm_rm = NwmReachModel(ras_model_directory)
-    rm = RasManager(nwm_rm.ras_project_file, crs=nwm_rm.crs)
+    if bucket:
+        _, client, s3_resource = init_s3_resources()
+        obj = s3_resource.Bucket(bucket).Object(asset_key)
+        extra_fields = get_basic_object_metadata(obj)
+    else:
+        extra_fields = {"file:size": os.path.getsize(asset_key), "last_modified": os.path.getmtime(asset_key)}
+
     file_extension = Path(asset_key).suffix
     title = Path(asset_key).name.replace(" ", "_")
+    if file_extension in VALID_PLANS + VALID_GEOMS + VALID_STEADY_FLOWS:
+        if bucket:
+            string = str_from_s3(rms.ras_project_file, client, bucket)
+            rp = RasProject.from_str(string, rms.ras_project_file)
+        else:
+            rm = RasManager(rms.ras_project_file, crs=rms.crs)
+
     description = ""
     roles = []
-    extra_fields = {"file:size": os.path.getsize(asset_key), "last_modified": os.path.getmtime(asset_key)}
+
     if re.match(".f[0-9]{2}", file_extension):
         roles.extend(["forcing", "hec-ras", pystac.MediaType.TEXT])
         description = """Forcing file for ras."""
-        flow = [i for i in rm.flows.values() if i.file_extension == file_extension][0]
+        if bucket:
+            string = str_from_s3(asset_key, client, bucket)
+            flow = RasFlowText.from_str(string, " .f01")
+        else:
+            flow = [i for i in rm.flows.values() if i.file_extension == file_extension][0]
         extra_fields["Title"] = flow.title
         extra_fields["Number of Profiles"] = flow.n_profiles
         extra_fields["Profile Names"] = flow.profile_names
@@ -181,7 +214,11 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
     elif re.match(".g[0-9]{2}", file_extension):
         roles.extend(["geometry", "hec-ras", pystac.MediaType.TEXT])
         description = """Geometry file for ras."""
-        geom = [i for i in rm.geoms.values() if i.file_extension == file_extension][0]
+        if bucket:
+            string = str_from_s3(asset_key, client, bucket)
+            geom = RasGeomText.from_str(string, rms.crs, " .g01")
+        else:
+            geom = [i for i in rm.geoms.values() if i.file_extension == file_extension][0]
         extra_fields["Title"] = geom.title
         extra_fields["Number of rivers"] = geom.n_rivers
         extra_fields["Number of reaches"] = geom.n_reaches
@@ -191,12 +228,16 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
     elif re.match(".p[0-9]{2}", file_extension):
         roles.extend(["plan", "hec-ras", pystac.MediaType.TEXT])
         description = """Plan file for ras."""
-        plan = [i for i in rm.plans.values() if i.file_extension == file_extension][0]
+        if bucket:
+            string = str_from_s3(asset_key, client, bucket)
+            plan = RasPlanText.from_str(string, rms.crs, " .p01")
+        else:
+            plan = [i for i in rm.plans.values() if i.file_extension == file_extension][0]
         extra_fields["Title"] = plan.title
-        extra_fields["Geometry Title"] = plan.geom.title
-        extra_fields["Geometry Extension"] = plan.geom.file_extension
-        extra_fields["Flow Title"] = plan.flow.title
-        extra_fields["Flow Extension"] = plan.flow.file_extension
+        # extra_fields["Geometry Title"] = plan.geom.title
+        # extra_fields["Geometry Extension"] = plan.geom.file_extension
+        # extra_fields["Flow Title"] = plan.flow.title
+        # extra_fields["Flow Extension"] = plan.flow.file_extension
 
     elif re.match(".O[0-9]{2}", file_extension):
         roles.extend(["output", "hec-ras", pystac.MediaType.TEXT])
@@ -218,21 +259,7 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
         roles.extend(["compute-messages", "hec-ras", pystac.MediaType.TEXT])
         description = """Compute messages file for ras."""
 
-    elif file_extension == ".hdf":
-        if asset_key in nwm_rm.terrain_assets:
-            roles.extend(["Terrain", pystac.MediaType.HDF])
-        else:
-            roles.extend(["hec-ras", pystac.MediaType.HDF])
-
-    elif file_extension == ".vrt":
-        if asset_key in nwm_rm.terrain_assets:
-            roles.extend(["Terrain", pystac.MediaType.XML])
-
-    elif file_extension == ".tif":
-        if asset_key in nwm_rm.terrain_assets:
-            roles.extend(["Terrain", pystac.MediaType.GEOTIFF])
-
-    elif re.match(".png", file_extension):
+    elif file_extension == ".png":
         roles.extend(["thumbnail", pystac.MediaType.PNG])
         description = """PNG of geometry with OpenStreetMap basemap."""
         title = "Thumbnail"
@@ -243,7 +270,7 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
         title = title
 
     elif ".ripple1d.json" in title:
-        roles.extend(["ripple1d-parameters", pystac.MediaType.JSON])
+        roles.extend(["ripple-parameters", pystac.MediaType.JSON])
         description = """Json file containing Ripple parameters."""
         title = "Ripple parameters"
 
@@ -263,11 +290,27 @@ def get_asset_info(asset_key: str, ras_model_directory: str, bucket: str = None)
             roles.extend(["project-file", "hec-ras", pystac.MediaType.TEXT])
             description = """Project file for ras."""
         else:
-            if asset_key in nwm_rm.terrain_assets:
-                roles.extend(["Terrain", "projection-file", pystac.MediaType.TEXT])
+            if isinstance(rms, NwmReachModel):
+                if asset_key in rms.terrain_assets:
+                    roles.extend(["Terrain", "projection-file", pystac.MediaType.TEXT])
+                else:
+                    roles.extend(["projection-file", pystac.MediaType.TEXT])
+                description = """Projection file for ras."""
+
+    if isinstance(rms, NwmReachModel):
+        if file_extension == ".hdf":
+            if asset_key in rms.terrain_assets:
+                roles.extend(["Terrain", pystac.MediaType.HDF])
             else:
-                roles.extend(["projection-file", pystac.MediaType.TEXT])
-            description = """Projection file for ras."""
+                roles.extend(["hec-ras", pystac.MediaType.HDF])
+
+        elif file_extension == ".vrt":
+            if asset_key in rms.terrain_assets:
+                roles.extend(["Terrain", pystac.MediaType.XML])
+
+        elif file_extension == ".tif":
+            if asset_key in rms.terrain_assets:
+                roles.extend(["Terrain", pystac.MediaType.GEOTIFF])
 
     return {"roles": roles, "description": description, "title": title, "extra_fields": extra_fields}
 

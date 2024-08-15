@@ -7,6 +7,7 @@ import platform
 import re
 import subprocess
 import time
+import warnings
 from pathlib import Path
 from typing import List
 
@@ -14,7 +15,12 @@ import fiona
 import geopandas as gpd
 import h5py
 import pandas as pd
-import pythoncom
+
+try:
+    import pythoncom
+except SystemError:
+    warnings.warn("Windows OS is required to run ripple1d. Many features will not work on other OS's.")
+
 from pyproj import CRS
 
 from ripple1d.consts import (
@@ -61,11 +67,11 @@ if platform.system() == "Windows":
 
 RAS_FILE_TYPES = ["Plan", "Flow", "Geometry", "Project"]
 
-VALID_PLANS = [f".p{i:02d}" for i in range(1, 100)]
-VALID_GEOMS = [f".g{i:02d}" for i in range(1, 100)]
-VALID_STEADY_FLOWS = [f".f{i:02d}" for i in range(1, 100)]
-VALID_UNSTEADY_FLOWS = [f".u{i:02d}" for i in range(1, 100)]
-VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)]
+VALID_PLANS = [f".p{i:02d}" for i in range(1, 100)] + [f".P{i:02d}" for i in range(1, 100)]
+VALID_GEOMS = [f".g{i:02d}" for i in range(1, 100)] + [f".G{i:02d}" for i in range(1, 100)]
+VALID_STEADY_FLOWS = [f".f{i:02d}" for i in range(1, 100)] + [f".F{i:02d}" for i in range(1, 100)]
+VALID_UNSTEADY_FLOWS = [f".u{i:02d}" for i in range(1, 100)] + [f".U{i:02d}" for i in range(1, 100)]
+VALID_QUASISTEADY_FLOWS = [f".q{i:02d}" for i in range(1, 100)] + [f".Q{i:02d}" for i in range(1, 100)]
 
 
 # Decorator Functions
@@ -86,9 +92,11 @@ def combine_root_extension(func):
     def wrapper(self, *args, **kwargs):
         extensions = func(self, *args, **kwargs)
         if isinstance(extensions, list):
-            return [self._ras_root_path + "." + extension.lstrip(".") for extension in extensions]
+            return [
+                self._ras_root_path + "." + extension.replace(" ", "").lstrip(".").lower() for extension in extensions
+            ]
         else:
-            return self._ras_root_path + "." + extensions.lstrip(".")
+            return self._ras_root_path + "." + extensions.replace(" ", "").lstrip(".").lower()
 
     return wrapper
 
@@ -174,7 +182,7 @@ class RasManager:
             ras_project_text_file,
             version,
             terrain_path=terrain_path,
-            crs=gpd.read_file(ras_gpkg_file_path).crs,
+            crs=gpd.read_file(ras_gpkg_file_path, layer="XS").crs,
             new_project=True,
         )
 
@@ -555,6 +563,14 @@ class RasProject(RasTextFile):
         return search_contents(self.contents, "Proj Title")
 
     @property
+    def units(self):
+        """Units of the HEC-RAS project."""
+        if "English Units" in self.contents:
+            return "English"
+        else:
+            return "Metric"
+
+    @property
     @combine_root_extension
     def plans(self):
         """Get the plans associated with this project."""
@@ -869,6 +885,13 @@ class RasGeomText(RasTextFile):
     def _river_reach_data_from_gpkg(self):
         river_gdf = gpd.read_file(self._gpkg_path, layer="River", driver="GPKG")
         xs_gdf = gpd.read_file(self._gpkg_path, layer="XS", driver="GPKG")
+
+        if "Structure" in fiona.listlayers(self._gpkg_path):
+            structure_gdf = gpd.read_file(self._gpkg_path, layer="Structure", driver="GPKG")
+            node_gdf = pd.concat([xs_gdf, structure_gdf]).sort_values(by="river_station", ascending=False)
+        else:
+            node_gdf = xs_gdf.sort_values(by="river_station", ascending=False)
+
         data = ""
         for _, row in river_gdf.iterrows():
             centroid = row.geometry.centroid
@@ -885,8 +908,8 @@ class RasGeomText(RasTextFile):
 
             data += f"\nRch Text X Y={centroid.x},{centroid.y}\nReverse River Text= 0 \n\n"
 
-            # cross section data
-            data += xs_gdf.loc[xs_gdf["river_reach"] == row["river_reach"], "ras_data"].str.cat(sep="\n")
+            # cross section and structures data
+            data += node_gdf.loc[node_gdf["river_reach"] == row["river_reach"], "ras_data"].str.cat(sep="\n")
 
         return data
 
@@ -911,7 +934,7 @@ class RasGeomText(RasTextFile):
     @property
     def version(self):
         """The HEC-RAS version."""
-        return search_contents(self.contents, "Program Version")
+        return search_contents(self.contents, "Program Version", expect_one=False)
 
     @property
     @check_crs
@@ -955,6 +978,16 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_crs
+    def structures(self) -> dict:
+        """A dictionary of the structures contained in the HEC-RAS geometry file."""
+        structures = {}
+        for reach in self.reaches.values():
+            structures.update(reach.structures)
+
+        return structures
+
+    @property
+    @check_crs
     @add_fid_index
     def reach_gdf(self):
         """A GeodataFrame of the reaches contained in the HEC-RAS geometry file."""
@@ -980,9 +1013,22 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_crs
+    @add_fid_index
+    def structures_gdf(self):
+        """Geodataframe of all structures in the geometry text file."""
+        return pd.concat([structure.gdf for structure in self.structures.values()], ignore_index=True)
+
+    @property
+    @check_crs
     def n_cross_sections(self):
         """Number of cross sections in the HEC-RAS geometry file."""
         return len(self.cross_sections)
+
+    @property
+    @check_crs
+    def n_structures(self):
+        """Number of structures in the HEC-RAS geometry file."""
+        return len(self.structures)
 
     @property
     @check_crs
@@ -1010,6 +1056,8 @@ class RasGeomText(RasTextFile):
         self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
             self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
+        if self.structures:
+            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
 
 
 class RasFlowText(RasTextFile):
@@ -1047,7 +1095,7 @@ class RasFlowText(RasTextFile):
     @property
     def n_profiles(self):
         """Number of profiles."""
-        return int(search_contents(self.contents, "Number of Profiles"))
+        return len(self.profile_names)
 
     @property
     def profile_names(self):
@@ -1141,14 +1189,19 @@ class RasFlowText(RasTextFile):
     @property
     def flow_change_locations(self):
         """Retrieve flow change locations."""
-        flow_change_locations = []
+        flow_change_locations, locations = [], []
         for location in search_contents(self.contents, "River Rch & RM", expect_one=False):
             # parse river, reach, and river station for the flow change location
             river, reach, rs = location.split(",")
-            lines = text_block_from_start_end_str(f"River Rch & RM={location}", "River Rch & RM", self.contents)
+            lines = text_block_from_start_end_str(
+                f"River Rch & RM={location}", ["River Rch & RM", "Boundary for River Rch & Prof#"], self.contents
+            )
             flows = []
 
             for line in lines[1:]:
+
+                if "River Rch & RM" in line:
+                    break
                 for i in range(0, len(line), 8):
                     flows.append(float(line[i : i + 8].lstrip(" ")))
                     if len(flows) == self.n_profiles:
