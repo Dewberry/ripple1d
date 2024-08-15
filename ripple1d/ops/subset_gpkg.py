@@ -80,10 +80,7 @@ class RippleGeopackageSubsetter:
     def source_structure(self) -> gpd.GeoDataFrame:
         """Extract structures from the source geopackage."""
         if "Structure" in fiona.listlayers(self.src_gpkg_path):
-            gdf = gpd.read_file(self.src_gpkg_path, layer="Structure")
-            return gdf.loc[gdf["type"] != 6, :]
-
-        return None
+            return gpd.read_file(self.src_gpkg_path, layer="Structure")
 
     @property
     def source_junction(self) -> gpd.GeoDataFrame:
@@ -105,7 +102,10 @@ class RippleGeopackageSubsetter:
     @property
     def ripple_structure(self) -> gpd.GeoDataFrame:
         """Subset structures based on NWM reach."""
-        return self.subset_gdfs["Structure"]
+        gdf = self.subset_gdfs["Structure"]
+        if len(gdf.loc[gdf["type"] == 6, :]) > 0:
+            raise NotImplementedError(f"Lateral structures are not currently supported in ripple1d")
+        return gdf
 
     @property
     def subset_gdfs(self) -> dict:
@@ -115,7 +115,6 @@ class RippleGeopackageSubsetter:
             ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
         else:
             ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
-            print("hey")
 
         # check if only 1 cross section for nwm_reach
         if len(ripple_xs) <= 1:
@@ -190,7 +189,6 @@ class RippleGeopackageSubsetter:
 
                     for river, reach in zip(us_rivers, us_reaches):
                         if row.ds_rivers == self.ds_river and row.ds_reaches == self.ds_reach:
-                            print(f"'{row.ds_rivers}' '{self.ds_river}' '{row.ds_reaches}'  '{self.ds_reach}'")
                             return river_reaches
                         if river == self.us_river and reach == self.us_reach:
                             river_reaches.append(f"{row.ds_rivers.ljust(16)},{row.ds_reaches.ljust(16)}")
@@ -338,13 +336,12 @@ class RippleGeopackageSubsetter:
 
         # update river stations
         xs_us_reach, structures_us_reach = self.adjust_river_stations(xs_us_reach, self.structures_us_reach)
-
         # combine us and ds gdfs
         xs_subset_gdf = pd.concat([xs_us_reach, self.xs_ds_reach])
         river_subset_gdf = self.combine_reach_features(intermediate_river_reaches)
 
         if self.source_structure is not None:
-            structures_subset_gdf = pd.concat([structures_us_reach, structures_ds_reach])
+            structures_subset_gdf = pd.concat([structures_us_reach, self.structures_ds_reach])
         else:
             structures_subset_gdf = None
 
