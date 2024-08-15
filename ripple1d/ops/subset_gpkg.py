@@ -175,7 +175,7 @@ class RippleGeopackageSubsetter:
     @property
     def crs(self):
         """Extract the CRS from the cross sections."""
-        return self.ripple_xs.crs.to_epsg()
+        return self.source_xs.crs
 
     def walk_junctions(self) -> list[str]:
         """Check if junctions are present for the given river-reaches."""
@@ -421,7 +421,7 @@ class RippleGeopackageSubsetter:
         """Update ripple1d_parameters with results of subsetting."""
         ripple1d_parameters = self.ripple1d_parameters
         ripple1d_parameters["source_model"] = rsd.ras_project_file
-        ripple1d_parameters["crs"] = self.crs
+        ripple1d_parameters["crs"] = self.crs.to_epsg()
         ripple1d_parameters["version"] = ripple1d.__version__
         ripple1d_parameters["high_flow_cfs"] = max([ripple1d_parameters["high_flow_cfs"], self.max_flow])
         ripple1d_parameters["low_flow_cfs"] = min([ripple1d_parameters["low_flow_cfs"], self.min_flow])
