@@ -62,3 +62,4 @@ jobs:
       run: |
         pytest tests/conflation_tests.py
         pytest tests/read_ras_files_tests.py
+        pytest tests/api_tests.py
