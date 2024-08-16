@@ -101,7 +101,6 @@ def conflate(rfc: RasFimConflater):
         metadata.update(reach_metadata)
 
     rfc.write_hulls()
-    metadata["nwm_reach_source"] = rfc.nwm_pq
 
     return metadata
 
