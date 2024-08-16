@@ -72,7 +72,7 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     """Parse flow and control by stage from profile names."""
     wses_t = wses.T
     wses_t.reset_index(inplace=True)
-    wses_t[["us_flow", "ds_wse"]] = wses_t["index"].str.split("-", expand=True)
+    wses_t[["us_flow", "ds_wse"]] = wses_t["index"].str.split("-", n=1, expand=True)
     wses_t.drop(columns="index", inplace=True)
     wses_t["us_flow"] = wses_t["us_flow"].str.lstrip("f_").astype(float)
     wses_t["ds_wse"] = wses_t["ds_wse"].str.lstrip("z_")
