@@ -193,8 +193,11 @@ class RasFimConflater:
     def ras_structures(self) -> gpd.GeoDataFrame:
         """RAS structures."""
         logging.info("RAS structures")
-        return self._ras_structures.to_crs(self.common_crs)
-
+        try:
+            return self._ras_structures.to_crs(self.common_crs)
+        except AttributeError:
+            return None
+        
     @property
     @ensure_data_loaded
     def ras_junctions(self) -> gpd.GeoDataFrame:
