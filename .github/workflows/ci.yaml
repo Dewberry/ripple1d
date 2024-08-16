@@ -11,6 +11,7 @@ on:
     paths:
       - 'ripple1d/**'
       - 'tests/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
