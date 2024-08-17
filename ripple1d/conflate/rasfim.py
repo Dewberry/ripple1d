@@ -678,5 +678,5 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
             reach_metadata[k]["gage"] = gage_id
             reach_metadata[k]["gage_url"] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
 
-        reach_metadata[k]["source_nwm_reach"] = rfc.nwm_pq
+        reach_metadata[k]["source_nwm_reach"] = os.path.basename(rfc.nwm_pq)
     return reach_metadata

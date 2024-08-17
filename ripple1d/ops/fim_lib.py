@@ -74,7 +74,7 @@ def post_process_depth_grids(
                     raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
 
             if "_kwse" in plan_name:
-                flow, depth = profile_name.split("-")
+                flow, depth = profile_name.split("-", 1)
             elif "_nd" in plan_name:
                 flow = f"f_{profile_name}"
                 depth = "z_nd"
