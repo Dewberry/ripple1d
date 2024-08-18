@@ -19,7 +19,7 @@ def initialize_log(log_dir: str = "") -> logging.Logger:
     """
     global LOGS
 
-    filename = os.path.join(log_dir, f"{_get_log_filename_prefix()}-{_get_log_filename_suffix()}.log")
+    filename = os.path.join(log_dir, f"{_get_log_filename_prefix()}-{_get_log_filename_suffix()}.jsonld")
 
     # If this log has already been initialized, just return it
     if filename in LOGS:

@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "71741168-00bf-48f2-816b-5e8cee7c718f",
+		"_postman_id": "de3eb533-559e-4e7b-83d3-482cfad73341",
 		"name": "ripple1d",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "29128857"
@@ -72,7 +72,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"C:\\\\Users\\\\mdeshotel\\\\Downloads\\\\12040101_Models\\\\ripple1d\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"ripple1d_version\": \"{{ripple1d_version}}\"\r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"C:\\\\Users\\\\mdeshotel\\\\Downloads\\\\12040101_Models\\\\ripple1d\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -240,7 +240,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/nwm_reach_models/{{nwm_reach_id}}\",\r\n    \"bucket\": \"fim\",\r\n    \"ripple1d_version\": \"{{ripple1d_version}}\"\r\n}\r\n",
+							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/nwm_reach_models/{{nwm_reach_id}}\",\r\n    \"bucket\": \"fim\"\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -480,11 +480,6 @@
 		{
 			"key": "nwm_reach_id",
 			"value": "2823932",
-			"type": "string"
-		},
-		{
-			"key": "ripple1d_version",
-			"value": "0.0.1",
 			"type": "string"
 		},
 		{

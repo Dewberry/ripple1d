@@ -199,7 +199,15 @@ class RippleGeopackageSubsetter:
         """Clean up river station data."""
         lines = ras_data.splitlines()
         data = lines[0].split(",")
-        data[1] = str(float(round(float(lines[0].split(",")[1])))).ljust(8)
+        data[1] = str(float(float(data[1]))).ljust(8)
+        lines[0] = ",".join(data)
+        return "\n".join(lines) + "\n"
+
+    def round_river_stations(self, ras_data: str) -> str:
+        """Clean up river station data."""
+        lines = ras_data.splitlines()
+        data = lines[0].split(",")
+        data[1] = str(float(round(float(data[1])))).ljust(8)
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
@@ -207,7 +215,7 @@ class RippleGeopackageSubsetter:
         """Update river station data."""
         lines = ras_data.splitlines()
         data = lines[0].split(",")
-        data[1] = str(float(lines[0].split(",")[1]) + river_station).ljust(8)
+        data[1] = str(float(data[1]) + river_station).ljust(8)
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
@@ -388,9 +396,12 @@ class RippleGeopackageSubsetter:
 
             # clean river stations
             if "river_station" in gdf.columns:
-                gdf["ras_data"] = gdf["ras_data"].apply(lambda ras_data: self.clean_river_stations(ras_data))
-                gdf["river_station"] = gdf["river_station"].round().astype(float)
-
+                if (gdf["river_station"].astype(str).str.len() > 8).any():
+                    gdf["ras_data"] = gdf["ras_data"].apply(lambda ras_data: self.round_river_stations(ras_data))
+                    gdf["river_station"] = gdf["river_station"].round().astype(float)
+                else:
+                    gdf["ras_data"] = gdf["ras_data"].apply(lambda ras_data: self.clean_river_stations(ras_data))
+                    gdf["river_station"] = gdf["river_station"].astype(float)
         return gdf
 
     def clip_river(self, xs_subset_gdf: gpd.GeoDataFrame, river_subset_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:

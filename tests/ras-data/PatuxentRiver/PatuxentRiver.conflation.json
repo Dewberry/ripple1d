@@ -1,0 +1,1276 @@
+{
+    "11908582": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -10.6,
+            "max_elevation": 93.12,
+            "xs_id": 32805.59
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -8.5,
+            "max_elevation": 53.21,
+            "xs_id": 26469.46
+        },
+        "low_flow_cfs": 2025,
+        "high_flow_cfs": 19969,
+        "nwm_to_id": "11908588",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907736": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 18.1,
+            "max_elevation": 95.86,
+            "xs_id": 122117.8
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 20.5,
+            "max_elevation": 81.42,
+            "xs_id": 118899.1
+        },
+        "low_flow_cfs": 983,
+        "high_flow_cfs": 6615,
+        "nwm_to_id": "11908292",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906060": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 931,
+        "high_flow_cfs": 5365,
+        "nwm_to_id": "11907726",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907726": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 23.5,
+            "max_elevation": 92.56,
+            "xs_id": 127390.9
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 18.1,
+            "max_elevation": 95.86,
+            "xs_id": 122117.8
+        },
+        "low_flow_cfs": 961,
+        "high_flow_cfs": 5617,
+        "nwm_to_id": "11907736",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906328": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 36.4,
+            "max_elevation": 65.54,
+            "xs_id": 131156.0
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 23.5,
+            "max_elevation": 92.56,
+            "xs_id": 127390.9
+        },
+        "low_flow_cfs": 930,
+        "high_flow_cfs": 5503,
+        "nwm_to_id": "11906060",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906034": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 41.3,
+            "max_elevation": 82.06,
+            "xs_id": 137262.7
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 40.3,
+            "max_elevation": 68.8,
+            "xs_id": 136140.3
+        },
+        "low_flow_cfs": 863,
+        "high_flow_cfs": 4639,
+        "nwm_to_id": "11906036",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906000": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 838,
+        "high_flow_cfs": 4552,
+        "nwm_to_id": "11906304",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905990": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 58.8,
+            "max_elevation": 82.0,
+            "xs_id": 149785.6
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 55.7,
+            "max_elevation": 102.27,
+            "xs_id": 148278.9
+        },
+        "low_flow_cfs": 840,
+        "high_flow_cfs": 4625,
+        "nwm_to_id": "11905994",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906276": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 73.6,
+            "max_elevation": 122.77,
+            "xs_id": 163384.4
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 71.9,
+            "max_elevation": 166.1,
+            "xs_id": 161033.5
+        },
+        "low_flow_cfs": 836,
+        "high_flow_cfs": 4814,
+        "nwm_to_id": "11906282",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905958": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 72.95,
+            "max_elevation": 105.86,
+            "xs_id": 164309.7
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 73.6,
+            "max_elevation": 122.77,
+            "xs_id": 163384.4
+        },
+        "low_flow_cfs": 835,
+        "high_flow_cfs": 4790,
+        "nwm_to_id": "11906276",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906270": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 73.1,
+            "max_elevation": 103.51,
+            "xs_id": 165339.0
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 72.95,
+            "max_elevation": 105.86,
+            "xs_id": 164309.7
+        },
+        "low_flow_cfs": 833,
+        "high_flow_cfs": 4774,
+        "nwm_to_id": "11905958",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905918": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 73.2,
+            "max_elevation": 101.98,
+            "xs_id": 166384.6
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 73.1,
+            "max_elevation": 103.51,
+            "xs_id": 165339.0
+        },
+        "low_flow_cfs": 841,
+        "high_flow_cfs": 4901,
+        "nwm_to_id": "11906270",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905914": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 77.2,
+            "max_elevation": 133.77,
+            "xs_id": 168859.9
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 73.2,
+            "max_elevation": 101.98,
+            "xs_id": 166384.6
+        },
+        "low_flow_cfs": 842,
+        "high_flow_cfs": 4919,
+        "nwm_to_id": "11905918",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905886": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 846,
+        "high_flow_cfs": 4954,
+        "nwm_to_id": "11905914",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905848": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 832,
+        "high_flow_cfs": 4814,
+        "nwm_to_id": "11906232",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905844": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 96.6,
+            "max_elevation": 126.51,
+            "xs_id": 180215.6
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 90.1,
+            "max_elevation": 108.89,
+            "xs_id": 176090.0
+        },
+        "low_flow_cfs": 833,
+        "high_flow_cfs": 4852,
+        "nwm_to_id": "11905848",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905836": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 836,
+        "high_flow_cfs": 4799,
+        "nwm_to_id": "11905844",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905838": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 99.89999,
+            "max_elevation": 133.81,
+            "xs_id": 183459.5
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 96.6,
+            "max_elevation": 126.51,
+            "xs_id": 180215.6
+        },
+        "low_flow_cfs": 835,
+        "high_flow_cfs": 4812,
+        "nwm_to_id": "11905836",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906208": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 102.33,
+            "max_elevation": 130.77,
+            "xs_id": 185454.7
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 99.89999,
+            "max_elevation": 133.81,
+            "xs_id": 183459.5
+        },
+        "low_flow_cfs": 836,
+        "high_flow_cfs": 4915,
+        "nwm_to_id": "11905838",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905834": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 103.26,
+            "max_elevation": 141.2,
+            "xs_id": 186994.1
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 99.03,
+            "max_elevation": 132.69,
+            "xs_id": 183710.5
+        },
+        "low_flow_cfs": 836,
+        "high_flow_cfs": 4785,
+        "nwm_to_id": "11906208",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905828": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 105.79,
+            "max_elevation": 146.6,
+            "xs_id": 189009.2
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 103.26,
+            "max_elevation": 141.2,
+            "xs_id": 186994.1
+        },
+        "low_flow_cfs": 809,
+        "high_flow_cfs": 4408,
+        "nwm_to_id": "11905834",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905820": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 112.1,
+            "max_elevation": 141.7,
+            "xs_id": 192514.9
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 105.79,
+            "max_elevation": 146.6,
+            "xs_id": 189009.2
+        },
+        "low_flow_cfs": 780,
+        "high_flow_cfs": 3751,
+        "nwm_to_id": "11905828",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906198": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 112.3,
+            "max_elevation": 141.81,
+            "xs_id": 193854.4
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 112.3,
+            "max_elevation": 146.72,
+            "xs_id": 193176.6
+        },
+        "low_flow_cfs": 416,
+        "high_flow_cfs": 2088,
+        "nwm_to_id": "11905820",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906196": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 112.95,
+            "max_elevation": 156.24,
+            "xs_id": 194817.8
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 112.3,
+            "max_elevation": 141.81,
+            "xs_id": 193854.4
+        },
+        "low_flow_cfs": 406,
+        "high_flow_cfs": 2128,
+        "nwm_to_id": "11906198",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905796": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 113.45,
+            "max_elevation": 160.38,
+            "xs_id": 195583.1
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 112.95,
+            "max_elevation": 156.24,
+            "xs_id": 194817.8
+        },
+        "low_flow_cfs": 400,
+        "high_flow_cfs": 2343,
+        "nwm_to_id": "11906196",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906190": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 127.07,
+            "max_elevation": 179.11,
+            "xs_id": 208205.5
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 113.45,
+            "max_elevation": 160.38,
+            "xs_id": 195583.1
+        },
+        "low_flow_cfs": 428,
+        "high_flow_cfs": 2568,
+        "nwm_to_id": "11905796",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905756": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 134.3,
+            "max_elevation": 221.64,
+            "xs_id": 211665.0
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 127.07,
+            "max_elevation": 179.11,
+            "xs_id": 208205.5
+        },
+        "low_flow_cfs": 284,
+        "high_flow_cfs": 1501,
+        "nwm_to_id": "11906190",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905746": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 155.57,
+            "max_elevation": 271.48,
+            "xs_id": 216363.5
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 134.3,
+            "max_elevation": 221.64,
+            "xs_id": 211665.0
+        },
+        "low_flow_cfs": 140,
+        "high_flow_cfs": 1509,
+        "nwm_to_id": "11905756",
+        "gage": "01592500",
+        "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=01592500&legacy=1",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905994": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 55.7,
+            "max_elevation": 102.27,
+            "xs_id": 148278.9
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 50.2,
+            "max_elevation": 114.55,
+            "xs_id": 147072.6
+        },
+        "low_flow_cfs": 839,
+        "high_flow_cfs": 4564,
+        "nwm_to_id": "11906000",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905974": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 825,
+        "high_flow_cfs": 4686,
+        "nwm_to_id": "11905976",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905984": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 62.6,
+            "max_elevation": 100.3,
+            "xs_id": 155014.3
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 61.6,
+            "max_elevation": 97.16,
+            "xs_id": 153499.9
+        },
+        "low_flow_cfs": 841,
+        "high_flow_cfs": 4702,
+        "nwm_to_id": "11906290",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906030": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 43.8,
+            "max_elevation": 83.0,
+            "xs_id": 140356.0
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 41.3,
+            "max_elevation": 82.06,
+            "xs_id": 137262.7
+        },
+        "low_flow_cfs": 835,
+        "high_flow_cfs": 4530,
+        "nwm_to_id": "11906034",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906036": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 40.3,
+            "max_elevation": 68.8,
+            "xs_id": 136140.3
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 39.1,
+            "max_elevation": 81.69,
+            "xs_id": 134652.2
+        },
+        "low_flow_cfs": 861,
+        "high_flow_cfs": 4603,
+        "nwm_to_id": "11906038",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906232": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 90.1,
+            "max_elevation": 108.89,
+            "xs_id": 176090.0
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 85.1,
+            "max_elevation": 117.87,
+            "xs_id": 173461.9
+        },
+        "low_flow_cfs": 851,
+        "high_flow_cfs": 4986,
+        "nwm_to_id": "11906240",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11905976": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 63.5,
+            "max_elevation": 104.21,
+            "xs_id": 156362.6
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 62.6,
+            "max_elevation": 100.3,
+            "xs_id": 155014.3
+        },
+        "low_flow_cfs": 831,
+        "high_flow_cfs": 4626,
+        "nwm_to_id": "11905984",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906048": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 37.2,
+            "max_elevation": 70.85,
+            "xs_id": 132261.7
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 36.4,
+            "max_elevation": 65.54,
+            "xs_id": 131156.0
+        },
+        "low_flow_cfs": 925,
+        "high_flow_cfs": 5350,
+        "nwm_to_id": "11906328",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906046": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 39.1,
+            "max_elevation": 81.69,
+            "xs_id": 134652.2
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 37.2,
+            "max_elevation": 70.85,
+            "xs_id": 132261.7
+        },
+        "low_flow_cfs": 916,
+        "high_flow_cfs": 5085,
+        "nwm_to_id": "11906048",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906038": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 863,
+        "high_flow_cfs": 4597,
+        "nwm_to_id": "11906046",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906304": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 50.2,
+            "max_elevation": 114.55,
+            "xs_id": 147072.6
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 43.8,
+            "max_elevation": 83.0,
+            "xs_id": 140356.0
+        },
+        "low_flow_cfs": 838,
+        "high_flow_cfs": 4597,
+        "nwm_to_id": "11906030",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906290": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 61.6,
+            "max_elevation": 97.16,
+            "xs_id": 153499.9
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 58.8,
+            "max_elevation": 82.0,
+            "xs_id": 149785.6
+        },
+        "low_flow_cfs": 837,
+        "high_flow_cfs": 4647,
+        "nwm_to_id": "11905990",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906282": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 71.9,
+            "max_elevation": 166.1,
+            "xs_id": 161033.5
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 63.5,
+            "max_elevation": 104.21,
+            "xs_id": 156362.6
+        },
+        "low_flow_cfs": 826,
+        "high_flow_cfs": 4759,
+        "nwm_to_id": "11905974",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11906240": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 85.1,
+            "max_elevation": 117.87,
+            "xs_id": 173461.9
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 77.2,
+            "max_elevation": 133.77,
+            "xs_id": 168859.9
+        },
+        "low_flow_cfs": 844,
+        "high_flow_cfs": 4928,
+        "nwm_to_id": "11905886",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908588": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -8.5,
+            "max_elevation": 53.21,
+            "xs_id": 26469.46
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -16.2,
+            "max_elevation": 70.28,
+            "xs_id": 21021.22
+        },
+        "low_flow_cfs": 2030,
+        "high_flow_cfs": 19073,
+        "nwm_to_id": "11908594",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908578": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 2023,
+        "high_flow_cfs": 20836,
+        "nwm_to_id": "11908582",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908576": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -5.3,
+            "max_elevation": 62.95,
+            "xs_id": 39893.46
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -10.6,
+            "max_elevation": 93.12,
+            "xs_id": 32805.59
+        },
+        "low_flow_cfs": 2018,
+        "high_flow_cfs": 20822,
+        "nwm_to_id": "11908578",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908572": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -1.0,
+            "max_elevation": 25.3,
+            "xs_id": 41827.22
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -5.3,
+            "max_elevation": 62.95,
+            "xs_id": 39893.46
+        },
+        "low_flow_cfs": 2032,
+        "high_flow_cfs": 21336,
+        "nwm_to_id": "11908576",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908562": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.2,
+            "max_elevation": 87.88,
+            "xs_id": 44258.6
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -6.8,
+            "max_elevation": 58.8,
+            "xs_id": 42465.83
+        },
+        "low_flow_cfs": 2032,
+        "high_flow_cfs": 21368,
+        "nwm_to_id": "11908566",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908566": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -6.8,
+            "max_elevation": 58.8,
+            "xs_id": 42465.83
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -1.0,
+            "max_elevation": 25.3,
+            "xs_id": 41827.22
+        },
+        "low_flow_cfs": 2033,
+        "high_flow_cfs": 21395,
+        "nwm_to_id": "11908572",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907892": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.3,
+            "max_elevation": 54.01,
+            "xs_id": 51040.86
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -6.6,
+            "max_elevation": 56.39,
+            "xs_id": 49806.06
+        },
+        "low_flow_cfs": 2031,
+        "high_flow_cfs": 21512,
+        "nwm_to_id": "11908554",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908554": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -6.6,
+            "max_elevation": 56.39,
+            "xs_id": 49806.06
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.0,
+            "max_elevation": 51.18,
+            "xs_id": 45507.47
+        },
+        "low_flow_cfs": 2024,
+        "high_flow_cfs": 21267,
+        "nwm_to_id": "11908560",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908560": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.0,
+            "max_elevation": 51.18,
+            "xs_id": 45507.47
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.2,
+            "max_elevation": 87.88,
+            "xs_id": 44258.6
+        },
+        "low_flow_cfs": 2025,
+        "high_flow_cfs": 21095,
+        "nwm_to_id": "11908562",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907880": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -8.5,
+            "max_elevation": 64.68,
+            "xs_id": 59049.43
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.3,
+            "max_elevation": 54.01,
+            "xs_id": 51040.86
+        },
+        "low_flow_cfs": 2015,
+        "high_flow_cfs": 20649,
+        "nwm_to_id": "11907892",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907860": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.6,
+            "max_elevation": 67.85,
+            "xs_id": 59680.21
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -8.5,
+            "max_elevation": 64.68,
+            "xs_id": 59049.43
+        },
+        "low_flow_cfs": 2031,
+        "high_flow_cfs": 22720,
+        "nwm_to_id": "11907880",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907854": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -5.7,
+            "max_elevation": 74.83,
+            "xs_id": 60994.13
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.6,
+            "max_elevation": 67.85,
+            "xs_id": 59680.21
+        },
+        "low_flow_cfs": 2017,
+        "high_flow_cfs": 22677,
+        "nwm_to_id": "11907860",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907848": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.9,
+            "max_elevation": 73.85,
+            "xs_id": 63352.65
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -5.7,
+            "max_elevation": 74.83,
+            "xs_id": 60994.13
+        },
+        "low_flow_cfs": 2018,
+        "high_flow_cfs": 22600,
+        "nwm_to_id": "11907854",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907838": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -5.9,
+            "max_elevation": 75.34,
+            "xs_id": 64024.26
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -7.9,
+            "max_elevation": 73.85,
+            "xs_id": 63352.65
+        },
+        "low_flow_cfs": 1980,
+        "high_flow_cfs": 22834,
+        "nwm_to_id": "11907848",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907832": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -2.8,
+            "max_elevation": 58.98,
+            "xs_id": 69955.36
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -5.9,
+            "max_elevation": 75.34,
+            "xs_id": 64024.26
+        },
+        "low_flow_cfs": 1965,
+        "high_flow_cfs": 22816,
+        "nwm_to_id": "11907838",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907806": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 4.7,
+            "max_elevation": 64.61,
+            "xs_id": 79897.28
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": -2.8,
+            "max_elevation": 58.98,
+            "xs_id": 69955.36
+        },
+        "low_flow_cfs": 2023,
+        "high_flow_cfs": 24523,
+        "nwm_to_id": "11907832",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907782": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 5.1,
+            "max_elevation": 95.95,
+            "xs_id": 86341.97
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 4.7,
+            "max_elevation": 64.61,
+            "xs_id": 79897.28
+        },
+        "low_flow_cfs": 2057,
+        "high_flow_cfs": 25101,
+        "nwm_to_id": "11907806",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907774": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 2036,
+        "high_flow_cfs": 25139,
+        "nwm_to_id": "11907782",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908324": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 3.9,
+            "max_elevation": 68.46,
+            "xs_id": 92395.85
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 5.1,
+            "max_elevation": 95.95,
+            "xs_id": 86341.97
+        },
+        "low_flow_cfs": 2023,
+        "high_flow_cfs": 24922,
+        "nwm_to_id": "11907774",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908316": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 7.0,
+            "max_elevation": 62.04,
+            "xs_id": 97274.14
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 3.9,
+            "max_elevation": 68.46,
+            "xs_id": 92395.85
+        },
+        "low_flow_cfs": 2042,
+        "high_flow_cfs": 25872,
+        "nwm_to_id": "11908324",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907764": {
+        "us_xs": {
+            "xs_id": "-9999"
+        },
+        "low_flow_cfs": 2093,
+        "high_flow_cfs": 28222,
+        "nwm_to_id": "11908316",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907762": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 10.38,
+            "max_elevation": 66.53,
+            "xs_id": 101166.3
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 7.0,
+            "max_elevation": 62.04,
+            "xs_id": 97274.14
+        },
+        "low_flow_cfs": 2084,
+        "high_flow_cfs": 29199,
+        "nwm_to_id": "11907764",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907758": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 8.7,
+            "max_elevation": 97.41,
+            "xs_id": 106061.7
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 10.38,
+            "max_elevation": 66.53,
+            "xs_id": 101166.3
+        },
+        "low_flow_cfs": 2082,
+        "high_flow_cfs": 30112,
+        "nwm_to_id": "11907762",
+        "gage": "01594440",
+        "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=01594440&legacy=1",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11907746": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 10.5,
+            "max_elevation": 93.12,
+            "xs_id": 110321.2
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 8.7,
+            "max_elevation": 97.41,
+            "xs_id": 106061.7
+        },
+        "low_flow_cfs": 2087,
+        "high_flow_cfs": 30505,
+        "nwm_to_id": "11907758",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908300": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 10.4,
+            "max_elevation": 112.8,
+            "xs_id": 113857.7
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 10.5,
+            "max_elevation": 93.12,
+            "xs_id": 110321.2
+        },
+        "low_flow_cfs": 2084,
+        "high_flow_cfs": 31491,
+        "nwm_to_id": "11907746",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908298": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 11.8,
+            "max_elevation": 96.51,
+            "xs_id": 117158.6
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 10.4,
+            "max_elevation": 112.8,
+            "xs_id": 113857.7
+        },
+        "low_flow_cfs": 2081,
+        "high_flow_cfs": 31142,
+        "nwm_to_id": "11908300",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    },
+    "11908292": {
+        "us_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 20.5,
+            "max_elevation": 81.42,
+            "xs_id": 118899.1
+        },
+        "ds_xs": {
+            "river": "Patuxent River",
+            "reach": "1",
+            "min_elevation": 11.8,
+            "max_elevation": 96.51,
+            "xs_id": 117158.6
+        },
+        "low_flow_cfs": 2082,
+        "high_flow_cfs": 30793,
+        "nwm_to_id": "11908298",
+        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+    }
+}

@@ -193,8 +193,11 @@ class RasFimConflater:
     def ras_structures(self) -> gpd.GeoDataFrame:
         """RAS structures."""
         logging.info("RAS structures")
-        return self._ras_structures.to_crs(self.common_crs)
-
+        try:
+            return self._ras_structures.to_crs(self.common_crs)
+        except AttributeError:
+            return None
+        
     @property
     @ensure_data_loaded
     def ras_junctions(self) -> gpd.GeoDataFrame:
@@ -675,5 +678,5 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
             reach_metadata[k]["gage"] = gage_id
             reach_metadata[k]["gage_url"] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
 
-        reach_metadata[k]["source_nwm_reach"] = rfc.nwm_pq
+        reach_metadata[k]["source_nwm_reach"] = os.path.basename(rfc.nwm_pq)
     return reach_metadata

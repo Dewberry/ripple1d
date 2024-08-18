@@ -168,7 +168,9 @@ test.py
 tests/ras-data/Baxter/test
 tests/ras-data/Baxter/nwm_models
 tests/ras-data/Baxter/Terrain
-tests/ras-data/WFSJMAIN/
+tests/ras-data/MissFldwy/submodels
+tests/ras-data/PatuxentRiver/submodels
+
 /ripple1d/models/
 .vscode/settings.json
 mip_models
