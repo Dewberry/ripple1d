@@ -4,8 +4,7 @@ API Reference / Postman Collection
 
 For reference and documentation of the API, please open the postman collection for the version of ripple1d 
 
-`v0.4.0: <https://github.com/Dewberry/ripple1d/blob/main/api/postman_collection.json>`_ This beta version contains the endpoints included in the first production testing release. Note that the following
- variables should be set in the postman environment
+`v0.4.0: <https://github.com/Dewberry/ripple1d/blob/main/api/postman_collection.json>`_ This beta version contains the endpoints included in the first production testing release. Note that the following variables should be set in the postman environment
 
 
 .. code-block:: YAML
