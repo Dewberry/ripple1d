@@ -25,81 +25,23 @@ Utilities for repurposing HEC-RAS models for use in the production of Flood Inun
 
 ### Using pip
 
-1. Activate virtual environment as shown below and install the `ripple1d` package using `pip` using PowerShell:
+Activate virtual environment as shown below and install the `ripple1d` package using `pip` using PowerShell:
 
-    ```powershell
+```powershell
     pip install ripple1d
-    ```
+```
 
-### Building from source 
 
-1. Activate virtual environment as shown below and build from source:
+### Verify the Installation
 
-    ```powershell
-    git clone https://github.com/dewberry/ripple1d.git
-    cd ripple1d
+Verify the installation by importing `ripple1d` in a Python shell:
 
-    # if needed install build tools
-    pip install setuptools wheel build
-    python -m build_wheel
-    pip install dist/*.whl
-
-    # Either have PowerShell get the file name or look in the dist/ directory for the latest .whl file
-    # Example filename: `ripple1d-0.3.0-py3-none-any.whl`
-     $wheel = Get-ChildItem -Path dist -Filter *.whl | Select-Object -First 1
-     pip install $wheel.FullName
-    ```
-
-    ---
-
-### Testing the Installation
-
-1. Verify the installation by importing `ripple1d` in a Python shell:
-    ```powershell
+```powershell
     python
     >>> import ripple1d
     >>> print(ripple1d.__version__)
-    ```
+```
 
-2. Run the unit tests to ensure everything is working correctly:
-    ```powershell
-    pytest tests/
-    ```
-
-See the [REST API documentation](docs/api/README.rst) for available endpoints and usage.
-
-### Setting up a virtual environment
-
-1. Install [Python](https://www.python.org/downloads/)
-2. Create a virtual Python environment using Command Prompt or PowerShell:
-    
-    *Option 1:* Windows Command Prompt
-    ```bat
-    %LOCALAPPDATA%\Programs\Python\Python312\python.exe -m venv %homepath%\venvs\venv-py312
-    ```
-
-    *Option 2:* Windows PowerShell
-    ```powershell
-    $pythonExe = "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
-    $venvPath = "$env:USERPROFILE\venvs\venv-py312"
-    & $pythonExe -m venv $venvPath
-    ```
-
-3. Activate (enter) the new virtual environment:
-
-    *Option 1:* Windows Command Prompt
-    ```bat
-    %homepath%\venvs\venv-py312\Scripts\activate.bat
-    ```
-
-    *Option 2:* Windows PowerShell
-    ```powershell
-    & "$env:USERPROFILE\venvs\venv-py312\Scripts\Activate.ps1"
-    ```
-
-4. Confirm that the activation worked.
-    1. You should see that a parenthetical `(venv-py312)` has been added to the left side of your current line in the terminal.
-    2. Enter `where python` and confirm that the top result is sourcing Python from the new directory.
 
 ---
 
