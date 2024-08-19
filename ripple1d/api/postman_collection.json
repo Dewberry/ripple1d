@@ -1,0 +1,510 @@
+{
+	"info": {
+		"_postman_id": "9c07b074-5f35-4309-bbaf-3ed3f1aec045",
+		"name": "ripple1d",
+		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "11115435"
+	},
+	"item": [
+		{
+			"name": "processes",
+			"item": [
+				{
+					"name": "test-huey-health",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/test/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"test",
+								"execution"
+							]
+						},
+						"description": "Verify the job manager is active and healthy"
+					},
+					"response": []
+				},
+				{
+					"name": "test-sleep",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/sleep/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"sleep",
+								"execution"
+							]
+						},
+						"description": "Send a test job to verify system health."
+					},
+					"response": []
+				},
+				{
+					"name": "extract_submodel",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/extract_submodel/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"extract_submodel",
+								"execution"
+							]
+						},
+						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
+					},
+					"response": []
+				},
+				{
+					"name": "create_ras_terrain",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"resolution\": 3,\r\n    \"resolution_units\": \"Meters\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/create_ras_terrain/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"create_ras_terrain",
+								"execution"
+							]
+						},
+						"description": "Download a clipped terrain for an NWM reach model."
+					},
+					"response": []
+				},
+				{
+					"name": "create_model_run_normal_depth",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 5,\r\n    \"show_ras\":false\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/create_model_run_normal_depth/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"create_model_run_normal_depth",
+								"execution"
+							]
+						},
+						"description": "Run a range of flows for Normal Depth on a HEC-RAS model. The results will be used to inform flows required to develop rating curves at a provided increment."
+					},
+					"response": []
+				},
+				{
+					"name": "run_incremental_normal_depth",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/run_incremental_normal_depth/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"run_incremental_normal_depth",
+								"execution"
+							]
+						},
+						"description": "Run a HEC-RAS model to develop WSE's at a given depth increment from low flow to high flow as specified in the models geopackage."
+					},
+					"response": []
+				},
+				{
+					"name": "run_known_wse",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"kwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":true\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/run_known_wse/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"run_known_wse",
+								"execution"
+							]
+						},
+						"description": "Run a series of HEC-RAS simulations using Known Water Surface Elevations."
+					},
+					"response": []
+				},
+				{
+					"name": "create_fim_lib",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"resolution\":3,\r\n    \"resolution_units\":\"Meters\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/create_fim_lib/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"create_fim_lib",
+								"execution"
+							]
+						},
+						"description": "Create a Flood Inundation Map library from the results of an existing HEC-RAS model."
+					},
+					"response": []
+				},
+				{
+					"name": "nwm_reach_model_stac",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"ras_model_s3_prefix\":\"stac/test-data/nwm_reach_models/{{nwm_reach_id}}\",\r\n    \"bucket\": \"fim\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/nwm_reach_model_stac/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"nwm_reach_model_stac",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "fim_lib_stac",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"ras_project_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_reach_id\":\"{{nwm_reach_id}}\",\r\n    \"s3_prefix\":\"stac/test-data/fim_libs/{{nwm_reach_id}}\",\r\n    \"bucket\": \"fim\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/fim_lib_stac/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"fim_lib_stac",
+								"execution"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "List of all the available endpoints provided by ripple1d.",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							"var resp = pm.response.json()\r",
+							"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "ping",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url}}/ping",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"ping"
+					]
+				},
+				"description": "Test the health of the server."
+			},
+			"response": []
+		},
+		{
+			"name": "dismiss",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/jobs/:jobID",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"jobs",
+						":jobID"
+					],
+					"variable": [
+						{
+							"key": "jobID",
+							"value": "{{jobID}}"
+						}
+					]
+				},
+				"description": "Delete a job by providing the jobID"
+			},
+			"response": []
+		},
+		{
+			"name": "job",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/jobs/:jobID",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"jobs",
+						":jobID"
+					],
+					"query": [
+						{
+							"key": null,
+							"value": "",
+							"disabled": true
+						}
+					],
+					"variable": [
+						{
+							"key": "jobID",
+							"value": "{{jobID}}"
+						}
+					]
+				},
+				"description": "Get the status of a job by providing the jobID"
+			},
+			"response": []
+		},
+		{
+			"name": "all_jobs",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/jobs",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"jobs"
+					],
+					"query": [
+						{
+							"key": null,
+							"value": "",
+							"disabled": true
+						}
+					]
+				},
+				"description": "List all jobs."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "url",
+			"value": "localhost",
+			"type": "string"
+		},
+		{
+			"key": "submodels_base_directory",
+			"value": "~\\\\repos\\\\ripple1d\\\\tests\\\\ras-data\\\\Baxter\\\\submodels",
+			"type": "string"
+		},
+		{
+			"key": "nwm_reach_id",
+			"value": "2823932",
+			"type": "string"
+		},
+		{
+			"key": "jobID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "source_model_directory",
+			"value": "~\\\\repos\\\\ripple1d\\\\tests\\\\ras-data\\\\Baxter",
+			"type": "string"
+		}
+	]
+}

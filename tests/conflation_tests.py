@@ -6,6 +6,8 @@ import unittest
 import geopandas as gpd
 import pandas as pd
 import pytest
+from shapely.geometry import LineString, MultiLineString, Point, Polygon
+
 from ripple1d.conflate.rasfim import (
     RasFimConflater,
     cacl_avg_nearest_points,
@@ -15,7 +17,6 @@ from ripple1d.conflate.rasfim import (
     nearest_line_to_point,
 )
 from ripple1d.ops.ras_conflate import conflate
-from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/Baxter.json"
@@ -23,7 +24,7 @@ TEST_ITEM_PATH = os.path.join(TEST_DIR, TEST_ITEM_FILE)
 
 # Expected counts
 NWM_REACHES = 36
-LOCAL_NWM_REACHES = 16
+LOCAL_NWM_REACHES = 18
 RAS_CENTERLINES = 3
 RAS_XS = 173
 GAGES = 1
@@ -77,7 +78,7 @@ class TestRasFimConflater(unittest.TestCase):
 
     def test_local_nwm_reaches_exist(self):
         local_reaches = self.conflater.local_nwm_reaches
-        self.assertEqual(local_reaches.shape[0], LOCAL_NWM_REACHES)
+        self.assertEqual(local_reaches().shape[0], LOCAL_NWM_REACHES)
 
     def test_local_gages_exist(self):
         gages = self.conflater.local_gages

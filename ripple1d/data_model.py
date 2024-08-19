@@ -11,6 +11,7 @@ from typing import List
 
 import geopandas as gpd
 import pandas as pd
+from pyproj import CRS
 from shapely.geometry import LineString, Point
 
 from ripple1d.utils.ripple_utils import (
@@ -73,11 +74,114 @@ class RasModelStructure:
         return self.derive_path(".png")
 
 
-class RippleSourceModel(RasModelStructure):
+class RippleSourceModel:
     """Source Model structure for Ripple to create NwmReachModel's."""
 
-    def __init__(self, model_directory: str):
-        super().__init__(model_directory)
+    def __init__(self, ras_project_file: str, crs: CRS):
+
+        self.crs = crs
+        self.ras_project_file = ras_project_file
+        self.model_directory = Path(ras_project_file).parent.as_posix()
+        self.model_basename = Path(ras_project_file).as_posix()
+
+    @property
+    def model_name(self):
+        """Model name."""
+        return self.model_basename.replace(".prj", "")
+
+    def derive_path(self, extension: str):
+        """Derive path."""
+        return str(Path(self.model_directory) / f"{self.model_name}{extension}")
+
+    def file_exists(self, file_path: str) -> bool:
+        """Check if file exists."""
+        if os.path.exists(file_path):
+            return True
+        return False
+
+    @property
+    def ras_gpkg_file(self):
+        """RAS GeoPackage file."""
+        return self.derive_path(".gpkg")
+
+    @property
+    def assets(self):
+        """Model assets."""
+        return glob.glob(f"{self.model_directory}/Terrain/*") + [
+            f for f in glob.glob(f"{self.model_directory}/*") if not os.path.isdir(f)
+        ]
+
+    @property
+    def terrain_assets(self):
+        """Terrain assets."""
+        return glob.glob(f"{self.model_directory}/Terrain/*")
+
+    @property
+    def thumbnail_png(self):
+        """Thumbnail PNG."""
+        return self.derive_path(".png")
+
+    @property
+    def conflation_file(self):
+        """Conflation file."""
+        return self.derive_path(".conflation.json")
+
+    def nwm_conflation_parameters(self, nwm_id: str):
+        """NWM Conflation parameters."""
+        with open(self.conflation_file, "r") as f:
+            conflation_parameters = json.loads(f.read())
+        return conflation_parameters[nwm_id]
+
+
+class RippleSourceDirectory:
+    """Source Directory for Ripple to create NwmReachModel's. Should contain the conflation.json file and gpkg file for the source model."""
+
+    def __init__(self, source_directory: str):
+
+        self.source_directory = source_directory
+        self.model_basename = os.path.basename(self.source_directory)
+
+    @property
+    def model_name(self):
+        """Model name."""
+        return self.model_basename
+
+    def derive_path(self, extension: str):
+        """Derive path."""
+        return str(Path(self.source_directory) / f"{self.model_name}{extension}")
+
+    def file_exists(self, file_path: str) -> bool:
+        """Check if file exists."""
+        if os.path.exists(file_path):
+            return True
+        return False
+
+    @property
+    def ras_gpkg_file(self):
+        """RAS GeoPackage file."""
+        return self.derive_path(".gpkg")
+
+    @property
+    def ras_project_file(self):
+        """RAS Project file."""
+        return self.derive_path(".prj")
+
+    @property
+    def assets(self):
+        """Model assets."""
+        return glob.glob(f"{self.source_directory}/Terrain/*") + [
+            f for f in glob.glob(f"{self.source_directory}/*") if not os.path.isdir(f)
+        ]
+
+    @property
+    def terrain_assets(self):
+        """Terrain assets."""
+        return glob.glob(f"{self.source_directory}/Terrain/*")
+
+    @property
+    def thumbnail_png(self):
+        """Thumbnail PNG."""
+        return self.derive_path(".png")
 
     @property
     def conflation_file(self):
@@ -236,7 +340,7 @@ class XS:
     @property
     def river_station(self):
         """Cross section river station."""
-        return float(self.split_xs_header(1))
+        return float(self.split_xs_header(1).replace("*", ""))
 
     @property
     def left_reach_length(self):
@@ -265,14 +369,16 @@ class XS:
     @property
     def thalweg(self):
         """Cross section thalweg elevation."""
-        _, y = list(zip(*self.station_elevation_points))
-        return min(y)
+        if self.station_elevation_points:
+            _, y = list(zip(*self.station_elevation_points))
+            return min(y)
 
     @property
     def xs_max_elevation(self):
         """Cross section maximum elevation."""
-        _, y = list(zip(*self.station_elevation_points))
-        return max(y)
+        if self.station_elevation_points:
+            _, y = list(zip(*self.station_elevation_points))
+            return max(y)
 
     @property
     def coords(self):
@@ -293,12 +399,15 @@ class XS:
     @property
     def station_elevation_points(self):
         """Station elevation points."""
-        lines = text_block_from_start_str_length(
-            f"#Sta/Elev= {self.number_of_station_elevation_points} ",
-            math.ceil(self.number_of_station_elevation_points / 5),
-            self.ras_data,
-        )
-        return data_pairs_from_text_block(lines, 16)
+        try:
+            lines = text_block_from_start_str_length(
+                f"#Sta/Elev= {self.number_of_station_elevation_points} ",
+                math.ceil(self.number_of_station_elevation_points / 5),
+                self.ras_data,
+            )
+            return data_pairs_from_text_block(lines, 16)
+        except ValueError as e:
+            return None
 
     @property
     def bank_stations(self):
@@ -333,11 +442,90 @@ class XS:
         )
 
 
+class Structure:
+    """Structure."""
+
+    def __init__(self, ras_data: list, river_reach: str, river: str, reach: str, crs: str, us_xs: XS):
+        self.ras_data = ras_data
+        self.crs = crs
+        self.river = river
+        self.reach = reach
+        self.river_reach = river_reach
+        self.river_reach_rs = f"{river} {reach} {self.river_station}"
+        self.us_xs = us_xs
+
+    def split_structure_header(self, position: int):
+        """
+        Split Structure header.
+
+        Example: Type RM Length L Ch R = 3 ,83554.  ,237.02,192.39,113.07.
+        """
+        header = search_contents(self.ras_data, "Type RM Length L Ch R ", expect_one=True)
+
+        return header.split(",")[position]
+
+    @property
+    def river_station(self):
+        """Structure river station."""
+        return float(self.split_structure_header(1))
+
+    @property
+    def type(self):
+        """Structure type."""
+        return int(self.split_structure_header(0))
+
+    def structure_data(self, position: int):
+        """Structure data."""
+        if self.type in [2, 3, 4]:  # culvert or bridge
+            data = text_block_from_start_str_length(
+                "Deck Dist Width WeirC Skew NumUp NumDn MinLoCord MaxHiCord MaxSubmerge Is_Ogee", 1, self.ras_data
+            )
+            return data[0].split(",")[position]
+        elif self.type == 5:  # inline weir
+            data = text_block_from_start_str_length(
+                "IW Dist,WD,Coef,Skew,MaxSub,Min_El,Is_Ogee,SpillHt,DesHd", 1, self.ras_data
+            )
+            return data[0].split(",")[position]
+        elif self.type == 6:  # lateral structure
+            return 0
+
+    @property
+    def distance(self):
+        """Distance to upstream cross section."""
+        return float(self.structure_data(0))
+
+    @property
+    def width(self):
+        """Structure width."""
+        # TODO check units of the RAS model
+        return float(self.structure_data(1))
+
+    @property
+    def gdf(self):
+        """Structure geodataframe."""
+        return gpd.GeoDataFrame(
+            {
+                "geometry": [LineString(self.us_xs.coords).offset_curve(self.distance)],
+                "river": [self.river],
+                "reach": [self.reach],
+                "river_reach": [self.river_reach],
+                "river_station": [self.river_station],
+                "river_reach_rs": [self.river_reach_rs],
+                "type": [self.type],
+                "distance": [self.distance],
+                "width": [self.width],
+                "ras_data": ["\n".join(self.ras_data)],
+            },
+            crs=self.crs,
+            geometry="geometry",
+        )
+
+
 class Reach:
     """HEC-RAS River Reach."""
 
     def __init__(self, ras_data: list, river_reach: str, crs: str):
-        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", "River Reach", ras_data)
+        reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", ["River Reach"], ras_data, -1)
         self.ras_data = reach_lines
         self.crs = crs
         self.river_reach = river_reach
@@ -397,19 +585,48 @@ class Reach:
         """Cross sections."""
         cross_sections = {}
         for header in self.reach_nodes:
-            type, rs, left_reach_length, channel_reach_length, right_reach_length = header.split(",")[:5]
-            if type != " 1 ":
+            type, _, _, _, _ = header.split(",")[:5]
+            if int(type) != 1:
                 continue
             xs_lines = text_block_from_start_end_str(
                 f"Type RM Length L Ch R ={header}",
-                "Exp/Cntr=",
+                ["Type RM Length L Ch R", "River Reach"],
                 self.ras_data,
-                include_end_line=True,
             )
             cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
             cross_sections[cross_section.river_reach_rs] = cross_section
 
         return cross_sections
+
+    @property
+    def structures(self):
+        """Structures."""
+        structures = {}
+        for header in self.reach_nodes:
+            type, _, _, _, _ = header.split(",")[:5]
+            if int(type) == 1:
+                xs_lines = text_block_from_start_end_str(
+                    f"Type RM Length L Ch R ={header}",
+                    ["Type RM Length L Ch R", "River Reach"],
+                    self.ras_data,
+                )
+                cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
+                continue
+            elif int(type) in [2, 3, 4, 5, 6]:  # culvert or bridge or multiple openeing
+                structure_lines = text_block_from_start_end_str(
+                    f"Type RM Length L Ch R ={header}",
+                    ["Type RM Length L Ch R", "River Reach"],
+                    self.ras_data,
+                )
+            else:
+                raise TypeError(
+                    f"Unsupported structure type: {int(type)}. Supported structure types are 2, 3, 4, 5, and 6 corresponding to culvert, bridge, multiple openeing, inline structure, lateral structure, respectively"
+                )
+
+            structure = Structure(structure_lines, self.river_reach, self.river, self.reach, self.crs, cross_section)
+            structures[structure.river_reach_rs] = structure
+
+        return structures
 
     @property
     def gdf(self):
@@ -432,6 +649,11 @@ class Reach:
     def xs_gdf(self):
         """Cross section geodataframe."""
         return pd.concat([xs.gdf for xs in self.cross_sections.values()])
+
+    @property
+    def structures_gdf(self):
+        """Structures geodataframe."""
+        return pd.concat([structure.gdf for structure in self.structures.values()])
 
 
 class Junction:

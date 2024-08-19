@@ -37,7 +37,7 @@ LAYER_COLORS = OrderedDict(
         "BCLines": "brown",
         "BreakLines": "black",
         "Connections": "cyan",
-        "HydraulicStructures": "magenta",
+        "Structure": "black",
         "Mesh": "yellow",
         "River": "blue",
         "StorageAreas": "orange",
@@ -46,5 +46,4 @@ LAYER_COLORS = OrderedDict(
     }
 )
 
-RIPPLE_VERSION = "0.0.1"
 SHOW_RAS = False

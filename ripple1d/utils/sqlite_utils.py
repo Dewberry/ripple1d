@@ -4,7 +4,8 @@ import os
 import sqlite3
 
 import pandas as pd
-from ripple1d.consts import RIPPLE_VERSION
+
+import ripple1d
 from ripple1d.ras import RasManager
 
 
@@ -35,7 +36,11 @@ def create_db_and_table(db_name: str, table_name: str):
 
 
 def insert_data(
-    db_name: str, table_name: str, data: pd.DataFrame, boundary_condition: str, ripple1d_version: str = RIPPLE_VERSION
+    db_name: str,
+    table_name: str,
+    data: pd.DataFrame,
+    boundary_condition: str,
+    ripple1d_version: str = ripple1d.__version__,
 ):
     """Insert data into the sqlite database."""
     conn = sqlite3.connect(db_name)
@@ -67,7 +72,7 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     """Parse flow and control by stage from profile names."""
     wses_t = wses.T
     wses_t.reset_index(inplace=True)
-    wses_t[["us_flow", "ds_wse"]] = wses_t["index"].str.split("-", expand=True)
+    wses_t[["us_flow", "ds_wse"]] = wses_t["index"].str.split("-", n=1, expand=True)
     wses_t.drop(columns="index", inplace=True)
     wses_t["us_flow"] = wses_t["us_flow"].str.lstrip("f_").astype(float)
     wses_t["ds_wse"] = wses_t["ds_wse"].str.lstrip("z_")

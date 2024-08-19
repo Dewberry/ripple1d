@@ -1,5 +1,6 @@
 """Plotting functions for geometry data."""
 
+import logging
 from io import BytesIO
 from pathlib import Path
 
@@ -27,13 +28,15 @@ def plot_conflation_results(
     # Plot the centerline and cross-sections first
     rfc.ras_centerlines.plot(ax=ax, color="black", label="RAS Centerline", alpha=0.5, linestyle="dashed")
     rfc.ras_xs.plot(ax=ax, color="green", label="RAS XS", markersize=2, alpha=0.2)
+    if rfc.ras_structures is not None:
+        rfc.ras_structures.plot(ax=ax, color="grey", label="RAS Structure", markersize=2, alpha=0.2)
 
     # Get the current axis limits and create a rectangle geometry
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     bounds = shapely.geometry.box(xlim[0], ylim[0], xlim[1], ylim[1])
 
-    zoom_factor = 3  # Adjust this value to change the zoom level
+    zoom_factor = 1  # Adjust this value to change the zoom level
 
     # Calculate the range of x and y
     x_range = bounds.bounds[2] - bounds.bounds[0]
@@ -52,7 +55,7 @@ def plot_conflation_results(
     patches.append(mpatches.Patch(color="blue", label="Nearby NWM reaches", alpha=0.3))
 
     # Plot the reaches that fall within the axis limits
-    rfc.nwm_reaches.clip(adjusted_bounds).plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
+    rfc.local_nwm_reaches().plot(ax=ax, color="blue", linewidth=1, alpha=0.3)
 
     if limit_plot_to_nearby_reaches:
         # Create a colormap that maps each reach_id to a color

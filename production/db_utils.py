@@ -26,6 +26,9 @@ class PGFim:
     def read_cases(self, table: str, fields: list[str], mip_group: str, optional_condition: str = ""):
         """Read cases from the cases schema."""
         approved_conditons = [
+            "AND gpkg_complete=false AND gpkg_exc='expected 1 result, no results found'",
+            "AND gpkg_complete=false",
+            "AND gpkg_complete IS NULL",
             "AND stac_complete=true AND conflation_complete=true",
             "AND gpkg_complete=true AND stac_complete=false",
             "AND gpkg_complete=true AND stac_complete IS NULL",
@@ -69,6 +72,7 @@ class PGFim:
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (s3_key)
                 DO UPDATE SET
+                case_id = EXCLUDED.case_id,
                 {process}_complete = EXCLUDED.{process}_complete,
                 {process}_exc = EXCLUDED.{process}_exc,
                 {process}_traceback = EXCLUDED.{process}_traceback;

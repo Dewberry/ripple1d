@@ -15,8 +15,9 @@ from pyproj import CRS
 # from osgeo import gdal
 from rasterio.enums import Resampling
 from rasterio.shutil import copy as copy_raster
+
+import ripple1d
 from ripple1d.conflate.rasfim import RasFimConflater
-from ripple1d.consts import RIPPLE_VERSION
 from ripple1d.data_model import NwmReachModel
 from ripple1d.errors import DepthGridNotFoundError
 from ripple1d.ras import RasManager
@@ -73,7 +74,7 @@ def post_process_depth_grids(
                     raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
 
             if "_kwse" in plan_name:
-                flow, depth = profile_name.split("-")
+                flow, depth = profile_name.split("-", 1)
             elif "_nd" in plan_name:
                 flow = f"f_{profile_name}"
                 depth = "z_nd"
@@ -182,7 +183,6 @@ def nwm_reach_model_stac(
     ras_project_directory: str,
     ras_model_s3_prefix: str = None,
     bucket: str = None,
-    ripple1d_version: str = RIPPLE_VERSION,
 ):
     """Convert a FIM RAS model to a STAC item."""
     nwm_rm = NwmReachModel(ras_project_directory)
@@ -190,7 +190,6 @@ def nwm_reach_model_stac(
     # create new stac item
     new_stac_item(
         ras_project_directory,
-        ripple1d_version,
         ras_model_s3_prefix,
     )
 
@@ -314,7 +313,7 @@ def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str, 
             "NOAA_NWM:FIM Rating Curve (Flow, Depth)": nwm_rm.fim_rating_curve,
             "proj:wkt2": CRS(nwm_rm.crs).to_wkt(),
             "proj:epsg": CRS(nwm_rm.crs).to_epsg(),
-            "Ripple Version": RIPPLE_VERSION,
+            "Ripple Version": ripple1d.__version__,
         },
         "derived_from": {"model_stac_item": nwm_rm.ripple1d_parameters["model_stac_item"]},
     }

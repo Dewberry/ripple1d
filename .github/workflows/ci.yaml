@@ -2,17 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
     paths:
-      - 'api/**'
       - 'ripple1d/**'
       - 'tests/**'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
     paths:
-      - 'api/**'
       - 'ripple1d/**'
       - 'tests/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
