@@ -1,9 +1,10 @@
 {
 	"info": {
-		"_postman_id": "de3eb533-559e-4e7b-83d3-482cfad73341",
+		"_postman_id": "9c07b074-5f35-4309-bbaf-3ed3f1aec045",
 		"name": "ripple1d",
+		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model networkEndFragment",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "29128857"
+		"_exporter_id": "11115435"
 	},
 	"item": [
 		{
@@ -33,7 +34,8 @@
 								"test",
 								"execution"
 							]
-						}
+						},
+						"description": "Verify the job manager is active and healthy"
 					},
 					"response": []
 				},
@@ -61,7 +63,8 @@
 								"sleep",
 								"execution"
 							]
-						}
+						},
+						"description": "Send a test job to verify system health."
 					},
 					"response": []
 				},
@@ -89,7 +92,8 @@
 								"extract_submodel",
 								"execution"
 							]
-						}
+						},
+						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
 					},
 					"response": []
 				},
@@ -117,7 +121,8 @@
 								"create_ras_terrain",
 								"execution"
 							]
-						}
+						},
+						"description": "Download a clipped terrain for an NWM reach model."
 					},
 					"response": []
 				},
@@ -145,7 +150,8 @@
 								"create_model_run_normal_depth",
 								"execution"
 							]
-						}
+						},
+						"description": "Run a range of flows for Normal Depth on a HEC-RAS model. The results will be used to inform flows required to develop rating curves at a provided increment."
 					},
 					"response": []
 				},
@@ -173,7 +179,8 @@
 								"run_incremental_normal_depth",
 								"execution"
 							]
-						}
+						},
+						"description": "Run a HEC-RAS model to develop WSE's at a given depth increment from low flow to high flow as specified in the models geopackage."
 					},
 					"response": []
 				},
@@ -201,7 +208,8 @@
 								"run_known_wse",
 								"execution"
 							]
-						}
+						},
+						"description": "Run a series of HEC-RAS simulations using Known Water Surface Elevations."
 					},
 					"response": []
 				},
@@ -229,7 +237,8 @@
 								"create_fim_lib",
 								"execution"
 							]
-						}
+						},
+						"description": "Create a Flood Inundation Map library from the results of an existing HEC-RAS model."
 					},
 					"response": []
 				},
@@ -290,6 +299,7 @@
 					"response": []
 				}
 			],
+			"description": "List of all the available endpoints provided by ripple1d.",
 			"event": [
 				{
 					"listen": "prerequest",
@@ -327,7 +337,8 @@
 					"path": [
 						"ping"
 					]
-				}
+				},
+				"description": "Test the health of the server."
 			},
 			"response": []
 		},
@@ -360,7 +371,8 @@
 							"value": "{{jobID}}"
 						}
 					]
-				}
+				},
+				"description": "Delete a job by providing the jobID"
 			},
 			"response": []
 		},
@@ -403,7 +415,8 @@
 							"value": "{{jobID}}"
 						}
 					]
-				}
+				},
+				"description": "Get the status of a job by providing the jobID"
 			},
 			"response": []
 		},
@@ -439,7 +452,8 @@
 							"disabled": true
 						}
 					]
-				}
+				},
+				"description": "List all jobs."
 			},
 			"response": []
 		}
