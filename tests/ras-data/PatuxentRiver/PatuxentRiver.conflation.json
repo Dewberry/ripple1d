@@ -17,7 +17,7 @@
         "low_flow_cfs": 2025,
         "high_flow_cfs": 19969,
         "nwm_to_id": "11908588",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907736": {
         "us_xs": {
@@ -37,7 +37,7 @@
         "low_flow_cfs": 983,
         "high_flow_cfs": 6615,
         "nwm_to_id": "11908292",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906060": {
         "us_xs": {
@@ -46,7 +46,7 @@
         "low_flow_cfs": 931,
         "high_flow_cfs": 5365,
         "nwm_to_id": "11907726",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907726": {
         "us_xs": {
@@ -66,7 +66,7 @@
         "low_flow_cfs": 961,
         "high_flow_cfs": 5617,
         "nwm_to_id": "11907736",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906328": {
         "us_xs": {
@@ -86,7 +86,7 @@
         "low_flow_cfs": 930,
         "high_flow_cfs": 5503,
         "nwm_to_id": "11906060",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906034": {
         "us_xs": {
@@ -106,7 +106,7 @@
         "low_flow_cfs": 863,
         "high_flow_cfs": 4639,
         "nwm_to_id": "11906036",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906000": {
         "us_xs": {
@@ -115,7 +115,7 @@
         "low_flow_cfs": 838,
         "high_flow_cfs": 4552,
         "nwm_to_id": "11906304",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905990": {
         "us_xs": {
@@ -135,7 +135,7 @@
         "low_flow_cfs": 840,
         "high_flow_cfs": 4625,
         "nwm_to_id": "11905994",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906276": {
         "us_xs": {
@@ -155,7 +155,7 @@
         "low_flow_cfs": 836,
         "high_flow_cfs": 4814,
         "nwm_to_id": "11906282",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905958": {
         "us_xs": {
@@ -175,7 +175,7 @@
         "low_flow_cfs": 835,
         "high_flow_cfs": 4790,
         "nwm_to_id": "11906276",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906270": {
         "us_xs": {
@@ -195,7 +195,7 @@
         "low_flow_cfs": 833,
         "high_flow_cfs": 4774,
         "nwm_to_id": "11905958",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905918": {
         "us_xs": {
@@ -215,7 +215,7 @@
         "low_flow_cfs": 841,
         "high_flow_cfs": 4901,
         "nwm_to_id": "11906270",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905914": {
         "us_xs": {
@@ -235,7 +235,7 @@
         "low_flow_cfs": 842,
         "high_flow_cfs": 4919,
         "nwm_to_id": "11905918",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905886": {
         "us_xs": {
@@ -244,7 +244,7 @@
         "low_flow_cfs": 846,
         "high_flow_cfs": 4954,
         "nwm_to_id": "11905914",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905848": {
         "us_xs": {
@@ -253,7 +253,7 @@
         "low_flow_cfs": 832,
         "high_flow_cfs": 4814,
         "nwm_to_id": "11906232",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905844": {
         "us_xs": {
@@ -273,7 +273,7 @@
         "low_flow_cfs": 833,
         "high_flow_cfs": 4852,
         "nwm_to_id": "11905848",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905836": {
         "us_xs": {
@@ -282,7 +282,7 @@
         "low_flow_cfs": 836,
         "high_flow_cfs": 4799,
         "nwm_to_id": "11905844",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905838": {
         "us_xs": {
@@ -302,7 +302,7 @@
         "low_flow_cfs": 835,
         "high_flow_cfs": 4812,
         "nwm_to_id": "11905836",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906208": {
         "us_xs": {
@@ -322,7 +322,7 @@
         "low_flow_cfs": 836,
         "high_flow_cfs": 4915,
         "nwm_to_id": "11905838",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905834": {
         "us_xs": {
@@ -342,7 +342,7 @@
         "low_flow_cfs": 836,
         "high_flow_cfs": 4785,
         "nwm_to_id": "11906208",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905828": {
         "us_xs": {
@@ -362,7 +362,7 @@
         "low_flow_cfs": 809,
         "high_flow_cfs": 4408,
         "nwm_to_id": "11905834",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905820": {
         "us_xs": {
@@ -382,7 +382,7 @@
         "low_flow_cfs": 780,
         "high_flow_cfs": 3751,
         "nwm_to_id": "11905828",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906198": {
         "us_xs": {
@@ -402,7 +402,7 @@
         "low_flow_cfs": 416,
         "high_flow_cfs": 2088,
         "nwm_to_id": "11905820",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906196": {
         "us_xs": {
@@ -422,7 +422,7 @@
         "low_flow_cfs": 406,
         "high_flow_cfs": 2128,
         "nwm_to_id": "11906198",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905796": {
         "us_xs": {
@@ -442,7 +442,7 @@
         "low_flow_cfs": 400,
         "high_flow_cfs": 2343,
         "nwm_to_id": "11906196",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906190": {
         "us_xs": {
@@ -462,7 +462,7 @@
         "low_flow_cfs": 428,
         "high_flow_cfs": 2568,
         "nwm_to_id": "11905796",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905756": {
         "us_xs": {
@@ -482,7 +482,7 @@
         "low_flow_cfs": 284,
         "high_flow_cfs": 1501,
         "nwm_to_id": "11906190",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905746": {
         "us_xs": {
@@ -504,7 +504,7 @@
         "nwm_to_id": "11905756",
         "gage": "01592500",
         "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=01592500&legacy=1",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905994": {
         "us_xs": {
@@ -524,7 +524,7 @@
         "low_flow_cfs": 839,
         "high_flow_cfs": 4564,
         "nwm_to_id": "11906000",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905974": {
         "us_xs": {
@@ -533,7 +533,7 @@
         "low_flow_cfs": 825,
         "high_flow_cfs": 4686,
         "nwm_to_id": "11905976",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905984": {
         "us_xs": {
@@ -553,7 +553,7 @@
         "low_flow_cfs": 841,
         "high_flow_cfs": 4702,
         "nwm_to_id": "11906290",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906030": {
         "us_xs": {
@@ -573,7 +573,7 @@
         "low_flow_cfs": 835,
         "high_flow_cfs": 4530,
         "nwm_to_id": "11906034",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906036": {
         "us_xs": {
@@ -593,7 +593,7 @@
         "low_flow_cfs": 861,
         "high_flow_cfs": 4603,
         "nwm_to_id": "11906038",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906232": {
         "us_xs": {
@@ -613,7 +613,7 @@
         "low_flow_cfs": 851,
         "high_flow_cfs": 4986,
         "nwm_to_id": "11906240",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11905976": {
         "us_xs": {
@@ -633,7 +633,7 @@
         "low_flow_cfs": 831,
         "high_flow_cfs": 4626,
         "nwm_to_id": "11905984",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906048": {
         "us_xs": {
@@ -653,7 +653,7 @@
         "low_flow_cfs": 925,
         "high_flow_cfs": 5350,
         "nwm_to_id": "11906328",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906046": {
         "us_xs": {
@@ -673,7 +673,7 @@
         "low_flow_cfs": 916,
         "high_flow_cfs": 5085,
         "nwm_to_id": "11906048",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906038": {
         "us_xs": {
@@ -682,7 +682,7 @@
         "low_flow_cfs": 863,
         "high_flow_cfs": 4597,
         "nwm_to_id": "11906046",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906304": {
         "us_xs": {
@@ -702,7 +702,7 @@
         "low_flow_cfs": 838,
         "high_flow_cfs": 4597,
         "nwm_to_id": "11906030",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906290": {
         "us_xs": {
@@ -722,7 +722,7 @@
         "low_flow_cfs": 837,
         "high_flow_cfs": 4647,
         "nwm_to_id": "11905990",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906282": {
         "us_xs": {
@@ -742,7 +742,7 @@
         "low_flow_cfs": 826,
         "high_flow_cfs": 4759,
         "nwm_to_id": "11905974",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11906240": {
         "us_xs": {
@@ -762,7 +762,7 @@
         "low_flow_cfs": 844,
         "high_flow_cfs": 4928,
         "nwm_to_id": "11905886",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908588": {
         "us_xs": {
@@ -782,7 +782,7 @@
         "low_flow_cfs": 2030,
         "high_flow_cfs": 19073,
         "nwm_to_id": "11908594",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908578": {
         "us_xs": {
@@ -791,7 +791,7 @@
         "low_flow_cfs": 2023,
         "high_flow_cfs": 20836,
         "nwm_to_id": "11908582",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908576": {
         "us_xs": {
@@ -811,7 +811,7 @@
         "low_flow_cfs": 2018,
         "high_flow_cfs": 20822,
         "nwm_to_id": "11908578",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908572": {
         "us_xs": {
@@ -831,7 +831,7 @@
         "low_flow_cfs": 2032,
         "high_flow_cfs": 21336,
         "nwm_to_id": "11908576",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908562": {
         "us_xs": {
@@ -851,7 +851,7 @@
         "low_flow_cfs": 2032,
         "high_flow_cfs": 21368,
         "nwm_to_id": "11908566",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908566": {
         "us_xs": {
@@ -871,7 +871,7 @@
         "low_flow_cfs": 2033,
         "high_flow_cfs": 21395,
         "nwm_to_id": "11908572",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907892": {
         "us_xs": {
@@ -891,7 +891,7 @@
         "low_flow_cfs": 2031,
         "high_flow_cfs": 21512,
         "nwm_to_id": "11908554",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908554": {
         "us_xs": {
@@ -911,7 +911,7 @@
         "low_flow_cfs": 2024,
         "high_flow_cfs": 21267,
         "nwm_to_id": "11908560",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908560": {
         "us_xs": {
@@ -931,7 +931,7 @@
         "low_flow_cfs": 2025,
         "high_flow_cfs": 21095,
         "nwm_to_id": "11908562",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907880": {
         "us_xs": {
@@ -951,7 +951,7 @@
         "low_flow_cfs": 2015,
         "high_flow_cfs": 20649,
         "nwm_to_id": "11907892",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907860": {
         "us_xs": {
@@ -971,7 +971,7 @@
         "low_flow_cfs": 2031,
         "high_flow_cfs": 22720,
         "nwm_to_id": "11907880",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907854": {
         "us_xs": {
@@ -991,7 +991,7 @@
         "low_flow_cfs": 2017,
         "high_flow_cfs": 22677,
         "nwm_to_id": "11907860",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907848": {
         "us_xs": {
@@ -1011,7 +1011,7 @@
         "low_flow_cfs": 2018,
         "high_flow_cfs": 22600,
         "nwm_to_id": "11907854",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907838": {
         "us_xs": {
@@ -1031,7 +1031,7 @@
         "low_flow_cfs": 1980,
         "high_flow_cfs": 22834,
         "nwm_to_id": "11907848",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907832": {
         "us_xs": {
@@ -1051,7 +1051,7 @@
         "low_flow_cfs": 1965,
         "high_flow_cfs": 22816,
         "nwm_to_id": "11907838",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907806": {
         "us_xs": {
@@ -1071,7 +1071,7 @@
         "low_flow_cfs": 2023,
         "high_flow_cfs": 24523,
         "nwm_to_id": "11907832",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907782": {
         "us_xs": {
@@ -1091,7 +1091,7 @@
         "low_flow_cfs": 2057,
         "high_flow_cfs": 25101,
         "nwm_to_id": "11907806",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907774": {
         "us_xs": {
@@ -1100,7 +1100,7 @@
         "low_flow_cfs": 2036,
         "high_flow_cfs": 25139,
         "nwm_to_id": "11907782",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908324": {
         "us_xs": {
@@ -1120,7 +1120,7 @@
         "low_flow_cfs": 2023,
         "high_flow_cfs": 24922,
         "nwm_to_id": "11907774",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908316": {
         "us_xs": {
@@ -1140,7 +1140,7 @@
         "low_flow_cfs": 2042,
         "high_flow_cfs": 25872,
         "nwm_to_id": "11908324",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907764": {
         "us_xs": {
@@ -1149,7 +1149,7 @@
         "low_flow_cfs": 2093,
         "high_flow_cfs": 28222,
         "nwm_to_id": "11908316",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907762": {
         "us_xs": {
@@ -1169,7 +1169,7 @@
         "low_flow_cfs": 2084,
         "high_flow_cfs": 29199,
         "nwm_to_id": "11907764",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907758": {
         "us_xs": {
@@ -1191,7 +1191,7 @@
         "nwm_to_id": "11907762",
         "gage": "01594440",
         "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=01594440&legacy=1",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11907746": {
         "us_xs": {
@@ -1211,7 +1211,7 @@
         "low_flow_cfs": 2087,
         "high_flow_cfs": 30505,
         "nwm_to_id": "11907758",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908300": {
         "us_xs": {
@@ -1231,7 +1231,7 @@
         "low_flow_cfs": 2084,
         "high_flow_cfs": 31491,
         "nwm_to_id": "11907746",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908298": {
         "us_xs": {
@@ -1251,7 +1251,7 @@
         "low_flow_cfs": 2081,
         "high_flow_cfs": 31142,
         "nwm_to_id": "11908300",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "11908292": {
         "us_xs": {
@@ -1271,6 +1271,6 @@
         "low_flow_cfs": 2082,
         "high_flow_cfs": 30793,
         "nwm_to_id": "11908298",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     }
 }

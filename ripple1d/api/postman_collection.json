@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "9c07b074-5f35-4309-bbaf-3ed3f1aec045",
 		"name": "ripple1d",
-		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model networkEndFragment",
+		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "11115435"
 	},
@@ -75,7 +75,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"C:\\\\Users\\\\mdeshotel\\\\Downloads\\\\12040101_Models\\\\ripple1d\\\\tests\\\\ras-data\\\\Baxter\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\"\r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -499,6 +499,11 @@
 		{
 			"key": "jobID",
 			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "source_model_directory",
+			"value": "~\\\\repos\\\\ripple1d\\\\tests\\\\ras-data\\\\Baxter",
 			"type": "string"
 		}
 	]

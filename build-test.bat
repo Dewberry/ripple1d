@@ -11,4 +11,4 @@ for %%f in (dist\*.whl) do (
 
 pip install %WHEEL_FILE%
 
-ripple1d start --flask_debug
+@REM ripple1d start --flask_debug
