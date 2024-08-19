@@ -19,7 +19,7 @@
         "nwm_to_id": "2820002",
         "gage": "11290000",
         "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=11290000&legacy=1",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2826228": {
         "us_xs": {
@@ -39,7 +39,7 @@
         "low_flow_cfs": 5668,
         "high_flow_cfs": 19588,
         "nwm_to_id": "2823932",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2823932": {
         "us_xs": {
@@ -59,7 +59,7 @@
         "low_flow_cfs": 5669,
         "high_flow_cfs": 19588,
         "nwm_to_id": "2826230",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2823960": {
         "us_xs": {
@@ -79,7 +79,7 @@
         "low_flow_cfs": 5694,
         "high_flow_cfs": 19607,
         "nwm_to_id": "2823972",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2826230": {
         "us_xs": {
@@ -99,7 +99,7 @@
         "low_flow_cfs": 5671,
         "high_flow_cfs": 19588,
         "nwm_to_id": "2823934",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2823934": {
         "us_xs": {
@@ -119,7 +119,7 @@
         "low_flow_cfs": 5672,
         "high_flow_cfs": 19589,
         "nwm_to_id": "2826224",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2826224": {
         "us_xs": {
@@ -139,7 +139,7 @@
         "low_flow_cfs": 5673,
         "high_flow_cfs": 19588,
         "nwm_to_id": "2823960",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2823920": {
         "us_xs": {
@@ -159,7 +159,7 @@
         "low_flow_cfs": 550,
         "high_flow_cfs": 9392,
         "nwm_to_id": "2823972",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2821866": {
         "us_xs": {
@@ -179,7 +179,7 @@
         "low_flow_cfs": 5707,
         "high_flow_cfs": 21516,
         "nwm_to_id": "2820026",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2820012": {
         "us_xs": {
@@ -199,7 +199,7 @@
         "low_flow_cfs": 5707,
         "high_flow_cfs": 21520,
         "nwm_to_id": "2821866",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2820006": {
         "us_xs": {
@@ -219,7 +219,7 @@
         "low_flow_cfs": 5707,
         "high_flow_cfs": 21527,
         "nwm_to_id": "2820012",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     },
     "2820002": {
         "us_xs": {
@@ -239,6 +239,6 @@
         "low_flow_cfs": 5707,
         "high_flow_cfs": 21526,
         "nwm_to_id": "2820006",
-        "source_nwm_reach": "C:\\Users\\mdeshotel\\Downloads\\nwm_flows_v3.parquet"
+        "source_nwm_reach": "nwm_flows_v3.parquet"
     }
 }
