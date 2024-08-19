@@ -48,9 +48,9 @@ these services are stored in the same directory where ripple1d was started. For 
 ``C:\Users\user\Desktop``, the you will see 2 new files appear on the Desktop:
 
 
-    **Server log**: C:\Users\user\Desktop\2024-08-18T18-46-42.828592+00-00-ripple1d-flask.jsonld
+    **Server log**: 2024-08-18T18-46-42.828592+00-00-ripple1d-flask.jsonld
      
-    **Jobs log**: C:\Users\user\Desktop\2024-08-18T18-46-42.376085+00-00-ripple1d-huey.jsonld
+    **Jobs log**: 2024-08-18T18-46-42.376085+00-00-ripple1d-huey.jsonld`
 
 Verify that ripple is running by checking the status here: http://localhost/ping
 
