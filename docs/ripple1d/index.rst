@@ -12,7 +12,6 @@ mapping results from NWM reach-HEC-RAS models. The Utils module contains helper 
    :maxdepth: 2
    :caption: Modules:
    
-   api/index
    conflate/index
    ops/index
    utils/index
