@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 import requests
 
-import ripple1d
 from ripple1d.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
