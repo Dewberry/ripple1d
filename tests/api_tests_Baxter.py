@@ -90,7 +90,6 @@ class TestApi(unittest.TestCase):
             "source_model_directory": SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_id": REACH_ID,
-            "ripple_version": ripple1d.__version__,
         }
         process = "extract_submodel"
         files = [GPKG_FILE]

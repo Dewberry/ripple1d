@@ -445,12 +445,7 @@ class RippleGeopackageSubsetter:
             json.dump(ripple1d_parameters, f, indent=4)
 
 
-def extract_submodel(
-    source_model_directory: str,
-    submodel_directory: str,
-    nwm_id: int,
-    ripple_version: str = ripple1d.__version__,
-):
+def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
     rsd = RippleSourceDirectory(source_model_directory)
     logging.info(f"Preparing to extract NWM ID {nwm_id} from {rsd.ras_project_file}")
