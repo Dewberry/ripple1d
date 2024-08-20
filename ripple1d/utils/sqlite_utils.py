@@ -42,7 +42,7 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame, boundary_cond
         c.execute(
             f"""
             INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, boundary_condition)
-            VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ( ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 int(row.reach_id),
