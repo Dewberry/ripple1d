@@ -217,6 +217,8 @@ def nwm_reach_model_stac(
             Key=key,
         )
         nwm_rm.update_write_ripple1d_parameters({"model_stac_item": f"https://{bucket}.s3.amazonaws.com/{key}"})
+    else:
+        nwm_rm.update_write_ripple1d_parameters({"model_stac_item": nwm_rm.model_stac_json_file})
 
 
 def update_stac_s3_location(stac_item_file: pystac.Item, bucket: str, s3_prefix: str):
@@ -300,7 +302,7 @@ def fim_lib_item(item_id: str, assets: list, stac_json: str, metadata: dict) -> 
     return item
 
 
-def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str, bucket: str):
+def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str = None, bucket: str = None):
     """Create a stac item for a fim library."""
     nwm_rm = NwmReachModel(ras_project_directory)
 
