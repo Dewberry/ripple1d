@@ -55,10 +55,12 @@ def post_process_depth_grids(
             continue
         for profile_name in rm.plans[plan_name].flow.profile_names:
             # construct the default path to the depth grid for this plan/profile
+            src_dir = os.path.join(rm.ras_project._ras_dir, str(plan_name))
+            terrain_part = os.path.basename(os.listdir(src_dir)[0]).split(".")[-2]
+
             src_path = os.path.join(
-                rm.ras_project._ras_dir,
-                str(plan_name),
-                f"Depth ({profile_name}).{rm.ras_project.title}.USGS_Seamless_DEM_13.tif",
+                src_dir,
+                f"Depth ({profile_name}).{rm.ras_project.title}.{terrain_part}.tif",
             )
 
             # if the depth grid path does not exists print a warning then continue to the next profile
