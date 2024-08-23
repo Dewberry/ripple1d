@@ -102,10 +102,7 @@ class RippleGeopackageSubsetter:
     @property
     def ripple_structure(self) -> gpd.GeoDataFrame:
         """Subset structures based on NWM reach."""
-        gdf = self.subset_gdfs["Structure"]
-        if len(gdf.loc[gdf["type"] == 6, :]) > 0:
-            raise NotImplementedError(f"Lateral structures are not currently supported in ripple1d")
-        return gdf
+        return self.subset_gdfs["Structure"]
 
     @property
     def subset_gdfs(self) -> dict:
@@ -151,7 +148,15 @@ class RippleGeopackageSubsetter:
         os.makedirs(self.dst_project_dir, exist_ok=True)
 
         for layer, gdf in self.subset_gdfs.items():
-            gdf.to_file(self.ripple_gpkg_file, layer=layer)
+            # remove lateral structures
+            if layer == "Structure":
+                if (gdf["type"] == 6).any():
+                    logging.warning(
+                        f"Lateral structures are not currently supported in ripple1d. The lateral structures will be dropped."
+                    )
+                    gdf = gdf.loc[gdf["type"] != 6, :]
+            if gdf.shape[0] > 0:
+                gdf.to_file(self.ripple_gpkg_file, layer=layer)
 
     @property
     def min_flow(self) -> float:
@@ -317,14 +322,12 @@ class RippleGeopackageSubsetter:
             xs_us_reach["ras_data"] = xs_us_reach["ras_data"].apply(
                 lambda ras_data: self.update_river_station(ras_data, self.xs_ds_reach["river_station"].max())
             )
-            if self.source_structure is not None:
+            if structures_us_reach is not None:
                 structures_us_reach["river_station"] = (
-                    structures_us_reach["river_station"] + self.structures_ds_reach["river_station"].max()
+                    structures_us_reach["river_station"] + self.xs_ds_reach["river_station"].max()
                 )
                 structures_us_reach["ras_data"] = structures_us_reach["ras_data"].apply(
-                    lambda ras_data: self.update_river_station(
-                        ras_data, self.structures_ds_reach["river_station"].max()
-                    )
+                    lambda ras_data: self.update_river_station(ras_data, self.xs_ds_reach["river_station"].max())
                 )
         return xs_us_reach, structures_us_reach
 
