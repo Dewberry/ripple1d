@@ -10,7 +10,7 @@ from ripple1d.ras_to_gpkg import new_stac_item_s3
 from ripple1d.ripple1d_logger import configure_logging
 
 
-def main(mip_group: str, processing_table_name: str, bucket: str, ripple1d_version: str):
+def main(mip_group: str, processing_table_name: str, bucket: str):
     """Read from database a list of geopackages to create stac items."""
     db = PGFim()
     optional_condition = "AND gpkg_complete=true AND stac_complete IS NULL"
@@ -61,6 +61,5 @@ if __name__ == "__main__":
     mip_group = "tx_ble_1"
     processing_table_name = "processing_tx_ble_1"
     bucket = "fim"
-    ripple1d_version = ripple1d.__version__
 
-    main(mip_group, processing_table_name, bucket, ripple1d_version)
+    main(mip_group, processing_table_name, bucket)

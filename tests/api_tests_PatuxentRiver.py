@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 import requests
 
-import ripple1d
 from ripple1d.ras import RasFlowText
 
 TEST_DIR = os.path.dirname(__file__)
@@ -90,7 +89,6 @@ class TestApi(unittest.TestCase):
             "source_model_directory": SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_id": REACH_ID,
-            "ripple_version": ripple1d.__version__,
         }
         process = "extract_submodel"
         files = [GPKG_FILE]
@@ -157,11 +155,7 @@ class TestApi(unittest.TestCase):
 
     @check_process
     def test_h_nwm_reach_model_stac(self):
-        payload = {
-            "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
-            "ras_model_s3_prefix": f"stac/test-data/nwm_reach_models/{REACH_ID}",
-            "bucket": "fim",
-        }
+        payload = {"ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}"}
         process = "nwm_reach_model_stac"
         files = [MODEL_STAC_ITEM]
         return process, payload, files
@@ -171,8 +165,6 @@ class TestApi(unittest.TestCase):
         payload = {
             "ras_project_directory": f"{SUBMODELS_BASE_DIRECTORY}\\{REACH_ID}",
             "nwm_reach_id": REACH_ID,
-            "s3_prefix": f"stac/test-data/fim_libs/{REACH_ID}",
-            "bucket": "fim",
         }
         process = "fim_lib_stac"
         files = [FIM_LIB_STAC_ITEM]
