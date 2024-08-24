@@ -3,6 +3,28 @@ Change Log for Users
 
 Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`_  page for a list of all releases.
 
+Bugfix Release 0.4.1
+~~~~~~~~~~~~~~~~~~~~~
+Users Changelog
+----------------
+This release of `ripple1d` fixes several bugs identified during testing.
+
+Features Added
+----------------
+No features added in this version.
+
+**API**
+- `ripple_version` is no longer an option for the body of any endpoints.
+
+Bug Fixes
+----------
+- A bug due to a hard coded terrain path name causing an error on  `create_fim_lib` has been resolved.
+- A bug associated with the `ripple_version` parameter has been resolved by removing the parameter from the body of requests (see note in API above).
+- An issue with including lateral structures (not yet implemented) in the ras geometry files causing hang ups  has been resolved. This fix resolved another issue where stationing was mis-applied in the newly created ras geometry files.
+
+
+-----------
+
 
 Feature Release 0.4.0
 ~~~~~~~~~~~~~~~~~~~~~
