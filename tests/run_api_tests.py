@@ -67,6 +67,8 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
                         "collectors",
                         "--json-report-file",
                         results_files[-1],
+                        "--json-report-indent",
+                        "4",
                         r"tests/api_tests.py",
                         "--model",
                         test_model,
@@ -104,8 +106,13 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
 if __name__ == "__main__":
     """By default (providing no args) this script will run all test reach ids for the Baxter test model and 
     "2930557" and  "11906190" for the MissFldwy and PatuxentRiver test models, respectively.
+
+    # NOTE: For this test ensure pytest-json-report is installed:  pip install pytest-json-report
     Example 1 usage:
     python tests/run_api_tests.py
+
+    # Note: When running and rerunning tests, ensure you delete the /submodels directory for each model
+    # included in the tests,and turn off the servers (close the terminals)
 
     Alternatively, you can specify the test model and reach id to run as args. 
     Example 2 usage:
