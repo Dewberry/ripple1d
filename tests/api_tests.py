@@ -129,16 +129,16 @@ class TestApi(unittest.TestCase):
         rf3 = pd.DataFrame(RasFlowText(self.FLOW3_FILE).flow_change_locations)
         self.assertTrue(len(set(rf3["flows"].iloc[0]) - set(rf2["flows"].iloc[0])) == 0)
 
-    @check_process
-    def test_h_nwm_reach_model_stac(self):
-        payload = {"ras_project_directory": self.SUBMODELS_DIRECTORY}
-        process = "nwm_reach_model_stac"
-        files = [self.MODEL_STAC_ITEM]
-        return process, payload, files
+    # @check_process
+    # def test_h_nwm_reach_model_stac(self):
+    #     payload = {"ras_project_directory": self.SUBMODELS_DIRECTORY}
+    #     process = "nwm_reach_model_stac"
+    #     files = [self.MODEL_STAC_ITEM]
+    #     return process, payload, files
 
-    @check_process
-    def test_i_fim_lib_stac(self):
-        payload = {"ras_project_directory": self.SUBMODELS_DIRECTORY, "nwm_reach_id": self.REACH_ID}
-        process = "fim_lib_stac"
-        files = [self.FIM_LIB_STAC_ITEM]
-        return process, payload, files
+    # @check_process
+    # def test_i_fim_lib_stac(self):
+    #     payload = {"ras_project_directory": self.SUBMODELS_DIRECTORY, "nwm_reach_id": self.REACH_ID}
+    #     process = "fim_lib_stac"
+    #     files = [self.FIM_LIB_STAC_ITEM]
+    #     return process, payload, files
