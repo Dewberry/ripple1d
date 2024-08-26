@@ -183,3 +183,5 @@ pids.txt
 py312/
 *.log*
 venv3/
+*huey.jsonld
+*flask.jsonld
