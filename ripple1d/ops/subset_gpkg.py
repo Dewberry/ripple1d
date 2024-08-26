@@ -246,6 +246,8 @@ class RippleGeopackageSubsetter:
                 & (self.source_structure["river_station"] >= float(self.ds_rs))
                 & (self.source_structure["river_station"] <= float(self.us_rs))
             ]
+        else:
+            structures_subset_gdf = None
         river_subset_gdf = self.source_river.loc[
             (self.source_river["river"] == self.us_river) & (self.source_river["reach"] == self.us_reach)
         ]
