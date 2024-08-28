@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "9c07b074-5f35-4309-bbaf-3ed3f1aec045",
+		"_postman_id": "ec609174-f5c5-48c7-ad94-44f12b07b45f",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "11115435"
+		"_exporter_id": "29128857"
 	},
 	"item": [
 		{
@@ -65,6 +65,35 @@
 							]
 						},
 						"description": "Send a test job to verify system health."
+					},
+					"response": []
+				},
+				{
+					"name": "compute_conflation_metrics",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"src_gpkg_path\": \"{{source_model_directory}}\\\\Baxter.gpkg\",\r\n    \"conflation_json\": \"{{source_model_directory}}\\\\Baxter.conflation.json\",\r\n    \"nwm_pq_path\": \"{{nwm_data_directory}}\\\\flows.parquet\"\r\n    \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/compute_conflation_metrics/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"compute_conflation_metrics",
+								"execution"
+							]
+						},
+						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
 					},
 					"response": []
 				},
@@ -504,6 +533,11 @@
 		{
 			"key": "source_model_directory",
 			"value": "~\\\\repos\\\\ripple1d\\\\tests\\\\ras-data\\\\Baxter",
+			"type": "string"
+		},
+		{
+			"key": "nwm_data_directory",
+			"value": "~\\\\repos\\\\ripple1d\\\\tests\\\\nwm-data",
 			"type": "string"
 		}
 	]
