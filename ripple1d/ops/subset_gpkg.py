@@ -106,7 +106,7 @@ class RippleGeopackageSubsetter:
 
     @property
     def subset_gdfs(self) -> dict:
-        """Subset the cross sections and river geometry for a given NWM reach."""
+        """Subset the cross sections, structues, and river geometry for a given NWM reach."""
         # subset data
         if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
             ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()

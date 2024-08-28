@@ -37,7 +37,7 @@ RIVER_REACHES = [
 ]
 
 NWM_REACHES_DATA = "flows.parquet"
-NWM_REACHE_IDS = [2826228]
+NWM_REACH_IDS = [2826228]
 RAS_DIR = "Baxter"
 RAS_GEOMETRY_GPKG = "Baxter.gpkg"
 
