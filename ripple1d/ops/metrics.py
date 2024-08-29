@@ -87,7 +87,7 @@ def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_
     """Compute metrics for a nwm reach."""
     conflation_parameters = json.load(open(conflation_json))
 
-    for nwm_id in conflation_parameters.keys():
+    for nwm_id in conflation_parameters["reaches"].keys():
 
         rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "", nwm_id)
         layers = {}
@@ -101,7 +101,7 @@ def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_
 
         metrics = {"thalweg": cm.thalweg_metrics(layers["XS"]), "reach_length": cm.reach_length_metrics(layers["XS"])}
 
-        conflation_parameters[nwm_id].update({"metrics": metrics})
+        conflation_parameters["reaches"][nwm_id].update({"metrics": metrics})
 
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
