@@ -4,7 +4,7 @@ import unittest
 import geopandas as gpd
 import pytest
 
-from ripple1d.ops.metrics import ConflationMetrics, combine_reaches, compute_metrics
+from ripple1d.ops.metrics import ConflationMetrics, combine_reaches, compute_conflation_metrics
 from ripple1d.ops.subset_gpkg import RippleGeopackageSubsetter
 
 # Expected counts
