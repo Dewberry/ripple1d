@@ -77,7 +77,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
     version = source_network.get("version", "")
 
     rfc = RasFimConflater(nwm_pq_path, source_model_directory)
-    metadata = {}
+    metadata = {"reaches": {}}
     # get nwm reaches that intersect the convex hull of the ras model
     model_local_nwm_reaches = rfc.local_nwm_reaches()
     for river_reach_name in rfc.ras_river_reach_names:
@@ -118,9 +118,9 @@ def conflate_model(source_model_directory: str, source_network: dict):
         # get gdf of the candidate reaches
         candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-        metadata["reaches"] = ras_reaches_metadata(rfc, candidate_reaches)
+        metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
 
-    ids = [r for r in metadata.keys() if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]]
+    ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
     conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
 
@@ -147,68 +147,68 @@ def conflate_model(source_model_directory: str, source_network: dict):
     return conflation_file
 
 
-def conflate_s3_model(
-    item: pystac.Item, client: boto3.client, bucket: str, stac_item_s3_key: str, rfc: RasFimConflater
-):
-    """Conflate a model from s3."""
-    # build conflation key and href
-    nwm_conflation_key = stac_item_s3_key.replace(".json", ".conflation.json")
-    nwm_conflation_href = s3_public_href(bucket, nwm_conflation_key)
+# def conflate_s3_model(
+#     item: pystac.Item, client: boto3.client, bucket: str, stac_item_s3_key: str, rfc: RasFimConflater
+# ):
+#     """Conflate a model from s3."""
+#     # build conflation key and href
+#     nwm_conflation_key = stac_item_s3_key.replace(".json", ".conflation.json")
+#     nwm_conflation_href = s3_public_href(bucket, nwm_conflation_key)
 
-    # conflate the mip ras model to nwm reaches
-    conflation_results = conflate(rfc)
+#     # conflate the mip ras model to nwm reaches
+#     conflation_results = conflate(rfc)
 
-    # write conflation results to s3
-    client.put_object(
-        Body=json.dumps(conflation_results).encode(),
-        Bucket=bucket,
-        Key=nwm_conflation_key,
-    )
+#     # write conflation results to s3
+#     client.put_object(
+#         Body=json.dumps(conflation_results).encode(),
+#         Bucket=bucket,
+#         Key=nwm_conflation_key,
+#     )
 
-    # Add ripple parameters asset to item
-    item.add_asset(
-        "NWM_Conflation",
-        pystac.Asset(
-            nwm_conflation_href,
-            title="NWM_Conflation",
-            roles=[pystac.MediaType.JSON, "nwm-conflation"],
-            extra_fields={
-                "software": f"ripple1d {ripple1d.__version__}",
-                "date_created": datetime.now().isoformat(),
-            },
-        ),
-    )
+#     # Add ripple parameters asset to item
+#     item.add_asset(
+#         "NWM_Conflation",
+#         pystac.Asset(
+#             nwm_conflation_href,
+#             title="NWM_Conflation",
+#             roles=[pystac.MediaType.JSON, "nwm-conflation"],
+#             extra_fields={
+#                 "software": f"ripple1d {ripple1d.__version__}",
+#                 "date_created": datetime.now().isoformat(),
+#             },
+#         ),
+#     )
 
-    limit_plot = True
+#     limit_plot = True
 
-    conflation_thumbnail_key = nwm_conflation_key.replace("json", "png")
-    conflation_thumbnail_href = s3_public_href(bucket, conflation_thumbnail_key)
+#     conflation_thumbnail_key = nwm_conflation_key.replace("json", "png")
+#     conflation_thumbnail_href = s3_public_href(bucket, conflation_thumbnail_key)
 
-    ids = [r for r in conflation_results.keys() if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]]
+#     ids = list(conflation_results["reaches"].keys())
 
-    fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
+#     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
 
-    plot_conflation_results(
-        rfc,
-        fim_stream,
-        conflation_thumbnail_key,
-        bucket=bucket,
-        s3_client=client,
-        limit_plot_to_nearby_reaches=limit_plot,
-    )
-    # Add thumbnail asset to item
-    item.add_asset(
-        "ThumbnailConflationResults",
-        pystac.Asset(
-            conflation_thumbnail_href,
-            title="ThumbnailConflationResults",
-            roles=[pystac.MediaType.PNG, "thumbnail"],
-            extra_fields={
-                "software": f"ripple1d {ripple1d.__version__}",
-                "date_created": datetime.now().isoformat(),
-            },
-            description="""PNG of NWM conflation results with OpenStreetMap basemap.""",
-        ),
-    )
+#     plot_conflation_results(
+#         rfc,
+#         fim_stream,
+#         conflation_thumbnail_key,
+#         bucket=bucket,
+#         s3_client=client,
+#         limit_plot_to_nearby_reaches=limit_plot,
+#     )
+#     # Add thumbnail asset to item
+#     item.add_asset(
+#         "ThumbnailConflationResults",
+#         pystac.Asset(
+#             conflation_thumbnail_href,
+#             title="ThumbnailConflationResults",
+#             roles=[pystac.MediaType.PNG, "thumbnail"],
+#             extra_fields={
+#                 "software": f"ripple1d {ripple1d.__version__}",
+#                 "date_created": datetime.now().isoformat(),
+#             },
+#             description="""PNG of NWM conflation results with OpenStreetMap basemap.""",
+#         ),
+#     )
 
-    client.put_object(Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=stac_item_s3_key)
+#     client.put_object(Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=stac_item_s3_key)
