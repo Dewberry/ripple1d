@@ -92,6 +92,7 @@ def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_
         rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "", nwm_id)
         layers = {}
         for layer, gdf in rgs.subset_gdfs.items():
+            # TODO: add variable for CRS
             layers[layer] = gdf.to_crs(5070)
 
         nwm_reaches = gpd.read_parquet(nwm_pq_path, bbox=layers["XS"].total_bounds)

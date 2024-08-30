@@ -59,7 +59,6 @@ class RasFimConflater:
             s3://noaa-nws-owp-fim/rasfim/inputs/X-National_Datasets/nwm_flows.gpkg
         ras_gpkg (str): Path to the RAS GeoPackage
         load_data (bool, optional): Load the data on initialization. Defaults to True.
-        bucket (str, optional): S3 bucket to read data from. Defaults to "fim".
 
     Raises
     ------
@@ -68,11 +67,13 @@ class RasFimConflater:
     """
 
     def __init__(
-        self, nwm_pq: str, ras_gpkg: str, load_data: bool = True, bucket="fim", output_concave_hull_path: str = None
+        self, nwm_pq: str, source_model_directory: str, load_data: bool = True, output_concave_hull_path: str = None
     ):
         self.nwm_pq = nwm_pq
-        self.ras_gpkg = ras_gpkg
-        self.bucket = bucket
+        self.source_model_directory = source_model_directory
+        self.ras_model_name = os.path.basename(source_model_directory)
+        self.ras_gpkg = f"{source_model_directory}/{self.ras_model_name}.gpkg"
+
         self.output_concave_hull_path = output_concave_hull_path
         self._nwm_reaches = None
 
