@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from datetime import datetime
 from urllib.parse import quote
 
@@ -17,6 +18,7 @@ from ripple1d.conflate.rasfim import (
     ras_reaches_metadata,
     walk_network,
 )
+from ripple1d.ops.metrics import compute_conflation_metrics
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
@@ -54,8 +56,27 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         raise ValueError(f"nwm_reach_id {nwm_reach_id} not conflating to the ras model geometry.")
 
 
-def conflate(rfc: RasFimConflater):
-    """Conflate a HEC-RAS model with NWM reaches."""
+def conflate_model(source_model_directory: str, source_network: dict):
+    """Conflate a HEC-RAS model with NWM reaches.
+
+    source_network example:
+    {
+        "file_name": "nwm_flows_v3.parquet", // required
+        "version": "2.1" // could be empty if not provided by the caller
+        "type": "nwm_hydrofabric" // required
+    }
+    """
+    try:
+        nwm_pq_path = source_network["file_name"]
+    except KeyError:
+        raise KeyError(f"source_network must contain 'file_name', invalid parameters: {source_network}")
+
+    if not source_network["type"] == "nwm_hydrofabric":
+        raise ValueError(f"source_network type must be 'nwm_hydrofabric', invalid parameters: {source_network}")
+
+    version = source_network.get("version", "")
+
+    rfc = RasFimConflater(nwm_pq_path, source_model_directory)
     metadata = {}
     # get nwm reaches that intersect the convex hull of the ras model
     model_local_nwm_reaches = rfc.local_nwm_reaches()
@@ -97,12 +118,33 @@ def conflate(rfc: RasFimConflater):
         # get gdf of the candidate reaches
         candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-        reach_metadata = ras_reaches_metadata(rfc, candidate_reaches)
-        metadata.update(reach_metadata)
+        metadata["reaches"] = ras_reaches_metadata(rfc, candidate_reaches)
 
-    rfc.write_hulls()
+    ids = [r for r in metadata.keys() if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]]
+    fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
+    conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
 
-    return metadata
+    plot_conflation_results(
+        rfc,
+        fim_stream,
+        conflation_png,
+        limit_plot_to_nearby_reaches=True,
+    )
+
+    metadata["source_network"] = source_network
+    metadata["source_network"]["conflation_png"] = os.path.basename(conflation_png)
+    logging.info(f"Conflation results: {metadata}")
+    conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
+
+    with open(conflation_file, "w") as f:
+        f.write(json.dumps(metadata, indent=4))
+
+    try:
+        compute_conflation_metrics(rfc.ras_gpkg, nwm_pq_path, conflation_file)
+    except Exception as e:
+        logging.error(f"Error: {e}")
+
+    return conflation_file
 
 
 def conflate_s3_model(

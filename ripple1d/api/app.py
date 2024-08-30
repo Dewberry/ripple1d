@@ -12,6 +12,7 @@ from ripple1d.api import tasks
 from ripple1d.api.utils import get_unexpected_and_missing_args
 from ripple1d.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
 from ripple1d.ops.metrics import compute_conflation_metrics
+from ripple1d.ops.ras_conflate import conflate_model
 from ripple1d.ops.ras_run import (
     create_model_run_normal_depth,
     run_incremental_normal_depth,
@@ -21,6 +22,12 @@ from ripple1d.ops.ras_terrain import create_ras_terrain
 from ripple1d.ops.subset_gpkg import extract_submodel
 
 app = Flask(__name__)
+
+
+@app.route("/processes/conflate_model/execution", methods=["POST"])
+def process__conflate_model():
+    """Enqueue a task to conflate a source model."""
+    return enqueue_async_task(conflate_model)
 
 
 @app.route("/processes/compute_conflation_metrics/execution", methods=["POST"])
