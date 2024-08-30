@@ -45,8 +45,8 @@ RAS_GEOMETRY_GPKG = "Baxter.gpkg"
 @pytest.fixture(scope="class")
 def setup_data(request):
     nwm_pq_path = os.path.join(TEST_DIR, "nwm-data", NWM_REACHES_DATA)
-    ras_gpkg_path = os.path.join(TEST_DIR, "ras-data", RAS_DIR, RAS_GEOMETRY_GPKG)
-    conflater = RasFimConflater(nwm_pq_path, ras_gpkg_path)
+    source_model_directory = os.path.join(TEST_DIR, "ras-data", RAS_DIR)
+    conflater = RasFimConflater(nwm_pq_path, source_model_directory)
     request.cls.conflater = conflater
 
 

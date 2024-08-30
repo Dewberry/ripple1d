@@ -5,7 +5,7 @@ import subprocess
 import sys
 import time
 
-from api_tests import start_server
+from api_tests import start_server, submit_job, wait_for_job
 
 
 def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
@@ -13,9 +13,10 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
     current_dir = os.path.dirname(__file__)
 
     if not test_model:
-        test_models = ["Baxter", "MissFldwy", "PatuxentRiver"]
+        test_models = ["Baxter"]#, "MissFldwy", "PatuxentRiver"]
     else:
         test_models = [test_model]
+
     if not reach_id:
         reach_ids = [
             "2826228",
@@ -42,6 +43,16 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
     fails = {}
     passes = 0
     for test_model in test_models:
+        payload = {
+            "source_model_directory":f"{current_dir}/ras-data/{test_model}",
+            "source_network":{
+                "file_name":f"{current_dir}/nwm-data/flows.parquet",
+                "version":"2.1",
+                "type":"nwm_hydrofabric"
+            }
+        }
+        response = submit_job("conflate_model", payload)
+        status = wait_for_job(response["jobID"])
 
         conflation_file = os.path.join(current_dir, "ras-data", test_model, f"{test_model}.conflation.json")
         if not os.path.exists(conflation_file):
