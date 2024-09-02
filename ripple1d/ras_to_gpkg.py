@@ -40,13 +40,14 @@ from ripple1d.utils.sqlite_utils import create_non_spatial_table
 
 
 def geom_flow_to_gpkg(
-    ras_project: RasProject, crs: CRS, gpkg_file: str, client: boto3.client = None, bucket: str = None
+    ras_project: RasProject, crs: str, gpkg_file: str, metadata: dict, client: boto3.client = None, bucket: str = None
 ) -> None:
     """Write geometry and flow data to a geopackage."""
-    layers = geom_flow_to_gdfs(ras_project, crs, client, bucket)
+    layers, metadata = geom_flow_to_gdfs(ras_project, crs, metadata, client, bucket)
     for layer, gdf in layers.items():
         gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
     create_non_spatial_table(gpkg_file, metadata)
+    return metadata
 
 
 def find_a_valid_file(
@@ -62,12 +63,56 @@ def find_a_valid_file(
             return path
 
 
+def gather_metdata(metadata: dict, ras_project: RasProject, rp: RasPlanText, rf: RasFlowText, rg: RasGeomText) -> dict:
+    """Gather metadata from the ras project and its components."""
+    metadata["plans_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.plans if get_path(i)]
+    )
+    metadata["geom_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.geoms if get_path(i)]
+    )
+    metadata["steady_flow_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.steady_flows if get_path(i)]
+    )
+    metadata["unsteady_flow_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.unsteady_flows if get_path(i)]
+    )
+    metadata["ras_project_file"] = ras_project._ras_text_file_path.replace(f"{ras_project._ras_dir}\\", "")
+    metadata["ras_project_title"] = ras_project.title
+    metadata["plans_titles"] = "\n".join(
+        [RasPlanText(get_path(i), rg.crs).title for i in ras_project.plans if get_path(i)]
+    )
+    metadata["geom_titles"] = "\n".join(
+        [RasGeomText(get_path(i), rg.crs).title for i in ras_project.geoms if get_path(i)]
+    )
+    metadata["steady_flow_titles"] = "\n".join(
+        [RasFlowText(get_path(i)).title for i in ras_project.steady_flows if get_path(i)]
+    )
+    metadata["active_plan"] = get_path(ras_project._ras_root_path + ras_project.current_plan).replace(
+        f"{ras_project._ras_dir}\\", ""
+    )
+    metadata["primary_plan_file"] = get_path(rp._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+    metadata["primary_plan_title"] = rp.title
+    metadata["primary_flow_file"] = get_path(rf._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+    metadata["primary_geom_file"] = get_path(rg._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+    metadata["primary_geom_title"] = rg.title
+    metadata["primary_flow_title"] = rf.title
+    if len(rg.version) >= 1:
+        metadata["ras_version"] = rg.version[0]
+    else:
+        metadata["ras_version"] = None
+    metadata["ripple1d_version"] = ripple1d.__version__
+    fcls = pd.DataFrame(rf.flow_change_locations)
+    metadata["profile_names"] = "\n".join(fcls["profile_names"].iloc[0])
+    metadata["units"] = ras_project.units
+    return metadata
+
+
 def geom_flow_to_gdfs(
-    ras_project: RasProject, crs: CRS, client: boto3.client = None, bucket: str = None
-) -> gpd.GeoDataFrame:
+    ras_project: RasProject, crs: str, metadata: dict, client: boto3.client = None, bucket: str = None
+) -> tuple:
     """Write geometry and flow data to a geopackage."""
     if client and bucket:
-
         rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
         # get steady flow file
         try:
@@ -116,12 +161,14 @@ def geom_flow_to_gdfs(
 
     if rg.reaches:
         layers["River"] = rg.reach_gdf
+
     if rg.junctions:
         layers["Junction"] = rg.junction_gdf
 
     if rg.structures:
         layers["Structure"] = rg.structures_gdf
-    return layers
+
+    return layers, gather_metdata(metadata, ras_project, rp, rf, rg)
 
 
 def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
