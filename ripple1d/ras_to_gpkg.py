@@ -1,9 +1,11 @@
 """Extract geospatial data from HEC-RAS files."""
 
+import glob
 import json
 import logging
 import os
 import shutil
+import sqlite3
 import tempfile
 from pathlib import Path, PurePosixPath
 
@@ -28,7 +30,7 @@ from ripple1d.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
-from ripple1d.utils.ripple_utils import get_path
+from ripple1d.utils.ripple_utils import get_path, prj_is_ras
 from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -57,7 +59,7 @@ def find_a_valid_file(
     if client and bucket:
         paths = list_keys(client, bucket, directory)
     else:
-        paths = glob.glob(directory)
+        paths = glob.glob(f"{directory}/*")
     for path in paths:
         if Path(path).suffix in valid_extensions:
             return path
@@ -121,9 +123,6 @@ def geom_flow_to_gdfs(
             logging.warning(e)
             plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS, client, bucket)
 
-        string = str_from_s3(plan_steady_file, client, bucket)
-        rf = RasFlowText.from_str(string, " .f01")
-
         # get geometry file
         try:
             plan_geom_file = get_path(rp.plan_geom_file, client, bucket)
@@ -131,15 +130,28 @@ def geom_flow_to_gdfs(
             logging.warning(e)
             plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS, client, bucket)
 
+        string = str_from_s3(plan_steady_file, client, bucket)
+        rf = RasFlowText.from_str(string, " .f01")
+
         string = str_from_s3(plan_geom_file, client, bucket)
         rg = RasGeomText.from_str(string, crs, " .g01")
+
     else:
         rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path)
 
-        plan_steady_file = get_path(rp.plan_steady_file)
-        rf = RasFlowText(plan_steady_file)
+        try:
+            plan_steady_file = get_path(rp.plan_steady_file)
+        except NoFlowFileSpecifiedError as e:
+            logging.warning(e)
+            plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS)
 
-        plan_geom_file = get_path(rp.plan_geom_file)
+        try:
+            plan_geom_file = get_path(rp.plan_geom_file)
+        except NoFlowFileSpecifiedError as e:
+            logging.warning(e)
+            plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS)
+
+        rf = RasFlowText(plan_steady_file)
         rg = RasGeomText(plan_geom_file, crs)
 
     layers = {}
@@ -205,8 +217,8 @@ def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame)
 
 
 def detemine_primary_plan(
-    ras_project: str,
-    crs: CRS,
+    ras_project: RasProject,
+    crs: str,
     ras_text_file_path: str,
     client: boto3.session.Session.client = None,
     bucket: str = None,
@@ -255,13 +267,25 @@ def detemine_primary_plan(
         return candidate_plans[0]
 
 
-def geom_to_gpkg(ras_text_file_path: str, crs: CRS, output_gpkg_path: str):
+def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
     """Write geometry and flow data to a geopackage locally."""
-    ras_project = RasProject(ras_text_file_path)
-    geom_flow_to_gpkg(ras_project, crs, output_gpkg_path)
+    prjs = glob.glob(f"{source_model_directory}/*.prj")
+    ras_text_file_path = None
+
+    for prj in prjs:
+        if prj_is_ras(prj):
+            ras_text_file_path = prj
+            break
+
+    if not ras_text_file_path:
+        raise FileNotFoundError(f"No ras project file found in {source_model_directory}")
+
+    output_gpkg_path = ras_text_file_path.replace(".prj", ".gpkg")
+    rp = RasProject(ras_text_file_path)
+    return geom_flow_to_gpkg(rp, crs, output_gpkg_path, metadata)
 
 
-def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
+def gpkg_from_ras_s3(s3_prefix: str, crs: str, metadata: dict, bucket: str):
     """Write geometry and flow data to a geopackage on s3."""
     _, client, _ = init_s3_resources()
 
@@ -269,14 +293,23 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     temp_dir = tempfile.mkdtemp()
     temp_path = os.path.join(temp_dir, "temp.gpkg")
 
+    ras_text_file_path = None
+    for key in list_keys(client, bucket, s3_prefix, ".prj"):
+        string = str_from_s3(key, client, bucket)
+        if "Proj Title" in string.split("\n")[0]:
+            ras_text_file_path = key
+            break
+
+    if not ras_text_file_path:
+        raise FileNotFoundError(f"No ras project file found in {s3_prefix}")
+
     # read ras project file get list of plans
-    string = str_from_s3(ras_text_file_path, client, bucket)
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
-    geom_flow_to_gpkg(ras_project, crs, temp_path, client, bucket)
+    geom_flow_to_gpkg(ras_project, crs, temp_path, metadata, client, bucket)
 
     # move geopackage to s3
-    output_gpkg_path = output_gpkg_path.replace(f"s3://{bucket}/", "")
+    output_gpkg_path = ras_text_file_path.replace(f"s3://{bucket}/", "").replace(".prj", ".gpkg")
     logging.debug(f"uploading {output_gpkg_path} to s3")
     client.upload_file(
         Bucket=bucket,
