@@ -36,6 +36,7 @@ from ripple1d.utils.s3_utils import (
     s3_key_public_url_converter,
     str_from_s3,
 )
+from ripple1d.utils.sqlite_utils import create_non_spatial_table
 
 
 def geom_flow_to_gpkg(
@@ -45,6 +46,7 @@ def geom_flow_to_gpkg(
     layers = geom_flow_to_gdfs(ras_project, crs, client, bucket)
     for layer, gdf in layers.items():
         gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
+    create_non_spatial_table(gpkg_file, metadata)
 
 
 def find_a_valid_file(
