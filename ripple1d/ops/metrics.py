@@ -44,19 +44,16 @@ class ConflationMetrics:
 
         xs_gdf["nwm_intersection_point"] = xs_gdf.apply(lambda row: self.nwm_reach.intersection(row.geometry), axis=1)
 
-        xs_gdf["intersection_delta_xy"] = xs_gdf.apply(
+        xs_gdf["centerline_offset"] = xs_gdf.apply(
             lambda row: row["ras_intersection_point"].distance(row["nwm_intersection_point"]), axis=1
         )
-        xs_gdf["thalweg_delta_xy"] = xs_gdf.apply(
+        xs_gdf["thalweg_offset"] = xs_gdf.apply(
             lambda row: row["thalweg_point"].distance(row["nwm_intersection_point"]), axis=1
         )
 
         return {
-            "intersection_delta_xy": xs_gdf["intersection_delta_xy"]
-            .describe(np.linspace(0.1, 1, 10))
-            .round()
-            .to_dict(),
-            "thalweg_delta_xy": xs_gdf["thalweg_delta_xy"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
+            "centerline_offset": xs_gdf["centerline_offset"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
+            "thalweg_offset": xs_gdf["thalweg_offset"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
         }
 
     def length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
