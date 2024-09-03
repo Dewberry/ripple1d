@@ -57,10 +57,14 @@ class ConflationMetrics:
         }
 
     def length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
-        """Calculate the reach length between cross sections along the ras river line and the NWM reach."""
-        xs_gdf["nwm_intersection_point"] = xs_gdf.apply(lambda row: self.nwm_reach.intersection(row.geometry), axis=1)
-        xs_gdf["nwm_station"] = xs_gdf.apply(lambda row: self.nwm_reach.project(row["nwm_intersection_point"]), axis=1)
-        xs_gdf["nwm_reach_length"] = xs_gdf["nwm_station"].diff()
+        """Calculate the reach length between cross sections along the ras river line and the network reach."""
+        xs_gdf["network_intersection_point"] = xs_gdf.apply(
+            lambda row: self.network_reach.intersection(row.geometry), axis=1
+        )
+        xs_gdf["network_station"] = xs_gdf.apply(
+            lambda row: self.network_reach.project(row["network_intersection_point"]), axis=1
+        )
+        network_length = xs_gdf["network_station"].max() - xs_gdf["network_station"].min()
 
         if len(xs_gdf["river_reach"].unique()) > 1:
             raise ValueError("Cross sections must all be on the same river reach.")
@@ -70,13 +74,13 @@ class ConflationMetrics:
             ].iloc[0]
             xs_gdf["ras_intersection_point"] = xs_gdf.apply(lambda row: river_line.intersection(row.geometry), axis=1)
             xs_gdf["ras_station"] = xs_gdf.apply(lambda row: river_line.project(row["ras_intersection_point"]), axis=1)
-            xs_gdf["ras_reach_length"] = xs_gdf["ras_station"].diff()
+            ras_length = xs_gdf["ras_station"].max() - xs_gdf["ras_station"].min()
 
-            xs_gdf["nwm_to_ras_ratio"] = xs_gdf["nwm_reach_length"] / xs_gdf["ras_reach_length"]
+            nwm_ras_ratio = nwm_length / ras_length
         return {
-            "ras": xs_gdf["ras_reach_length"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
-            "nwm": xs_gdf["nwm_reach_length"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
-            "nwm_to_ras_ratio": xs_gdf["nwm_to_ras_ratio"].describe(np.linspace(0.1, 1, 10)).round(2).to_dict(),
+            "ras": ras_length,
+            "network": nwm_length,
+            "network_to_ras_ratio": nwm_ras_ratio,
         }
 
 
