@@ -72,7 +72,7 @@ class RasFimConflater:
         self.nwm_pq = nwm_pq
         self.source_model_directory = source_model_directory
         self.ras_model_name = os.path.basename(source_model_directory)
-        self.ras_gpkg = f"{source_model_directory}/{self.ras_model_name}.gpkg"
+        self.ras_gpkg = os.path.join(source_model_directory,f"{self.ras_model_name}.gpkg")
 
         self.output_concave_hull_path = output_concave_hull_path
         self._nwm_reaches = None
