@@ -101,7 +101,7 @@ def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_
 
         cm = ConflationMetrics(layers["XS"], layers["River"], nwm_reach)
 
-        metrics = {"thalweg": cm.thalweg_metrics(layers["XS"]), "lengths": cm.length_metrics(layers["XS"])}
+        metrics = {"xs": cm.thalweg_metrics(layers["XS"]), "lengths": cm.length_metrics(layers["XS"])}
 
         conflation_parameters["reaches"][nwm_id].update({"metrics": metrics})
 
