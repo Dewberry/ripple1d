@@ -59,7 +59,7 @@ class ConflationMetrics:
             "thalweg_delta_xy": xs_gdf["thalweg_delta_xy"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
         }
 
-    def reach_length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
+    def length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
         """Calculate the reach length between cross sections along the ras river line and the NWM reach."""
         xs_gdf["nwm_intersection_point"] = xs_gdf.apply(lambda row: self.nwm_reach.intersection(row.geometry), axis=1)
         xs_gdf["nwm_station"] = xs_gdf.apply(lambda row: self.nwm_reach.project(row["nwm_intersection_point"]), axis=1)
@@ -100,7 +100,7 @@ def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_
 
         cm = ConflationMetrics(layers["XS"], layers["River"], nwm_reach)
 
-        metrics = {"thalweg": cm.thalweg_metrics(layers["XS"]), "reach_length": cm.reach_length_metrics(layers["XS"])}
+        metrics = {"thalweg": cm.thalweg_metrics(layers["XS"]), "lengths": cm.length_metrics(layers["XS"])}
 
         conflation_parameters["reaches"][nwm_id].update({"metrics": metrics})
 
