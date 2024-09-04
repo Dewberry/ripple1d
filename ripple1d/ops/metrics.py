@@ -108,6 +108,14 @@ class ConflationMetrics:
             )
         return [{"id": str(to_reach["ID"]), "overlap": overlap}]
 
+    def eclipsed_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
+        """Calculate the overlap between the network reach and the cross sections."""
+        if network_reaches.empty:
+            return []
+        eclipsed_reaches = network_reaches[network_reaches.covered_by(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0])]
+
+        return [str(row["ID"]) for _, row in eclipsed_reaches.iterrows()]
+
     def compute_coverage_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
         """Calculate the coverage metrics for a set of cross sections."""
         xs_gdf["intersection_point"] = xs_gdf.apply(
@@ -135,6 +143,7 @@ def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflat
         network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(network_id), "geometry"].iloc[0])
         network_reach_plus_ds_reach = combine_reaches(network_reaches, network_id)
 
+        cm = ConflationMetrics(layers["XS"], layers["River"], network_reach, network_reach_plus_ds_reach)
 
         metrics = {
             "xs": cm.thalweg_metrics(layers["XS"]),
@@ -144,9 +153,11 @@ def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflat
         to_id = network_reaches.loc[network_reaches["ID"] != int(network_id), "to_id"].iloc[0]
 
         overlapped_reaches = cm.overlapped_reaches(network_reaches[network_reaches["ID"] == int(to_id)])
+        eclipsed_reaches = cm.eclipsed_reaches(network_reaches[network_reaches["ID"] != int(network_id)])
 
         conflation_parameters["reaches"][network_id].update({"metrics": metrics})
         conflation_parameters["reaches"][network_id].update({"overlapped_reaches": overlapped_reaches})
+        conflation_parameters["reaches"][network_id].update({"eclipsed_reaches": eclipsed_reaches})
 
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
