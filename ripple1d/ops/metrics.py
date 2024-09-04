@@ -14,10 +14,10 @@ from ripple1d.ops.subset_gpkg import RippleGeopackageSubsetter
 class ConflationMetrics:
     """Calculate metrics for a cross section."""
 
-    def __init__(self, xs_gdf: gpd.GeoDataFrame, river_gdf: gpd.GeoDataFrame, nwm_reach: LineString):
+        network_reach: LineString,
         self.xs_gdf = xs_gdf
         self.river_gdf = river_gdf
-        self.nwm_reach = nwm_reach
+        self.network_reach = network_reach
         self.crs = xs_gdf.crs
 
     def populate_station_elevation(self, row: pd.Series) -> dict:
@@ -31,7 +31,7 @@ class ConflationMetrics:
         return df.loc[df["elevation"] == row.thalweg].index[0]
 
     def thalweg_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
-        """Calculate the distance between the thalweg point and the NWM intersection point."""
+        """Calculate the distance between the thalweg point and the network intersection point."""
         xs_gdf["station_elevation"] = xs_gdf.apply(lambda row: self.populate_station_elevation(row), axis=1)
         xs_gdf["thalweg_station"] = xs_gdf.apply(lambda row: self.populate_thalweg_station(row), axis=1)
         xs_gdf["thalweg_point"] = xs_gdf.apply(lambda row: row.geometry.interpolate(row["thalweg_station"]), axis=1)
@@ -42,13 +42,15 @@ class ConflationMetrics:
                 xs_gdf["river_reach"] == r["river_reach"], :
             ].apply(lambda row: r.geometry.intersection(row.geometry), axis=1)
 
-        xs_gdf["nwm_intersection_point"] = xs_gdf.apply(lambda row: self.nwm_reach.intersection(row.geometry), axis=1)
+        xs_gdf["network_intersection_point"] = xs_gdf.apply(
+            lambda row: self.network_reach_plus_ds_reach.intersection(row.geometry), axis=1
+        )
 
         xs_gdf["centerline_offset"] = xs_gdf.apply(
-            lambda row: row["ras_intersection_point"].distance(row["nwm_intersection_point"]), axis=1
+            lambda row: row["ras_intersection_point"].distance(row["network_intersection_point"]), axis=1
         )
         xs_gdf["thalweg_offset"] = xs_gdf.apply(
-            lambda row: row["thalweg_point"].distance(row["nwm_intersection_point"]), axis=1
+            lambda row: row["thalweg_point"].distance(row["network_intersection_point"]), axis=1
         )
 
         return {
@@ -76,7 +78,7 @@ class ConflationMetrics:
             xs_gdf["ras_station"] = xs_gdf.apply(lambda row: river_line.project(row["ras_intersection_point"]), axis=1)
             ras_length = xs_gdf["ras_station"].max() - xs_gdf["ras_station"].min()
 
-            nwm_ras_ratio = nwm_length / ras_length
+            network_ras_ratio = network_length / ras_length
         return {
 
     def compute_coverage_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
@@ -91,19 +93,21 @@ class ConflationMetrics:
         return {"start": xs_gdf["station_percent"].min().round(2), "end": xs_gdf["station_percent"].max().round(2)}
 
 
-def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_json: str):
-    """Compute metrics for a nwm reach."""
+def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflation_json: str):
+    """Compute metrics for a network reach."""
     conflation_parameters = json.load(open(conflation_json))
 
-    for nwm_id in conflation_parameters["reaches"].keys():
+    for network_id in conflation_parameters["reaches"].keys():
 
-        rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "", nwm_id)
+        rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "", network_id)
         layers = {}
         for layer, gdf in rgs.subset_gdfs.items():
             layers[layer] = gdf.to_crs(HYDROFABRIC_CRS)
 
-        nwm_reaches = gpd.read_parquet(nwm_pq_path, bbox=layers["XS"].total_bounds)
-        nwm_reach = combine_reaches(nwm_reaches, nwm_id)
+        network_reaches = gpd.read_parquet(network_pq_path, bbox=layers["XS"].total_bounds)
+        network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(network_id), "geometry"].iloc[0])
+        network_reach_plus_ds_reach = combine_reaches(network_reaches, network_id)
+
 
         metrics = {
             "xs": cm.thalweg_metrics(layers["XS"]),
@@ -118,10 +122,10 @@ def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_
     return conflation_parameters
 
 
-def combine_reaches(nwm_reaches: gpd.GeoDataFrame, nwm_id: str) -> LineString:
-    """Combine NWM reaches."""
-    reach = nwm_reaches.loc[nwm_reaches["ID"] == int(nwm_id), :]
-    to_reach = nwm_reaches.loc[nwm_reaches["ID"] == int(reach["to_id"].iloc[0]), :]
+def combine_reaches(network_reaches: gpd.GeoDataFrame, network_id: str) -> LineString:
+    """Combine network reaches."""
+    reach = network_reaches.loc[network_reaches["ID"] == int(network_id), :]
+    to_reach = network_reaches.loc[network_reaches["ID"] == int(reach["to_id"].iloc[0]), :]
     if to_reach.empty:
         return LineString(linemerge(reach.geometry.iloc[0]).coords)
     else:
