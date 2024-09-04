@@ -31,6 +31,7 @@ def setup_data(request):
     request.cls.SUBMODELS_BASE_DIRECTORY = SUBMODELS_BASE_DIRECTORY
     request.cls.SUBMODELS_DIRECTORY = SUBMODELS_DIRECTORY
     request.cls.GPKG_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.gpkg")
+    request.cls.SOURCE_GPKG_FILE = os.path.join(SOURCE_RAS_MODEL_DIRECTORY, f"{RAS_MODEL}.gpkg")
     request.cls.TERRAIN_HDF = os.path.join(SUBMODELS_DIRECTORY, f"Terrain\\{REACH_ID}.hdf")
     request.cls.TERRAIN_VRT = os.path.join(SUBMODELS_DIRECTORY, f"Terrain\\{REACH_ID}.vrt")
     request.cls.RAS_PROJECT_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.prj")

@@ -156,6 +156,35 @@
 					"response": []
 				},
 				{
+					"name": "gpkg_from_ras",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"crs\": 2227,\r\n    \"metadata\": {\"stac_item\":\"sldakj;ga\"}\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/extract_gpkg/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"extract_gpkg",
+								"execution"
+							]
+						},
+						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
+					},
+					"response": []
+				},
+				{
 					"name": "create_ras_terrain",
 					"request": {
 						"method": "POST",

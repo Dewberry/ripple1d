@@ -151,3 +151,27 @@ def rating_curves_to_sqlite(
     df["ds_depth"] = df["ds_wse"] - thalweg
 
     insert_data(database_path, table_name, df, boundary_condition="kwse")
+
+
+def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
+    """Create the metadata table in the geopackage."""
+    with sqlite3.connect(gpkg_path) as conn:
+        string = ""
+        curs = conn.cursor()
+        curs.execute("DROP TABLE IF Exists metadata")
+        curs.execute(f"CREATE TABLE IF NOT EXISTS metadata (key, value);")
+        curs.close()
+
+    with sqlite3.connect(gpkg_path) as conn:
+        curs = conn.cursor()
+        keys, vals = "", ""
+        for key, val in metadata.items():
+
+            if val:
+                keys += f"{key},"
+                vals += f"{val.replace(',','_')}, "
+                curs.execute(f"INSERT INTO metadata (key,value) values (?,?);", (key, val))
+
+        curs.execute("COMMIT;")
+        curs.close()
+    return None

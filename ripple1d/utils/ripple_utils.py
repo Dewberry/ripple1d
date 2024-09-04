@@ -6,6 +6,7 @@ import glob
 import os
 from pathlib import Path
 
+import boto3
 import geopandas as gpd
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
@@ -21,6 +22,16 @@ from ripple1d.errors import (
 from ripple1d.utils.s3_utils import list_keys
 
 load_dotenv(find_dotenv())
+
+
+def prj_is_ras(path: str):
+    """Verify if prj is from hec-ras model."""
+    with open(path) as f:
+        prj_contents = f.read()
+    if "Proj Title" in prj_contents.split("\n")[0]:
+        return True
+    else:
+        return False
 
 
 def decode(df: pd.DataFrame):
