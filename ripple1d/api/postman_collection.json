@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "ec609174-f5c5-48c7-ad94-44f12b07b45f",
+		"_postman_id": "c4afca18-6b93-4c83-aa82-30306d98dcb2",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -90,6 +90,35 @@
 							"path": [
 								"processes",
 								"compute_conflation_metrics",
+								"execution"
+							]
+						},
+						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
+					},
+					"response": []
+				},
+				{
+					"name": "conflate_model",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n                        \"version\":\"2.1\",\r\n                        \"type\":\"nwm_hydrofabric\"}\r\n    \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/conflate_model/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"conflate_model",
 								"execution"
 							]
 						},
