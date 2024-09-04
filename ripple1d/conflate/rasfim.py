@@ -707,7 +707,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     has_junctions = rfc.ras_junctions is not None
 
     if intersected_xs.empty:
-        return None
+        return {"eclipsed":True}
 
     # get start and end points of the nwm reach
     start, end = endpoints_from_multiline(reach.geometry)
@@ -753,10 +753,14 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     if rfc.output_concave_hull_path:
         xs_gdf = pd.concat([intersected_xs, rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]], ignore_index=True)
         rfc.add_hull(xs_gdf,reach.geometry)
+    
+    if us_data==ds_data:
+        return {"eclipsed":True}
 
     return {
         "us_xs": us_data,
         "ds_xs": ds_data,
+        "eclipsed":False
     }
 
 
@@ -770,11 +774,7 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
         # get the xs data for the reach
         ras_xs_data = map_reach_xs(rfc, reach)
 
-        if ras_xs_data:
-            reach_metadata[reach.ID] = ras_xs_data
-        else:
-            # pass dictionary with us_xs and xs_id for sorting purposes
-            reach_metadata[reach.ID] = {"us_xs": {"xs_id": str(-9999)}}
+        reach_metadata[reach.ID] = ras_xs_data
 
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
