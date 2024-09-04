@@ -96,7 +96,7 @@ class ConflationMetrics:
         return {
             "ras": int(ras_length / METERS_PER_FOOT),
             "network": int(network_length / METERS_PER_FOOT),
-            "network_to_ras_ratio": round(network_ras_ratio, 2),
+            "network_to_ras_ratio": round(float(network_ras_ratio), 2),
         }
 
     # def parrallel_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
@@ -124,7 +124,9 @@ class ConflationMetrics:
                 to_reach["geometry"].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length
                 / METERS_PER_FOOT
             )
-        return [{"id": str(to_reach["ID"]), "overlap": overlap}]
+            return [{"id": str(to_reach["ID"].iloc[0]), "overlap": overlap.iloc[0]}]
+        else:
+            return []
 
     def eclipsed_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
         """Calculate the overlap between the network reach and the cross sections."""
@@ -143,7 +145,10 @@ class ConflationMetrics:
             lambda row: self.network_reach_plus_ds_reach.project(row["intersection_point"]) / self.network_reach.length,
             axis=1,
         )
-        return {"start": xs_gdf["station_percent"].min().round(2), "end": xs_gdf["station_percent"].max().round(2)}
+        return {
+            "start": float(xs_gdf["station_percent"].min().round(2)),
+            "end": min([xs_gdf["station_percent"].max().round(2), 1]),
+        }
 
 
 def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflation_json: str):
