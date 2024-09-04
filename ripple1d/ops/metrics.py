@@ -78,10 +78,17 @@ class ConflationMetrics:
 
             nwm_ras_ratio = nwm_length / ras_length
         return {
-            "ras": ras_length,
-            "network": nwm_length,
-            "network_to_ras_ratio": nwm_ras_ratio,
-        }
+
+    def compute_coverage_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
+        """Calculate the coverage metrics for a set of cross sections."""
+        xs_gdf["intersection_point"] = xs_gdf.apply(
+            lambda row: self.network_reach_plus_ds_reach.intersection(row.geometry), axis=1
+        )
+        xs_gdf["station_percent"] = xs_gdf.apply(
+            lambda row: self.network_reach_plus_ds_reach.project(row["intersection_point"]) / self.network_reach.length,
+            axis=1,
+        )
+        return {"start": xs_gdf["station_percent"].min().round(2), "end": xs_gdf["station_percent"].max().round(2)}
 
 
 def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_json: str):
@@ -98,11 +105,13 @@ def compute_conflation_metrics(src_gpkg_path: str, nwm_pq_path: str, conflation_
         nwm_reaches = gpd.read_parquet(nwm_pq_path, bbox=layers["XS"].total_bounds)
         nwm_reach = combine_reaches(nwm_reaches, nwm_id)
 
-        cm = ConflationMetrics(layers["XS"], layers["River"], nwm_reach)
+        metrics = {
+            "xs": cm.thalweg_metrics(layers["XS"]),
+            "lengths": cm.length_metrics(layers["XS"]),
+            "coverage": cm.compute_coverage_metrics(layers["XS"]),
+        }
 
-        metrics = {"xs": cm.thalweg_metrics(layers["XS"]), "lengths": cm.length_metrics(layers["XS"])}
-
-        conflation_parameters["reaches"][nwm_id].update({"metrics": metrics})
+        conflation_parameters["reaches"][network_id].update({"metrics": metrics})
 
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
