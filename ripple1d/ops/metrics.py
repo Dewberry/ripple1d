@@ -158,6 +158,8 @@ def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflat
         conflation_parameters["reaches"][network_id].update({"metrics": metrics})
         conflation_parameters["reaches"][network_id].update({"overlapped_reaches": overlapped_reaches})
         conflation_parameters["reaches"][network_id].update({"eclipsed_reaches": eclipsed_reaches})
+        conflation_parameters["metadata"]["length_units"] = "feet"
+        conflation_parameters["metadata"]["flow_units"] = "cfs"
 
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
