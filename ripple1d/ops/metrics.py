@@ -61,10 +61,10 @@ class ConflationMetrics:
     def length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
         """Calculate the reach length between cross sections along the ras river line and the network reach."""
         xs_gdf["network_intersection_point"] = xs_gdf.apply(
-            lambda row: self.network_reach.intersection(row.geometry), axis=1
+            lambda row: self.network_reach_plus_ds_reach.intersection(row.geometry), axis=1
         )
         xs_gdf["network_station"] = xs_gdf.apply(
-            lambda row: self.network_reach.project(row["network_intersection_point"]), axis=1
+            lambda row: self.network_reach_plus_ds_reach.project(row["network_intersection_point"]), axis=1
         )
         network_length = xs_gdf["network_station"].max() - xs_gdf["network_station"].min()
 
@@ -80,6 +80,10 @@ class ConflationMetrics:
 
             network_ras_ratio = network_length / ras_length
         return {
+            "ras": int(ras_length / METERS_PER_FOOT),
+            "network": int(network_length / METERS_PER_FOOT),
+            "network_to_ras_ratio": round(network_ras_ratio, 2),
+        }
 
     # def parrallel_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
     #     """Calculate the overlap between the network reach and the cross sections."""
