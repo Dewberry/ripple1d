@@ -192,7 +192,7 @@ class RippleSourceDirectory:
         """NWM Conflation parameters."""
         with open(self.conflation_file, "r") as f:
             conflation_parameters = json.loads(f.read())
-        return conflation_parameters[nwm_id]
+        return conflation_parameters["reaches"][nwm_id]
 
 
 class NwmReachModel(RasModelStructure):

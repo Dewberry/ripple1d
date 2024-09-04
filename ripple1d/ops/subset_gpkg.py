@@ -34,7 +34,7 @@ class RippleGeopackageSubsetter:
     @property
     def ripple1d_parameters(self) -> dict:
         """Extract ripple1d parameters from the conflation json."""
-        return self.conflation_parameters[self.nwm_id]
+        return self.conflation_parameters["reaches"][self.nwm_id]
 
     @property
     def us_reach(self) -> str:
@@ -106,7 +106,7 @@ class RippleGeopackageSubsetter:
 
     @property
     def subset_gdfs(self) -> dict:
-        """Subset the cross sections and river geometry for a given NWM reach."""
+        """Subset the cross sections, structues, and river geometry for a given NWM reach."""
         # subset data
         if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
             ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
@@ -461,7 +461,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     if not rsd.file_exists(rsd.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {rsd.conflation_file}, please ensure file exists")
 
-    ripple1d_parameters = rsd.nwm_conflation_parameters(str(nwm_id))
+    ripple1d_parameters = rsd.nwm_conflation_parameters["reaches"](str(nwm_id))
     if ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
         ripple1d_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple1d_parameters["messages"])

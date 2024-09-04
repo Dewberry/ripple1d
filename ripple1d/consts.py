@@ -47,3 +47,5 @@ LAYER_COLORS = OrderedDict(
 )
 
 SHOW_RAS = False
+
+HYDROFABRIC_CRS = 5070

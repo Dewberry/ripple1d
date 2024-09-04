@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import sqlite3
 from collections import OrderedDict
 from typing import List, Tuple
 
@@ -15,6 +16,7 @@ from fiona.errors import DriverError
 from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
 from shapely.ops import linemerge, nearest_points, transform
 
+from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.utils.ripple_utils import xs_concave_hull
 
 HIGH_FLOW_FACTOR = 1.2
@@ -59,7 +61,6 @@ class RasFimConflater:
             s3://noaa-nws-owp-fim/rasfim/inputs/X-National_Datasets/nwm_flows.gpkg
         ras_gpkg (str): Path to the RAS GeoPackage
         load_data (bool, optional): Load the data on initialization. Defaults to True.
-        bucket (str, optional): S3 bucket to read data from. Defaults to "fim".
 
     Raises
     ------
@@ -68,11 +69,13 @@ class RasFimConflater:
     """
 
     def __init__(
-        self, nwm_pq: str, ras_gpkg: str, load_data: bool = True, bucket="fim", output_concave_hull_path: str = None
+        self, nwm_pq: str, source_model_directory: str, load_data: bool = True, output_concave_hull_path: str = None
     ):
         self.nwm_pq = nwm_pq
-        self.ras_gpkg = ras_gpkg
-        self.bucket = bucket
+        self.source_model_directory = source_model_directory
+        self.ras_model_name = os.path.basename(source_model_directory)
+        self.ras_gpkg = os.path.join(source_model_directory,f"{self.ras_model_name}.gpkg")
+
         self.output_concave_hull_path = output_concave_hull_path
         self._nwm_reaches = None
 
@@ -80,6 +83,7 @@ class RasFimConflater:
         self._ras_xs = None
         self._ras_structures = None
         self._ras_junctions = None
+        self._ras_metadata=None
         self._common_crs = None
         self._xs_hulls = None
         self.__data_loaded = False
@@ -91,6 +95,114 @@ class RasFimConflater:
     def __repr__(self):
         """Return the string representation of the object."""
         return f"RasFimConflater(nwm_pq={self.nwm_pq}, ras_gpkg={self.ras_gpkg})"
+
+
+    @property
+    def stac_api(self):
+        """The stac_api for the HEC-RAS Model."""
+        if "stac_api" in self.ras_metadata.keys():
+            return self.ras_metadata["stac_api"]
+    
+    @property
+    def stac_collection_id(self):
+        """The stac_collection_id for the HEC-RAS Model."""
+        if "stac_collection_id" in self.ras_metadata.keys():
+            return self.ras_metadata["stac_collection_id"]
+        
+    
+    @property
+    def stac_item_id(self):
+        """The stac_item_id for the HEC-RAS Model."""
+        if "stac_item_id" in self.ras_metadata.keys():
+            return self.ras_metadata["stac_item_id"]
+
+    @property
+    def primary_geom_file(self):
+        """The primary geometry file for the HEC-RAS Model."""
+        return self.ras_metadata["primary_geom_file"]
+
+    @property
+    def primary_flow_file(self):
+        """The primary flow file for the HEC-RAS Model."""
+        return self.ras_metadata["primary_flow_file"]
+    
+    @property
+    def primary_plan_file(self):
+        """The primary plan file for the HEC-RAS Model."""
+        return self.ras_metadata["primary_plan_file"]
+
+    @property
+    def ras_project_file(self):
+        """The source HEC-RAS project file."""
+        return self.ras_metadata["ras_project_file"] 
+
+    # @property
+    # def xs_length_units(self):
+    #     """Length units of the source HEC-RAS model."""
+    #     if self.ras_metadata["units"] != "English":
+    #         raise NotImplementedError(
+    #             f"HEC-RAS units are {self.ras_metadata['units']}. Only 'English' units are supported at this time."
+    #         )
+    #     elif self.ras_metadata["units"] == "English":
+    #         ras_xs=self.ras_xs
+    #         ras_xs["r"]=ras_xs.apply(lambda row: self.populate_r_station(row),axis=1)
+    #         if ras_xs["r"].mean()>.9 and ras_xs["r"].mean()<1.1:
+    #             return "ft"
+    #         elif ras_xs["r"].mean()*METERS_PER_FOOT>.9 and ras_xs["r"].mean()*METERS_PER_FOOT<1.1:
+    #             raise ValueError(f"HEC-RAS units specified as English but cross section r values indicate meters")
+    #         elif ras_xs["r"].mean()/5280>.9 and ras_xs["r"].mean()/5280<1.1:
+    #             return "miles"
+    #         else:
+    #             raise ValueError(f"Unable to determine cross section length units from cross section r values")
+
+    # @property
+    # def river_station_units(self):
+    #     """Station units of the source HEC-RAS model."""
+    #     if self.ras_metadata["units"] != "English":
+    #         raise NotImplementedError(
+    #             f"HEC-RAS units are {self.ras_metadata['units']}. Only 'English' units are supported at this time."
+    #         )
+    #     elif self.ras_metadata["units"] == "English":
+    #         ras_xs=self.ras_xs
+    #         ras_xs["intersection_point"]=ras_xs.apply(lambda row: self.ras_centerlines(row.geometry).intersection(row.geometry),axis=1)
+    #         ras_xs["computed_river_station"]=ras_xs.apply(lambda row: self.ras_centerlines.project(row["intersection_point"])*METERS_PER_FOOT,axis=1)
+    #         ras_xs["computed_reach_length"]=ras_xs["computed_river_station"].diff()
+
+    #         ras_xs["reach_lengths_from_original_river_station"]=ras_xs["river_station"].diff()
+    #         ras_xs["reach_length_ratio"]=ras_xs["computed_reach_length"]/ras_xs["reach_lengths_from_original_river_station"]
+    #         if ras_xs["reach_length_ratio"].mean()>.9 and ras_xs["reach_length_ratio"].mean()<1.1:
+    #             return "ft"
+    #         elif ras_xs["reach_length_ratio"].mean()*METERS_PER_FOOT>.9 and ras_xs["reach_length_ratio"].mean()*METERS_PER_FOOT<1.1:
+    #             raise ValueError(f"HEC-RAS units specified as English but reach length r values indicate meters")
+    #         elif ras_xs["reach_length_ratio"].mean()/5280>.9 and ras_xs["reach_length_ratio"].mean()/5280<1.1:
+    #             return "miles"
+    #         else:
+    #             raise ValueError(f"Unable to determine reach length units from reach length r values")
+            
+        
+    # @property
+    # def flow_units(self):
+    #     """Flow units of the source HEC-RAS model."""
+    #     if self.gpkg_metadata["units"] != "English":
+    #         raise NotImplementedError(
+    #             f"HEC-RAS units are {self.ras_metadata['units']}. Only 'English' units are supported at this time."
+    #         )
+    #     elif self.ras_metadata["units"] == "English":
+    #         return "cfs"
+
+    def populate_r_station(self, row: pd.Series,assume_ft:bool=True) -> str:
+        """Populate the r value for a cross section. The r value is the ratio of the station to actual cross section length."""
+        #TODO check if this is the correct way to calculate r
+        df = pd.DataFrame(row["station_elevation_points"], index=["elevation"]).T
+        return df.index.max()/(row.geometry.length/METERS_PER_FOOT)
+
+    @property
+    def _gpkg_metadata(self):
+        """Metadata from gpkg."""
+        with sqlite3.connect(self.ras_gpkg) as conn:
+            cur = conn.cursor()
+            cur.execute("select * from metadata")
+            return dict(cur.fetchall())
 
     def determine_station_order(self, xs_gdf: gpd.GeoDataFrame,reach:LineString):
         """Detemine the order based on stationing of the cross sections along the reach."""
@@ -138,6 +250,8 @@ class RasFimConflater:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
         if "Structure" in layers:
             self._ras_structures = gpd.read_file(self.ras_gpkg, layer="Structure")
+        if "metadata" in layers:
+            self._ras_metadata=self._gpkg_metadata
 
     def load_pq(self, nwm_pq: str):
         """Load the NWM data from the Parquet file."""
@@ -205,6 +319,14 @@ class RasFimConflater:
         """RAS junctions."""
         try:
             return self._ras_junctions.to_crs(self.common_crs)
+        except AttributeError:
+            return None
+
+    @property
+    def ras_metadata(self) -> Polygon:
+        """RAS metadata."""
+        try:
+            return self._ras_metadata
         except AttributeError:
             return None
 
@@ -585,7 +707,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     has_junctions = rfc.ras_junctions is not None
 
     if intersected_xs.empty:
-        return None
+        return {"eclipsed":True}
 
     # get start and end points of the nwm reach
     start, end = endpoints_from_multiline(reach.geometry)
@@ -631,10 +753,14 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     if rfc.output_concave_hull_path:
         xs_gdf = pd.concat([intersected_xs, rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]], ignore_index=True)
         rfc.add_hull(xs_gdf,reach.geometry)
+    
+    if us_data==ds_data:
+        return {"eclipsed":True}
 
     return {
         "us_xs": us_data,
         "ds_xs": ds_data,
+        "eclipsed":False
     }
 
 
@@ -648,11 +774,7 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
         # get the xs data for the reach
         ras_xs_data = map_reach_xs(rfc, reach)
 
-        if ras_xs_data:
-            reach_metadata[reach.ID] = ras_xs_data
-        else:
-            # pass dictionary with us_xs and xs_id for sorting purposes
-            reach_metadata[reach.ID] = {"us_xs": {"xs_id": str(-9999)}}
+        reach_metadata[reach.ID] = ras_xs_data
 
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
@@ -669,15 +791,14 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
             logging.warning(f"No high flow data for {k}")
             reach_metadata[k]["high_flow_cfs"] = -9999
         try:
-            reach_metadata[k]["nwm_to_id"] = str(flow_data["to_id"])
+            reach_metadata[k]["network_to_id"] = str(flow_data["to_id"])
         except:
             logging.warning(f"No to_id data for {k}")
-            reach_metadata[k]["nwm_to_id"] = "-9999"
+            reach_metadata[k]["network_to_id"] = "-9999"
 
         if k in rfc.local_gages.keys():
             gage_id = rfc.local_gages[k].replace(" ", "")
             reach_metadata[k]["gage"] = gage_id
             reach_metadata[k]["gage_url"] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
 
-        reach_metadata[k]["source_nwm_reach"] = os.path.basename(rfc.nwm_pq)
     return reach_metadata

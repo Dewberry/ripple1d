@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import traceback
 from datetime import datetime
 from urllib.parse import quote
 
@@ -17,6 +19,7 @@ from ripple1d.conflate.rasfim import (
     ras_reaches_metadata,
     walk_network,
 )
+from ripple1d.ops.metrics import compute_conflation_metrics
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
@@ -54,9 +57,28 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         raise ValueError(f"nwm_reach_id {nwm_reach_id} not conflating to the ras model geometry.")
 
 
-def conflate(rfc: RasFimConflater):
-    """Conflate a HEC-RAS model with NWM reaches."""
-    metadata = {}
+def conflate_model(source_model_directory: str, source_network: dict):
+    """Conflate a HEC-RAS model with NWM reaches.
+
+    source_network example:
+    {
+        "file_name": "nwm_flows_v3.parquet", // required
+        "version": "2.1" // could be empty if not provided by the caller
+        "type": "nwm_hydrofabric" // required
+    }
+    """
+    try:
+        nwm_pq_path = source_network["file_name"]
+    except KeyError:
+        raise KeyError(f"source_network must contain 'file_name', invalid parameters: {source_network}")
+
+    if not source_network["type"] == "nwm_hydrofabric":
+        raise ValueError(f"source_network type must be 'nwm_hydrofabric', invalid parameters: {source_network}")
+
+    version = source_network.get("version", "")
+
+    rfc = RasFimConflater(nwm_pq_path, source_model_directory)
+    metadata = {"reaches": {}}
     # get nwm reaches that intersect the convex hull of the ras model
     model_local_nwm_reaches = rfc.local_nwm_reaches()
     for river_reach_name in rfc.ras_river_reach_names:
@@ -97,76 +119,114 @@ def conflate(rfc: RasFimConflater):
         # get gdf of the candidate reaches
         candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-        reach_metadata = ras_reaches_metadata(rfc, candidate_reaches)
-        metadata.update(reach_metadata)
+        metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
 
-    rfc.write_hulls()
-
-    return metadata
-
-
-def conflate_s3_model(
-    item: pystac.Item, client: boto3.client, bucket: str, stac_item_s3_key: str, rfc: RasFimConflater
-):
-    """Conflate a model from s3."""
-    # build conflation key and href
-    nwm_conflation_key = stac_item_s3_key.replace(".json", ".conflation.json")
-    nwm_conflation_href = s3_public_href(bucket, nwm_conflation_key)
-
-    # conflate the mip ras model to nwm reaches
-    conflation_results = conflate(rfc)
-
-    # write conflation results to s3
-    client.put_object(
-        Body=json.dumps(conflation_results).encode(),
-        Bucket=bucket,
-        Key=nwm_conflation_key,
-    )
-
-    # Add ripple parameters asset to item
-    item.add_asset(
-        "NWM_Conflation",
-        pystac.Asset(
-            nwm_conflation_href,
-            title="NWM_Conflation",
-            roles=[pystac.MediaType.JSON, "nwm-conflation"],
-            extra_fields={
-                "software": f"ripple1d {ripple1d.__version__}",
-                "date_created": datetime.now().isoformat(),
-            },
-        ),
-    )
-
-    limit_plot = True
-
-    conflation_thumbnail_key = nwm_conflation_key.replace("json", "png")
-    conflation_thumbnail_href = s3_public_href(bucket, conflation_thumbnail_key)
-
-    ids = [r for r in conflation_results.keys() if r not in ["metrics", "ras_river_to_nwm_reaches_ratio"]]
-
+    ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
+    conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
 
     plot_conflation_results(
         rfc,
         fim_stream,
-        conflation_thumbnail_key,
-        bucket=bucket,
-        s3_client=client,
-        limit_plot_to_nearby_reaches=limit_plot,
-    )
-    # Add thumbnail asset to item
-    item.add_asset(
-        "ThumbnailConflationResults",
-        pystac.Asset(
-            conflation_thumbnail_href,
-            title="ThumbnailConflationResults",
-            roles=[pystac.MediaType.PNG, "thumbnail"],
-            extra_fields={
-                "software": f"ripple1d {ripple1d.__version__}",
-                "date_created": datetime.now().isoformat(),
-            },
-            description="""PNG of NWM conflation results with OpenStreetMap basemap.""",
-        ),
+        conflation_png,
+        limit_plot_to_nearby_reaches=True,
     )
 
-    client.put_object(Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=stac_item_s3_key)
+    logging.info(f"Conflation results: {metadata}")
+    conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
+    source_network["file_name"] = os.path.basename(source_network["file_name"])
+
+    metadata["metadata"] = {}
+    metadata["metadata"]["source_network"] = source_network
+    metadata["metadata"]["conflation_png"] = os.path.basename(conflation_png)
+    metadata["metadata"]["conflation_ripple1d_version"] = ripple1d.__version__
+    metadata["metadata"]["metrics_ripple1d_version"] = ripple1d.__version__
+    metadata["metadata"]["source_ras_model"] = {
+        "stac_api": rfc.stac_api,
+        "stac_collection_id": rfc.stac_collection_id,
+        "stac_item_id": rfc.stac_item_id,
+    }
+    metadata["metadata"]["source_ras_model"]["source_ras_files"] = {
+        "geometry": rfc.primary_geom_file,
+        "forcing": rfc.primary_flow_file,
+        "project-file": rfc.ras_project_file,
+        "plan": rfc.primary_plan_file,
+    }
+
+    with open(conflation_file, "w") as f:
+        f.write(json.dumps(metadata, indent=4))
+
+    try:
+        compute_conflation_metrics(rfc.ras_gpkg, nwm_pq_path, conflation_file)
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        logging.error(f"traceback: {traceback.format_exc()}")
+
+    return conflation_file
+
+
+# def conflate_s3_model(
+#     item: pystac.Item, client: boto3.client, bucket: str, stac_item_s3_key: str, rfc: RasFimConflater
+# ):
+#     """Conflate a model from s3."""
+#     # build conflation key and href
+#     nwm_conflation_key = stac_item_s3_key.replace(".json", ".conflation.json")
+#     nwm_conflation_href = s3_public_href(bucket, nwm_conflation_key)
+
+#     # conflate the mip ras model to nwm reaches
+#     conflation_results = conflate(rfc)
+
+#     # write conflation results to s3
+#     client.put_object(
+#         Body=json.dumps(conflation_results).encode(),
+#         Bucket=bucket,
+#         Key=nwm_conflation_key,
+#     )
+
+#     # Add ripple parameters asset to item
+#     item.add_asset(
+#         "NWM_Conflation",
+#         pystac.Asset(
+#             nwm_conflation_href,
+#             title="NWM_Conflation",
+#             roles=[pystac.MediaType.JSON, "nwm-conflation"],
+#             extra_fields={
+#                 "software": f"ripple1d {ripple1d.__version__}",
+#                 "date_created": datetime.now().isoformat(),
+#             },
+#         ),
+#     )
+
+#     limit_plot = True
+
+#     conflation_thumbnail_key = nwm_conflation_key.replace("json", "png")
+#     conflation_thumbnail_href = s3_public_href(bucket, conflation_thumbnail_key)
+
+#     ids = list(conflation_results["reaches"].keys())
+
+#     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
+
+#     plot_conflation_results(
+#         rfc,
+#         fim_stream,
+#         conflation_thumbnail_key,
+#         bucket=bucket,
+#         s3_client=client,
+#         limit_plot_to_nearby_reaches=limit_plot,
+#     )
+#     # Add thumbnail asset to item
+#     item.add_asset(
+#         "ThumbnailConflationResults",
+#         pystac.Asset(
+#             conflation_thumbnail_href,
+#             title="ThumbnailConflationResults",
+#             roles=[pystac.MediaType.PNG, "thumbnail"],
+#             extra_fields={
+#                 "software": f"ripple1d {ripple1d.__version__}",
+#                 "date_created": datetime.now().isoformat(),
+#             },
+#             description="""PNG of NWM conflation results with OpenStreetMap basemap.""",
+#         ),
+#     )
+
+#     client.put_object(Body=json.dumps(item.to_dict()).encode(), Bucket=bucket, Key=stac_item_s3_key)
