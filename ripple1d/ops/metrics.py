@@ -1,4 +1,5 @@
 import json
+import sqlite3
 
 import geopandas as gpd
 import numpy as np
@@ -7,17 +8,26 @@ import pyproj
 from shapely import LineString, Point
 from shapely.ops import linemerge
 
+from ripple1d.consts import HYDROFABRIC_CRS, METERS_PER_FOOT
 from ripple1d.data_model import XS
 from ripple1d.ops.subset_gpkg import RippleGeopackageSubsetter
+from ripple1d.utils.ripple_utils import xs_concave_hull
 
 
 class ConflationMetrics:
     """Calculate metrics for a cross section."""
 
+    def __init__(
+        self,
+        xs_gdf: gpd.GeoDataFrame,
+        river_gdf: gpd.GeoDataFrame,
         network_reach: LineString,
+        network_reach_plus_ds_reach: LineString,
+    ):
         self.xs_gdf = xs_gdf
         self.river_gdf = river_gdf
         self.network_reach = network_reach
+        self.network_reach_plus_ds_reach = network_reach_plus_ds_reach
         self.crs = xs_gdf.crs
 
     def populate_station_elevation(self, row: pd.Series) -> dict:
