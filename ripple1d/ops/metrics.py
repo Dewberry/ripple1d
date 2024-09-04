@@ -54,8 +54,12 @@ class ConflationMetrics:
         )
 
         return {
-            "centerline_offset": xs_gdf["centerline_offset"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
-            "thalweg_offset": xs_gdf["thalweg_offset"].describe(np.linspace(0.1, 1, 10)).round().to_dict(),
+            "centerline_offset": xs_gdf["centerline_offset"]
+            .describe(np.linspace(0.1, 1, 10))
+            .round()
+            .astype(int)
+            .to_dict(),
+            "thalweg_offset": xs_gdf["thalweg_offset"].describe(np.linspace(0.1, 1, 10)).round().astype(int).to_dict(),
         }
 
     def length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
