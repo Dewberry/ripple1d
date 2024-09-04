@@ -791,10 +791,10 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
             logging.warning(f"No high flow data for {k}")
             reach_metadata[k]["high_flow_cfs"] = -9999
         try:
-            reach_metadata[k]["nwm_to_id"] = str(flow_data["to_id"])
+            reach_metadata[k]["network_to_id"] = str(flow_data["to_id"])
         except:
             logging.warning(f"No to_id data for {k}")
-            reach_metadata[k]["nwm_to_id"] = "-9999"
+            reach_metadata[k]["network_to_id"] = "-9999"
 
         if k in rfc.local_gages.keys():
             gage_id = rfc.local_gages[k].replace(" ", "")
