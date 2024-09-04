@@ -116,6 +116,6 @@ if __name__ == "__main__":
 
     Alternatively, you can specify the test model and reach id to run as args. 
     Example 2 usage:
-    python test/run_api_tests.py Baxter 2826228
+    python tests/run_api_tests.py Baxter 2826228
     """
     main(*sys.argv[1:])
