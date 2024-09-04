@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "9c07b074-5f35-4309-bbaf-3ed3f1aec045",
+		"_postman_id": "0564a458-f2ad-4331-9832-cb8df17b5221",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "11115435"
+		"_exporter_id": "29128857"
 	},
 	"item": [
 		{
@@ -90,6 +90,35 @@
 							"path": [
 								"processes",
 								"extract_submodel",
+								"execution"
+							]
+						},
+						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
+					},
+					"response": []
+				},
+				{
+					"name": "gpkg_from_ras",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"crs\": 2227,\r\n    \"metadata\": {\"stac_item\":\"sldakj;ga\"}\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/extract_gpkg/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"extract_gpkg",
 								"execution"
 							]
 						},

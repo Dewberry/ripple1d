@@ -18,13 +18,20 @@ from ripple1d.ops.ras_run import (
 )
 from ripple1d.ops.ras_terrain import create_ras_terrain
 from ripple1d.ops.subset_gpkg import extract_submodel
+from ripple1d.ras_to_gpkg import gpkg_from_ras
 
 app = Flask(__name__)
 
 
+@app.route("/processes/gpkg_from_ras/execution", methods=["POST"])
+def process__gpkg_from_ras():
+    """Enqueue a task to create a new GeoPackage from a source model."""
+    return enqueue_async_task(gpkg_from_ras)
+
+
 @app.route("/processes/extract_submodel/execution", methods=["POST"])
 def process__extract_submodel():
-    """Enqueue a task to create a new GeoPackage."""
+    """Enqueue a task to create a new GeoPackage for a NWM reach."""
     return enqueue_async_task(extract_submodel)
 
 
