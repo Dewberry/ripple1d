@@ -131,10 +131,26 @@ def conflate_model(source_model_directory: str, source_network: dict):
         limit_plot_to_nearby_reaches=True,
     )
 
-    metadata["source_network"] = source_network
-    metadata["source_network"]["conflation_png"] = os.path.basename(conflation_png)
     logging.info(f"Conflation results: {metadata}")
     conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
+    source_network["file_name"] = os.path.basename(source_network["file_name"])
+
+    metadata["metadata"] = {}
+    metadata["metadata"]["source_network"] = source_network
+    metadata["metadata"]["conflation_png"] = os.path.basename(conflation_png)
+    metadata["metadata"]["conflation_ripple1d_version"] = ripple1d.__version__
+    metadata["metadata"]["metrics_ripple1d_version"] = ripple1d.__version__
+    metadata["metadata"]["source_ras_model"] = {
+        "stac_api": rfc.stac_api,
+        "stac_collection_id": rfc.stac_collection_id,
+        "stac_item_id": rfc.stac_item_id,
+    }
+    metadata["metadata"]["source_ras_model"]["source_ras_files"] = {
+        "geometry": rfc.primary_geom_file,
+        "forcing": rfc.primary_flow_file,
+        "project-file": rfc.ras_project_file,
+        "plan": rfc.primary_plan_file,
+    }
 
     with open(conflation_file, "w") as f:
         f.write(json.dumps(metadata, indent=4))
