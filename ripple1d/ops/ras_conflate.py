@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import traceback
 from datetime import datetime
 from urllib.parse import quote
 
@@ -159,6 +160,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         compute_conflation_metrics(rfc.ras_gpkg, nwm_pq_path, conflation_file)
     except Exception as e:
         logging.error(f"Error: {e}")
+        logging.error(f"traceback: {traceback.format_exc()}")
 
     return conflation_file
 
