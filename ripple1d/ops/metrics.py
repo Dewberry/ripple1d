@@ -81,6 +81,33 @@ class ConflationMetrics:
             network_ras_ratio = network_length / ras_length
         return {
 
+    # def parrallel_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
+    #     """Calculate the overlap between the network reach and the cross sections."""
+    #     if network_reaches.empty:
+    #         return []
+    #     overlaps = network_reaches[network_reaches.intersects(self.xs_gdf.union_all())]
+    #     if overlaps.empty:
+    #         return []
+    #     overlaps["overlap"] = overlaps.apply(
+    #         lambda row: int(
+    #             row["geometry"].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length / METERS_PER_FOOT
+    #         ),
+    #         axis=1,
+    #     )
+
+    #     return [{"id": str(row["ID"]), "overlap": row["overlap"]} for _, row in overlaps.iterrows()]
+
+    def overlapped_reaches(self, to_reach: gpd.GeoDataFrame) -> dict:
+        """Calculate the overlap between the network reach and the cross sections."""
+        if to_reach.empty:
+            return []
+        if to_reach["geometry"].iloc[0].intersects(self.xs_gdf.union_all()):
+            overlap = (
+                to_reach["geometry"].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length
+                / METERS_PER_FOOT
+            )
+        return [{"id": str(to_reach["ID"]), "overlap": overlap}]
+
     def compute_coverage_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
         """Calculate the coverage metrics for a set of cross sections."""
         xs_gdf["intersection_point"] = xs_gdf.apply(
@@ -114,8 +141,12 @@ def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflat
             "lengths": cm.length_metrics(layers["XS"]),
             "coverage": cm.compute_coverage_metrics(layers["XS"]),
         }
+        to_id = network_reaches.loc[network_reaches["ID"] != int(network_id), "to_id"].iloc[0]
+
+        overlapped_reaches = cm.overlapped_reaches(network_reaches[network_reaches["ID"] == int(to_id)])
 
         conflation_parameters["reaches"][network_id].update({"metrics": metrics})
+        conflation_parameters["reaches"][network_id].update({"overlapped_reaches": overlapped_reaches})
 
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
