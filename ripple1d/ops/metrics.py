@@ -124,7 +124,7 @@ class ConflationMetrics:
                 to_reach["geometry"].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length
                 / METERS_PER_FOOT
             )
-            return [{"id": str(to_reach["ID"].iloc[0]), "overlap": overlap.iloc[0]}]
+            return [{"id": str(to_reach["ID"].iloc[0]), "overlap": int(overlap.iloc[0])}]
         else:
             return []
 
