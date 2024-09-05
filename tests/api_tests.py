@@ -53,12 +53,7 @@ def check_process(func):
 
 
 @pytest.mark.usefixtures("setup_data")
-class TestApi(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     cls.server_process = start_server()
-    #     time.sleep(10)  # Give the server some time to start
-
+class TestPreprocessAPI(unittest.TestCase):
     @check_process
     def test_a_gpkg_from_ras(self):
         payload = {
@@ -76,8 +71,26 @@ class TestApi(unittest.TestCase):
         files = [self.SOURCE_GPKG_FILE]
         return process, payload, files
 
+    @check_process
+    def test_b_conflation(self):
+        payload = {
+            "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "source_network": {"file_name": self.SOURCE_NETWORK, "version": "2.1", "type": "nwm_hydrofabric"},
+        }
+        process = "conflate_model"
         if os.path.exists(self.conflation_file):
             os.remove(self.conflation_file)
+        files = [self.conflation_file]
+        return process, payload, files
+
+
+@pytest.mark.usefixtures("setup_data")
+class TestApi(unittest.TestCase):
+    # @classmethod
+    # def setUpClass(cls):
+    #     cls.server_process = start_server()
+    #     time.sleep(10)  # Give the server some time to start
+
     @check_process
     def test_b_extract_submodel(self):
         payload = {
