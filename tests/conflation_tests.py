@@ -16,7 +16,7 @@ from ripple1d.conflate.rasfim import (
     filter_gdf,
     nearest_line_to_point,
 )
-from ripple1d.ops.ras_conflate import conflate
+from ripple1d.ops.ras_conflate import conflate_model
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/Baxter.json"
