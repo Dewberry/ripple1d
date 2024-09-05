@@ -70,10 +70,14 @@ class TestApi(unittest.TestCase):
                 "stac_item_id": "137a9667-e5cf-4cea-b6ec-2e882a42fdc8",
             },
         }
+        if os.path.exists(self.SOURCE_GPKG_FILE):
+            os.remove(self.SOURCE_GPKG_FILE)
         process = "gpkg_from_ras"
         files = [self.SOURCE_GPKG_FILE]
         return process, payload, files
 
+        if os.path.exists(self.conflation_file):
+            os.remove(self.conflation_file)
     @check_process
     def test_b_extract_submodel(self):
         payload = {

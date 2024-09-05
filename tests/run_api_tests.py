@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 from api_tests import start_server, submit_job, wait_for_job
 
@@ -11,6 +12,7 @@ from api_tests import start_server, submit_job, wait_for_job
 def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
 
     current_dir = os.path.dirname(__file__)
+    
 
     if not test_model:
         test_models = ["Baxter"]#, "MissFldwy", "PatuxentRiver"]
@@ -66,7 +68,9 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
 
             if reach_id not in data.keys():
                 continue
-
+            sub_model_dir=os.path.join(current_dir,"ras-data",test_model,"submodels",reach_id)
+            if os.path.exists(sub_model_dir):
+                shutil.rmtree(sub_model_dir,ignore_errors=True)
             results_files.append(os.path.join(current_dir, f"{test_model}-{reach_id}.json"))
             p.append(
                 subprocess.Popen(
@@ -93,20 +97,27 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
 
             if len(p) == 3:
                 [i.wait() for i in p]
-                for results_file in results_files:
-                    with open(results_file, "r") as f:
-                        results = json.loads(f.read())
-                    if "passed" in results["summary"]:
-                        passes += results["summary"]["passed"]
-                    if "failed" not in results["summary"]:
-                        os.remove(results_file)
+                p=[]
+    [i.wait() for i in p]
+    for results_file in results_files:
+        test_model,reach_id=Path(results_file).name.rstrip('.json').split("-")
+        with open(results_file, "r") as f:
+            results = json.loads(f.read())
+        if "passed" in results["summary"]:
+            passes += results["summary"]["passed"]
+        if "failed" not in results["summary"]:
+            os.remove(results_file)
+            sub_model_dir=os.path.join(current_dir,"ras-data",test_model,"submodels",reach_id)
+            if os.path.exists(sub_model_dir):
+                shutil.rmtree(sub_model_dir,ignore_errors=True)
 
-                    else:
-                        for test in results["tests"]:
-                            if test["outcome"] != "passed":
-                                fails.update({f"{test_model}-{reach_id}": test})
+        else:
+            for test in results["tests"]:
+                if test["outcome"] != "passed":
+                    fails.update({f"{test_model}-{reach_id}": test})
 
-                p, results_files = [], []
+
+        
 
     fails["pass count"] = passes
     with open(os.path.join(current_dir, "summary_api_tests.json"), "w") as f:
