@@ -44,7 +44,9 @@ class ConflationMetrics:
         """Calculate the distance between the thalweg point and the network intersection point."""
         xs_gdf["station_elevation"] = xs_gdf.apply(lambda row: self.populate_station_elevation(row), axis=1)
         xs_gdf["thalweg_station"] = xs_gdf.apply(lambda row: self.populate_thalweg_station(row), axis=1)
-        xs_gdf["thalweg_point"] = xs_gdf.apply(lambda row: row.geometry.interpolate(row["thalweg_station"]), axis=1)
+        xs_gdf["thalweg_point"] = xs_gdf.apply(
+            lambda row: row.geometry.interpolate(row["thalweg_station"] * METERS_PER_FOOT), axis=1
+        )
 
         xs_gdf["ras_intersection_point"] = None
         for _, r in self.river_gdf.iterrows():
