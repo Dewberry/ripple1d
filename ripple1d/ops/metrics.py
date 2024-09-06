@@ -176,6 +176,8 @@ def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflat
     conflation_parameters = json.load(open(conflation_json))
 
     for network_id in conflation_parameters["reaches"].keys():
+        if conflation_parameters["reaches"][network_id]["eclipsed"] == True:
+            continue
 
         rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "", network_id)
         layers = {}
