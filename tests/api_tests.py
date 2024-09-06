@@ -58,7 +58,7 @@ class TestPreprocessAPI(unittest.TestCase):
     def test_a_gpkg_from_ras(self):
         payload = {
             "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
-            "crs": 2227,
+            "crs": self.crs,
             "metadata": {
                 "stac_api": "https://stac2.dewberryanalytics.com",
                 "stac_collection_id": "ebfe-12090301_LowerColoradoCummins",

@@ -20,6 +20,7 @@ def setup_data(request):
     RAS_MODEL = request.config.getoption("--model")
     REACH_ID = request.config.getoption("--reach_id")
     MIN_ELEVATION = float(request.config.getoption("--min_elevation"))
+    CRS = {"Baxter": 2227, "PatuxentRiver": 6488, "MissFldwy": 32165}
 
     SOURCE_NETWORK = os.path.join(TEST_DIR, f"nwm-data\\flows.parquet")
     SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, f"ras-data\\{RAS_MODEL}")
@@ -55,3 +56,4 @@ def setup_data(request):
     request.cls.FIM_LIB_STAC_ITEM = os.path.join(SUBMODELS_DIRECTORY, f"fims\\{REACH_ID}.fim_lib.stac.json")
     request.cls.min_elevation = MIN_ELEVATION
     request.cls.conflation_file = os.path.join(SOURCE_RAS_MODEL_DIRECTORY, f"{RAS_MODEL}.conflation.json")
+    request.cls.crs = CRS[RAS_MODEL]
