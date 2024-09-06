@@ -426,15 +426,18 @@ class RasFimConflater:
         return wrapper
 
     @check_centerline
-    def ras_start_end_points(self, river_reach_name: str = None, centerline=None) -> Tuple[Point, Point]:
+    def ras_start_end_points(self, river_reach_name: str = None, centerline=None,clip_to_xs=False) -> Tuple[Point, Point]:
         """River_reach_name used by the decorator to get the centerline."""
         if river_reach_name:
-            centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
+            centerline = self.ras_centerline_by_river_reach_name(river_reach_name,clip_to_xs)
         return endpoints_from_multiline(centerline)
 
-    def ras_centerline_by_river_reach_name(self, river_reach_name: str) -> LineString:
+    def ras_centerline_by_river_reach_name(self, river_reach_name: str,clip_to_xs=False) -> LineString:
         """Return the centerline for the specified river reach."""
-        return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
+        if clip_to_xs:
+            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0].intersection(self.ras_xs_concave_hull(river_reach_name).geometry.iloc[0].buffer(1))
+        else:
+            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
 
     def xs_by_river_reach_name(self, river_reach_name: str) -> gpd.GeoDataFrame:
         """Return the cross sections for the specified river reach."""

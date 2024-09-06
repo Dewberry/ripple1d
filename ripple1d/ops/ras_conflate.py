@@ -92,7 +92,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         ]
 
         # get the start and end points of the river reach
-        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
+        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name, clip_to_xs=True)
 
         # get the nearest upstream and downstream nwm reaches to the start and end points of the river reach
         if len(rfc.ras_river_reach_names) == 1:
