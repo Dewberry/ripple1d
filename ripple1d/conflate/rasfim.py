@@ -352,10 +352,10 @@ class RasFimConflater:
     def ras_xs_convex_hull(self, river_reach_name: str = None):
         """Return the convex hull of the cross sections."""
         if river_reach_name:
-            polygon = self.ras_xs["geometry"].unary_union.convex_hull
+            polygon = self.ras_xs["geometry"].union_all().convex_hull
 
         else:
-            polygon = self.ras_xs["geometry"].unary_union.convex_hull
+            polygon = self.ras_xs["geometry"].union_all().convex_hull
 
         return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=self.ras_xs.crs)
 
