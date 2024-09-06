@@ -74,11 +74,26 @@ class ConflationMetrics:
             "thalweg_offset": xs_gdf["thalweg_offset"].describe(np.linspace(0.1, 1, 10)).round().astype(int).to_dict(),
         }
 
+    def ensure_point(self, geom: Geometry):
+        """Ensure that the geometry is Point."""
+        if isinstance(geom, MultiPoint):
+            return list(geom.geoms)[0]
+        elif isinstance(geom, Point):
+            return geom
+        elif isinstance(geom, LineString):
+            return list(geom.boundary.geoms)[0]
+        else:
+            raise ValueError(f"Not a valid geometry type: {type(geom)}. Only Point, MultiPoint,LineString supported.")
+
     def length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
         """Calculate the reach length between cross sections along the ras river line and the network reach."""
         xs_gdf["network_intersection_point"] = xs_gdf.apply(
             lambda row: self.network_reach_plus_ds_reach.intersection(row.geometry), axis=1
         )
+        xs_gdf["network_intersection_point"] = xs_gdf.apply(
+            lambda row: self.ensure_point(row["network_intersection_point"]), axis=1
+        )
+
         xs_gdf["network_station"] = xs_gdf.apply(
             lambda row: self.network_reach_plus_ds_reach.project(row["network_intersection_point"]), axis=1
         )
@@ -143,6 +158,8 @@ class ConflationMetrics:
         xs_gdf["intersection_point"] = xs_gdf.apply(
             lambda row: self.network_reach_plus_ds_reach.intersection(row.geometry), axis=1
         )
+        xs_gdf["intersection_point"] = xs_gdf.apply(lambda row: self.ensure_point(row["intersection_point"]), axis=1)
+
         xs_gdf["station_percent"] = xs_gdf.apply(
             lambda row: self.network_reach_plus_ds_reach.project(row["intersection_point"]) / self.network_reach.length,
             axis=1,
