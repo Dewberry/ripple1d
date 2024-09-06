@@ -15,7 +15,7 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
     
 
     if not test_model:
-        test_models = ["Baxter"]#, "MissFldwy", "PatuxentRiver"]
+        test_models = ["Baxter", "MissFldwy", "PatuxentRiver"]
     else:
         test_models = [test_model]
 
@@ -45,9 +45,14 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
     fails = {}
     passes = 0
     for test_model in test_models:
-
         pre_process=subprocess.Popen([sys.executable.replace("python.exe", "pytest.exe"), 
-                        r"tests/api_tests.py::TestPreprocessAPI"])
+                        "tests/api_tests.py::TestPreprocessAPI",
+                        "--model",
+                        test_model,
+                        "--reach_id",
+                        reach_id,
+                        "--min_elevation",
+                        "1"])
         pre_process.wait()
         conflation_file = os.path.join(current_dir, "ras-data", test_model, f"{test_model}.conflation.json")
         if not os.path.exists(conflation_file):
