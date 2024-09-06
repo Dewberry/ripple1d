@@ -50,7 +50,7 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
                         "--model",
                         test_model,
                         "--reach_id",
-                        reach_id,
+                        "1",
                         "--min_elevation",
                         "1"])
         pre_process.wait()
