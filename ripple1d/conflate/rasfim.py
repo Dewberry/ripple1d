@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 from fiona.errors import DriverError
-from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
+from shapely.geometry import LineString, MultiLineString, MultiPoint, Point, Polygon, box
 from shapely.ops import linemerge, nearest_points, transform
 
 from ripple1d.consts import METERS_PER_FOOT
@@ -100,41 +100,48 @@ class RasFimConflater:
     @property
     def stac_api(self):
         """The stac_api for the HEC-RAS Model."""
-        if "stac_api" in self.ras_metadata.keys():
-            return self.ras_metadata["stac_api"]
+        if self.ras_metadata:
+            if "stac_api" in self.ras_metadata.keys():
+                return self.ras_metadata["stac_api"]
     
     @property
     def stac_collection_id(self):
         """The stac_collection_id for the HEC-RAS Model."""
-        if "stac_collection_id" in self.ras_metadata.keys():
-            return self.ras_metadata["stac_collection_id"]
+        if self.ras_metadata:
+            if "stac_collection_id" in self.ras_metadata.keys():
+                return self.ras_metadata["stac_collection_id"]
         
     
     @property
     def stac_item_id(self):
         """The stac_item_id for the HEC-RAS Model."""
-        if "stac_item_id" in self.ras_metadata.keys():
-            return self.ras_metadata["stac_item_id"]
+        if self.ras_metadata:
+            if "stac_item_id" in self.ras_metadata.keys():
+                return self.ras_metadata["stac_item_id"]
 
     @property
     def primary_geom_file(self):
         """The primary geometry file for the HEC-RAS Model."""
-        return self.ras_metadata["primary_geom_file"]
+        if self.ras_metadata:
+            return self.ras_metadata["primary_geom_file"]
 
     @property
     def primary_flow_file(self):
         """The primary flow file for the HEC-RAS Model."""
-        return self.ras_metadata["primary_flow_file"]
+        if self.ras_metadata:
+            return self.ras_metadata["primary_flow_file"]
     
     @property
     def primary_plan_file(self):
         """The primary plan file for the HEC-RAS Model."""
-        return self.ras_metadata["primary_plan_file"]
+        if self.ras_metadata:
+            return self.ras_metadata["primary_plan_file"]
 
     @property
     def ras_project_file(self):
         """The source HEC-RAS project file."""
-        return self.ras_metadata["ras_project_file"] 
+        if self.ras_metadata:
+            return self.ras_metadata["ras_project_file"] 
 
     # @property
     # def xs_length_units(self):
