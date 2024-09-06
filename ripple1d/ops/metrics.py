@@ -5,7 +5,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
-from shapely import LineString, Point
+from shapely import Geometry, LineString, MultiLineString, MultiPoint, Point
 from shapely.ops import linemerge
 
 from ripple1d.consts import HYDROFABRIC_CRS, METERS_PER_FOOT
@@ -185,7 +185,7 @@ def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflat
             layers[layer] = gdf.to_crs(HYDROFABRIC_CRS)
 
         network_reaches = gpd.read_parquet(network_pq_path, bbox=layers["XS"].total_bounds)
-        network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(network_id), "geometry"].iloc[0])
+        network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(network_id)].geometry.iloc[0])
         network_reach_plus_ds_reach = combine_reaches(network_reaches, network_id)
 
         cm = ConflationMetrics(layers["XS"], layers["River"], network_reach, network_reach_plus_ds_reach)
@@ -195,9 +195,16 @@ def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflat
             "lengths": cm.length_metrics(layers["XS"]),
             "coverage": cm.compute_coverage_metrics(layers["XS"]),
         }
-        to_id = network_reaches.loc[network_reaches["ID"] != int(network_id), "to_id"].iloc[0]
 
-        overlapped_reaches = cm.overlapped_reaches(network_reaches[network_reaches["ID"] == int(to_id)])
+        to_id = conflation_parameters["reaches"][network_id]["network_to_id"]
+        if to_id in conflation_parameters["reaches"].keys():
+            next_to_id = int(conflation_parameters["reaches"][to_id]["network_to_id"])
+        else:
+            next_to_id = None
+
+        overlapped_reaches = cm.overlapped_reaches(
+            network_reaches[network_reaches["ID"].isin([int(to_id), next_to_id])]
+        )
         eclipsed_reaches = cm.eclipsed_reaches(network_reaches[network_reaches["ID"] != int(network_id)])
 
         conflation_parameters["reaches"][network_id].update({"metrics": metrics})
@@ -215,9 +222,20 @@ def combine_reaches(network_reaches: gpd.GeoDataFrame, network_id: str) -> LineS
     """Combine network reaches."""
     reach = network_reaches.loc[network_reaches["ID"] == int(network_id), :]
     to_reach = network_reaches.loc[network_reaches["ID"] == int(reach["to_id"].iloc[0]), :]
+
     if to_reach.empty:
-        return LineString(linemerge(reach.geometry.iloc[0]).coords)
+        return linemerge(reach.geometry.iloc[0])
     else:
-        return LineString(
-            list(linemerge(reach.geometry.iloc[0]).coords) + list(linemerge(to_reach.geometry.iloc[0]).coords)
-        )
+        next_to_reach = network_reaches.loc[network_reaches["ID"] == int(to_reach["to_id"].iloc[0]), :]
+        if next_to_reach.empty:
+            return linemerge(MultiLineString([linemerge(reach.geometry.iloc[0]), linemerge(to_reach.geometry.iloc[0])]))
+        else:
+            return linemerge(
+                MultiLineString(
+                    [
+                        linemerge(reach.geometry.iloc[0]),
+                        linemerge(to_reach.geometry.iloc[0]),
+                        linemerge(next_to_reach.geometry.iloc[0]),
+                    ]
+                )
+            )
