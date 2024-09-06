@@ -132,18 +132,19 @@ class ConflationMetrics:
 
     #     return [{"id": str(row["ID"]), "overlap": row["overlap"]} for _, row in overlaps.iterrows()]
 
-    def overlapped_reaches(self, to_reach: gpd.GeoDataFrame) -> dict:
+    def overlapped_reaches(self, to_reaches: gpd.GeoDataFrame) -> dict:
         """Calculate the overlap between the network reach and the cross sections."""
-        if to_reach.empty:
+        if to_reaches.empty:
             return []
-        if to_reach["geometry"].iloc[0].intersects(self.xs_gdf.union_all()):
-            overlap = (
-                to_reach["geometry"].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length
-                / METERS_PER_FOOT
-            )
-            return [{"id": str(to_reach["ID"].iloc[0]), "overlap": int(overlap.iloc[0])}]
-        else:
-            return []
+        geom_name = to_reaches.geometry.name
+        for i, row in to_reaches.iterrows():
+            if row[geom_name].intersects(self.xs_gdf.union_all()):
+                overlap = (
+                    row[geom_name].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length
+                    / METERS_PER_FOOT
+                )
+                return [{"id": str(row["ID"]), "overlap": int(overlap)}]
+        return []
 
     def eclipsed_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
         """Calculate the overlap between the network reach and the cross sections."""
