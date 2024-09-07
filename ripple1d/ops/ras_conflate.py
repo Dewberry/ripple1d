@@ -121,6 +121,9 @@ def conflate_model(source_model_directory: str, source_network: dict):
 
         metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
 
+    if not conflated():
+        return "no reaches conflated"
+
     ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
     conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
@@ -163,6 +166,18 @@ def conflate_model(source_model_directory: str, source_network: dict):
         logging.error(f"traceback: {traceback.format_exc()}")
 
     return conflation_file
+
+
+def conflated(metdata: dict) -> bool:
+    """Determine if any reaches conflated."""
+    count = 0
+    for reach_data in metdata["reaches"].values():
+        if not reach_data["eclipsed"]:
+            count += 1
+    if count == 0:
+        return False
+    else:
+        return True
 
 
 # def conflate_s3_model(
