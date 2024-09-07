@@ -436,12 +436,12 @@ class RippleGeopackageSubsetter:
         ripple1d_parameters["source_model"] = rsd.ras_project_file
         ripple1d_parameters["crs"] = self.crs.to_epsg()
         ripple1d_parameters["version"] = ripple1d.__version__
-        ripple1d_parameters["high_flow_cfs"] = max([ripple1d_parameters["high_flow_cfs"], self.max_flow])
-        ripple1d_parameters["low_flow_cfs"] = min([ripple1d_parameters["low_flow_cfs"], self.min_flow])
-        if ripple1d_parameters["high_flow_cfs"] == self.max_flow:
-            ripple1d_parameters["notes"] = ["high_flow_cfs computed from source model flows"]
-        if ripple1d_parameters["low_flow_cfs"] == self.min_flow:
-            ripple1d_parameters["notes"] = ["low_flow_cfs computed from source model flows"]
+        ripple1d_parameters["high_flow"] = max([ripple1d_parameters["high_flow"], self.max_flow])
+        ripple1d_parameters["low_flow"] = min([ripple1d_parameters["low_flow"], self.min_flow])
+        if ripple1d_parameters["high_flow"] == self.max_flow:
+            ripple1d_parameters["notes"] = ["high_flow computed from source model flows"]
+        if ripple1d_parameters["low_flow"] == self.min_flow:
+            ripple1d_parameters["notes"] = ["low_flow computed from source model flows"]
         return ripple1d_parameters
 
     def write_ripple1d_parameters(self, ripple1d_parameters: dict):

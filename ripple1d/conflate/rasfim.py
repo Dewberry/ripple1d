@@ -547,71 +547,71 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int
     return ids
 
 
-def calculate_conflation_metrics(
-    rfc: RasFimConflater,
-    candidate_reaches: gpd.GeoDataFrame,
-    xs_group: gpd.GeoDataFrame,
-    ras_points: gpd.GeoDataFrame,
-) -> dict:
-    """Calculate the conflation metrics for the candidate reaches."""
-    next_round_candidates = []
-    xs_hits_ids = []
-    total_hits = 0
-    for i in candidate_reaches.index:
-        candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
-        # TODO: Evaluate this constant.
-        if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
-            next_round_candidates.append(candidate_reaches.loc[i]["ID"])
-            gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
-            xs_hits = count_intersecting_lines(xs_group, gdftmp)
+# def calculate_conflation_metrics(
+#     rfc: RasFimConflater,
+#     candidate_reaches: gpd.GeoDataFrame,
+#     xs_group: gpd.GeoDataFrame,
+#     ras_points: gpd.GeoDataFrame,
+# ) -> dict:
+#     """Calculate the conflation metrics for the candidate reaches."""
+#     next_round_candidates = []
+#     xs_hits_ids = []
+#     total_hits = 0
+#     for i in candidate_reaches.index:
+#         candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
+#         # TODO: Evaluate this constant.
+#         if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
+#             next_round_candidates.append(candidate_reaches.loc[i]["ID"])
+#             gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
+#             xs_hits = count_intersecting_lines(xs_group, gdftmp)
 
-            total_hits += xs_hits.shape[0]
-            xs_hits_ids.extend(xs_hits.ID.tolist())
+#             total_hits += xs_hits.shape[0]
+#             xs_hits_ids.extend(xs_hits.ID.tolist())
 
-            logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
+#             logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
 
-    dangling_xs = filter_gdf(xs_group, xs_hits_ids)
+#     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
 
-    dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_reaches, predicate="intersects")
+#     dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_reaches, predicate="intersects")
 
-    conflation_score = round(total_hits / xs_group.shape[0], 2)
+#     conflation_score = round(total_hits / xs_group.shape[0], 2)
 
-    if conflation_score == 1:
-        conlfation_notes = "Probable Conflation, no dangling xs"
-        manual_check_required = False
+#     if conflation_score == 1:
+#         conlfation_notes = "Probable Conflation, no dangling xs"
+#         manual_check_required = False
 
-    # elif dangling_xs_interesects.shape[0] == 0:
-    #     conlfation_notes = f"Probable Conflation..."
-    #     manual_check_required = False
+#     # elif dangling_xs_interesects.shape[0] == 0:
+#     #     conlfation_notes = f"Probable Conflation..."
+#     #     manual_check_required = False
 
-    elif conflation_score >= 0.95:
-        conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = False
+#     elif conflation_score >= 0.95:
+#         conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = False
 
-    elif conflation_score >= 0.25:
-        conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = True
+#     elif conflation_score >= 0.25:
+#         conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = True
 
-    elif conflation_score < 0.25:
-        conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = True
+#     elif conflation_score < 0.25:
+#         conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = True
 
-    elif conflation_score > 1:
-        conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = True
+#     elif conflation_score > 1:
+#         conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = True
 
-    else:
-        conlfation_notes = "Unknown error"
-        manual_check_required = True
+#     else:
+#         conlfation_notes = "Unknown error"
+#         manual_check_required = True
 
-    # Convert next_round_candidates from int64 to serialize
-    conlfation_metrics = {
-        # "fim_reaches": [int(c) for c in next_round_candidates],
-        "conflation_score": round(total_hits / xs_group.shape[0], 2),
-        "conlfation_notes": conlfation_notes,
-        "manual_check_required": manual_check_required,
-    }
-    return conlfation_metrics
+#     # Convert next_round_candidates from int64 to serialize
+#     conlfation_metrics = {
+#         # "fim_reaches": [int(c) for c in next_round_candidates],
+#         "conflation_score": round(total_hits / xs_group.shape[0], 2),
+#         "conlfation_notes": conlfation_notes,
+#         "manual_check_required": manual_check_required,
+#     }
+#     return conlfation_metrics
 
 
 def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
@@ -789,17 +789,17 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
         if isinstance(flow_data["high_flow_threshold"], float):
-            reach_metadata[k]["low_flow_cfs"] = int(round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR)
+            reach_metadata[k]["low_flow"] = int(round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR)
         else:
-            reach_metadata[k]["low_flow_cfs"] = -9999
+            reach_metadata[k]["low_flow"] = -9999
             logging.warning(f"No low flow data for {k}")
 
         try:
             high_flow = float(flow_data["f100year"])
-            reach_metadata[k]["high_flow_cfs"] = int(round(high_flow, 2))
+            reach_metadata[k]["high_flow"] = int(round(high_flow, 2))
         except:
             logging.warning(f"No high flow data for {k}")
-            reach_metadata[k]["high_flow_cfs"] = -9999
+            reach_metadata[k]["high_flow"] = -9999
         try:
             reach_metadata[k]["network_to_id"] = str(flow_data["to_id"])
         except:
