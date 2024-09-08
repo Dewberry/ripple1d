@@ -121,7 +121,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
 
         metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
 
-    if not conflated():
+    if not conflated(metadata):
         return "no reaches conflated"
 
     ids = list(metadata["reaches"].keys())
@@ -168,10 +168,10 @@ def conflate_model(source_model_directory: str, source_network: dict):
     return conflation_file
 
 
-def conflated(metdata: dict) -> bool:
+def conflated(metadata: dict) -> bool:
     """Determine if any reaches conflated."""
     count = 0
-    for reach_data in metdata["reaches"].values():
+    for reach_data in metadata["reaches"].values():
         if not reach_data["eclipsed"]:
             count += 1
     if count == 0:
