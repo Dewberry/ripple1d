@@ -137,10 +137,10 @@ def conflate_model(source_model_directory: str, source_network: dict):
 
     logging.info(f"Conflation results: {metadata}")
     conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
-    source_network["file_name"] = os.path.basename(source_network["file_name"])
 
     metadata["metadata"] = {}
-    metadata["metadata"]["source_network"] = source_network
+    metadata["metadata"]["source_network"] = source_network.copy()
+    metadata["metadata"]["source_network"]["file_name"] = os.path.basename(nwm_pq_path)
     metadata["metadata"]["conflation_png"] = os.path.basename(conflation_png)
     metadata["metadata"]["conflation_ripple1d_version"] = ripple1d.__version__
     metadata["metadata"]["metrics_ripple1d_version"] = ripple1d.__version__
@@ -160,7 +160,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         f.write(json.dumps(metadata, indent=4))
 
     try:
-        compute_conflation_metrics(rfc.ras_gpkg, nwm_pq_path, conflation_file)
+        compute_conflation_metrics(source_model_directory, source_network)
     except Exception as e:
         logging.error(f"Error: {e}")
         logging.error(f"traceback: {traceback.format_exc()}")
