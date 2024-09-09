@@ -75,7 +75,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n                        \"version\":\"2.1\",  // optional\r\n                        \"file_hash\": \"\",  // optional\r\n                        \"type\":\"nwm_hydrofabric\"}, // optional\r\n    \"conflation_json\": \"{{source_model_directory}}\\\\Baxter.conflation.json\"\r\n    \r\n    \r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n    \"version\":\"2.1\", // optional\r\n    \"file_hash\": \"a6786ba02073f0233b9a69afc49d92bf-178\", // optional\r\n    \"type\":\"nwm_hydrofabric\"}  \r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
