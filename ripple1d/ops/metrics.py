@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sqlite3
 import traceback
 
@@ -196,8 +197,12 @@ class ConflationMetrics:
             logging.error(f"traceback: {traceback.format_exc()}")
 
 
-def compute_conflation_metrics(src_gpkg_path: str, network_pq_path: str, conflation_json: str):
+def compute_conflation_metrics(source_model_directory: str, source_network: str):
     """Compute metrics for a network reach."""
+    network_pq_path = source_network["file_name"]
+    model_name = os.path.basename(source_model_directory)
+    src_gpkg_path = os.path.join(source_model_directory, f"{model_name}.gpkg")
+    conflation_json = os.path.join(source_model_directory, f"{model_name}.conflation.json")
     conflation_parameters = json.load(open(conflation_json))
 
     for network_id in conflation_parameters["reaches"].keys():
