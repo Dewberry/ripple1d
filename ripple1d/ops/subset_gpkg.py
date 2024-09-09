@@ -69,7 +69,8 @@ class RippleGeopackageSubsetter:
     @property
     def source_xs(self) -> gpd.GeoDataFrame:
         """Extract cross sections from the source geopackage."""
-        return gpd.read_file(self.src_gpkg_path, layer="XS")
+        xs = gpd.read_file(self.src_gpkg_path, layer="XS")
+        return xs[xs.intersects(self.source_river.union_all())]
 
     @property
     def source_river(self) -> gpd.GeoDataFrame:
@@ -80,7 +81,8 @@ class RippleGeopackageSubsetter:
     def source_structure(self) -> gpd.GeoDataFrame:
         """Extract structures from the source geopackage."""
         if "Structure" in fiona.listlayers(self.src_gpkg_path):
-            return gpd.read_file(self.src_gpkg_path, layer="Structure")
+            structures = gpd.read_file(self.src_gpkg_path, layer="Structure")
+            return structures[structures.intersects(self.source_river.union_all())]
 
     @property
     def source_junction(self) -> gpd.GeoDataFrame:
@@ -448,12 +450,12 @@ class RippleGeopackageSubsetter:
         ripple1d_parameters["source_model"] = rsd.ras_project_file
         ripple1d_parameters["crs"] = self.crs.to_epsg()
         ripple1d_parameters["version"] = ripple1d.__version__
-        ripple1d_parameters["high_flow_cfs"] = max([ripple1d_parameters["high_flow_cfs"], self.max_flow])
-        ripple1d_parameters["low_flow_cfs"] = min([ripple1d_parameters["low_flow_cfs"], self.min_flow])
-        if ripple1d_parameters["high_flow_cfs"] == self.max_flow:
-            ripple1d_parameters["notes"] = ["high_flow_cfs computed from source model flows"]
-        if ripple1d_parameters["low_flow_cfs"] == self.min_flow:
-            ripple1d_parameters["notes"] = ["low_flow_cfs computed from source model flows"]
+        ripple1d_parameters["high_flow"] = max([ripple1d_parameters["high_flow"], self.max_flow])
+        ripple1d_parameters["low_flow"] = min([ripple1d_parameters["low_flow"], self.min_flow])
+        if ripple1d_parameters["high_flow"] == self.max_flow:
+            ripple1d_parameters["notes"] = ["high_flow computed from source model flows"]
+        if ripple1d_parameters["low_flow"] == self.min_flow:
+            ripple1d_parameters["notes"] = ["low_flow computed from source model flows"]
         return ripple1d_parameters
 
     def write_ripple1d_parameters(self, ripple1d_parameters: dict):

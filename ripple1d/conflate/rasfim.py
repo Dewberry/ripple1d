@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 from fiona.errors import DriverError
-from shapely.geometry import LineString, MultiLineString, Point, Polygon, box
+from shapely.geometry import LineString, MultiLineString, MultiPoint, Point, Polygon, box
 from shapely.ops import linemerge, nearest_points, transform
 
 from ripple1d.consts import METERS_PER_FOOT
@@ -88,9 +88,10 @@ class RasFimConflater:
         self._xs_hulls = None
         self.__data_loaded = False
         if load_data:
+            self._common_crs = NWM_CRS
             self.load_data()
             self.__data_loaded = True
-            self._common_crs = NWM_CRS
+            
 
     def __repr__(self):
         """Return the string representation of the object."""
@@ -100,41 +101,48 @@ class RasFimConflater:
     @property
     def stac_api(self):
         """The stac_api for the HEC-RAS Model."""
-        if "stac_api" in self.ras_metadata.keys():
-            return self.ras_metadata["stac_api"]
+        if self.ras_metadata:
+            if "stac_api" in self.ras_metadata.keys():
+                return self.ras_metadata["stac_api"]
     
     @property
     def stac_collection_id(self):
         """The stac_collection_id for the HEC-RAS Model."""
-        if "stac_collection_id" in self.ras_metadata.keys():
-            return self.ras_metadata["stac_collection_id"]
+        if self.ras_metadata:
+            if "stac_collection_id" in self.ras_metadata.keys():
+                return self.ras_metadata["stac_collection_id"]
         
     
     @property
     def stac_item_id(self):
         """The stac_item_id for the HEC-RAS Model."""
-        if "stac_item_id" in self.ras_metadata.keys():
-            return self.ras_metadata["stac_item_id"]
+        if self.ras_metadata:
+            if "stac_item_id" in self.ras_metadata.keys():
+                return self.ras_metadata["stac_item_id"]
 
     @property
     def primary_geom_file(self):
         """The primary geometry file for the HEC-RAS Model."""
-        return self.ras_metadata["primary_geom_file"]
+        if self.ras_metadata:
+            return self.ras_metadata["primary_geom_file"]
 
     @property
     def primary_flow_file(self):
         """The primary flow file for the HEC-RAS Model."""
-        return self.ras_metadata["primary_flow_file"]
+        if self.ras_metadata:
+            return self.ras_metadata["primary_flow_file"]
     
     @property
     def primary_plan_file(self):
         """The primary plan file for the HEC-RAS Model."""
-        return self.ras_metadata["primary_plan_file"]
+        if self.ras_metadata:
+            return self.ras_metadata["primary_plan_file"]
 
     @property
     def ras_project_file(self):
         """The source HEC-RAS project file."""
-        return self.ras_metadata["ras_project_file"] 
+        if self.ras_metadata:
+            return self.ras_metadata["ras_project_file"] 
 
     # @property
     # def xs_length_units(self):
@@ -245,18 +253,20 @@ class RasFimConflater:
         if "River" in layers:
             self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
         if "XS" in layers:
-            self._ras_xs = gpd.read_file(self.ras_gpkg, layer="XS")
+            xs=gpd.read_file(self.ras_gpkg, layer="XS")
+            self._ras_xs = xs[xs.intersects(self._ras_centerlines.union_all())]
         if "Junction" in layers:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
         if "Structure" in layers:
-            self._ras_structures = gpd.read_file(self.ras_gpkg, layer="Structure")
+            structures=gpd.read_file(self.ras_gpkg, layer="Structure")
+            self._ras_structures = structures[structures.intersects(self._ras_centerlines.union_all())]
         if "metadata" in layers:
             self._ras_metadata=self._gpkg_metadata
 
     def load_pq(self, nwm_pq: str):
         """Load the NWM data from the Parquet file."""
         try:
-            nwm_reaches = gpd.read_parquet(nwm_pq)
+            nwm_reaches = gpd.read_parquet(nwm_pq,bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
             self._nwm_reaches = nwm_reaches.set_geometry("geometry")
         except Exception as e:
@@ -267,8 +277,8 @@ class RasFimConflater:
 
     def load_data(self):
         """Load the NWM and RAS data from the GeoPackages."""
-        self.load_pq(self.nwm_pq)
         self.load_gpkg(self.ras_gpkg)
+        self.load_pq(self.nwm_pq)
 
     def ensure_data_loaded(func):
         """Ensure that the data is loaded before accessing the properties Decorator."""
@@ -419,15 +429,18 @@ class RasFimConflater:
         return wrapper
 
     @check_centerline
-    def ras_start_end_points(self, river_reach_name: str = None, centerline=None) -> Tuple[Point, Point]:
+    def ras_start_end_points(self, river_reach_name: str = None, centerline=None,clip_to_xs=False) -> Tuple[Point, Point]:
         """River_reach_name used by the decorator to get the centerline."""
         if river_reach_name:
-            centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
+            centerline = self.ras_centerline_by_river_reach_name(river_reach_name,clip_to_xs)
         return endpoints_from_multiline(centerline)
 
-    def ras_centerline_by_river_reach_name(self, river_reach_name: str) -> LineString:
+    def ras_centerline_by_river_reach_name(self, river_reach_name: str,clip_to_xs=False) -> LineString:
         """Return the centerline for the specified river reach."""
-        return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
+        if clip_to_xs:
+            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0].intersection(self.ras_xs_concave_hull(river_reach_name).geometry.iloc[0].buffer(1))
+        else:
+            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
 
     def xs_by_river_reach_name(self, river_reach_name: str) -> gpd.GeoDataFrame:
         """Return the cross sections for the specified river reach."""
@@ -537,71 +550,71 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int
     return ids
 
 
-def calculate_conflation_metrics(
-    rfc: RasFimConflater,
-    candidate_reaches: gpd.GeoDataFrame,
-    xs_group: gpd.GeoDataFrame,
-    ras_points: gpd.GeoDataFrame,
-) -> dict:
-    """Calculate the conflation metrics for the candidate reaches."""
-    next_round_candidates = []
-    xs_hits_ids = []
-    total_hits = 0
-    for i in candidate_reaches.index:
-        candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
-        # TODO: Evaluate this constant.
-        if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
-            next_round_candidates.append(candidate_reaches.loc[i]["ID"])
-            gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
-            xs_hits = count_intersecting_lines(xs_group, gdftmp)
+# def calculate_conflation_metrics(
+#     rfc: RasFimConflater,
+#     candidate_reaches: gpd.GeoDataFrame,
+#     xs_group: gpd.GeoDataFrame,
+#     ras_points: gpd.GeoDataFrame,
+# ) -> dict:
+#     """Calculate the conflation metrics for the candidate reaches."""
+#     next_round_candidates = []
+#     xs_hits_ids = []
+#     total_hits = 0
+#     for i in candidate_reaches.index:
+#         candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
+#         # TODO: Evaluate this constant.
+#         if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
+#             next_round_candidates.append(candidate_reaches.loc[i]["ID"])
+#             gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
+#             xs_hits = count_intersecting_lines(xs_group, gdftmp)
 
-            total_hits += xs_hits.shape[0]
-            xs_hits_ids.extend(xs_hits.ID.tolist())
+#             total_hits += xs_hits.shape[0]
+#             xs_hits_ids.extend(xs_hits.ID.tolist())
 
-            logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
+#             logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
 
-    dangling_xs = filter_gdf(xs_group, xs_hits_ids)
+#     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
 
-    dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_reaches, predicate="intersects")
+#     dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_reaches, predicate="intersects")
 
-    conflation_score = round(total_hits / xs_group.shape[0], 2)
+#     conflation_score = round(total_hits / xs_group.shape[0], 2)
 
-    if conflation_score == 1:
-        conlfation_notes = "Probable Conflation, no dangling xs"
-        manual_check_required = False
+#     if conflation_score == 1:
+#         conlfation_notes = "Probable Conflation, no dangling xs"
+#         manual_check_required = False
 
-    # elif dangling_xs_interesects.shape[0] == 0:
-    #     conlfation_notes = f"Probable Conflation..."
-    #     manual_check_required = False
+#     # elif dangling_xs_interesects.shape[0] == 0:
+#     #     conlfation_notes = f"Probable Conflation..."
+#     #     manual_check_required = False
 
-    elif conflation_score >= 0.95:
-        conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = False
+#     elif conflation_score >= 0.95:
+#         conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = False
 
-    elif conflation_score >= 0.25:
-        conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = True
+#     elif conflation_score >= 0.25:
+#         conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = True
 
-    elif conflation_score < 0.25:
-        conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = True
+#     elif conflation_score < 0.25:
+#         conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = True
 
-    elif conflation_score > 1:
-        conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-        manual_check_required = True
+#     elif conflation_score > 1:
+#         conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
+#         manual_check_required = True
 
-    else:
-        conlfation_notes = "Unknown error"
-        manual_check_required = True
+#     else:
+#         conlfation_notes = "Unknown error"
+#         manual_check_required = True
 
-    # Convert next_round_candidates from int64 to serialize
-    conlfation_metrics = {
-        # "fim_reaches": [int(c) for c in next_round_candidates],
-        "conflation_score": round(total_hits / xs_group.shape[0], 2),
-        "conlfation_notes": conlfation_notes,
-        "manual_check_required": manual_check_required,
-    }
-    return conlfation_metrics
+#     # Convert next_round_candidates from int64 to serialize
+#     conlfation_metrics = {
+#         # "fim_reaches": [int(c) for c in next_round_candidates],
+#         "conflation_score": round(total_hits / xs_group.shape[0], 2),
+#         "conlfation_notes": conlfation_notes,
+#         "manual_check_required": manual_check_required,
+#     }
+#     return conlfation_metrics
 
 
 def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
@@ -779,17 +792,17 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
         if isinstance(flow_data["high_flow_threshold"], float):
-            reach_metadata[k]["low_flow_cfs"] = int(round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR)
+            reach_metadata[k]["low_flow"] = int(round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR)
         else:
-            reach_metadata[k]["low_flow_cfs"] = -9999
+            reach_metadata[k]["low_flow"] = -9999
             logging.warning(f"No low flow data for {k}")
 
         try:
             high_flow = float(flow_data["f100year"])
-            reach_metadata[k]["high_flow_cfs"] = int(round(high_flow, 2))
+            reach_metadata[k]["high_flow"] = int(round(high_flow, 2))
         except:
             logging.warning(f"No high flow data for {k}")
-            reach_metadata[k]["high_flow_cfs"] = -9999
+            reach_metadata[k]["high_flow"] = -9999
         try:
             reach_metadata[k]["network_to_id"] = str(flow_data["to_id"])
         except:

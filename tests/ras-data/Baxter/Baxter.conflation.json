@@ -66,7 +66,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2823932",
+                    "overlap": 272
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2823932": {
@@ -137,8 +142,8 @@
             },
             "overlapped_reaches": [
                 {
-                    "id": "2823932",
-                    "overlap": 1605
+                    "id": "2826230",
+                    "overlap": 431
                 }
             ],
             "eclipsed_reaches": []
@@ -209,7 +214,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2823972",
+                    "overlap": 595
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2826230": {
@@ -278,7 +288,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2823934",
+                    "overlap": 218
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2823934": {
@@ -347,7 +362,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2826224",
+                    "overlap": 260
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2826224": {
@@ -416,7 +436,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2823960",
+                    "overlap": 374
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2823920": {
@@ -485,7 +510,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2823972",
+                    "overlap": 476
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2821866": {
@@ -623,7 +653,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2821866",
+                    "overlap": 234
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2820006": {
@@ -692,7 +727,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2820012",
+                    "overlap": 261
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2823972": {
@@ -763,7 +803,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2820002",
+                    "overlap": 411
+                }
+            ],
             "eclipsed_reaches": []
         },
         "2820002": {
@@ -832,7 +877,12 @@
                     "end": 1
                 }
             },
-            "overlapped_reaches": [],
+            "overlapped_reaches": [
+                {
+                    "id": "2820006",
+                    "overlap": 380
+                }
+            ],
             "eclipsed_reaches": []
         }
     },
