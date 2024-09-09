@@ -88,9 +88,10 @@ class RasFimConflater:
         self._xs_hulls = None
         self.__data_loaded = False
         if load_data:
+            self._common_crs = NWM_CRS
             self.load_data()
             self.__data_loaded = True
-            self._common_crs = NWM_CRS
+            
 
     def __repr__(self):
         """Return the string representation of the object."""
@@ -263,7 +264,7 @@ class RasFimConflater:
     def load_pq(self, nwm_pq: str):
         """Load the NWM data from the Parquet file."""
         try:
-            nwm_reaches = gpd.read_parquet(nwm_pq)
+            nwm_reaches = gpd.read_parquet(nwm_pq,bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
             self._nwm_reaches = nwm_reaches.set_geometry("geometry")
         except Exception as e:
@@ -274,8 +275,8 @@ class RasFimConflater:
 
     def load_data(self):
         """Load the NWM and RAS data from the GeoPackages."""
-        self.load_pq(self.nwm_pq)
         self.load_gpkg(self.ras_gpkg)
+        self.load_pq(self.nwm_pq)
 
     def ensure_data_loaded(func):
         """Ensure that the data is loaded before accessing the properties Decorator."""
