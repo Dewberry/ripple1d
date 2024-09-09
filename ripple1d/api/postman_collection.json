@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "c4afca18-6b93-4c83-aa82-30306d98dcb2",
+		"_postman_id": "a4de6034-22c7-4a2b-b91c-12494de19040",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -75,7 +75,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"src_gpkg_path\": \"{{source_model_directory}}\\\\Baxter.gpkg\",\r\n    \"conflation_json\": \"{{source_model_directory}}\\\\Baxter.conflation.json\",\r\n    \"nwm_pq_path\": \"{{nwm_data_directory}}\\\\flows.parquet\"\r\n    \r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n    \"version\":\"2.1\", // optional\r\n    \"file_hash\": \"a6786ba02073f0233b9a69afc49d92bf-178\", // optional\r\n    \"type\":\"nwm_hydrofabric\"}  \r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -93,7 +93,7 @@
 								"execution"
 							]
 						},
-						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
+						"description": "Compute conflation metrics for a given gpkg/conflation json."
 					},
 					"response": []
 				},
@@ -104,7 +104,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n                        \"version\":\"2.1\",\r\n                        \"type\":\"nwm_hydrofabric\"}\r\n    \r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n                        \"version\":\"2.1\",  // optional\r\n                        \"type\":\"nwm_hydrofabric\"}\r\n    \r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -122,7 +122,7 @@
 								"execution"
 							]
 						},
-						"description": "Create a new model for a given nwm_id (NWM reach) from an existing HEC-RAS model."
+						"description": "Conflate a source HEC-RAS model with the NWM network."
 					},
 					"response": []
 				},
@@ -162,7 +162,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"crs\": 2227,\r\n    \"metadata\": {\"stac_item\":\"sldakj;ga\"}\r\n}\r\n",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"crs\": 2227,\r\n    \"metadata\": {\"stac_api\":\"https://stac2.dewberryanalytics.com\",  // optional\r\n                \"stac_collection_id\":\"ebfe-12090301_LowerColoradoCummins\",  // optional\r\n                \"stac_item_id\":\"137a9667-e5cf-4cea-b6ec-2e882a42fdc8\"}  // optional\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -170,13 +170,13 @@
 							}
 						},
 						"url": {
-							"raw": "{{url}}/processes/extract_gpkg/execution",
+							"raw": "{{url}}/processes/gpkg_from_ras/execution",
 							"host": [
 								"{{url}}"
 							],
 							"path": [
 								"processes",
-								"extract_gpkg",
+								"gpkg_from_ras",
 								"execution"
 							]
 						},
@@ -238,7 +238,7 @@
 								"execution"
 							]
 						},
-						"description": "Run a range of flows for Normal Depth on a HEC-RAS model. The results will be used to inform flows required to develop rating curves at a provided increment."
+						"description": "Run a range of flows for dormal depth on a HEC-RAS model. The results will be used to inform flows required to develop rating curves at a provided increment."
 					},
 					"response": []
 				},
@@ -296,7 +296,7 @@
 								"execution"
 							]
 						},
-						"description": "Run a series of HEC-RAS simulations using Known Water Surface Elevations."
+						"description": "Run a HEC-RAS simulation using Known Water Surface Elevations."
 					},
 					"response": []
 				},
@@ -353,7 +353,8 @@
 								"nwm_reach_model_stac",
 								"execution"
 							]
-						}
+						},
+						"description": "Create a STAC item for a HEC-RAS model representing a NWM reach."
 					},
 					"response": []
 				},
@@ -381,7 +382,8 @@
 								"fim_lib_stac",
 								"execution"
 							]
-						}
+						},
+						"description": "Create a STAC item for a FIM library for a NWM reah."
 					},
 					"response": []
 				}
