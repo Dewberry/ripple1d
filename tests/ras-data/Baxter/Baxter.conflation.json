@@ -16,8 +16,8 @@
                 "xs_id": 84000.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5668,
-            "high_flow_cfs": 19588,
+            "low_flow": 5668,
+            "high_flow": 19588,
             "network_to_id": "2823932",
             "metrics": {
                 "xs": {
@@ -76,8 +76,8 @@
                 "xs_id": 81920.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5669,
-            "high_flow_cfs": 19588,
+            "low_flow": 5669,
+            "high_flow": 19588,
             "network_to_id": "2826230",
             "metrics": {
                 "xs": {
@@ -136,8 +136,8 @@
                 "xs_id": 47694.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5694,
-            "high_flow_cfs": 19607,
+            "low_flow": 5694,
+            "high_flow": 19607,
             "network_to_id": "2823972",
             "metrics": {
                 "xs": {
@@ -196,8 +196,8 @@
                 "xs_id": 80916.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5671,
-            "high_flow_cfs": 19588,
+            "low_flow": 5671,
+            "high_flow": 19588,
             "network_to_id": "2823934",
             "metrics": {
                 "xs": {
@@ -256,8 +256,8 @@
                 "xs_id": 79577.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5672,
-            "high_flow_cfs": 19589,
+            "low_flow": 5672,
+            "high_flow": 19589,
             "network_to_id": "2826224",
             "metrics": {
                 "xs": {
@@ -316,8 +316,8 @@
                 "xs_id": 78658.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5673,
-            "high_flow_cfs": 19588,
+            "low_flow": 5673,
+            "high_flow": 19588,
             "network_to_id": "2823960",
             "metrics": {
                 "xs": {
@@ -376,8 +376,8 @@
                 "xs_id": 47694.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 550,
-            "high_flow_cfs": 9392,
+            "low_flow": 550,
+            "high_flow": 9392,
             "network_to_id": "2823972",
             "metrics": {
                 "xs": {
@@ -436,8 +436,8 @@
                 "xs_id": 1192.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5707,
-            "high_flow_cfs": 21516,
+            "low_flow": 5707,
+            "high_flow": 21516,
             "network_to_id": "2820026",
             "metrics": {
                 "xs": {
@@ -491,8 +491,8 @@
                 "xs_id": 2877.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5707,
-            "high_flow_cfs": 21520,
+            "low_flow": 5707,
+            "high_flow": 21520,
             "network_to_id": "2821866",
             "metrics": {
                 "xs": {
@@ -551,8 +551,8 @@
                 "xs_id": 12789.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5707,
-            "high_flow_cfs": 21527,
+            "low_flow": 5707,
+            "high_flow": 21527,
             "network_to_id": "2820012",
             "metrics": {
                 "xs": {
@@ -611,8 +611,8 @@
                 "xs_id": 38312.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5729,
-            "high_flow_cfs": 22135,
+            "low_flow": 5729,
+            "high_flow": 22135,
             "network_to_id": "2820002",
             "gage": "11290000",
             "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=11290000&legacy=1",
@@ -673,8 +673,8 @@
                 "xs_id": 13617.0
             },
             "eclipsed": false,
-            "low_flow_cfs": 5707,
-            "high_flow_cfs": 21526,
+            "low_flow": 5707,
+            "high_flow": 21526,
             "network_to_id": "2820006",
             "metrics": {
                 "xs": {
