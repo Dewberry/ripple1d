@@ -9,6 +9,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+
 from ripple1d.consts import DEFAULT_EPSG, MIN_FLOW
 from ripple1d.data_model import FlowChangeLocation, NwmReachModel
 from ripple1d.ras import RasManager
@@ -40,8 +41,8 @@ def create_model_run_normal_depth(
 
         # increment flows based on min and max flows specified in conflation parameters
         initial_flows = np.linspace(
-            max([nwm_rm.ripple1d_parameters["low_flow_cfs"], MIN_FLOW]),
-            nwm_rm.ripple1d_parameters["high_flow_cfs"],
+            max([nwm_rm.ripple1d_parameters["low_flow"], MIN_FLOW]),
+            nwm_rm.ripple1d_parameters["high_flow"],
             num_of_discharges_for_initial_normal_depth_runs,
         ).astype(int)
 
