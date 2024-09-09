@@ -83,6 +83,16 @@ class TestPreprocessAPI(unittest.TestCase):
         files = [self.conflation_file]
         return process, payload, files
 
+    @check_process
+    def test_c_compute_conflation_metrics(self):
+        payload = {
+            "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "source_network": {"file_name": self.SOURCE_NETWORK, "version": "2.1", "type": "nwm_hydrofabric"},
+        }
+        process = "compute_conflation_metrics"
+        files = [self.conflation_file]
+        return process, payload, files
+
 
 @pytest.mark.usefixtures("setup_data")
 class TestApi(unittest.TestCase):
