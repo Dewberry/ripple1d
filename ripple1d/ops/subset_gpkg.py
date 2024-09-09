@@ -69,7 +69,8 @@ class RippleGeopackageSubsetter:
     @property
     def source_xs(self) -> gpd.GeoDataFrame:
         """Extract cross sections from the source geopackage."""
-        return gpd.read_file(self.src_gpkg_path, layer="XS")
+        xs = gpd.read_file(self.src_gpkg_path, layer="XS")
+        return xs[xs.intersects(self.source_river.union_all())]
 
     @property
     def source_river(self) -> gpd.GeoDataFrame:
@@ -80,7 +81,8 @@ class RippleGeopackageSubsetter:
     def source_structure(self) -> gpd.GeoDataFrame:
         """Extract structures from the source geopackage."""
         if "Structure" in fiona.listlayers(self.src_gpkg_path):
-            return gpd.read_file(self.src_gpkg_path, layer="Structure")
+            structures = gpd.read_file(self.src_gpkg_path, layer="Structure")
+            return structures[structures.intersects(self.source_river.union_all())]
 
     @property
     def source_junction(self) -> gpd.GeoDataFrame:

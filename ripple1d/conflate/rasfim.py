@@ -253,11 +253,13 @@ class RasFimConflater:
         if "River" in layers:
             self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
         if "XS" in layers:
-            self._ras_xs = gpd.read_file(self.ras_gpkg, layer="XS")
+            xs=gpd.read_file(self.ras_gpkg, layer="XS")
+            self._ras_xs = xs[xs.intersects(self._ras_centerlines.union_all())]
         if "Junction" in layers:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
         if "Structure" in layers:
-            self._ras_structures = gpd.read_file(self.ras_gpkg, layer="Structure")
+            structures=gpd.read_file(self.ras_gpkg, layer="Structure")
+            self._ras_structures = structures[structures.intersects(self._ras_centerlines.union_all())]
         if "metadata" in layers:
             self._ras_metadata=self._gpkg_metadata
 
