@@ -204,7 +204,11 @@ class RippleGeopackageSubsetter:
         """Clean up river station data."""
         lines = ras_data.splitlines()
         data = lines[0].split(",")
-        data[1] = str(float(float(data[1]))).ljust(8)
+        if "*" in data[1]:
+            data[1] = str(float(data[1].rstrip("*"))) + "*"
+            data[1] = data[1].ljust(8)
+        else:
+            data[1] = str(float(data[1])).ljust(8)
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
@@ -212,7 +216,11 @@ class RippleGeopackageSubsetter:
         """Clean up river station data."""
         lines = ras_data.splitlines()
         data = lines[0].split(",")
-        data[1] = str(float(round(float(data[1])))).ljust(8)
+        if "*" in data[1]:
+            data[1] = str(float(round(float(data[1].rstrip("*"))))) + "*"
+            data[1] = data[1].ljust(8)
+        else:
+            data[1] = str(float(round(float(data[1])))).ljust(8)
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
@@ -220,7 +228,11 @@ class RippleGeopackageSubsetter:
         """Update river station data."""
         lines = ras_data.splitlines()
         data = lines[0].split(",")
-        data[1] = str(float(data[1]) + river_station).ljust(8)
+        if "*" in data[1]:
+            data[1] = str(float(data[1].rstrip("*")) + river_station) + "*"
+            data[1] = data[1].ljust(8)
+        else:
+            data[1] = str(float(data[1]) + river_station).ljust(8)
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
