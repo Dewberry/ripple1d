@@ -72,6 +72,11 @@ class RasModelStructure:
     def thumbnail_png(self):
         """Thumbnail PNG."""
         return self.derive_path(".png")
+    
+    @property
+    def model_stac_json_file(self):
+        """STAC JSON file."""
+        return self.derive_path(".model.stac.json")
 
 
 class RippleSourceModel:
