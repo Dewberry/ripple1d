@@ -99,7 +99,7 @@ def plot_conflation_results(
         buf.seek(0)
         s3_client.put_object(Bucket=bucket, Key=key, Body=buf, ContentType="image/png")
     else:
-        with open(Path(key).name, "w") as f:
-            plt.savefig(f, format="png")
+        output_png = str(Path(rfc.source_model_directory) / Path(key).name)
+        plt.savefig(output_png, format="png")
 
     plt.close()

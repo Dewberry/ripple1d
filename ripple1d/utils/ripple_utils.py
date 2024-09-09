@@ -6,10 +6,12 @@ import glob
 import os
 from pathlib import Path
 
+import boto3
 import geopandas as gpd
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
-from shapely.geometry import Point, Polygon
+from shapely import make_valid, union_all
+from shapely.geometry import MultiPolygon, Point, Polygon
 
 from ripple1d.errors import (
     RASComputeError,
@@ -20,6 +22,16 @@ from ripple1d.errors import (
 from ripple1d.utils.s3_utils import list_keys
 
 load_dotenv(find_dotenv())
+
+
+def prj_is_ras(path: str):
+    """Verify if prj is from hec-ras model."""
+    with open(path) as f:
+        prj_contents = f.read()
+    if "Proj Title" in prj_contents.split("\n")[0]:
+        return True
+    else:
+        return False
 
 
 def decode(df: pd.DataFrame):
@@ -53,13 +65,20 @@ def get_path(expected_path: str, client: boto3.client = None, bucket: str = None
 
 def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
-    points = xs.boundary.explode(index_parts=True).unstack()
-    points_last_xs = [Point(coord) for coord in xs["geometry"].iloc[-1].coords]
-    points_first_xs = [Point(coord) for coord in xs["geometry"].iloc[0].coords[::-1]]
-
-    polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
-
-    return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=xs.crs)
+    polygons = []
+    for river_reach in xs["river_reach"].unique():
+        xs_subset = xs[xs["river_reach"] == river_reach]
+        points = xs_subset.boundary.explode(index_parts=True).unstack()
+        points_last_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[-1].coords]
+        points_first_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[0].coords[::-1]]
+        polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
+        if isinstance(polygon, MultiPolygon):
+            polygons += list(polygon.geoms)
+        else:
+            polygons.append(polygon)
+    return gpd.GeoDataFrame(
+        {"geometry": [union_all([make_valid(p) for p in polygons])]}, geometry="geometry", crs=xs.crs
+    )
 
 
 def search_contents(lines: list, search_string: str, token: str = "=", expect_one: bool = True) -> list[str]:

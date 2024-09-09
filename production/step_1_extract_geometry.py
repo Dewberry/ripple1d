@@ -9,7 +9,7 @@ from production.db_utils import PGFim
 from ripple1d.errors import (
     NotAPrjFile,
 )
-from ripple1d.ras_to_gpkg import geom_to_gpkg_s3
+from ripple1d.ras_to_gpkg import gpkg_from_ras_s3
 from ripple1d.ripple1d_logger import configure_logging
 from ripple1d.utils.s3_utils import init_s3_resources, list_keys
 
@@ -30,7 +30,7 @@ def process_one_geom(
 
     # read the geometry and write the geopackage
     if bucket:
-        geom_to_gpkg_s3(key, crs, gpkg_path, bucket)
+        gpkg_from_ras_s3(key, crs, gpkg_path, bucket)
     return f"s3://{bucket}/{gpkg_path}"
 
 

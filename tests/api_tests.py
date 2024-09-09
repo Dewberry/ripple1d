@@ -53,6 +53,48 @@ def check_process(func):
 
 
 @pytest.mark.usefixtures("setup_data")
+class TestPreprocessAPI(unittest.TestCase):
+    @check_process
+    def test_a_gpkg_from_ras(self):
+        payload = {
+            "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "crs": self.crs,
+            "metadata": {
+                "stac_api": "https://stac2.dewberryanalytics.com",
+                "stac_collection_id": "ebfe-12090301_LowerColoradoCummins",
+                "stac_item_id": "137a9667-e5cf-4cea-b6ec-2e882a42fdc8",
+            },
+        }
+        if os.path.exists(self.SOURCE_GPKG_FILE):
+            os.remove(self.SOURCE_GPKG_FILE)
+        process = "gpkg_from_ras"
+        files = [self.SOURCE_GPKG_FILE]
+        return process, payload, files
+
+    @check_process
+    def test_b_conflation(self):
+        payload = {
+            "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "source_network": {"file_name": self.SOURCE_NETWORK, "version": "2.1", "type": "nwm_hydrofabric"},
+        }
+        process = "conflate_model"
+        if os.path.exists(self.conflation_file):
+            os.remove(self.conflation_file)
+        files = [self.conflation_file]
+        return process, payload, files
+
+    @check_process
+    def test_c_compute_conflation_metrics(self):
+        payload = {
+            "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "source_network": {"file_name": self.SOURCE_NETWORK, "version": "2.1", "type": "nwm_hydrofabric"},
+        }
+        process = "compute_conflation_metrics"
+        files = [self.conflation_file]
+        return process, payload, files
+
+
+@pytest.mark.usefixtures("setup_data")
 class TestApi(unittest.TestCase):
     # @classmethod
     # def setUpClass(cls):
@@ -60,7 +102,7 @@ class TestApi(unittest.TestCase):
     #     time.sleep(10)  # Give the server some time to start
 
     @check_process
-    def test_a_extract_submodel(self):
+    def test_b_extract_submodel(self):
         payload = {
             "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": self.SUBMODELS_DIRECTORY,
@@ -71,14 +113,14 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test_b_create_ras_terrain(self):
+    def test_c_create_ras_terrain(self):
         payload = {"submodel_directory": self.SUBMODELS_DIRECTORY}
         process = "create_ras_terrain"
         files = [self.TERRAIN_HDF, self.TERRAIN_VRT]
         return process, payload, files
 
     @check_process
-    def test_c_create_model_run_normal_depth(self):
+    def test_d_create_model_run_normal_depth(self):
         payload = {
             "submodel_directory": self.SUBMODELS_DIRECTORY,
             "plan_suffix": "ind",
@@ -90,7 +132,7 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test_d_run_incremental_normal_depth(self):
+    def test_e_run_incremental_normal_depth(self):
         payload = {
             "submodel_directory": self.SUBMODELS_DIRECTORY,
             "plan_suffix": "nd",
@@ -103,7 +145,7 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test_e_run_known_wse(self):
+    def test_f_run_known_wse(self):
         payload = {
             "submodel_directory": self.SUBMODELS_DIRECTORY,
             "plan_suffix": "kwse",
@@ -118,13 +160,13 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test_f_create_fim_lib(self):
+    def test_g_create_fim_lib(self):
         payload = {"submodel_directory": self.SUBMODELS_DIRECTORY, "plans": ["nd", "kwse"]}
         process = "create_fim_lib"
         files = [self.FIM_LIB_DB, self.DEPTH_GRIDS_ND, self.DEPTH_GRIDS_KWSE]
         return process, payload, files
 
-    def test_g_check_flows_are_equal(self):
+    def test_h_check_flows_are_equal(self):
         rf2 = pd.DataFrame(RasFlowText(self.FLOW2_FILE).flow_change_locations)
         rf3 = pd.DataFrame(RasFlowText(self.FLOW3_FILE).flow_change_locations)
         self.assertTrue(len(set(rf3["flows"].iloc[0]) - set(rf2["flows"].iloc[0])) == 0)

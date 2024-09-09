@@ -16,15 +16,15 @@ from ripple1d.conflate.rasfim import (
     filter_gdf,
     nearest_line_to_point,
 )
-from ripple1d.ops.ras_conflate import conflate
+from ripple1d.ops.ras_conflate import conflate_model
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/Baxter.json"
 TEST_ITEM_PATH = os.path.join(TEST_DIR, TEST_ITEM_FILE)
 
 # Expected counts
-NWM_REACHES = 36
-LOCAL_NWM_REACHES = 18
+NWM_REACHES = 16
+LOCAL_NWM_REACHES = 16
 RAS_CENTERLINES = 3
 RAS_XS = 173
 GAGES = 1
@@ -37,7 +37,7 @@ RIVER_REACHES = [
 ]
 
 NWM_REACHES_DATA = "flows.parquet"
-NWM_REACHE_IDS = [2826228]
+NWM_REACH_IDS = [2826228]
 RAS_DIR = "Baxter"
 RAS_GEOMETRY_GPKG = "Baxter.gpkg"
 
@@ -45,8 +45,8 @@ RAS_GEOMETRY_GPKG = "Baxter.gpkg"
 @pytest.fixture(scope="class")
 def setup_data(request):
     nwm_pq_path = os.path.join(TEST_DIR, "nwm-data", NWM_REACHES_DATA)
-    ras_gpkg_path = os.path.join(TEST_DIR, "ras-data", RAS_DIR, RAS_GEOMETRY_GPKG)
-    conflater = RasFimConflater(nwm_pq_path, ras_gpkg_path)
+    source_model_directory = os.path.join(TEST_DIR, "ras-data", RAS_DIR)
+    conflater = RasFimConflater(nwm_pq_path, source_model_directory)
     request.cls.conflater = conflater
 
 
