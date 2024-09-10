@@ -70,7 +70,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     # Make pystac item
     stac = pystac.item.Item(
         id=item_id,
-        geometry=json.loads(to_geojson(footprint)),
+        geometry=json.loads(footprint.to_json()),
         bbox=bbox.tolist(),
         datetime=dt,
         properties=properties,
@@ -88,6 +88,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         dst.write(json.dumps(stac.to_dict()))
 
     logging.debug("Program completed successfully")
+    return stac
 
 def make_stac_assets(asset_list: list, bucket: str = None):
     """Converts a list of paths to stac assets with associated metadata"""
