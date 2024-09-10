@@ -15,9 +15,9 @@ from shapely import to_geojson
 import ripple1d
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.dg_utils import bbox_to_polygon
+from ripple1d.ras_utils import get_asset_info
 from ripple1d.utils.gpkg_utils import (
     create_thumbnail_from_gpkg,
-    get_asset_info,
     get_river_miles,
     gpkg_to_geodataframe,
     reproject
@@ -63,22 +63,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     collection = None
 
     # Assets
-    assets = dict()
-    for key in rasmodel.assets:
-        asset_info = get_asset_info(key, rasmodel)
-
-        # If local model is mirror of s3, revert paths
-        if ras_s3_prefix:
-            key = str(PurePosixPath(Path(key.replace(rasmodel.model_directory, ras_s3_prefix))))
-        
-        asset = pystac.Asset(
-            os.path.relpath(key),
-            extra_fields=asset_info["extra_fields"],
-            roles=asset_info["roles"],
-            description=asset_info["description"],
-        )
-
-        assets[key] = asset
+    assets = make_stac_assets(rasmodel.assets)
         
     # Make pystac item
     stac = pystac.item.Item(
@@ -101,3 +86,17 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         dst.write(json.dumps(stac.to_dict()))
 
     logging.debug("Program completed successfully")
+
+def make_stac_assets(asset_list: list, bucket: str = None):
+    """Converts a list of paths to stac assets with associated metadata"""
+    assets = dict()
+    for key in asset_list:
+        asset_info = get_asset_info(key, bucket)
+        asset = pystac.Asset(
+            os.path.relpath(key),
+            extra_fields=asset_info["extra_fields"],
+            roles=asset_info["roles"],
+            description=asset_info["description"],
+        )
+        assets[key] = asset
+    return assets
