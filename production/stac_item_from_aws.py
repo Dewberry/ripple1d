@@ -6,12 +6,11 @@ import hashlib
 import re
 import glob
 
-import botocore.exceptions
-
 from ripple1d.utils.s3_utils import *
 from ripple1d.ras_to_gpkg import gpkg_from_ras
 from ripple1d.ops.stac_item import rasmodel_to_stac
-from ripple1d.data_model import RasModelStructure
+from ripple1d.data_model import RasModelStructure, RippleSourceModel
+from ripple1d.utils.s3_utils import get_basic_object_metadata
 
 
 BLE_JSON_PATH = "production/aws2stac/crs_inference_ebfe.json"
@@ -22,20 +21,30 @@ RELEVANT_FILE_FINDER = re.compile(r'g..$|f..$|p..$|prj')
 RELEVANT_FILE_FINDER = re.compile(r'\.[Pp][Rr][Jj]|\.[Gg]\d{2}|\.[Pp]\d{2}|\.[FfUuQq]\d{2}')
 
 
-def download_model(client, key, tmp_dir):
+def download_model(s3_access, assets, tmp_dir):
     # Download all ras files in the directory of .prj file
-    prefix = '/'.join(key.split('/')[:-1]) + '/'
-    keys = list_keys(client, bucket=BUCKET, prefix=prefix)
-    keys = [s for s in keys if RELEVANT_FILE_FINDER.fullmatch(pathlib.Path(s).suffix)]
+    download_keys = [s for s in assets.keys() if RELEVANT_FILE_FINDER.fullmatch(pathlib.Path(s).suffix)]
     out_paths = list()
-    for k in keys:
+    for k in download_keys:
         fname = k.split('/')[-1]
         save_path = os.path.join(tmp_dir, fname)
         out_paths.append(fname)
-        client.download_file(BUCKET, k, save_path)
-    return prefix, out_paths
+        s3_access['s3_client'].download_file(BUCKET, k, save_path)
+    return out_paths
 
-def process_key(client, key, crs):
+def get_assets(s3_access, key):
+    # find all files on same level as key and get metadata
+    prefix = '/'.join(key.split('/')[:-1]) + '/'
+    keys = list_keys(s3_access['s3_client'], bucket=BUCKET, prefix=prefix)
+    asset_dict = dict()
+    for k in keys:
+        obj = s3_access['s3_resource'].Bucket(BUCKET).Object(k)
+        meta = get_basic_object_metadata(obj)
+        asset_dict[k] = meta
+    return prefix, asset_dict
+
+
+def process_key(s3_access, key, crs):
     # Initialize dict for logging
     meta = {'key': key}
 
@@ -45,10 +54,12 @@ def process_key(client, key, crs):
     os.makedirs(tmp_dir, exist_ok=True)
     meta['sha1'] = tmp_hash
 
-    # Download model
-    prefix, fnames = download_model(client, key, tmp_dir)
+    # Get assets and Download model
+    prefix, assets = get_assets(s3_access, key)
+    downloaded_files = download_model(s3_access, assets, tmp_dir)
     meta['base_s3_url'] = prefix
-    meta['model_files'] = fnames
+    meta['assets'] = list(assets.keys())
+    meta['downloaded'] = downloaded_files
 
     # Make a geopackage
     gpkg_from_ras(tmp_dir, crs, dict())
@@ -85,7 +96,8 @@ def run_all():
     # check_for_hash_collisions(ble_json)
     
     # Initialize s3 access
-    session, s3_client, s3_resource = init_s3_resources()
+    s3 = dict()
+    s3['session'], s3['s3_client'], s3['s3_resource'] = init_s3_resources()
 
     # DEBUGGING.  Test subset
     test_dir = 'ebfedata/12040101_WestForkSanJacinto/Caney Creek-Lake Creek/'
@@ -106,7 +118,7 @@ def run_all():
         try:
             key = ble_json[f]['key']
             crs = ble_json[f]['best_crs']
-            tmp_meta = process_key(s3_client, key, crs)
+            tmp_meta = process_key(s3, key, crs)
             tmp_meta['has_error'] = False
             tmp_meta['error_str'] = None
         except Exception as e:
