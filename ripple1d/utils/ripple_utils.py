@@ -5,6 +5,7 @@ from __future__ import annotations
 import glob
 import os
 from pathlib import Path
+from datetime import datetime
 
 import boto3
 import geopandas as gpd
@@ -92,7 +93,19 @@ def search_contents(lines: list, search_string: str, token: str = "=", expect_on
         return results[0]
     else:
         return results
-
+    
+def get_last_model_update(ras_text: list):
+    """Extracts the datetime of the last time model geometry was updated
+    
+        ras_text is a list of lines from the ras_data text blob
+    """
+    dts = search_contents(ras_text, 'Node Last Edited Time', expect_one=False)
+    if len(dts) > 1:
+        dts = [datetime.strptime(d, '%b/%d/%Y %H:%M:%S') for d in dts]
+        dt = max(dts)
+    else:
+        dt = None
+    return dt
 
 def replace_line_in_contents(lines: list, search_string: str, replacement: str, token: str = "="):
     """Split a line by a token and replaces the second half of the line (for the first occurence only!)."""

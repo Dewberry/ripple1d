@@ -16,6 +16,7 @@ import ripple1d
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.ras_utils import get_asset_info
+from ripple1d.utils.ripple_utils import get_last_model_update
 from ripple1d.utils.gpkg_utils import (
     create_thumbnail_from_gpkg,
     get_river_miles,
@@ -43,7 +44,9 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     gdfs = reproject(gdfs)
 
     # datetime
-    dt = datetime.now(timezone.utc)
+    ras_data = gdfs['River']['ras_data'].iloc[0].split('\n')
+    dt = get_last_model_update(ras_data)
+    dt = dt.strftime('%b/%d/%Y %H:%M:%S')
 
     # properties
     properties = {
