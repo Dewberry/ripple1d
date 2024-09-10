@@ -85,9 +85,9 @@ class RippleSourceModel():
     def __init__(self, ras_project_file: str, crs: CRS):
 
         self.crs = crs
-        self.ras_project_file = ras_project_file
-        self.model_directory = Path(ras_project_file).parent.as_posix()
-        self.model_basename = Path(ras_project_file).as_posix()
+        self.ras_project_file = Path(ras_project_file)
+        self.model_directory = self.ras_project_file.parent.as_posix()
+        self.model_basename = self.ras_project_file.name
 
     @property
     def model_name(self):

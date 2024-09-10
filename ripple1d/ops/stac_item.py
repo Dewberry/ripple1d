@@ -32,7 +32,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     meta_dict = dict(zip(meta_dict['key'], meta_dict['value']))
 
     # ID
-    item_id = hashlib.sha1(bytes(rasmodel.model_name, encoding="utf-8")).hexdigest()
+    item_id = rasmodel.model_name.replace(' ', '_')
 
     # Geometry, bbox, and misc geospatial
     bbox = pd.concat(gdfs).total_bounds
