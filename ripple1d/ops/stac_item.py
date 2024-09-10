@@ -45,7 +45,6 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     # datetime
     ras_data = gdfs['River']['ras_data'].iloc[0].split('\n')
     dt = get_last_model_update(ras_data)
-    dt = dt.strftime('%b/%d/%Y %H:%M:%S')
 
     # properties
     properties = {
