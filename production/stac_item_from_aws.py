@@ -7,10 +7,11 @@ import re
 import glob
 
 from ripple1d.utils.s3_utils import *
-from ripple1d.ras_to_gpkg import gpkg_from_ras
+from ripple1d.ras_to_gpkg import gpkg_from_ras, geom_flow_to_gpkg
 from ripple1d.ops.stac_item import rasmodel_to_stac
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.s3_utils import get_basic_object_metadata
+from ripple1d.utils.ripple_utils import prj_is_ras
 
 
 BLE_JSON_PATH = "production/aws2stac/crs_inference_ebfe.json"
@@ -61,14 +62,18 @@ def process_key(s3_access, key, crs):
     meta['assets'] = list(assets.keys())
     meta['downloaded'] = downloaded_files
 
+    # Find ras .prj file
+    prjs = glob.glob(f"{tmp_dir}/*.prj")
+    prjs = [prj for prj in prjs if prj_is_ras(prj)]
+    meta['multi_ras_prjs'] = (len(prjs) > 1)  # check if more than 1 prj found and log
+    ras_prj_path = prjs[-1]
+
     # Make a geopackage
-    gpkg_from_ras(tmp_dir, crs, dict())
+    ras_gpkg_path = ras_prj_path.replace(".prj", ".gpkg")
+    geom_flow_to_gpkg(tmp_dir, crs, ras_gpkg_path, dict())
 
     # Create a STAC asset
-    rm = RasModelStructure(tmp_dir)
-    prjs = glob.glob(f"{tmp_dir}/*.prj")
-    assert len(prjs) == 1, 'Several prj files found'
-    rm.model_basename = prjs[0]
+    rm = RippleSourceModel(ras_prj_path, crs)
     rasmodel_to_stac(rm, prefix)
     
     # Move and cleanup

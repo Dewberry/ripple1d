@@ -13,7 +13,7 @@ import pystac.item
 from shapely import to_geojson
 
 import ripple1d
-from ripple1d.data_model import RasModelStructure
+from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.utils.gpkg_utils import (
     create_thumbnail_from_gpkg,
@@ -24,7 +24,7 @@ from ripple1d.utils.gpkg_utils import (
 )
 
 
-def rasmodel_to_stac(rasmodel: RasModelStructure, ras_s3_prefix: str):
+def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     logging.debug("Creating STAC item from RasModelStructure")
     # Load geopackage
     gdfs = gpkg_to_geodataframe(rasmodel.ras_gpkg_file)
