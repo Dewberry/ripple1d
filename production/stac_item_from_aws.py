@@ -12,6 +12,7 @@ from ripple1d.ops.stac_item import rasmodel_to_stac
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.s3_utils import get_basic_object_metadata
 from ripple1d.utils.ripple_utils import prj_is_ras
+from ripple1d.ops.stac_item import make_stac_assets
 
 
 BLE_JSON_PATH = "production/aws2stac/crs_inference_ebfe.json"
@@ -75,7 +76,11 @@ def process_key(s3_access, key, crs):
 
     # Create a STAC asset
     rm = RippleSourceModel(ras_prj_path, crs)
-    rasmodel_to_stac(rm, prefix)
+    stac = rasmodel_to_stac(rm, prefix)
+
+    # Overwrite with full set of assets
+    new_assets = make_stac_assets(meta['assets'], bucket=BUCKET)
+    stac.assets = new_assets
     
     # Move and cleanup
     new_stac = os.path.join(OUTPUT_DIR, os.path.basename(rm.model_stac_json_file))

@@ -24,7 +24,7 @@ def get_asset_string(asset_key: str, client, bucket: str = None):
 def get_asset_info(asset_key: str, bucket: str = None) -> dict:
     """Function to assign role, description, title, and extra fields to an asset"""
     base_asset = ras_plan_asset_info(asset_key)
-    base_asset = add_extra_fields(asset_key, base_asset)
+    base_asset = add_extra_fields(asset_key, base_asset, bucket)
     return base_asset
 
 def add_extra_fields(asset_key: str, base_asset: dict, bucket: str = None):
