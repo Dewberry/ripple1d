@@ -7,7 +7,7 @@ import re
 import glob
 
 from ripple1d.utils.s3_utils import *
-from ripple1d.ras_to_gpkg import gpkg_from_ras, geom_flow_to_gpkg
+from ripple1d.ras_to_gpkg import gpkg_from_ras, geom_flow_to_gpkg, RasProject
 from ripple1d.ops.stac_item import rasmodel_to_stac
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.s3_utils import get_basic_object_metadata
@@ -69,8 +69,9 @@ def process_key(s3_access, key, crs):
     ras_prj_path = prjs[-1]
 
     # Make a geopackage
+    rp = RasProject(ras_prj_path)
     ras_gpkg_path = ras_prj_path.replace(".prj", ".gpkg")
-    geom_flow_to_gpkg(tmp_dir, crs, ras_gpkg_path, dict())
+    geom_flow_to_gpkg(rp, crs, ras_gpkg_path, dict())
 
     # Create a STAC asset
     rm = RippleSourceModel(ras_prj_path, crs)

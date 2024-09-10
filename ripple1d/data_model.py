@@ -79,7 +79,7 @@ class RasModelStructure:
         return self.derive_path(".model.stac.json")
 
 
-class RippleSourceModel:
+class RippleSourceModel():
     """Source Model structure for Ripple to create NwmReachModel's."""
 
     def __init__(self, ras_project_file: str, crs: CRS):
@@ -137,6 +137,10 @@ class RippleSourceModel:
             conflation_parameters = json.loads(f.read())
         return conflation_parameters[nwm_id]
 
+    @property
+    def model_stac_json_file(self):
+        """STAC JSON file."""
+        return self.derive_path(".model.stac.json")
 
 class RippleSourceDirectory:
     """Source Directory for Ripple to create NwmReachModel's. Should contain the conflation.json file and gpkg file for the source model."""
