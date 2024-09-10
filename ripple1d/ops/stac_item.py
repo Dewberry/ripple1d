@@ -16,7 +16,7 @@ import ripple1d
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.ras_utils import get_asset_info
-from ripple1d.utils.ripple_utils import get_last_model_update
+from ripple1d.utils.ripple_utils import get_last_model_update, xs_concave_hull
 from ripple1d.utils.gpkg_utils import (
     create_thumbnail_from_gpkg,
     get_river_miles,
@@ -36,13 +36,12 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     item_id = rasmodel.model_name.replace(' ', '_')
 
     # Geometry, bbox, and misc geospatial
-    bbox = pd.concat(gdfs).total_bounds
-    footprint = bbox_to_polygon(bbox)
-    crs = gdfs["River"].crs
-    rasmodel.crs = crs
+    og_crs = gdfs["River"].crs
     river_miles = get_river_miles(gdfs["River"])
     gdfs = reproject(gdfs)
-
+    bbox = pd.concat(gdfs).total_bounds
+    footprint = xs_concave_hull(gdfs['XS'])
+    
     # datetime
     ras_data = gdfs['River']['ras_data'].iloc[0].split('\n')
     dt = get_last_model_update(ras_data)
@@ -58,8 +57,8 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         "geom titles": meta_dict.get('geom_titles', ''),
         "flow titles": meta_dict.get('flow_titles', ''),
         "river miles": str(river_miles),
-        "proj:wkt2": crs.to_wkt(),
-        "proj:epsg": crs.to_epsg(),
+        "proj:wkt2": og_crs.to_wkt(),
+        "proj:epsg": og_crs.to_epsg(),
     }
 
     # collection
