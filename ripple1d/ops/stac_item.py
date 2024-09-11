@@ -45,6 +45,11 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     # datetime
     ras_data = gdfs['River']['ras_data'].iloc[0].split('\n')
     dt = get_last_model_update(ras_data)
+    if dt is None:
+        dt = datetime.now()
+        dt_valid = False
+    else:
+        dt_valid = True
 
     # properties
     properties = {
@@ -56,6 +61,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         "geom titles": meta_dict.get('geom_titles', '').split('\n'),
         "flow titles": meta_dict.get('steady_flow_titles', '').split('\n'),
         "river miles": str(river_miles),
+        "dt_valid": dt_valid,
         "proj:wkt2": og_crs.to_wkt(),
         "proj:epsg": og_crs.to_epsg(),
     }
