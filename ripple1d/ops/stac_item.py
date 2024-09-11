@@ -26,7 +26,7 @@ from ripple1d.utils.gpkg_utils import (
 )
 
 
-def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
+def rasmodel_to_stac(rasmodel: RippleSourceModel):
     logging.debug("Creating STAC item from RasModelStructure")
 
     # Instantiate RasManager
@@ -77,7 +77,6 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     # Make a thumbnail
     fig = create_thumbnail_from_gpkg(gdfs)
     fig.savefig(rasmodel.thumbnail_png)
-    # plt.close(fig)
 
     # Assets
     assets = make_stac_assets(rasmodel.assets)
