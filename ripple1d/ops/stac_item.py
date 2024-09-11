@@ -75,7 +75,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         properties=properties,
         collection=collection,
         assets=assets,
-        stac_extensions=['Projection', 'Storage', 'AWS S3???']
+        stac_extensions=['Projection', 'Storage']
     )
 
     # Make a thumbnail
