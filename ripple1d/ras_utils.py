@@ -2,6 +2,7 @@ import pystac
 from pathlib import Path
 import re
 import os
+from datetime import datetime
 
 from ripple1d.ras import (
     RasFlowText,
@@ -34,7 +35,10 @@ def add_extra_fields(asset_key: str, base_asset: dict, bucket: str = None):
         obj = s3_resource.Bucket(bucket).Object(asset_key)
         base_asset['extra_fields'] = get_basic_object_metadata(obj)
     else:
-        base_asset['extra_fields'] = {"file:size": os.path.getsize(asset_key), "last_modified": os.path.getmtime(asset_key)}
+        last_mod = os.path.getmtime(asset_key)
+        last_mod = datetime.fromtimestamp(last_mod)
+        last_mod = last_mod.isoformat()
+        base_asset['extra_fields'] = {"file:size": os.path.getsize(asset_key), "last_modified": last_mod}
         client = None
 
 
