@@ -96,8 +96,12 @@ def make_stac_assets(asset_list: list, bucket: str = None):
     for key in asset_list:
         asset_info = get_asset_info(key, bucket)
         title = asset_info['title'].replace(' ','_')
+        if bucket is not None:
+            href = f's3://{bucket}/{key}'
+        else:
+            href = os.path.relpath(key)
         asset = pystac.Asset(
-            href=os.path.relpath(key),
+            href=href,
             title=title,
             extra_fields=asset_info["extra_fields"],
             roles=asset_info["roles"],
