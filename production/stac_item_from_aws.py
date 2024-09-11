@@ -61,7 +61,10 @@ def get_assets(s3_access, key):
     for k in keys:
         obj = s3_access['s3_resource'].Bucket(BUCKET).Object(k)
         meta = get_basic_object_metadata(obj)
-        asset_dict[k] = meta
+        asset_dict[k] = {
+            'href': f's3://{BUCKET}/{key}',
+            'meta': meta
+            }
     return prefix, asset_dict
 
 
@@ -99,6 +102,25 @@ def process_key(key, crs):
         rm = RippleSourceModel(ras_prj_path, crs)
         stac = rasmodel_to_stac(rm)
 
+        # Upload png and gpkg to s3
+        out_png_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.thumbnail_png)}'
+        s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_png_key, Filename=rm.thumbnail_png)
+        obj = s3_access['s3_resource'].Bucket(BUCKET).Object(out_png_key)
+        meta = get_basic_object_metadata(obj)
+        assets['Thumbnail'] = {
+            'href': f'{BUCKET}.amazonaws.com/{out_png_key}',
+            'meta': meta
+            }
+
+        out_gpkg_key = f'ebfedata-derived/gpkgs/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.ras_gpkg_file)}'
+        s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_gpkg_key, Filename=rm.ras_gpkg_file)
+        obj = s3_access['s3_resource'].Bucket(BUCKET).Object(out_gpkg_key)
+        meta = get_basic_object_metadata(obj)
+        assets['GeoPackage_file'] = {
+            'href': f's3://{BUCKET}/{out_gpkg_key}',
+            'meta': meta
+            }
+
         # Overwrite some asset data with S3 metadata
         for s3_asset in assets:
             title = s3_asset.split('/')[-1].replace(' ', '_')
@@ -108,6 +130,7 @@ def process_key(key, crs):
                 stac.assets[title] = make_stac_assets([s3_asset], bucket=BUCKET)[title]
             else:
                 # replace basic object metadata
+                stac.assets[title].href = s3_asset
                 for k, v in meta.items():
                     stac.assets[title].extra_fields[k] = v
 
@@ -118,12 +141,6 @@ def process_key(key, crs):
         # Move and cleanup
         out_stac_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.model_stac_json_file)}'
         s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_stac_key, Filename=rm.model_stac_json_file)
-
-        out_png_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.thumbnail_png)}'
-        s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_png_key, Filename=rm.thumbnail_png)
-
-        out_gpkg_key = f'ebfedata-derived/gpkgs/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.ras_gpkg_file)}'
-        s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_gpkg_key, Filename=rm.ras_gpkg_file)
 
     return {}
 
