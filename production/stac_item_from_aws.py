@@ -15,17 +15,26 @@ from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.utils.s3_utils import get_basic_object_metadata
 from ripple1d.utils.ripple_utils import prj_is_ras
 from ripple1d.ops.stac_item import make_stac_assets
+from ripple1d.api.log import initialize_log
 
 
+# Paths etc
 BLE_JSON_PATH = "production/aws2stac/crs_inference_ebfe.json"
-OUTPUT_DIR = os.path.abspath("production/aws2stac/items")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 BUCKET = 'fim'
-RELEVANT_FILE_FINDER = re.compile(r'\.[Pp][Rr][Jj]|\.[Gg]\d{2}|\.[Pp]\d{2}|\.[FfUuQq]\d{2}')
-file_handler = datetime.now().strftime('production/aws2stac/conversion_log_%H_%M_%d_%m_%Y.log')
+
+WORKING_DIR = os.path.abspath("tmp_aws2stac")
+os.makedirs(WORKING_DIR, exist_ok=True)
+
+# Logging
+file_handler = os.path.join(WORKING_DIR, datetime.now().strftime('log_%H_%M_%d_%m_%Y.log'))
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[logging.FileHandler(file_handler), console_handler], encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(message)s')
+
+# initialize_log(WORKING_DIR)  # Not working for now
+
+# Helper functions
+RELEVANT_FILE_FINDER = re.compile(r'\.[Pp][Rr][Jj]|\.[Gg]\d{2}|\.[Pp]\d{2}|\.[FfUuQq]\d{2}')
 
 
 def download_model(s3_access, assets, tmp_dir):
