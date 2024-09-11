@@ -8,6 +8,7 @@ import glob
 import logging
 from datetime import datetime
 
+import ripple1d
 from ripple1d.utils.s3_utils import *
 from ripple1d.ras_to_gpkg import gpkg_from_ras, geom_flow_to_gpkg, RasProject
 from ripple1d.ops.stac_item import rasmodel_to_stac
@@ -40,7 +41,7 @@ RELEVANT_FILE_FINDER = re.compile(r'\.[Pp][Rr][Jj]|\.[Gg]\d{2}|\.[Pp]\d{2}|\.[Ff
 
 def download_model(s3_access, assets, tmp_dir):
     # Download all ras files in the directory of .prj file
-    logging.info(f'Downloading assets: {assets}')
+    logging.debug(f'Downloading assets: {assets}')
     download_keys = [s for s in assets.keys() if RELEVANT_FILE_FINDER.fullmatch(pathlib.Path(s).suffix)]
     out_paths = list()
     for k in download_keys:
@@ -63,9 +64,13 @@ def get_assets(s3_access, key):
     return prefix, asset_dict
 
 
-def process_key(s3_access, key, crs):
+def process_key(key, crs):
     """Converts RAS model associated with a .prj S3 key to stac"""
     logging.info(f'Processing key: {key}')
+
+    # Initialize s3 access
+    s3_access = dict()
+    s3_access['session'], s3_access['s3_client'], s3_access['s3_resource'] = init_s3_resources()
 
     # Make a temp folder
     tmp_hash = hashlib.sha1(bytes(key, encoding="utf-8")).hexdigest()
@@ -95,28 +100,31 @@ def process_key(s3_access, key, crs):
     stac = rasmodel_to_stac(rm, prefix)
 
     # Overwrite some asset data with S3 metadata
-    for asset in assets:
-        title = asset.split('/')[-1].replace(' ', '_')
+    for s3_asset in assets:
+        title = s3_asset.split('/')[-1].replace(' ', '_')
+        meta = assets[s3_asset]
         if not title in stac.assets:
             # Make a new asset
-            stac.assets[title] = make_stac_assets([asset], bucket=BUCKET)[title]
+            stac.assets[title] = make_stac_assets([s3_asset], bucket=BUCKET)[title]
         else:
             # replace basic object metadata
+            for k, v in meta.items():
+                stac.assets[title].extra_fields[k] = v
 
-    
+    # Export
     with open(rm.model_stac_json_file, "w") as dst:
         dst.write(json.dumps(stac.to_dict()))
 
     # Move and cleanup
-    # new_stac = os.path.join(OUTPUT_DIR, os.path.basename(rm.model_stac_json_file))
-    # shutil.move(rm.model_stac_json_file, new_stac)
-    # meta['stac_url'] = new_stac
-    # new_thumb = os.path.join(OUTPUT_DIR, os.path.basename(rm.thumbnail_png))
-    # shutil.move(rm.thumbnail_png, new_thumb)
-    # meta['png_url'] = new_thumb
-    # shutil.rmtree(tmp_dir)
+    out_stac_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.model_stac_json_file)}'
+    s3_access['s3_client'].upload_file(Bucket=BUCKET, key=out_stac_key, Filename=rm.model_stac_json_file)
 
-    return meta
+    out_png_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.thumbnail_png)}'
+    s3_access['s3_client'].upload_file(Bucket=BUCKET, key=out_png_key, Filename=rm.thumbnail_png)
+
+    out_gpkg_key = f'ebfedata-derived/gpkgs/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.ras_gpkg_file)}'
+    s3_access['s3_client'].upload_file(Bucket=BUCKET, key=out_gpkg_key, Filename=rm.ras_gpkg_file)
+
 
 
 def check_for_hash_collisions(json):
@@ -130,10 +138,6 @@ def run_all():
     with open(BLE_JSON_PATH) as in_file:
         ble_json = json.load(in_file)
     # check_for_hash_collisions(ble_json)
-    
-    # Initialize s3 access
-    s3 = dict()
-    s3['session'], s3['s3_client'], s3['s3_resource'] = init_s3_resources()
 
     # DEBUGGING.  Test subset
     test_dir = 'ebfedata/12040101_WestForkSanJacinto/Caney Creek-Lake Creek/'
@@ -154,7 +158,7 @@ def run_all():
         try:
             key = ble_json[f]['key']
             crs = ble_json[f]['best_crs']
-            process_key(s3, key, crs)
+            process_key(key, crs)
             tmp_meta = {
                 'key': key,
                 'has_error': False,
