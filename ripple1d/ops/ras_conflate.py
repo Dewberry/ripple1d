@@ -92,7 +92,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         ]
 
         # get the start and end points of the river reach
-        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
+        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name, clip_to_xs=True)
 
         # get the nearest upstream and downstream nwm reaches to the start and end points of the river reach
         if len(rfc.ras_river_reach_names) == 1:
@@ -121,6 +121,9 @@ def conflate_model(source_model_directory: str, source_network: dict):
 
         metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
 
+    if not conflated(metadata):
+        return "no reaches conflated"
+
     ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
     conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
@@ -134,10 +137,10 @@ def conflate_model(source_model_directory: str, source_network: dict):
 
     logging.info(f"Conflation results: {metadata}")
     conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
-    source_network["file_name"] = os.path.basename(source_network["file_name"])
 
     metadata["metadata"] = {}
-    metadata["metadata"]["source_network"] = source_network
+    metadata["metadata"]["source_network"] = source_network.copy()
+    metadata["metadata"]["source_network"]["file_name"] = os.path.basename(nwm_pq_path)
     metadata["metadata"]["conflation_png"] = os.path.basename(conflation_png)
     metadata["metadata"]["conflation_ripple1d_version"] = ripple1d.__version__
     metadata["metadata"]["metrics_ripple1d_version"] = ripple1d.__version__
@@ -157,12 +160,24 @@ def conflate_model(source_model_directory: str, source_network: dict):
         f.write(json.dumps(metadata, indent=4))
 
     try:
-        compute_conflation_metrics(rfc.ras_gpkg, nwm_pq_path, conflation_file)
+        compute_conflation_metrics(source_model_directory, source_network)
     except Exception as e:
         logging.error(f"Error: {e}")
         logging.error(f"traceback: {traceback.format_exc()}")
 
     return conflation_file
+
+
+def conflated(metadata: dict) -> bool:
+    """Determine if any reaches conflated."""
+    count = 0
+    for reach_data in metadata["reaches"].values():
+        if not reach_data["eclipsed"]:
+            count += 1
+    if count == 0:
+        return False
+    else:
+        return True
 
 
 # def conflate_s3_model(

@@ -53,26 +53,53 @@ def check_process(func):
 
 
 @pytest.mark.usefixtures("setup_data")
-class TestApi(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     cls.server_process = start_server()
-    #     time.sleep(10)  # Give the server some time to start
-
+class TestPreprocessAPI(unittest.TestCase):
     @check_process
     def test_a_gpkg_from_ras(self):
         payload = {
             "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
-            "crs": 2227,
+            "crs": self.crs,
             "metadata": {
                 "stac_api": "https://stac2.dewberryanalytics.com",
                 "stac_collection_id": "ebfe-12090301_LowerColoradoCummins",
                 "stac_item_id": "137a9667-e5cf-4cea-b6ec-2e882a42fdc8",
             },
         }
+        if os.path.exists(self.SOURCE_GPKG_FILE):
+            os.remove(self.SOURCE_GPKG_FILE)
         process = "gpkg_from_ras"
         files = [self.SOURCE_GPKG_FILE]
         return process, payload, files
+
+    @check_process
+    def test_b_conflation(self):
+        payload = {
+            "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "source_network": {"file_name": self.SOURCE_NETWORK, "version": "2.1", "type": "nwm_hydrofabric"},
+        }
+        process = "conflate_model"
+        if os.path.exists(self.conflation_file):
+            os.remove(self.conflation_file)
+        files = [self.conflation_file]
+        return process, payload, files
+
+    @check_process
+    def test_c_compute_conflation_metrics(self):
+        payload = {
+            "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "source_network": {"file_name": self.SOURCE_NETWORK, "version": "2.1", "type": "nwm_hydrofabric"},
+        }
+        process = "compute_conflation_metrics"
+        files = [self.conflation_file]
+        return process, payload, files
+
+
+@pytest.mark.usefixtures("setup_data")
+class TestApi(unittest.TestCase):
+    # @classmethod
+    # def setUpClass(cls):
+    #     cls.server_process = start_server()
+    #     time.sleep(10)  # Give the server some time to start
 
     @check_process
     def test_b_extract_submodel(self):

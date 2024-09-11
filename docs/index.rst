@@ -15,7 +15,8 @@ on the NOAA National Water Model network.
    :caption: For Users
 
    for_users.rst
-   reference.rst
+   api_reference.rst
+   tech_reference.rst
    users_change_log.rst
 
 

@@ -27,7 +27,7 @@ DS_RIVER = "Baxter River"
 DS_REACH = "Lower Reach"
 DS_XS_ID = 47694.0
 INTERSECTION_DELTA_XY_MEAN = 23
-THALWEG_INTERSECTION_DELTA_XY_MEAN = 458
+THALWEG_INTERSECTION_DELTA_XY_MEAN = 27
 RAS_REACH_LENGTH = 30814
 NETWORK_REACH_LENGTH = 30535
 NETWORK_TO_RAS_RATIO = 0.99
@@ -56,7 +56,7 @@ def setup_data(request):
     for layer, gdf in rgs.subset_gdfs.items():
         layers[layer] = gdf.to_crs(NETWORK_CRS)
     network_reaches = gpd.read_parquet(network_pq_path, bbox=layers["XS"].total_bounds)
-    network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(NETWORK_REACH_ID), "geometry"].iloc[0])
+    network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(NETWORK_REACH_ID)].geometry.iloc[0])
     network_reach_plus_ds_reach = combine_reaches(network_reaches, NETWORK_REACH_ID)
 
     cm = ConflationMetrics(layers["XS"], layers["River"], network_reach, network_reach_plus_ds_reach)

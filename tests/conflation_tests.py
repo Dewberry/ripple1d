@@ -16,15 +16,15 @@ from ripple1d.conflate.rasfim import (
     filter_gdf,
     nearest_line_to_point,
 )
-from ripple1d.ops.ras_conflate import conflate
+from ripple1d.ops.ras_conflate import conflate_model
 
 TEST_DIR = os.path.dirname(__file__)
 TEST_ITEM_FILE = "ras-data/Baxter.json"
 TEST_ITEM_PATH = os.path.join(TEST_DIR, TEST_ITEM_FILE)
 
 # Expected counts
-NWM_REACHES = 36
-LOCAL_NWM_REACHES = 18
+NWM_REACHES = 16
+LOCAL_NWM_REACHES = 16
 RAS_CENTERLINES = 3
 RAS_XS = 173
 GAGES = 1
