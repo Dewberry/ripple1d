@@ -1,36 +1,49 @@
 import json
 import time
 import os
-import shutil
-import hashlib
 import re
+from pathlib import Path
 
 import logging
-from datetime import datetime
 import tempfile
 
 import glob
 
 import ripple1d.__version__ as version
-from ripple1d.ras_to_gpkg import gpkg_from_ras, geom_flow_to_gpkg, RasProject
+from ripple1d.ras_to_gpkg import gpkg_from_ras
 from ripple1d.ops.stac_item import rasmodel_to_stac,make_stac_assets
-from ripple1d.data_model import RasModelStructure, RippleSourceModel
-from ripple1d.utils.s3_utils import get_basic_object_metadata
+from ripple1d.data_model import RippleSourceModel
+from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources, list_keys
 from ripple1d.utils.ripple_utils import prj_is_ras
-from ripple1d.api.log import initialize_log
 
 
-def download_model(s3_client,bucket, assets, tmp_dir):
-    """ Download all ras files in the directory of .prj file."""
-    logging.debug(f'Downloading assets: {assets}')
+def download_model(s3_client, bucket: str, keys: list, tmp_dir: str) -> None:
+    """Download all ras files in the directory of .prj file."""
+    logging.debug(f'Downloading files: {keys}')
     RELEVANT_FILE_FINDER = re.compile(r'\.[Pp][Rr][Jj]|\.[Gg]\d{2}|\.[Pp]\d{2}|\.[FfUuQq]\d{2}')
-    download_keys = [s for s in assets.keys() if RELEVANT_FILE_FINDER.fullmatch(pathlib.Path(s).suffix)]
-    for key in download_keys:
-        s3_client.download_file(bucket, key, os.path.join(tmp_dir, Path(key).name))
+    for key in keys:
+        if RELEVANT_FILE_FINDER.fullmatch(Path(key).suffix):
+            s3_client.download_file(bucket, key, os.path.join(tmp_dir, Path(key).name))
+
+def upload_file(bucket, s3_client, s3_resource, file: str | dict, type: str, prefix: str, public: bool) -> dict:
+    """Upload file to correct spot on S3"""
+    out_key = f'ebfedata-derived/{type}/v{version}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(local_name)}'
+    if isinstance(file, str):
+        s3_client.upload_file(Bucket=bucket, Key=out_key, Filename=file)
+    elif isinstance(file, dict):
+        s3_client.upload_file(Bucket=bucket, Key=out_key, Body=json.dumps(file).encode())
+
+    obj = s3_resource.Bucket(bucket).Object(out_key)
+    meta = get_basic_object_metadata(obj)
+
+    if public:
+        return {'href': f'{bucket}.amazonaws.com/{out_key}', 'meta': meta}
+    else:
+        return{'href': f's3://{bucket}/{out_key}', 'meta': meta}
 
 
 def get_assets(s3_resource, bucket, keys)-> dict:
-    logging.info(f'Finding assets associated with prefix {prefix}')
+    """Get metadata for a list of S3 keys"""
     asset_dict = {}
     for key in keys:
         obj = s3_resource.Bucket(bucket).Object(key)
@@ -41,60 +54,41 @@ def get_assets(s3_resource, bucket, keys)-> dict:
     return asset_dict
 
 
-def process_key(bucket:str, key:str, crs:str):
+def process_key(bucket:str, key:str, crs:str) -> dict:
     """Convert RAS model associated with a .prj S3 key to stac"""
     logging.info(f'Processing key: {key}')
 
-    s3_access = {}
     _, s3_client, s3_resource = init_s3_resources()
 
     # Get assets and Download model
+    logging.info(f'Finding assets associated with prefix {prefix}')
     prefix = '/'.join(key.split('/')[:-1]) + '/'
     keys = list_keys(s3_client, bucket=bucket, prefix=prefix)
-
-    assets = get_assets(s3_access, keys)
+    assets = get_assets(s3_resource, keys)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         logging.debug(f'Temp folder created at {tmp_dir}')
 
-        download_model(s3_access, assets, tmp_dir)
+        download_model(s3_client, assets, tmp_dir)
 
-        # Find ras .prj file
+        # Make a geopackage
+        logging.info(f'Making geopackage for {key}')
+        gpkg_from_ras(tmp_dir, crs, {})
+
+        # Find ras .prj file, make instance of RippleSourceModel, and convert to stac
         prjs = glob.glob(f"{tmp_dir}/*.prj")
         prjs = [prj for prj in prjs if prj_is_ras(prj)]
         if len(prjs) != 1:
             raise KeyError(f"Expected 1 RAS file, found {len(prjs)}: {prjs}")
-
-        # Make a geopackage
-        logging.info(f'Making geopackage for {key}')
-        rp = RasProject(ras_prj_path)
-        ras_gpkg_path = ras_prj_path.replace(".prj", ".gpkg")
-        geom_flow_to_gpkg(rp, crs, ras_gpkg_path, {})
-
-        # Create a STAC item
-        logging.info(f'Making stac item for {key}')
+        else:
+            ras_prj_path = prjs[0]
         rm = RippleSourceModel(ras_prj_path, crs)
+        logging.info(f'Making stac item for {key}')
         stac = rasmodel_to_stac(rm)
 
         # Upload png and gpkg to s3
-        # TODO: make function
-        out_png_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.thumbnail_png)}'
-        s3_client.upload_file(Bucket=bucket, Key=out_png_key, Filename=rm.thumbnail_png)
-        obj = s3_resource.Bucket(bucket).Object(out_png_key)
-        meta = get_basic_object_metadata(obj)
-        assets['Thumbnail'] = {
-            'href': f'{bucket}.amazonaws.com/{out_png_key}',
-            'meta': meta
-            }
-
-        out_gpkg_key = f'ebfedata-derived/gpkgs/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.ras_gpkg_file)}'
-        s3_client.upload_file(Bucket=bucket, Key=out_gpkg_key, Filename=rm.ras_gpkg_file)
-        obj = s3_resource.Bucket(bucket).Object(out_gpkg_key)
-        meta = get_basic_object_metadata(obj)
-        assets['GeoPackage_file'] = {
-            'href': f's3://{bucket}/{out_gpkg_key}',
-            'meta': meta
-            }
+        assets['Thumbnail'] = upload_file(bucket, s3_client, s3_resource, rm.thumbnail_png, 'stac', prefix, public=True)
+        assets['GeoPackage_file'] = upload_file(bucket, s3_client, s3_resource, rm.ras_gpkg_file, 'gpkgs', prefix, public=False)
 
         # Overwrite some asset data with S3 metadata
         for s3_asset in assets:
@@ -108,25 +102,28 @@ def process_key(bucket:str, key:str, crs:str):
                 stac.assets[title].href = s3_asset
                 for k, v in meta.items():
                     stac.assets[title].extra_fields[k] = v
+        
+        # Export
+        assets['stac_item'] = upload_file(bucket, s3_client, s3_resource, stac.to_dict(), 'stac', prefix, public=True)
 
-        # # Export
-        # with open(rm.model_stac_json_file, "w") as dst:
-        #     dst.write(json.dumps(stac.to_dict()))
+    return {
+        "stac_item": {"href": assets['stac_item']['href']}, 
+        "thumbnail": {"href": assets['Thumbnail']['href']}, 
+        "gpkg": {"href": assets['GeoPackage_file']['href']}
+        }
 
-        # Move and cleanup
-        out_stac_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.model_stac_json_file)}'
-        # TODO: write bytes to bucket
-        s3_client.upload_file(Bucket=bucket, Key=out_stac_key, Filename=rm.model_stac_json_file)
-
-    # return {{"item": {"href"},"png":{}}, "gpkg"}
 
 
 def run_all():
     logging.info('Initializing conversion process')
+
+    # Paths etc
+    ble_json_path = "production/aws2stac/crs_inference_ebfe.json"
+    bucket = 'fim'
+
     # Get all ras .prj keys
-    with open(BLE_JSON_PATH) as in_file:
+    with open(ble_json_path) as in_file:
         ble_json = json.load(in_file)
-    # check_for_hash_collisions(ble_json)
 
     # DEBUGGING.  Test subset
     test_dir = 'ebfedata/12040101_WestForkSanJacinto/Caney Creek-Lake Creek/'
@@ -147,7 +144,7 @@ def run_all():
         try:
             key = ble_json[f]['key']
             crs = ble_json[f]['best_crs']
-            process_key(key, crs)
+            process_key(bucket, key, crs)
             tmp_meta = {
                 'key': key,
                 'has_error': False,
@@ -180,16 +177,5 @@ def run_all():
         print(e)
 
 
-# if __name__ == '__main__':
-#     # Paths etc
-#     BLE_JSON_PATH = "production/aws2stac/crs_inference_ebfe.json"
-#     bucket = 'fim'
-
-#     WORKING_DIR = os.path.abspath("tmp_aws2stac")
-#     os.makedirs(WORKING_DIR, exist_ok=True)
-
-#     # Helper functions
-    
-
-
-#     run_all()
+if __name__ == '__main__':
+    run_all()
