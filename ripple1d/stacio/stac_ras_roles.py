@@ -1,8 +1,9 @@
-import pystac
-from pathlib import Path
-import re
 import os
+import re
 from datetime import datetime
+from pathlib import Path
+
+import pystac
 
 from ripple1d.ras import (
     RasFlowText,
@@ -11,8 +12,9 @@ from ripple1d.ras import (
 )
 from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources, str_from_s3
 
-def get_asset_string(asset_key: str, client, bucket: str = None):
-    """Reads an asset as a string"""
+
+def get_asset_string(asset_key: str, client, bucket: str = None) -> str:
+    """Read an asset as a string."""
     # TODO: This function belongs in some util file
     if bucket:
         string = str_from_s3(asset_key, client, bucket)
@@ -23,49 +25,50 @@ def get_asset_string(asset_key: str, client, bucket: str = None):
 
 
 def get_asset_info(asset_key: str, bucket: str = None) -> dict:
-    """Function to assign role, description, title, and extra fields to an asset"""
+    """Assign role, description, title, and extra fields to an asset."""
     base_asset = ras_plan_asset_info(asset_key)
     base_asset = add_extra_fields(asset_key, base_asset, bucket)
     return base_asset
 
-def add_extra_fields(asset_key: str, base_asset: dict, bucket: str = None):
-    """Add extension-specific extra fields"""
+
+def add_extra_fields(asset_key: str, base_asset: dict, bucket: str = None) -> dict:
+    """Add extension-specific extra fields."""
     if bucket:
         _, client, s3_resource = init_s3_resources()
         obj = s3_resource.Bucket(bucket).Object(asset_key)
-        base_asset['extra_fields'] = get_basic_object_metadata(obj)
+        base_asset["extra_fields"] = get_basic_object_metadata(obj)
     else:
         last_mod = os.path.getmtime(asset_key)
         last_mod = datetime.fromtimestamp(last_mod)
         last_mod = last_mod.isoformat()
-        base_asset['extra_fields'] = {"file:size": os.path.getsize(asset_key), "last_modified": last_mod}
+        base_asset["extra_fields"] = {"file:size": os.path.getsize(asset_key), "last_modified": last_mod}
         client = None
 
-
-    if 'steady-flow-file' in base_asset['roles']:
+    if "steady-flow-file" in base_asset["roles"]:
         asset_string = get_asset_string(asset_key, client, bucket)
         flow = RasFlowText.from_str(asset_string, " .f01")
-        base_asset['extra_fields']["Title"] = flow.title
-        base_asset['extra_fields']["Number of Profiles"] = flow.n_profiles
-        base_asset['extra_fields']["Profile Names"] = flow.profile_names
-    if 'geometry-file' in base_asset['roles']:
+        base_asset["extra_fields"]["Title"] = flow.title
+        base_asset["extra_fields"]["Number of Profiles"] = flow.n_profiles
+        base_asset["extra_fields"]["Profile Names"] = flow.profile_names
+    if "geometry-file" in base_asset["roles"]:
         asset_string = get_asset_string(asset_key, client, bucket)
-        geom = RasGeomText.from_str(asset_string, 'EPSG:4326', " .g01")  # Dummy CRS
-        base_asset['extra_fields']["Title"] = geom.title
-        base_asset['extra_fields']["Number of rivers"] = geom.n_rivers
-        base_asset['extra_fields']["Number of reaches"] = geom.n_reaches
-        base_asset['extra_fields']["Number of cross sections"] = geom.n_cross_sections
-        base_asset['extra_fields']["Number of junctions"] = geom.n_junctions
-    if 'plan-file' in base_asset['roles']:
+        geom = RasGeomText.from_str(asset_string, "EPSG:4326", " .g01")  # Dummy CRS
+        base_asset["extra_fields"]["Title"] = geom.title
+        base_asset["extra_fields"]["Number of rivers"] = geom.n_rivers
+        base_asset["extra_fields"]["Number of reaches"] = geom.n_reaches
+        base_asset["extra_fields"]["Number of cross sections"] = geom.n_cross_sections
+        base_asset["extra_fields"]["Number of junctions"] = geom.n_junctions
+    if "plan-file" in base_asset["roles"]:
         asset_string = get_asset_string(asset_key, client, bucket)
-        plan = RasPlanText.from_str(asset_string, 'EPSG:4326', " .p01")  # Dummy CRS
-        base_asset['extra_fields']["Title"] = plan.title
+        plan = RasPlanText.from_str(asset_string, "EPSG:4326", " .p01")  # Dummy CRS
+        base_asset["extra_fields"]["Title"] = plan.title
 
     return base_asset
 
+
 def ras_plan_asset_info(s3_key: str) -> dict:
     """
-    This function generates information about a plan asset used in a HEC-RAS model.
+    Generate information about a plan asset used in a HEC-RAS model.
 
     Parameters:
         s3_key (str): The S3 key of the asset.
@@ -84,7 +87,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     5. Returns a dictionary with the roles, the description, and the title of the asset.
     """
     file_extension = Path(s3_key).suffix
-    full_extension = s3_key.rsplit('/')[-1].split('.',1)[1]
+    full_extension = s3_key.rsplit("/")[-1].split(".", 1)[1]
     title = Path(s3_key).name
     description = ""
     roles = []
@@ -99,9 +102,11 @@ def ras_plan_asset_info(s3_key: str) -> dict:
 
     if re.match("[Gg][0-9]{2}", ras_extension):
         roles.extend(["geometry-file", "ras-file"])
-        description = """The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."""
+        description = (
+            """The geometry file which contains cross-sectional, hydraulic structures, and modeling approach data."""
+        )
         if file_extension != ".hdf":
-            roles.extend([ pystac.MediaType.TEXT])
+            roles.extend([pystac.MediaType.TEXT])
 
     elif re.match("[Pp][0-9]{2}", ras_extension):
         roles.extend(["plan-file", "ras-file"])
@@ -125,15 +130,11 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         description = """Run file for steady flow analysis which contains all the necessary input data required for the RAS computational engine."""
 
     elif re.match("hyd[0-9]{2}", ras_extension):
-        roles.extend(
-            ["computational-level-output-file", "ras-file", pystac.MediaType.TEXT]
-        )
+        roles.extend(["computational-level-output-file", "ras-file", pystac.MediaType.TEXT])
         description = """Detailed Computational Level output file."""
 
     elif re.match("[Cc][0-9]{2}", ras_extension):
-        roles.extend(
-            ["geometric-preprocessor-output-file", "ras-file", pystac.MediaType.TEXT]
-        )
+        roles.extend(["geometric-preprocessor-output-file", "ras-file", pystac.MediaType.TEXT])
         description = """Geomatric Pre-Processor output file. Contains the hydraulic properties tables, rating curves, and family of rating curves for each cross-section, bridge, culvert, storage area, inline and lateral structure."""
 
     elif re.match("[Bb][0-9]{2}", ras_extension):
@@ -157,9 +158,7 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         description = """Water Quality data file which contains temperature boundary conditions, initial conditions, advection dispersion parameters and meteorological data."""
 
     elif re.match("SedCap[0-9]{2}", ras_extension):
-        roles.extend(
-            ["sediment-transport-capacity-file", "ras-file", pystac.MediaType.TEXT]
-        )
+        roles.extend(["sediment-transport-capacity-file", "ras-file", pystac.MediaType.TEXT])
         description = """Sediment Transport Capacity data."""
 
     elif re.match("SedXS[0-9]{2}", ras_extension):
@@ -237,20 +236,20 @@ def ras_plan_asset_info(s3_key: str) -> dict:
 
     elif re.match("[Xx][0-9]{2}", ras_extension):
         roles.extend(["run-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Run file for Unsteady Flow.""")
+        description = """Run file for Unsteady Flow."""
 
     elif re.match("[Oo][0-9]{2}", full_extension):
         roles.extend(["output-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Output file for ras which contains all of the computed results.""")
+        description = """Output file for ras which contains all of the computed results."""
 
     elif re.match("IC.O[0-9]{2}", full_extension):
         roles.extend(["initial-conditions-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Initial conditions file for unsteady flow plan.""")
+        description = """Initial conditions file for unsteady flow plan."""
 
     elif re.match("[Pp][0-9]{2}.rst", full_extension):
         roles.extend(["restart-file", "ras-file", pystac.MediaType.TEXT])
-        description = ("""Restart file.""")
-        
+        description = """Restart file."""
+
     elif full_extension == "rasmap":
         roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
         description = """Ras Mapper file."""

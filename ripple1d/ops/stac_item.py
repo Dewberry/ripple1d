@@ -1,11 +1,11 @@
-"""Tools for creating, manipulating and exporting STAC assets"""
+"""Tools for creating, manipulating and exporting STAC assets."""
 
+import hashlib
 import json
 import logging
 import os
-from pathlib import Path, PurePosixPath
-import hashlib
 from datetime import datetime, timezone
+from pathlib import Path, PurePosixPath
 
 import pandas as pd
 import pystac
@@ -15,18 +15,14 @@ from shapely import to_geojson
 import ripple1d
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.ras import RasManager
-from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.ras_utils import get_asset_info
+from ripple1d.utils.dg_utils import bbox_to_polygon
+from ripple1d.utils.gpkg_utils import create_thumbnail_from_gpkg, get_river_miles, gpkg_to_geodataframe, reproject
 from ripple1d.utils.ripple_utils import get_last_model_update, xs_concave_hull
-from ripple1d.utils.gpkg_utils import (
-    create_thumbnail_from_gpkg,
-    get_river_miles,
-    gpkg_to_geodataframe,
-    reproject
-)
 
 
 def rasmodel_to_stac(rasmodel: RippleSourceModel):
+    """Create a stac item."""
     logging.debug("Creating STAC item from RasModelStructure")
 
     # Instantiate RasManager
@@ -34,21 +30,21 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel):
 
     # Load geopackage
     gdfs = gpkg_to_geodataframe(rasmodel.ras_gpkg_file)
-    meta_dict = gdfs['metadata']
-    meta_dict = dict(zip(meta_dict['key'], meta_dict['value']))
+    meta_dict = gdfs["metadata"]
+    meta_dict = dict(zip(meta_dict["key"], meta_dict["value"]))
 
     # ID
-    item_id = rasmodel.model_name.replace(' ', '_')
+    item_id = rasmodel.model_name.replace(" ", "_")
 
     # Geometry, bbox, and misc geospatial
     og_crs = gdfs["River"].crs
     river_miles = get_river_miles(gdfs["River"])
     gdfs = reproject(gdfs)
     bbox = pd.concat(gdfs).total_bounds
-    footprint = xs_concave_hull(gdfs['XS'])
-    
+    footprint = xs_concave_hull(gdfs["XS"])
+
     # datetime
-    ras_data = gdfs['River']['ras_data'].iloc[0].split('\n')
+    ras_data = gdfs["River"]["ras_data"].iloc[0].split("\n")
     dt = get_last_model_update(ras_data)
     if dt is None:
         dt = datetime.now()
@@ -59,9 +55,9 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel):
     # properties
     properties = {
         "ripple: version": ripple1d.__version__,
-        "ras version": meta_dict.get('ras_version', ''),
-        "ras_units": meta_dict.get('units', ''),
-        "project title": meta_dict.get('ras_project_title', ''),
+        "ras version": meta_dict.get("ras_version", ""),
+        "ras_units": meta_dict.get("units", ""),
+        "project title": meta_dict.get("ras_project_title", ""),
         "plans": {key: val.file_extension for key, val in rasmanager.plans.items()},
         "geometries": {key: val.file_extension for key, val in rasmanager.geoms.items()},
         "flows": {key: val.file_extension for key, val in rasmanager.flows.items()},
@@ -80,7 +76,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel):
 
     # Assets
     assets = make_stac_assets(rasmodel.assets)
-        
+
     # Make pystac item
     stac = pystac.item.Item(
         id=item_id,
@@ -90,7 +86,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel):
         properties=properties,
         collection=collection,
         assets=assets,
-        stac_extensions=['Projection', 'Storage']
+        stac_extensions=["Projection", "Storage"],
     )
 
     # Export STAC item
@@ -100,14 +96,15 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel):
     logging.debug("Program completed successfully")
     return stac
 
+
 def make_stac_assets(asset_list: list, bucket: str = None):
-    """Converts a list of paths to stac assets with associated metadata"""
+    """Convert a list of paths to stac assets with associated metadata."""
     assets = dict()
     for key in asset_list:
         asset_info = get_asset_info(key, bucket)
-        title = asset_info['title'].replace(' ','_')
+        title = asset_info["title"].replace(" ", "_")
         if bucket is not None:
-            href = f's3://{bucket}/{key}'
+            href = f"s3://{bucket}/{key}"
         else:
             href = os.path.relpath(key)
         asset = pystac.Asset(

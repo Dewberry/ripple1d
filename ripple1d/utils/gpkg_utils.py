@@ -75,9 +75,8 @@ def gpkg_to_geodataframe(gpkg_s3_uri: str) -> dict:
 def reproject(gdfs: dict, crs=4326) -> dict:
     """Reproject a gdf to a new CRS."""
     for layer, gdf in gdfs.items():
-        if not type(gdf) == gpd.GeoDataFrame:
-            continue
-        gdfs[layer] = gdf.to_crs(crs)  # reproject to WSG 84
+        if isintance(gdf, gpd.GeoDataFrame):
+            gdfs[layer] = gdf.to_crs(crs)
     return gdfs
 
 

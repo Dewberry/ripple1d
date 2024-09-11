@@ -72,11 +72,6 @@ class RasModelStructure:
     def thumbnail_png(self):
         """Thumbnail PNG."""
         return self.derive_path(".png")
-    
-    @property
-    def model_stac_json_file(self):
-        """STAC JSON file."""
-        return self.derive_path(".model.stac.json")
 
 
 class RippleSourceModel:
@@ -86,6 +81,7 @@ class RippleSourceModel:
 
         self.crs = crs
         self.ras_project_file = Path(ras_project_file)
+        # TODO: verify use of posix here
         self.model_directory = self.ras_project_file.parent.as_posix()
         self.model_basename = self.ras_project_file.name
 
@@ -141,6 +137,7 @@ class RippleSourceModel:
     def model_stac_json_file(self):
         """STAC JSON file."""
         return self.derive_path(".json")
+
 
 class RippleSourceDirectory:
     """Source Directory for Ripple to create NwmReachModel's. Should contain the conflation.json file and gpkg file for the source model."""
