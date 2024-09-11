@@ -14,6 +14,7 @@ from shapely import to_geojson
 
 import ripple1d
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
+from ripple1d.ras import RasManager
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.ras_utils import get_asset_info
 from ripple1d.utils.ripple_utils import get_last_model_update, xs_concave_hull
@@ -27,6 +28,10 @@ from ripple1d.utils.gpkg_utils import (
 
 def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
     logging.debug("Creating STAC item from RasModelStructure")
+
+    # Instantiate RasManager
+    rasmanager = RasManager(rasmodel.ras_project_file, crs=rasmodel.crs)
+
     # Load geopackage
     gdfs = gpkg_to_geodataframe(rasmodel.ras_gpkg_file)
     meta_dict = gdfs['metadata']
@@ -57,9 +62,9 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         "ras version": meta_dict.get('ras_version', ''),
         "ras_units": meta_dict.get('units', ''),
         "project title": meta_dict.get('ras_project_title', ''),
-        "plan titles": meta_dict.get('plans_titles', '').split('\n'),
-        "geom titles": meta_dict.get('geom_titles', '').split('\n'),
-        "flow titles": meta_dict.get('steady_flow_titles', '').split('\n'),
+        "plans": {key: val.file_extension for key, val in rasmanager.plans.items()},
+        "geometries": {key: val.file_extension for key, val in rasmanager.geoms.items()},
+        "flows": {key: val.file_extension for key, val in rasmanager.flows.items()},
         "river miles": str(river_miles),
         "dt_valid": dt_valid,
         "proj:wkt2": og_crs.to_wkt(),
@@ -68,6 +73,11 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
 
     # collection
     collection = None
+
+    # Make a thumbnail
+    fig = create_thumbnail_from_gpkg(gdfs)
+    fig.savefig(rasmodel.thumbnail_png)
+    # plt.close(fig)
 
     # Assets
     assets = make_stac_assets(rasmodel.assets)
@@ -83,11 +93,6 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         assets=assets,
         stac_extensions=['Projection', 'Storage']
     )
-
-    # Make a thumbnail
-    fig = create_thumbnail_from_gpkg(gdfs)
-    fig.savefig(rasmodel.thumbnail_png)
-    # plt.close(fig)
 
     # Export STAC item
     with open(rasmodel.model_stac_json_file, "w") as dst:
