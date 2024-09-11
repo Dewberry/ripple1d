@@ -7,6 +7,7 @@ import re
 import glob
 import logging
 from datetime import datetime
+import tempfile
 
 import ripple1d
 from ripple1d.utils.s3_utils import *
@@ -72,58 +73,59 @@ def process_key(key, crs):
     s3_access = dict()
     s3_access['session'], s3_access['s3_client'], s3_access['s3_resource'] = init_s3_resources()
 
-    # Make a temp folder
-    tmp_hash = hashlib.sha1(bytes(key, encoding="utf-8")).hexdigest()
-    tmp_dir = os.path.join(os.getcwd(), 'tmp_processing', tmp_hash)
-    os.makedirs(tmp_dir, exist_ok=True)
+    # Initialize temporary directory
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        logging.debug(f'Temp folder created at {tmp_dir}')
 
-    # Get assets and Download model
-    prefix, assets = get_assets(s3_access, key)
-    download_model(s3_access, assets, tmp_dir)
+        # Get assets and Download model
+        prefix, assets = get_assets(s3_access, key)
+        download_model(s3_access, assets, tmp_dir)
 
-    # Find ras .prj file
-    prjs = glob.glob(f"{tmp_dir}/*.prj")
-    prjs = [prj for prj in prjs if prj_is_ras(prj)]
-    if len(prjs) > 1:
-        logging.warning(f'More than one ras .prj found for {key}')
-    ras_prj_path = prjs[-1]
+        # Find ras .prj file
+        prjs = glob.glob(f"{tmp_dir}/*.prj")
+        prjs = [prj for prj in prjs if prj_is_ras(prj)]
+        if len(prjs) > 1:
+            logging.warning(f'More than one ras .prj found for {key}')
+        ras_prj_path = prjs[-1]
 
-    # Make a geopackage
-    logging.info(f'Making geopackage for {key}')
-    rp = RasProject(ras_prj_path)
-    ras_gpkg_path = ras_prj_path.replace(".prj", ".gpkg")
-    geom_flow_to_gpkg(rp, crs, ras_gpkg_path, dict())
+        # Make a geopackage
+        logging.info(f'Making geopackage for {key}')
+        rp = RasProject(ras_prj_path)
+        ras_gpkg_path = ras_prj_path.replace(".prj", ".gpkg")
+        geom_flow_to_gpkg(rp, crs, ras_gpkg_path, dict())
 
-    # Create a STAC item
-    logging.info(f'Making stac item for {key}')
-    rm = RippleSourceModel(ras_prj_path, crs)
-    stac = rasmodel_to_stac(rm, prefix)
+        # Create a STAC item
+        logging.info(f'Making stac item for {key}')
+        rm = RippleSourceModel(ras_prj_path, crs)
+        stac = rasmodel_to_stac(rm)
 
-    # Overwrite some asset data with S3 metadata
-    for s3_asset in assets:
-        title = s3_asset.split('/')[-1].replace(' ', '_')
-        meta = assets[s3_asset]
-        if not title in stac.assets:
-            # Make a new asset
-            stac.assets[title] = make_stac_assets([s3_asset], bucket=BUCKET)[title]
-        else:
-            # replace basic object metadata
-            for k, v in meta.items():
-                stac.assets[title].extra_fields[k] = v
+        # Overwrite some asset data with S3 metadata
+        for s3_asset in assets:
+            title = s3_asset.split('/')[-1].replace(' ', '_')
+            meta = assets[s3_asset]
+            if not title in stac.assets:
+                # Make a new asset
+                stac.assets[title] = make_stac_assets([s3_asset], bucket=BUCKET)[title]
+            else:
+                # replace basic object metadata
+                for k, v in meta.items():
+                    stac.assets[title].extra_fields[k] = v
 
-    # Export
-    with open(rm.model_stac_json_file, "w") as dst:
-        dst.write(json.dumps(stac.to_dict()))
+        # Export
+        with open(rm.model_stac_json_file, "w") as dst:
+            dst.write(json.dumps(stac.to_dict()))
 
-    # Move and cleanup
-    out_stac_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.model_stac_json_file)}'
-    s3_access['s3_client'].upload_file(Bucket=BUCKET, key=out_stac_key, Filename=rm.model_stac_json_file)
+        # Move and cleanup
+        out_stac_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.model_stac_json_file)}'
+        s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_stac_key, Filename=rm.model_stac_json_file)
 
-    out_png_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.thumbnail_png)}'
-    s3_access['s3_client'].upload_file(Bucket=BUCKET, key=out_png_key, Filename=rm.thumbnail_png)
+        out_png_key = f'ebfedata-derived/stac/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.thumbnail_png)}'
+        s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_png_key, Filename=rm.thumbnail_png)
 
-    out_gpkg_key = f'ebfedata-derived/gpkgs/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.ras_gpkg_file)}'
-    s3_access['s3_client'].upload_file(Bucket=BUCKET, key=out_gpkg_key, Filename=rm.ras_gpkg_file)
+        out_gpkg_key = f'ebfedata-derived/gpkgs/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(rm.ras_gpkg_file)}'
+        s3_access['s3_client'].upload_file(Bucket=BUCKET, Key=out_gpkg_key, Filename=rm.ras_gpkg_file)
+
+    return {}
 
 
 
