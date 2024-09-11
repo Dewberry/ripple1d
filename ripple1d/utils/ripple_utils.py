@@ -11,8 +11,8 @@ import boto3
 import geopandas as gpd
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
-from shapely import union_all
-from shapely.geometry import Point, Polygon
+from shapely import make_valid, union_all
+from shapely.geometry import MultiPolygon, Point, Polygon
 
 from ripple1d.errors import (
     RASComputeError,
@@ -72,10 +72,14 @@ def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         points = xs_subset.boundary.explode(index_parts=True).unstack()
         points_last_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[-1].coords]
         points_first_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[0].coords[::-1]]
-
-        polygons.append(Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1]))
-
-    return gpd.GeoDataFrame({"geometry": [union_all(polygons)]}, geometry="geometry", crs=xs.crs)
+        polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
+        if isinstance(polygon, MultiPolygon):
+            polygons += list(polygon.geoms)
+        else:
+            polygons.append(polygon)
+    return gpd.GeoDataFrame(
+        {"geometry": [union_all([make_valid(p) for p in polygons])]}, geometry="geometry", crs=xs.crs
+    )
 
 
 def search_contents(lines: list, search_string: str, token: str = "=", expect_one: bool = True) -> list[str]:
