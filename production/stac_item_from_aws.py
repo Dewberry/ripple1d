@@ -16,6 +16,7 @@ from ripple1d.utils.s3_utils import get_basic_object_metadata
 from ripple1d.utils.ripple_utils import prj_is_ras
 from ripple1d.ops.stac_item import make_stac_assets
 from ripple1d.api.log import initialize_log
+from ripple1d.utils.s3_utils import get_basic_object_metadata
 
 
 # Paths etc
@@ -93,20 +94,27 @@ def process_key(s3_access, key, crs):
     rm = RippleSourceModel(ras_prj_path, crs)
     stac = rasmodel_to_stac(rm, prefix)
 
-    # Overwrite with full set of assets
-    new_assets = make_stac_assets(assets, bucket=BUCKET)
-    stac.assets = new_assets
+    # Overwrite some asset data with S3 metadata
+    for asset in assets:
+        title = asset.split('/')[-1].replace(' ', '_')
+        if not title in stac.assets:
+            # Make a new asset
+            stac.assets[title] = make_stac_assets([asset], bucket=BUCKET)[title]
+        else:
+            # replace basic object metadata
+
+    
     with open(rm.model_stac_json_file, "w") as dst:
         dst.write(json.dumps(stac.to_dict()))
 
     # Move and cleanup
-    new_stac = os.path.join(OUTPUT_DIR, os.path.basename(rm.model_stac_json_file))
-    shutil.move(rm.model_stac_json_file, new_stac)
-    meta['stac_url'] = new_stac
-    new_thumb = os.path.join(OUTPUT_DIR, os.path.basename(rm.thumbnail_png))
-    shutil.move(rm.thumbnail_png, new_thumb)
-    meta['png_url'] = new_thumb
-    shutil.rmtree(tmp_dir)
+    # new_stac = os.path.join(OUTPUT_DIR, os.path.basename(rm.model_stac_json_file))
+    # shutil.move(rm.model_stac_json_file, new_stac)
+    # meta['stac_url'] = new_stac
+    # new_thumb = os.path.join(OUTPUT_DIR, os.path.basename(rm.thumbnail_png))
+    # shutil.move(rm.thumbnail_png, new_thumb)
+    # meta['png_url'] = new_thumb
+    # shutil.rmtree(tmp_dir)
 
     return meta
 
