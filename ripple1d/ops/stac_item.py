@@ -52,9 +52,9 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         "ras version": meta_dict.get('ras_version', ''),
         "ras_units": meta_dict.get('units', ''),
         "project title": meta_dict.get('ras_project_title', ''),
-        "plan titles": meta_dict.get('plans_titles', ''),
-        "geom titles": meta_dict.get('geom_titles', ''),
-        "flow titles": meta_dict.get('flow_titles', ''),
+        "plan titles": meta_dict.get('plans_titles', '').split('\n'),
+        "geom titles": meta_dict.get('geom_titles', '').split('\n'),
+        "flow titles": meta_dict.get('steady_flow_titles', '').split('\n'),
         "river miles": str(river_miles),
         "proj:wkt2": og_crs.to_wkt(),
         "proj:epsg": og_crs.to_epsg(),
@@ -74,7 +74,8 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, ras_s3_prefix: str):
         datetime=dt,
         properties=properties,
         collection=collection,
-        assets=assets
+        assets=assets,
+        stac_extensions=['Projection', 'Storage', 'AWS S3???']
     )
 
     # Make a thumbnail
@@ -94,11 +95,13 @@ def make_stac_assets(asset_list: list, bucket: str = None):
     assets = dict()
     for key in asset_list:
         asset_info = get_asset_info(key, bucket)
+        title = asset_info['title'].replace(' ','_')
         asset = pystac.Asset(
-            os.path.relpath(key),
+            href=os.path.relpath(key),
+            title=title,
             extra_fields=asset_info["extra_fields"],
             roles=asset_info["roles"],
             description=asset_info["description"],
         )
-        assets[key] = asset
+        assets[title] = asset
     return assets

@@ -81,6 +81,9 @@ def process_key(s3_access, key, crs):
     # Overwrite with full set of assets
     new_assets = make_stac_assets(meta['assets'], bucket=BUCKET)
     stac.assets = new_assets
+    with open(rm.model_stac_json_file, "w") as dst:
+        dst.write(json.dumps(stac.to_dict()))
+
     
     # Move and cleanup
     new_stac = os.path.join(OUTPUT_DIR, os.path.basename(rm.model_stac_json_file))
