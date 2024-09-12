@@ -77,8 +77,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
     collection = None
 
     # Make a thumbnail
-    fig = create_thumbnail_from_gpkg(gdfs)
-    fig.savefig(rasmodel.thumbnail_png)
+    create_thumbnail_from_gpkg(gdfs, rasmodel.thumbnail_png)
 
     # Assets
     assets = make_stac_assets(rasmodel.assets)
@@ -124,8 +123,18 @@ def make_stac_assets(asset_list: list, bucket: str = None):
         assets[title] = asset
     return assets
 
-
 def s3_ras_to_stac(bucket: str, key: str, crs: str) -> dict:
+    """Process s3 key, and on error, return null dict."""
+    try:
+        return process_key(bucket, key, crs)
+    except Exception:
+        return {
+            "stac_item": None,
+            "thumbnail": None,
+            "gpkg": None,
+        }
+
+def process_key(bucket: str, key: str, crs: str) -> dict:
     """Convert RAS model associated with a .prj S3 key to stac."""
     logging.info(f"Processing key: {key}")
 
@@ -188,7 +197,7 @@ def s3_ras_to_stac(bucket: str, key: str, crs: str) -> dict:
                 stac.assets[title] = make_stac_assets([s3_asset], bucket=bucket)[title]
             else:
                 # replace basic object metadata
-                stac.assets[title].href = s3_asset
+                stac.assets[title].href = assets[s3_asset]['href']
                 for k, v in meta.items():
                     stac.assets[title].extra_fields[k] = v
 
