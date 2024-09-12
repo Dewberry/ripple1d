@@ -65,7 +65,9 @@ def find_a_valid_file(
             return path
 
 
-def gather_metdata(metadata: dict, ras_project: RasProject, rp: RasPlanText, rf: RasFlowText, rg: RasGeomText) -> dict:
+def gather_metadata(
+    metadata: dict, ras_project: RasProject, rp: RasPlanText, rg: RasGeomText, rf: RasFlowText = None
+) -> dict:
     """Gather metadata from the ras project and its components."""
     metadata["plans_files"] = "\n".join(
         [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.plans if get_path(i)]
@@ -95,17 +97,26 @@ def gather_metdata(metadata: dict, ras_project: RasProject, rp: RasPlanText, rf:
     )
     metadata["primary_plan_file"] = get_path(rp._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
     metadata["primary_plan_title"] = rp.title
-    metadata["primary_flow_file"] = get_path(rf._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+
     metadata["primary_geom_file"] = get_path(rg._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
     metadata["primary_geom_title"] = rg.title
-    metadata["primary_flow_title"] = rf.title
+
+    if rf is not None:
+        metadata["primary_flow_file"] = get_path(rf._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+        metadata["primary_flow_title"] = rf.title
+        fcls = pd.DataFrame(rf.flow_change_locations)
+        metadata["profile_names"] = "\n".join(fcls["profile_names"].iloc[0])
+    else:
+        metadata["primary_flow_file"] = None
+        metadata["primary_flow_title"] = None
+        metadata["profile_names"] = None
+
     if len(rg.version) >= 1:
         metadata["ras_version"] = rg.version[0]
     else:
         metadata["ras_version"] = None
     metadata["ripple1d_version"] = ripple1d.__version__
-    fcls = pd.DataFrame(rf.flow_change_locations)
-    metadata["profile_names"] = "\n".join(fcls["profile_names"].iloc[0])
+
     metadata["units"] = ras_project.units
     return metadata
 
@@ -130,8 +141,11 @@ def geom_flow_to_gdfs(
             logging.warning(e)
             plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS, client, bucket)
 
-        string = str_from_s3(plan_steady_file, client, bucket)
-        rf = RasFlowText.from_str(string, " .f01")
+        if "f" in Path(plan_steady_file).suffix:
+            string = str_from_s3(plan_steady_file, client, bucket)
+            rf = RasFlowText.from_str(string, " .f01")
+        else:
+            rf = None
 
         string = str_from_s3(plan_geom_file, client, bucket)
         rg = RasGeomText.from_str(string, crs, " .g01")
@@ -151,18 +165,20 @@ def geom_flow_to_gdfs(
             logging.warning(e)
             plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS)
 
-        rf = RasFlowText(plan_steady_file)
+        if "f" in Path(plan_steady_file).suffix:
+            rf = RasFlowText(plan_steady_file)
+        else:
+            rf = None
         rg = RasGeomText(plan_geom_file, crs)
 
     layers = {}
     if rg.cross_sections:
         xs_gdf = rg.xs_gdf
-        if "u" in Path(plan_steady_file).suffix:
-            xs_gdf["flow_tile"] = rf.title
-        else:
+        if "f" in Path(plan_steady_file).suffix:
             xs_gdf = geom_flow_xs_gdf(rg, rf, xs_gdf)
-        xs_gdf["plan_title"] = rp.title
-        xs_gdf["geom_title"] = rg.title
+        else:
+            xs_gdf[["flow_tile", "plan_title", "geom_title"]] = (None, None, None)
+
         if len(rg.version) >= 1:
             xs_gdf["version"] = rg.version[0]
         else:
@@ -180,7 +196,7 @@ def geom_flow_to_gdfs(
     if rg.structures:
         layers["Structure"] = rg.structures_gdf
 
-    return layers, gather_metdata(metadata, ras_project, rp, rf, rg)
+    return layers, gather_metadata(metadata, ras_project, rp, rg, rf)
 
 
 def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
