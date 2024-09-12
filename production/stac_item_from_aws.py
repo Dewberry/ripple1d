@@ -2,17 +2,18 @@ import glob
 import json
 import logging
 import os
-from pathlib import Path
 import re
 import tempfile
 import time
+from pathlib import Path
+import random
 
 from ripple1d import __version__ as version
-from ripple1d.ras_to_gpkg import gpkg_from_ras
-from ripple1d.ops.stac_item import rasmodel_to_stac,make_stac_assets
 from ripple1d.data_model import RippleSourceModel
-from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources, list_keys
+from ripple1d.ops.stac_item import make_stac_assets, rasmodel_to_stac, s3_ras_to_stac, process_key
+from ripple1d.ras_to_gpkg import gpkg_from_ras
 from ripple1d.utils.ripple_utils import prj_is_ras
+from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources, list_keys
 
 
 def download_model(s3_client, bucket: str, keys: list, tmp_dir: str) -> None:
@@ -52,64 +53,63 @@ def get_assets(s3_resource, bucket, keys)-> dict:
     return asset_dict
 
 
-def process_key(bucket:str, key:str, crs:str) -> dict:
-    """Convert RAS model associated with a .prj S3 key to stac"""
-    logging.info(f'Processing key: {key}')
+# def process_key(bucket:str, key:str, crs:str) -> dict:
+#     """Convert RAS model associated with a .prj S3 key to stac"""
+#     logging.info(f'Processing key: {key}')
 
-    _, s3_client, s3_resource = init_s3_resources()
+#     _, s3_client, s3_resource = init_s3_resources()
 
-    # Get assets and Download model
-    logging.info(f'Finding assets associated with prefix {key}')
-    prefix = '/'.join(key.split('/')[:-1]) + '/'
-    keys = list_keys(s3_client, bucket, prefix)
-    assets = get_assets(s3_resource, bucket, keys)
+#     # Get assets and Download model
+#     logging.info(f'Finding assets associated with prefix {key}')
+#     prefix = '/'.join(key.split('/')[:-1]) + '/'
+#     keys = list_keys(s3_client, bucket, prefix)
+#     assets = get_assets(s3_resource, bucket, keys)
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        logging.debug(f'Temp folder created at {tmp_dir}')
+#     with tempfile.TemporaryDirectory() as tmp_dir:
+#         logging.debug(f'Temp folder created at {tmp_dir}')
 
-        download_model(s3_client, bucket, assets, tmp_dir)
+#         download_model(s3_client, bucket, assets, tmp_dir)
 
-        # Make a geopackage
-        logging.info(f'Making geopackage for {key}')
-        gpkg_from_ras(tmp_dir, crs, {})
+#         # Make a geopackage
+#         logging.info(f'Making geopackage for {key}')
+#         gpkg_from_ras(tmp_dir, crs, {})
 
-        # Find ras .prj file, make instance of RippleSourceModel, and convert to stac
-        prjs = glob.glob(f"{tmp_dir}/*.prj")
-        prjs = [prj for prj in prjs if prj_is_ras(prj)]
-        if len(prjs) != 1:
-            raise KeyError(f"Expected 1 RAS file, found {len(prjs)}: {prjs}")
-        else:
-            ras_prj_path = prjs[0]
-        rm = RippleSourceModel(ras_prj_path, crs)
-        logging.info(f'Making stac item for {key}')
-        stac = rasmodel_to_stac(rm, save_json=False)
+#         # Find ras .prj file, make instance of RippleSourceModel, and convert to stac
+#         prjs = glob.glob(f"{tmp_dir}/*.prj")
+#         prjs = [prj for prj in prjs if prj_is_ras(prj)]
+#         if len(prjs) != 1:
+#             raise KeyError(f"Expected 1 RAS file, found {len(prjs)}: {prjs}")
+#         else:
+#             ras_prj_path = prjs[0]
+#         rm = RippleSourceModel(ras_prj_path, crs)
+#         logging.info(f'Making stac item for {key}')
+#         stac = rasmodel_to_stac(rm, save_json=False)
 
-        # Upload png and gpkg to s3
-        assets['Thumbnail'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.thumbnail_png), rm.thumbnail_png, 'stac', prefix, public=True)
-        assets['GeoPackage_file'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.ras_gpkg_file), rm.ras_gpkg_file, 'gpkgs', prefix, public=False)
+#         # Upload png and gpkg to s3
+#         assets['Thumbnail'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.thumbnail_png), rm.thumbnail_png, 'stac', prefix, public=True)
+#         assets['GeoPackage_file'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.ras_gpkg_file), rm.ras_gpkg_file, 'gpkgs', prefix, public=False)
 
-        # Overwrite some asset data with S3 metadata
-        for s3_asset in assets:
-            title = s3_asset.split('/')[-1].replace(' ', '_')
-            meta = assets[s3_asset]
-            if not title in stac.assets:
-                # Make a new asset
-                stac.assets[title] = make_stac_assets([s3_asset], bucket=bucket)[title]
-            else:
-                # replace basic object metadata
-                stac.assets[title].href = s3_asset
-                for k, v in meta.items():
-                    stac.assets[title].extra_fields[k] = v
-        
-        # Export
-        assets['stac_item'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.model_stac_json_file), stac.to_dict(), 'stac', prefix, public=True)
+#         # Overwrite some asset data with S3 metadata
+#         for s3_asset in assets:
+#             title = s3_asset.split('/')[-1].replace(' ', '_')
+#             meta = assets[s3_asset]
+#             if not title in stac.assets:
+#                 # Make a new asset
+#                 stac.assets[title] = make_stac_assets([s3_asset], bucket=bucket)[title]
+#             else:
+#                 # replace basic object metadata
+#                 stac.assets[title].href = s3_asset
+#                 for k, v in meta.items():
+#                     stac.assets[title].extra_fields[k] = v
 
-    return {
-        "stac_item": {"href": assets['stac_item']['href']}, 
-        "thumbnail": {"href": assets['Thumbnail']['href']}, 
-        "gpkg": {"href": assets['GeoPackage_file']['href']}
-        }
+#         # Export
+#         assets['stac_item'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.model_stac_json_file), stac.to_dict(), 'stac', prefix, public=True)
 
+#     return {
+#         "stac_item": {"href": assets['stac_item']['href']},
+#         "thumbnail": {"href": assets['Thumbnail']['href']},
+#         "gpkg": {"href": assets['GeoPackage_file']['href']}
+#         }
 
 
 def run_all():
@@ -124,56 +124,37 @@ def run_all():
         ble_json = json.load(in_file)
 
     # DEBUGGING.  Test subset
-    test_dir = 'ebfedata/12040101_WestForkSanJacinto/Caney Creek-Lake Creek/'
-    ble_json = {i: ble_json[i] for i in ble_json if i[:len(test_dir)] == test_dir}
+    # test_dir = 'ebfedata/12040101_WestForkSanJacinto/Caney Creek-Lake Creek/'
+    # ble_json = {i: ble_json[i] for i in ble_json if i[:len(test_dir)] == test_dir}
+    keys = [i for i in ble_json]
 
     # Iterate through keys and check for existence
     out_dict = dict()
     t1 = time.perf_counter()
-    for ind, f in enumerate(ble_json):
-
-        # Status printing
-        if ind % 10 == 0:
-            total_time = (time.perf_counter() - t1)
-            rate = total_time / (ind + 1)
-            print(f'{ind} / {len(ble_json)}  |  Total time: {round(total_time, 1)} seconds  |  Rate: {round(rate, 5)} seconds per requests')
-
+    for i in range(len(keys)):
+        # randomly sample with replacement
+        f = random.choice(keys)
         # Process key
-        try:
-            key = ble_json[f]['key']
-            crs = ble_json[f]['best_crs']
-            process_key(bucket, key, crs)
-            tmp_meta = {
-                'key': key,
-                'has_error': False,
-                'error_str': None
-            }
-        except Exception as e:
-            print(f'Error on {f}')
-            print(e)
-            tmp_meta = {
-                'key': key,
-                'has_error': True,
-                'error_str': str(e)
-            }
+        t1 = time.perf_counter()
+        print(f'Processing {f}')
+        key = ble_json[f]['key']
+        crs = ble_json[f]['best_crs']
+        out = process_key(bucket, key, crs)
+        print(out)
+        print(f'Processed Key in {round(time.perf_counter() - t1, 1)} seconds')
+        print('='*50)
 
-        
-        # Log meta
-        out_dict[key] = tmp_meta
-
-    # Log meta
-    out_meta = "production/aws2stac/conversion_meta.json"
-    with open(out_meta, mode='w') as out_file:
-        json.dump(out_dict, out_file, indent=4)
-
-    # Cleanup
-    print('='*50)
-    print('Done')
-    errors = [out_dict[k]['error_str'] for k in out_dict.keys() if out_dict[k]['has_error']]
-    print(f'{len(errors)} keys had errors')
-    for e in errors:
-        print(e)
 
 
 if __name__ == '__main__':
+    # bucket = 'fim'
+    # test_key = 'ebfedata/08020203_LowerStFrancis/08020203_Models/Hydraulic Models/08020203/1D_StFrancisRiver/StFrancisRiver/LSF_RSLR_Model.prj'
+    # test_crs = 'EPSG:3433'
+
+    # # Test 2
+    # test_key = 'ebfedata/12040101_WestForkSanJacinto/Caney Creek-Lake Creek/BUMS CREEK/BUMS CREEK.prj'
+    # test_crs = 'EPSG:2277'
+
+    # ret = process_key(bucket, test_key, test_crs)
+    # print(ret)
     run_all()
