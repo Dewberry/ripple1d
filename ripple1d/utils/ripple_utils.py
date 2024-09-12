@@ -51,11 +51,17 @@ def get_path(expected_path: str, client: boto3.client = None, bucket: str = None
         if not paths:
             paths = list_keys(client, bucket, prefix, path.suffix.upper())
     else:
+        if os.path.exists(expected_path):
+            return expected_path
         prefix = os.path.dirname(expected_path)
         paths = glob.glob(rf"{prefix}\*{os.path.splitext(expected_path)[1]}")
         if not paths:
             paths = glob.glob(rf"{prefix}\*{os.path.splitext(expected_path)[1].upper()}")
-
+        if not paths:
+            paths = glob.glob(prefix)
+        if not paths:
+            print(f"looked in {prefix}..found nothing")
+            raise KeyError(f"No file found in {expected_path}")
     if expected_path in paths:
         return expected_path
     else:
