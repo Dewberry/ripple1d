@@ -124,7 +124,7 @@ def geom_flow_to_gdfs(
 ) -> tuple:
     """Write geometry and flow data to a geopackage."""
     if client and bucket:
-        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
+        rp = detemine_primary_plan(ras_project, crs, client, bucket)
         # get steady flow file
         try:
             plan_steady_file = get_path(rp.plan_steady_file, client, bucket)
@@ -149,7 +149,7 @@ def geom_flow_to_gdfs(
         rg = RasGeomText.from_str(string, crs, " .g01")
 
     else:
-        rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path)
+        rp = detemine_primary_plan(ras_project, crs)
 
         try:
             plan_steady_file = get_path(rp.plan_steady_file)
@@ -234,7 +234,7 @@ def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame)
 def detemine_primary_plan(
     ras_project: RasProject,
     crs: str,
-    ras_text_file_path: str,
+    # ras_text_file_path: str,
     client: boto3.session.Session.client = None,
     bucket: str = None,
 ) -> RasPlanText:
@@ -251,6 +251,7 @@ def detemine_primary_plan(
             string = str_from_s3(plan_path, client, bucket)
             return RasPlanText.from_str(string, crs, plan_path)
         else:
+            print("project_plan", ras_project.plans[0])
             plan_path = get_path(ras_project.plans[0])
             return RasPlanText(plan_path, crs)
     candidate_plans = []
