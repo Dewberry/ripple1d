@@ -61,13 +61,17 @@ def list_keys_regex(s3_client: boto3.Session.client, bucket: str, prefix_include
 def init_s3_resources() -> tuple:
     """Establish a boto3 (AWS) session and return the session, S3 client, and S3 resource handles."""
     # Instantitate S3 resources
-    session = boto3.Session(
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-    )
+    try:
+        session = boto3.Session(
+            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        )
+        s3_client = session.client("s3")
+        s3_resource = session.resource("s3")
+    except:
+        s3_client = session.client("s3")
+        s3_resource = session.resource("s3")
 
-    s3_client = session.client("s3")
-    s3_resource = session.resource("s3")
     return session, s3_client, s3_resource
 
 
