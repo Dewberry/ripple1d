@@ -348,7 +348,7 @@ class RasFimConflater:
     def ras_xs_concave_hull(self, river_reach_name: str = None) -> Polygon:
         """Return the concave hull of the cross sections."""
         if river_reach_name is None:
-            return xs_concave_hull(self.ras_xs)
+            return xs_concave_hull(self.ras_xs,self.ras_junctions)
         else:
             return xs_concave_hull(self.ras_xs[self.ras_xs["river_reach"] == river_reach_name])
 

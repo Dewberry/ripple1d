@@ -157,8 +157,11 @@ class RippleGeopackageSubsetter:
                         f"Lateral structures are not currently supported in ripple1d. The lateral structures will be dropped."
                     )
                     gdf = gdf.loc[gdf["type"] != 6, :]
+
             if gdf.shape[0] > 0:
                 gdf.to_file(self.ripple_gpkg_file, layer=layer)
+                if layer == "XS":
+                    xs_concave_hull(gdf).to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
 
     @property
     def min_flow(self) -> float:
