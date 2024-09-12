@@ -80,7 +80,7 @@ def reproject(gdfs: dict, crs=4326) -> dict:
     return gdfs
 
 
-def create_thumbnail_from_gpkg(gdfs: dict) -> plt.Figure:
+def create_thumbnail_from_gpkg(gdfs: dict, save_path: str) -> None:
     """
     Create a figure displaying the geopandas dataframe provided in the gdfs dictionary.
 
@@ -111,7 +111,11 @@ def create_thumbnail_from_gpkg(gdfs: dict) -> plt.Figure:
     # Hide all axis text ticks or tick labels
     ax.set_xticks([])
     ax.set_yticks([])
-    return fig
+
+    # Export
+    fig.savefig(save_path)
+    plt.close(fig)
+    return
 
 
 def write_thumbnail_to_s3(fig: plt.Figure, png_s3_key: str, bucket: str, s3_client: boto3.Session.client):
