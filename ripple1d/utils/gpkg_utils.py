@@ -271,7 +271,7 @@ def get_asset_info(asset_key: str, rms: RasModelStructure, bucket: str = None) -
 
     elif re.match(".gpkg", file_extension):
         roles.extend(["ras-geometry-gpkg", pystac.MediaType.GEOPACKAGE])
-        description = """GeoPackage file with geometry data extracted from .gxx file."""
+        description = """GeoPackage file containing data extracted from ras plan, geometry, and flow files."""
         title = title
 
     elif ".ripple1d.json" in title:

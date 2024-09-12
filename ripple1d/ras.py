@@ -18,8 +18,9 @@ import pandas as pd
 
 try:
     import pythoncom
-except SystemError:
-    warnings.warn("Windows OS is required to run ripple1d. Many features will not work on other OS's.")
+except (SystemError, ModuleNotFoundError):
+    pass
+    # warnings.warn("Windows OS is required to run ripple1d. Many features will not work on other OS's.")
 
 from pyproj import CRS
 

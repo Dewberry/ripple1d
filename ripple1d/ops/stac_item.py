@@ -10,7 +10,7 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
-
+from typing import List
 import pandas as pd
 import pystac
 import pystac.item
@@ -54,9 +54,9 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
     dt = get_last_model_update(ras_data)
     if dt is None:
         dt = datetime.now()
-        dt_valid = False
+        datetime_source = "processing_time"
     else:
-        dt_valid = True
+        datetime_source = "model_geometry"
 
     # properties
     properties = {
@@ -68,7 +68,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
         "geometries": {key: val.file_extension for key, val in rasmanager.geoms.items()},
         "flows": {key: val.file_extension for key, val in rasmanager.flows.items()},
         "river miles": str(river_miles),
-        "dt_valid": dt_valid,
+        "datetime_source": datetime_source,
         "proj:wkt2": og_crs.to_wkt(),
         "proj:epsg": og_crs.to_epsg(),
     }
@@ -134,26 +134,22 @@ def s3_ras_to_stac(bucket: str, key: str, crs: str) -> dict:
             "gpkg": None,
         }
 
-def process_key(bucket: str, key: str, crs: str) -> dict:
+def process_model(keys: List[str], crs: str, bucket: str="fim") -> dict:
     """Convert RAS model associated with a .prj S3 key to stac."""
-    logging.info(f"Processing key: {key}")
 
     _, s3_client, s3_resource = init_s3_resources()
 
-    # Get assets and Download model
-    logging.info(f"Finding assets associated with prefix {key}")
-    prefix = "/".join(key.split("/")[:-1]) + "/"
-    keys = list_keys(s3_client, bucket, prefix)
+    # Get assets and Download 
+    prefix = "/".join(keys[0].split("/")[:-1]) + "/"
+    logging.info(f"Finding assets associated with prefix {prefix}")
+    
     assets = get_assets(s3_resource, bucket, keys)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         logging.debug(f"Temp folder created at {tmp_dir}")
 
         download_model(s3_client, bucket, assets, tmp_dir)
-
-        # Make a geopackage
-        logging.info(f"Making geopackage for {key}")
-        gpkg_from_ras(tmp_dir, crs, {})
+        print(os.listdir(tmp_dir))
 
         # Find ras .prj file, make instance of RippleSourceModel, and convert to stac
         prjs = glob.glob(f"{tmp_dir}/*.prj")
@@ -162,8 +158,13 @@ def process_key(bucket: str, key: str, crs: str) -> dict:
             raise KeyError(f"Expected 1 RAS file, found {len(prjs)}: {prjs}")
         else:
             ras_prj_path = prjs[0]
+
+        # Make a geopackage
+        logging.info(f"Making geopackage for {ras_prj_path}")
+        gpkg_from_ras(tmp_dir, crs, {})
+
         rm = RippleSourceModel(ras_prj_path, crs)
-        logging.info(f"Making stac item for {key}")
+        logging.info(f"Making stac item for {ras_prj_path}")
         stac = rasmodel_to_stac(rm, save_json=False)
 
         # Upload png and gpkg to s3
@@ -191,7 +192,7 @@ def process_key(bucket: str, key: str, crs: str) -> dict:
         # Overwrite some asset data with S3 metadata
         for s3_asset in assets:
             title = s3_asset.split("/")[-1].replace(" ", "_")
-            meta = assets[s3_asset]
+            meta = assets[s3_asset]['meta']
             if not title in stac.assets:
                 # Make a new asset
                 stac.assets[title] = make_stac_assets([s3_asset], bucket=bucket)[title]

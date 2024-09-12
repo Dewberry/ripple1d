@@ -15,4 +15,4 @@ RUN venv/bin/pip install build && \
     venv/bin/pip install .[dependencies] && \
     venv/bin/pip install pystac_client pystac papipyplug
 
-COPY ripple1d/ops/stac_item.py .
+COPY make_new_item.py .
