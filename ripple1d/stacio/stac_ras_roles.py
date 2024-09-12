@@ -264,11 +264,11 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         roles.extend(["ras-mapper-file", "ras-file", pystac.MediaType.TEXT])
         description = """Original Ras Mapper file."""
 
-    elif full_extension == "txt":
+    elif file_extension == ".txt":
         roles.extend([pystac.MediaType.TEXT])
         description = """Miscellaneous text file."""
 
-    elif full_extension == "xml":
+    elif file_extension == ".xml":
         roles.extend([pystac.MediaType.XML])
         description = """Miscellaneous xml file."""
 
