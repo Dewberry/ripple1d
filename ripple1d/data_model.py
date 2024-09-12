@@ -80,9 +80,10 @@ class RippleSourceModel:
     def __init__(self, ras_project_file: str, crs: CRS):
 
         self.crs = crs
-        self.ras_project_file = ras_project_file
-        self.model_directory = Path(ras_project_file).parent.as_posix()
-        self.model_basename = Path(ras_project_file).as_posix()
+        self.ras_project_file = Path(ras_project_file)
+        # TODO: verify use of posix here
+        self.model_directory = self.ras_project_file.parent.as_posix()
+        self.model_basename = self.ras_project_file.name
 
     @property
     def model_name(self):
@@ -131,6 +132,11 @@ class RippleSourceModel:
         with open(self.conflation_file, "r") as f:
             conflation_parameters = json.loads(f.read())
         return conflation_parameters[nwm_id]
+
+    @property
+    def model_stac_json_file(self):
+        """STAC JSON file."""
+        return self.derive_path(".json")
 
 
 class RippleSourceDirectory:

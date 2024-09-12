@@ -155,23 +155,21 @@ def rating_curves_to_sqlite(
 
 def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
     """Create the metadata table in the geopackage."""
-    with sqlite3.connect(gpkg_path) as conn:
-        string = ""
-        curs = conn.cursor()
-        curs.execute("DROP TABLE IF Exists metadata")
-        curs.execute(f"CREATE TABLE IF NOT EXISTS metadata (key, value);")
-        curs.close()
+    conn = sqlite3.connect(gpkg_path)
+    curs = conn.cursor()
+    curs.execute("DROP TABLE IF Exists metadata")
+    curs.execute(f"CREATE TABLE IF NOT EXISTS metadata (key, value);")
+    conn.commit()
 
-    with sqlite3.connect(gpkg_path) as conn:
-        curs = conn.cursor()
-        keys, vals = "", ""
-        for key, val in metadata.items():
+    keys, vals = "", ""
+    for key, val in metadata.items():
 
-            if val:
-                keys += f"{key},"
-                vals += f"{val.replace(',','_')}, "
-                curs.execute(f"INSERT INTO metadata (key,value) values (?,?);", (key, val))
+        if val:
+            keys += f"{key},"
+            vals += f"{val.replace(',','_')}, "
+            curs.execute(f"INSERT INTO metadata (key,value) values (?,?);", (key, val))
 
-        curs.execute("COMMIT;")
-        curs.close()
+    conn.commit()
+    conn.close()
+
     return None

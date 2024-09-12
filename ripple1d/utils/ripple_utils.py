@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import glob
 import os
+from datetime import datetime
 from pathlib import Path
 
 import boto3
@@ -96,6 +97,19 @@ def search_contents(lines: list, search_string: str, token: str = "=", expect_on
         return results[0]
     else:
         return results
+
+
+def get_last_model_update(ras_text: list) -> Any[dateime.dateime | None]:
+    """Extrac the datetime of the last time model geometry was updated,.
+
+    ras_text is a list of lines from the ras_data text blob
+    """
+    dts = search_contents(ras_text, "Node Last Edited Time", expect_one=False)
+    if len(dts) >= 1:
+        dts = [datetime.strptime(d, "%b/%d/%Y %H:%M:%S") for d in dts]
+        return max(dts)
+    else:
+        return None
 
 
 def replace_line_in_contents(lines: list, search_string: str, replacement: str, token: str = "="):
