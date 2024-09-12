@@ -43,6 +43,8 @@ def add_extra_fields(asset_key: str, base_asset: dict, bucket: str = None) -> di
         last_mod = last_mod.isoformat()
         base_asset["extra_fields"] = {"file:size": os.path.getsize(asset_key), "last_modified": last_mod}
         client = None
+    if Path(asset_key).suffix == ".hdf":
+        return base_asset
 
     if "steady-flow-file" in base_asset["roles"]:
         asset_string = get_asset_string(asset_key, client, bucket)
@@ -263,11 +265,11 @@ def ras_plan_asset_info(s3_key: str) -> dict:
         description = """Original Ras Mapper file."""
 
     elif full_extension == "txt":
-        roles.extend(["text", pystac.MediaType.TEXT])
+        roles.extend([pystac.MediaType.TEXT])
         description = """Miscellaneous text file."""
 
     elif full_extension == "xml":
-        roles.extend(["xml", pystac.MediaType.TEXT])
+        roles.extend([pystac.MediaType.XML])
         description = """Miscellaneous xml file."""
 
     return {"roles": roles, "description": description, "title": title}
