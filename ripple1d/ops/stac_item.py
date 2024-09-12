@@ -15,13 +15,13 @@ from shapely import to_geojson
 import ripple1d
 from ripple1d.data_model import RasModelStructure, RippleSourceModel
 from ripple1d.ras import RasManager
-from ripple1d.ras_utils import get_asset_info
+from ripple1d.stacio.stac_ras_roles import get_asset_info
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.utils.gpkg_utils import create_thumbnail_from_gpkg, get_river_miles, gpkg_to_geodataframe, reproject
 from ripple1d.utils.ripple_utils import get_last_model_update, xs_concave_hull
 
 
-def rasmodel_to_stac(rasmodel: RippleSourceModel):
+def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
     """Create a stac item."""
     logging.debug("Creating STAC item from RasModelStructure")
 
@@ -89,9 +89,10 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel):
         stac_extensions=["Projection", "Storage"],
     )
 
-    # Export STAC item
-    with open(rasmodel.model_stac_json_file, "w") as dst:
-        dst.write(json.dumps(stac.to_dict()))
+    if save_json:
+        # Export STAC item
+        with open(rasmodel.model_stac_json_file, "w") as dst:
+            dst.write(json.dumps(stac.to_dict()))
 
     logging.debug("Program completed successfully")
     return stac

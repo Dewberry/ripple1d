@@ -7,7 +7,7 @@ import re
 import tempfile
 import time
 
-import ripple1d.__version__ as version
+from ripple1d import __version__ as version
 from ripple1d.ras_to_gpkg import gpkg_from_ras
 from ripple1d.ops.stac_item import rasmodel_to_stac,make_stac_assets
 from ripple1d.data_model import RippleSourceModel
@@ -23,13 +23,13 @@ def download_model(s3_client, bucket: str, keys: list, tmp_dir: str) -> None:
         if RELEVANT_FILE_FINDER.fullmatch(Path(key).suffix):
             s3_client.download_file(bucket, key, os.path.join(tmp_dir, Path(key).name))
 
-def upload_file(bucket, s3_client, s3_resource, file: str | dict, type: str, prefix: str, public: bool) -> dict:
+def upload_file(bucket, s3_client, s3_resource, basename: str, file: str | dict, type: str, prefix: str, public: bool) -> dict:
     """Upload file to correct spot on S3"""
-    out_key = f'ebfedata-derived/{type}/v{version}-rc/{prefix.replace('ebfedata/', '')}{os.path.basename(local_name)}'
+    out_key = f'ebfedata-derived/{type}/v{version}-rc/{prefix.replace('ebfedata/', '')}{basename}'
     if isinstance(file, str):
         s3_client.upload_file(Bucket=bucket, Key=out_key, Filename=file)
     elif isinstance(file, dict):
-        s3_client.upload_file(Bucket=bucket, Key=out_key, Body=json.dumps(file).encode())
+        s3_client.put_object(Bucket=bucket, Key=out_key, Body=json.dumps(file).encode())
 
     obj = s3_resource.Bucket(bucket).Object(out_key)
     meta = get_basic_object_metadata(obj)
@@ -59,15 +59,15 @@ def process_key(bucket:str, key:str, crs:str) -> dict:
     _, s3_client, s3_resource = init_s3_resources()
 
     # Get assets and Download model
-    logging.info(f'Finding assets associated with prefix {prefix}')
+    logging.info(f'Finding assets associated with prefix {key}')
     prefix = '/'.join(key.split('/')[:-1]) + '/'
-    keys = list_keys(s3_client, bucket=bucket, prefix=prefix)
-    assets = get_assets(s3_resource, keys)
+    keys = list_keys(s3_client, bucket, prefix)
+    assets = get_assets(s3_resource, bucket, keys)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         logging.debug(f'Temp folder created at {tmp_dir}')
 
-        download_model(s3_client, assets, tmp_dir)
+        download_model(s3_client, bucket, assets, tmp_dir)
 
         # Make a geopackage
         logging.info(f'Making geopackage for {key}')
@@ -82,11 +82,11 @@ def process_key(bucket:str, key:str, crs:str) -> dict:
             ras_prj_path = prjs[0]
         rm = RippleSourceModel(ras_prj_path, crs)
         logging.info(f'Making stac item for {key}')
-        stac = rasmodel_to_stac(rm)
+        stac = rasmodel_to_stac(rm, save_json=False)
 
         # Upload png and gpkg to s3
-        assets['Thumbnail'] = upload_file(bucket, s3_client, s3_resource, rm.thumbnail_png, 'stac', prefix, public=True)
-        assets['GeoPackage_file'] = upload_file(bucket, s3_client, s3_resource, rm.ras_gpkg_file, 'gpkgs', prefix, public=False)
+        assets['Thumbnail'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.thumbnail_png), rm.thumbnail_png, 'stac', prefix, public=True)
+        assets['GeoPackage_file'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.ras_gpkg_file), rm.ras_gpkg_file, 'gpkgs', prefix, public=False)
 
         # Overwrite some asset data with S3 metadata
         for s3_asset in assets:
@@ -102,7 +102,7 @@ def process_key(bucket:str, key:str, crs:str) -> dict:
                     stac.assets[title].extra_fields[k] = v
         
         # Export
-        assets['stac_item'] = upload_file(bucket, s3_client, s3_resource, stac.to_dict(), 'stac', prefix, public=True)
+        assets['stac_item'] = upload_file(bucket, s3_client, s3_resource, os.path.basename(rm.model_stac_json_file), stac.to_dict(), 'stac', prefix, public=True)
 
     return {
         "stac_item": {"href": assets['stac_item']['href']}, 
