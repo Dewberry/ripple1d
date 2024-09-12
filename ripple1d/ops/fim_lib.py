@@ -138,9 +138,12 @@ def create_fim_lib(
     """Create a new FIM library for a NWM id."""
     nwm_rm = NwmReachModel(submodel_directory, library_directory)
 
-    crs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").crs
-
-    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
+    rm = RasManager(
+        nwm_rm.ras_project_file,
+        version=ras_version,
+        terrain_path=nwm_rm.ras_terrain_hdf,
+        crs=nwm_rm.ripple1d_parameters["crs"],
+    )
     ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
