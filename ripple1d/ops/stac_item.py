@@ -28,7 +28,7 @@ from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources
 
 
 def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
-    """Create a stac item."""
+    """Create a stac item from a local RAS model."""
     logging.debug("Creating STAC item from RasModelStructure")
 
     # Instantiate RasManager
@@ -241,7 +241,7 @@ def upload_file(bucket, s3_client, s3_resource, basename: str, file: str | dict,
     meta = get_basic_object_metadata(obj)
 
     if public:
-        return {'href': f'{bucket}.amazonaws.com/{out_key}', 'meta': meta}
+        return {'href': f'https://{bucket}.amazonaws.com/{out_key}', 'meta': meta}
     else:
         return{'href': f's3://{bucket}/{out_key}', 'meta': meta}
 
