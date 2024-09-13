@@ -198,9 +198,8 @@ class RippleSourceDirectory:
 class NwmReachModel(RasModelStructure):
     """National Water Model reach-based HEC-RAS Model files and directory structure."""
 
-    def __init__(self, model_directory: str, library_directory: str = ""):
+    def __init__(self, model_directory: str):
         super().__init__(model_directory)
-        self.library_directory = library_directory
 
     @property
     def terrain_directory(self):
@@ -215,7 +214,7 @@ class NwmReachModel(RasModelStructure):
     @property
     def fim_results_directory(self):
         """FIM results directory."""
-        return str(Path(self.library_directory) / self.model_name)
+        return str(Path(self.model_directory) / "fims")
 
     @property
     def fim_lib_assets(self):

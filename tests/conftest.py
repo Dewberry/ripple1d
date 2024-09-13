@@ -26,7 +26,6 @@ def setup_data(request):
     SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, f"ras-data\\{RAS_MODEL}")
     SUBMODELS_BASE_DIRECTORY = os.path.join(SOURCE_RAS_MODEL_DIRECTORY, "submodels")
     SUBMODELS_DIRECTORY = os.path.join(SUBMODELS_BASE_DIRECTORY, REACH_ID)
-    FIM_LIB_DIRECTORY = os.path.join(SUBMODELS_DIRECTORY, "fim")
     request.cls.REACH_ID = RAS_MODEL
     request.cls.REACH_ID = REACH_ID
 
@@ -34,7 +33,6 @@ def setup_data(request):
     request.cls.SOURCE_RAS_MODEL_DIRECTORY = SOURCE_RAS_MODEL_DIRECTORY
     request.cls.SUBMODELS_BASE_DIRECTORY = SUBMODELS_BASE_DIRECTORY
     request.cls.SUBMODELS_DIRECTORY = SUBMODELS_DIRECTORY
-    request.cls.FIM_LIB_DIRECTORY = FIM_LIB_DIRECTORY
     request.cls.GPKG_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.gpkg")
     request.cls.SOURCE_GPKG_FILE = os.path.join(SOURCE_RAS_MODEL_DIRECTORY, f"{RAS_MODEL}.gpkg")
     request.cls.TERRAIN_HDF = os.path.join(SUBMODELS_DIRECTORY, f"Terrain\\{REACH_ID}.hdf")
@@ -50,10 +48,10 @@ def setup_data(request):
     request.cls.PLAN3_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.p03")
     request.cls.FLOW3_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.f03")
     request.cls.RESULT3_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.r03")
-    request.cls.FIM_LIB_DB = os.path.join(FIM_LIB_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.db")
-    request.cls.DEPTH_GRIDS_ND = os.path.join(FIM_LIB_DIRECTORY, f"{REACH_ID}\\z_nd")
+    request.cls.FIM_LIB_DB = os.path.join(SUBMODELS_DIRECTORY, f"fims\\{REACH_ID}.db")
+    request.cls.DEPTH_GRIDS_ND = os.path.join(SUBMODELS_DIRECTORY, f"fims\\z_nd")
     integer, decimal = str(np.floor((MIN_ELEVATION + 41) * 2) / 2).split(".")
-    request.cls.DEPTH_GRIDS_KWSE = os.path.join(FIM_LIB_DIRECTORY, f"{REACH_ID}\\z_{integer}_{decimal}")
+    request.cls.DEPTH_GRIDS_KWSE = os.path.join(SUBMODELS_DIRECTORY, f"fims\\z_{integer}_{decimal}")
     request.cls.MODEL_STAC_ITEM = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.model.stac.json")
     request.cls.FIM_LIB_STAC_ITEM = os.path.join(SUBMODELS_DIRECTORY, f"fims\\{REACH_ID}.fim_lib.stac.json")
     request.cls.min_elevation = MIN_ELEVATION
