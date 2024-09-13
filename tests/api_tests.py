@@ -161,7 +161,12 @@ class TestApi(unittest.TestCase):
 
     @check_process
     def test_g_create_fim_lib(self):
-        payload = {"submodel_directory": self.SUBMODELS_DIRECTORY, "plans": ["nd", "kwse"], "cleanup": True}
+        payload = {
+            "submodel_directory": self.SUBMODELS_DIRECTORY,
+            "plans": ["nd", "kwse"],
+            "library_directory": self.FIM_LIB_DIRECTORY,
+            "cleanup": True,
+        }
         process = "create_fim_lib"
         files = [self.FIM_LIB_DB, self.DEPTH_GRIDS_ND, self.DEPTH_GRIDS_KWSE]
         return process, payload, files
