@@ -238,7 +238,7 @@ def download_model(s3_client, bucket: str, keys: list, tmp_dir: str) -> None:
 
 def upload_file(bucket, s3_client, s3_resource, basename: str, file: str | dict, asset_type: str, prefix: str, public: bool, model_source:str) -> dict:
     """Upload file to correct spot on S3."""
-    out_key = f'{model_source}-derived/{asset_type}/v{ripple1d.__version__}/{prefix.replace(f'{model_source}/', '')}{basename}'
+    out_key = f'{model_source}-derived/{asset_type}/{ripple1d.__version__.replace("+","-")}/{prefix.replace(f'{model_source}/', '')}{basename}'
     if isinstance(file, str):
         s3_client.upload_file(Bucket=bucket, Key=out_key, Filename=file)
     elif isinstance(file, dict):
