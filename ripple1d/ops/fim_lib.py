@@ -4,6 +4,7 @@ import glob
 import json
 import logging
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 
@@ -128,10 +129,11 @@ def post_process_depth_grids(
 def create_fim_lib(
     submodel_directory: str,
     plans: list,
+    cleanup: bool,
     ras_version: str = "631",
     table_name: str = "rating_curves",
-    tiled=False,
-    overviews=False,
+    tiled: bool = False,
+    overviews: bool = False,
     resolution: float = 3,
     resolution_units: str = "Meters",
 ):
@@ -169,6 +171,8 @@ def create_fim_lib(
                 nwm_rm.fim_results_database,
                 table_name,
             )
+            if cleanup:
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"))
         if f"nd" in plan:
             zero_depth_to_sqlite(
                 rm,
@@ -178,6 +182,8 @@ def create_fim_lib(
                 nwm_rm.fim_results_database,
                 table_name,
             )
+            if cleanup:
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"))
 
     return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
 
