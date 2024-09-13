@@ -9,7 +9,7 @@ warnings.filterwarnings("ignore")
 
 from papipyplug import parse_input, print_results, plugin_logger
 
-PLUGIN_PARAMS = {"required": ["keys", "crs"], "optional": ["bucket"]}        
+PLUGIN_PARAMS = {"required": ["keys", "crs", "model_source"], "optional": ["bucket"]}        
     
 if __name__ == "__main__":
     plugin_logger()
@@ -18,8 +18,9 @@ if __name__ == "__main__":
 
     keys = input_params.get("keys")
     crs = input_params.get("crs")
+    model_source = input_params.get("model_source")
 
-    results = process_model(keys, crs)
+    results = process_model(keys, crs, model_source)
     print_results(results)
 
 
