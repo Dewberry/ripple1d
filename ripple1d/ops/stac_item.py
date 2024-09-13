@@ -217,6 +217,7 @@ def process_model(keys: List[str], crs: str, model_source:str, bucket: str="fim"
             "stac",
             prefix,
             public=True,
+            model_source=model_source
         )
 
     return {
