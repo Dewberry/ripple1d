@@ -49,21 +49,21 @@ def add_extra_fields(asset_key: str, base_asset: dict, bucket: str = None) -> di
     if "steady-flow-file" in base_asset["roles"]:
         asset_string = get_asset_string(asset_key, client, bucket)
         flow = RasFlowText.from_str(asset_string, " .f01")
-        base_asset["extra_fields"]["Title"] = flow.title
-        base_asset["extra_fields"]["Number of Profiles"] = flow.n_profiles
-        base_asset["extra_fields"]["Profile Names"] = flow.profile_names
+        base_asset["extra_fields"]["title"] = flow.title
+        base_asset["extra_fields"]["number_of_profiles"] = flow.n_profiles
+        base_asset["extra_fields"]["profile_names"] = flow.profile_names
     if "geometry-file" in base_asset["roles"]:
         asset_string = get_asset_string(asset_key, client, bucket)
         geom = RasGeomText.from_str(asset_string, "EPSG:4326", " .g01")  # Dummy CRS
-        base_asset["extra_fields"]["Title"] = geom.title
-        base_asset["extra_fields"]["Number of rivers"] = geom.n_rivers
-        base_asset["extra_fields"]["Number of reaches"] = geom.n_reaches
-        base_asset["extra_fields"]["Number of cross sections"] = geom.n_cross_sections
-        base_asset["extra_fields"]["Number of junctions"] = geom.n_junctions
+        base_asset["extra_fields"]["title"] = geom.title
+        base_asset["extra_fields"]["number_of_rivers"] = geom.n_rivers
+        base_asset["extra_fields"]["number_of_reaches"] = geom.n_reaches
+        base_asset["extra_fields"]["number_of_cross_sections"] = geom.n_cross_sections
+        base_asset["extra_fields"]["number_of_junctions"] = geom.n_junctions
     if "plan-file" in base_asset["roles"]:
         asset_string = get_asset_string(asset_key, client, bucket)
         plan = RasPlanText.from_str(asset_string, "EPSG:4326", " .p01")  # Dummy CRS
-        base_asset["extra_fields"]["Title"] = plan.title
+        base_asset["extra_fields"]["title"] = plan.title
 
     return base_asset
 
