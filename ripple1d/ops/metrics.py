@@ -189,8 +189,8 @@ class ConflationMetrics:
                 axis=1,
             )
             return {
-                "start": float(xs_gdf["station_percent"].min().round(2)),
-                "end": min([xs_gdf["station_percent"].max().round(2), 1]),
+                "start": float(round(xs_gdf["station_percent"].min(), 2)),
+                "end": min([round(xs_gdf["station_percent"].max(), 2), 1]),
             }
         except Exception as e:
             logging.error(f"Error: {e}")

@@ -30,7 +30,7 @@ from ripple1d.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
-from ripple1d.utils.ripple_utils import get_path, prj_is_ras
+from ripple1d.utils.ripple_utils import get_path, prj_is_ras, xs_concave_hull
 from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -47,6 +47,11 @@ def geom_flow_to_gpkg(
     """Write geometry and flow data to a geopackage."""
     layers, metadata = geom_flow_to_gdfs(ras_project, crs, metadata, client, bucket)
     for layer, gdf in layers.items():
+        if layer == "XS":
+            if "Junction" in layers.keys():
+                xs_concave_hull(gdf, layers["Junction"]).to_file(gpkg_file, driver="GPKG", layer="XS_concave_hull")
+            else:
+                xs_concave_hull(gdf).to_file(gpkg_file, driver="GPKG", layer="XS_concave_hull")
         gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
     create_non_spatial_table(gpkg_file, metadata)
     return metadata
