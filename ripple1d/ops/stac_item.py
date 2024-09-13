@@ -60,14 +60,15 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
 
     # properties
     properties = {
+        "model_name" : rasmodel.model_name,
         "ripple: version": ripple1d.__version__,
-        "ras version": meta_dict.get("ras_version", ""),
+        "ras_version": meta_dict.get("ras_version", ""),
         "ras_units": meta_dict.get("units", ""),
-        "project title": meta_dict.get("ras_project_title", ""),
+        "project_title": meta_dict.get("ras_project_title", ""),
         "plans": {key: val.file_extension for key, val in rasmanager.plans.items()},
         "geometries": {key: val.file_extension for key, val in rasmanager.geoms.items()},
         "flows": {key: val.file_extension for key, val in rasmanager.flows.items()},
-        "river miles": str(river_miles),
+        "river_miles": str(river_miles),
         "datetime_source": datetime_source,
         "proj:wkt2": og_crs.to_wkt(),
         "proj:epsg": og_crs.to_epsg(),
@@ -134,8 +135,10 @@ def s3_ras_to_stac(bucket: str, key: str, crs: str) -> dict:
             "gpkg": None,
         }
 
-def process_model(keys: List[str], crs: str, bucket: str="fim") -> dict:
+def process_model(keys: List[str], crs: str, model_source:str, bucket: str="fim") -> dict:
     """Convert RAS model associated with a .prj S3 key to stac."""
+    if model_source not in ["ebfedata", "mip"]:
+        raise ValueError(f"model_source must be one of ['ebfedata', 'mip'] not: {model_source}")
 
     _, s3_client, s3_resource = init_s3_resources()
 
@@ -177,6 +180,7 @@ def process_model(keys: List[str], crs: str, bucket: str="fim") -> dict:
             "stac",
             prefix,
             public=True,
+            model_source=model_source
         )
         assets["GeoPackage_file"] = upload_file(
             bucket,
@@ -187,6 +191,7 @@ def process_model(keys: List[str], crs: str, bucket: str="fim") -> dict:
             "gpkgs",
             prefix,
             public=False,
+            model_source=model_source
         )
 
         # Overwrite some asset data with S3 metadata
@@ -230,9 +235,9 @@ def download_model(s3_client, bucket: str, keys: list, tmp_dir: str) -> None:
             s3_client.download_file(bucket, key, os.path.join(tmp_dir, Path(key).name))
 
 
-def upload_file(bucket, s3_client, s3_resource, basename: str, file: str | dict, type: str, prefix: str, public: bool) -> dict:
+def upload_file(bucket, s3_client, s3_resource, basename: str, file: str | dict, asset_type: str, prefix: str, public: bool, model_source:str) -> dict:
     """Upload file to correct spot on S3."""
-    out_key = f'ebfedata-derived/{type}/v{ripple1d.__version__}-rc/{prefix.replace('ebfedata/', '')}{basename}'
+    out_key = f'{model_source}-derived/{asset_type}/v{ripple1d.__version__}/{prefix.replace(f'{model_source}/', '')}{basename}'
     if isinstance(file, str):
         s3_client.upload_file(Bucket=bucket, Key=out_key, Filename=file)
     elif isinstance(file, dict):
