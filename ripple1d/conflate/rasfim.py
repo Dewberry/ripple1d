@@ -651,20 +651,20 @@ def get_us_most_xs_from_junction(rfc, us_river, us_reach):
                 break
 
     if not ds_rivers:
-        raise ValueError(f"No downstream rivers found for {us_river}")
+        raise ValueError(f"{rfc.ras_model_name}: No downstream rivers found for {us_river}")
     elif len(ds_rivers) == 0:
-        raise ValueError(f"No downstream rivers found for {us_river}")
+        raise ValueError(f"{rfc.ras_model_name}: No downstream rivers found for {us_river}")
     elif len(ds_rivers) > 1:
         raise NotImplementedError(f"Multiple downstream rivers found for {us_river}")
     else:
         ds_river = ds_rivers[0]
 
     if not ds_reaches:
-        raise ValueError(f"No downstream reaches found for {us_reach}")
+        raise ValueError(f"{rfc.ras_model_name}: No downstream reaches found for {us_reach}")
     elif len(ds_reaches) == 0:
-        raise ValueError(f"No downstream reaches found for {us_reach}")
+        raise ValueError(f"{rfc.ras_model_name}: No downstream reaches found for {us_reach}")
     elif len(ds_reaches) > 1:
-        raise NotImplementedError(f"Multiple downstream reaches found for {us_reach}")
+        raise NotImplementedError(f"{rfc.ras_model_name}: Multiple downstream reaches found for {us_reach}")
     else:
         ds_reach = ds_reaches[0]
 
