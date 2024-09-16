@@ -3,6 +3,33 @@ Change Log for Users
 
 Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`_  page for a list of all releases.
 
+Feature Release 0.6.0
+~~~~~~~~~~~~~~~~~~~~~
+Users Changelog
+----------------
+
+This release of `ripple1d` adds 2 args to the create_fim_lib endpoint, adds a concave hull of the cross sections to the geopackage, and fixes a bug associated with the depth grids.
+
+Features Added
+----------------
+**New library directory argument**
+
+A new required arg, "library_directory", has been added to the create_fim_lib endpoint. This new arg specifies where the output directory for the FIM grids and database. 
+
+**New cleanup argument**
+
+A new required arg, "cleanup", has been added to the create_fim_lib endpoint. If this arg is True the raw HEC-RAS depth grids are deleted. If False they are not deleted.
+
+**Concave hull of cross sections**
+
+A new layer representing the concave hull of the cross sections has been added to the geopackage for the source model and the network based model. It also improves how the concave hull is handled at junctions by explicitly creating a junction concave hull and then merging it in with the xs concave hull.
+
+
+Bug Fixes
+----------------
+
+- An error was arising when all normal depth runs resulted in water surface elevations that were below the mapping terrain which means no resulting depth grids were being produced. Previously the code assumed at least 1 depth grid would be present. This has been fixed by obtaining the "terrain part" of the raw RAS grid from the RAS terrain instead of the first depth grid in the raw RAS result folder.
+
 
 Feature Release 0.5.0
 ~~~~~~~~~~~~~~~~~~~~~
@@ -35,7 +62,6 @@ Three metrics are computed to asses the qualitiy of the conflation:
  
  
 **Geometry Extraction improvements**
-
 - A new function to verify .prj file is a HEC-RAS file has been added.
 - The extracted geopackage now contians a non-spatial metadata table for the souce HEC-RAS model. 
 - Tests have been added for extracting geopackage from HEC-RAS model.

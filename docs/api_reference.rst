@@ -1,8 +1,11 @@
-
 API Reference / Postman Collection
 ===================================
 
 For reference and documentation of the API, please open the postman collection for the version of ripple1d 
+
+`v0.6.0: <https://github.com/Dewberry/ripple1d/blob/4fe2488f9d73aec08121a5c3034bf2445d0258e6/ripple1d/api/postman_collection.json>`_ This beta version contains new args for the create_fim_lib endpoint: 
+ - `library_directory`: Specifies the output directory for the FIM grids and database.
+ - `cleanup`: Boolean indicating if the ras HEC-RAS output grids should be deleted or not.
 
 
 `v0.5.0: <https://github.com/Dewberry/ripple1d/blob/3c90acc3fa212fde9c9b361dc3b907beaca17919/ripple1d/api/postman_collection.json>`_ This beta version contains new endpoints: 
