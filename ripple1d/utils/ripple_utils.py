@@ -10,7 +10,7 @@ import boto3
 import geopandas as gpd
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
-from shapely import make_valid, union_all
+from shapely import Polygon, concave_hull, line_merge, make_valid, union_all
 from shapely.geometry import MultiPolygon, Point, Polygon
 
 from ripple1d.errors import (
@@ -63,7 +63,7 @@ def get_path(expected_path: str, client: boto3.client = None, bucket: str = None
                 return path
 
 
-def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def xs_concave_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
     polygons = []
     for river_reach in xs["river_reach"].unique():
@@ -76,9 +76,52 @@ def xs_concave_hull(xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
             polygons += list(polygon.geoms)
         else:
             polygons.append(polygon)
+    if junction is not None:
+        for _, j in junction.iterrows():
+            polygons.append(junction_hull(xs, j))
+
     return gpd.GeoDataFrame(
         {"geometry": [union_all([make_valid(p) for p in polygons])]}, geometry="geometry", crs=xs.crs
     )
+
+
+def determine_junction_xs(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
+    """Determine the cross sections that bound a junction."""
+    junction_xs = []
+    for us_river, us_reach in zip(junction.us_rivers.split(","), junction.us_reaches.split(",")):
+        xs_us_river_reach = xs[(xs["river"] == us_river) & (xs["reach"] == us_reach)]
+        junction_xs.append(
+            xs_us_river_reach[xs_us_river_reach["river_station"] == xs_us_river_reach["river_station"].min()]
+        )
+    for ds_river, ds_reach in zip(junction.ds_rivers.split(","), junction.ds_reaches.split(",")):
+        xs_ds_river_reach = xs[(xs["river"] == ds_river) & (xs["reach"] == ds_reach)]
+        xs_ds_river_reach["geometry"] = xs_ds_river_reach.reverse()
+        junction_xs.append(
+            xs_ds_river_reach[xs_ds_river_reach["river_station"] == xs_ds_river_reach["river_station"].max()]
+        )
+    return pd.concat(junction_xs)
+
+
+def determine_xs_order(row: gpd.GeoSeries, junction_xs: gpd.gpd.GeoDataFrame):
+    """Detemine what order cross sections bounding a junction should be in to produce a valid polygon."""
+    candidate_lines = junction_xs[junction_xs["river_reach_rs"] != row["river_reach_rs"]]
+    candidate_lines["distance"] = candidate_lines["start"].distance(row.end)
+    return candidate_lines.loc[candidate_lines["distance"] == candidate_lines["distance"].min()].geometry.iloc[0]
+
+
+def junction_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
+    """Compute and return the concave hull (polygon) for a juction."""
+    junction_xs = determine_junction_xs(xs, junction)
+
+    print(type(junction_xs))
+    junction_xs["start"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[0], axis=1)
+    junction_xs["end"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[1], axis=1)
+    junction_xs["ordered_lines"] = junction_xs.apply(lambda row: determine_xs_order(row, junction_xs), axis=1)
+
+    coords = []
+    for _, row in junction_xs.iterrows():
+        coords += list(row["ordered_lines"].coords)
+    return Polygon(coords)
 
 
 def search_contents(lines: list, search_string: str, token: str = "=", expect_one: bool = True) -> list[str]:
