@@ -66,6 +66,7 @@ def create_ras_terrain(
         if resolution_units not in ["Feet", "Meters"]:
             raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
 
+    logging.debug("Call NwmReachModel")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
@@ -75,8 +76,10 @@ def create_ras_terrain(
         os.makedirs(nwm_rm.terrain_directory, exist_ok=True)
 
     # get geometry mask
+    logging.debug("create gdf_xs")
     gdf_xs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
     crs = gdf_xs.crs
+    logging.debug("create get_geometry_mask")
     mask = get_geometry_mask(gdf_xs, terrain_source_url)
 
     # clip dem
@@ -103,6 +106,7 @@ def create_ras_terrain(
     projection_file = write_projection_file(gdf_xs.crs, nwm_rm.terrain_directory)
 
     # Make the RAS mapping terrain locally
+    logging.debug("create_terrain")
     result = create_terrain(
         [src_dem_reprojected_localfile],
         projection_file,
