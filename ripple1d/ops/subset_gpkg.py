@@ -512,7 +512,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
 
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
-        rgs.write_ripple_gpkg()
+        rgs.write_ripple_gpkg(task_id=task_id)
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
 

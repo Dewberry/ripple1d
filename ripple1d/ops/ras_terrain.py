@@ -20,11 +20,13 @@ from ripple1d.consts import (
 )
 from ripple1d.data_model import NwmReachModel
 from ripple1d.ras import create_terrain
+
+# from ripple1d.ripple1d_logger import log_process
 from ripple1d.utils.dg_utils import clip_raster, reproject_raster
 from ripple1d.utils.ripple_utils import fix_reversed_xs, xs_concave_hull
 
 
-def get_geometry_mask(gdf_xs_conc_hull: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
+def get_geometry_mask(gdf_xs_conc_hull: str, MAP_DEM_UNCLIPPED_SRC_URL: str, task_id: str = None) -> gpd.GeoDataFrame:
     """Get a geometry mask for the DEM based on the cross sections."""
     # build a DEM mask polygon based on the XS extents
 
