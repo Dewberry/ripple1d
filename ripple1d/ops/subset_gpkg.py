@@ -506,7 +506,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         )
 
     ripple1d_parameters = rsd.nwm_conflation_parameters(str(nwm_id))
-    if ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
+    if ripple1d_parameters["eclipsed"]:
         ripple1d_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple1d_parameters["messages"])
 
