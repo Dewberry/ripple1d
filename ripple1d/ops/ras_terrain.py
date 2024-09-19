@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import geopandas as gpd
@@ -53,34 +54,36 @@ def create_ras_terrain(
     vertical_units: str = MAP_DEM_VERT_UNITS,
     resolution: float = None,
     resolution_units: str = None,
+    task_id: str = "",
 ) -> None:
     """Create a RAS terrain file."""
-    logging.info(f"Processing: {submodel_directory}")
+    logging.info(f"{task_id}: create_ras_terrain start")
 
     if resolution and not resolution_units:
         raise ValueError(
-            f"The 'resolution' arg has been provided but 'resolution_units' arg has not been provided. Please provide both"
+            f"{task_id} | 'resolution' arg has been provided but 'resolution_units' arg has not been provided. Please provide both"
         )
 
     if resolution_units:
         if resolution_units not in ["Feet", "Meters"]:
-            raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
+            raise ValueError(f"{task_id} | invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
 
-    logging.debug("Call NwmReachModel")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
-        raise FileNotFoundError(f"Expecting {nwm_rm.ras_gpkg_file}, file not found")
+        raise FileNotFoundError(
+            f"{task_id} | NwmReachModel class expecting ras_gpkg_file {nwm_rm.ras_gpkg_file}, file not found"
+        )
 
     if not os.path.exists(nwm_rm.terrain_directory):
         os.makedirs(nwm_rm.terrain_directory, exist_ok=True)
 
-    # get geometry mask
-    logging.debug("create gdf_xs")
     gdf_xs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
     crs = gdf_xs.crs
-    logging.debug("create get_geometry_mask")
-    mask = get_geometry_mask(gdf_xs, terrain_source_url)
+
+    with ProcessPoolExecutor() as executor:
+        future = executor.submit(get_geometry_mask, gdf_xs=gdf_xs, MAP_DEM_UNCLIPPED_SRC_URL=terrain_source_url)
+        mask = future.result()
 
     # clip dem
     src_dem_clipped_localfile = os.path.join(nwm_rm.terrain_directory, "temp.tif")
@@ -89,13 +92,15 @@ def create_ras_terrain(
         nwm_rm.terrain_directory, map_dem_clipped_basename.replace(".vrt", ".tif")
     )
 
-    logging.debug(f"Clipping DEM {terrain_source_url} to {src_dem_clipped_localfile}")
-    clip_raster(
-        src_path=terrain_source_url,
-        dst_path=src_dem_clipped_localfile,
-        mask_polygon=mask,
-        vertical_units=vertical_units,
-    )
+    with ProcessPoolExecutor() as executor:
+        future = executor.submit(
+            clip_raster,
+            src_path=terrain_source_url,
+            dst_path=src_dem_clipped_localfile,
+            mask_polygon=mask,
+            vertical_units=vertical_units,
+        )
+        future.result()
 
     # reproject/resample dem
     logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
@@ -106,7 +111,6 @@ def create_ras_terrain(
     projection_file = write_projection_file(gdf_xs.crs, nwm_rm.terrain_directory)
 
     # Make the RAS mapping terrain locally
-    logging.debug("create_terrain")
     result = create_terrain(
         [src_dem_reprojected_localfile],
         projection_file,
@@ -115,4 +119,5 @@ def create_ras_terrain(
     )
     os.remove(src_dem_reprojected_localfile)
     nwm_rm.update_write_ripple1d_parameters({"source_terrain": terrain_source_url})
+    logging.info(f"{task_id}: create_ras_terrain complete")
     return result
