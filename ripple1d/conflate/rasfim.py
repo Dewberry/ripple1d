@@ -348,9 +348,14 @@ class RasFimConflater:
     def ras_xs_concave_hull(self, river_reach_name: str = None) -> Polygon:
         """Return the concave hull of the cross sections."""
         if river_reach_name is None:
-            return xs_concave_hull(self.ras_xs,self.ras_junctions)
+            return xs_concave_hull(fix_reversed_xs(self.ras_xs, self.ras_centerlines), self.ras_junctions)
         else:
-            return xs_concave_hull(self.ras_xs[self.ras_xs["river_reach"] == river_reach_name])
+            xs = self.ras_xs[self.ras_xs["river_reach"] == river_reach_name]
+            return xs_concave_hull(
+                fix_reversed_xs(
+                    self.ras_xs, self.ras_centerlines.loc[self.ras_centerlines["river_reach"] == river_reach_name]
+                )
+            )
 
     def ras_xs_convex_hull(self, river_reach_name: str = None):
         """Return the convex hull of the cross sections."""
@@ -438,7 +443,11 @@ class RasFimConflater:
     def ras_centerline_by_river_reach_name(self, river_reach_name: str,clip_to_xs=False) -> LineString:
         """Return the centerline for the specified river reach."""
         if clip_to_xs:
-            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0].intersection(self.ras_xs_concave_hull(river_reach_name).geometry.iloc[0].buffer(1))
+            return (
+                self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name]
+                .geometry.iloc[0]
+                .intersection(self.ras_xs_concave_hull(river_reach_name).geometry.iloc[0].buffer(1))
+            )
         else:
             return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
 
@@ -674,40 +683,6 @@ def get_us_most_xs_from_junction(rfc, us_river, us_reach):
     return ds_xs_id
 
 
-def validate_point(geom):
-    """Validate that point is of type Point. If Multipoint or Linestring create point from first coordinate pair."""
-    if isinstance(geom, Point):
-        return geom
-    elif isinstance(geom, MultiPoint):
-        return geom.geoms[0]
-    elif isinstance(geom, LineString) and list(geom.coords):
-        return Point(geom.coords[0])
-    else:
-        raise TypeError(f"expected point at xs-river intersection got: {type(geom)}")
-
-
-def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
-    """Return only cross sections that are drawn right to left looking downstream."""
-    ids = []
-    for _, xs in cross_sections.iterrows():
-        try:
-            point = reach.intersection(xs["geometry"])
-            point = validate_point(point)
-            xs_rs = reach.project(point)
-
-            offset = xs.geometry.offset_curve(-1)
-            point = reach.intersection(offset)
-            point = validate_point(point)
-
-            offset_rs = reach.project(point)
-            if xs_rs > offset_rs:
-                ids.append(xs["ID"])
-        except TypeError as e:
-            logging.warning(f"could not validate xs-river intersection for: {xs["river"]} {xs['reach']} {xs['river_station']}")
-            continue
-    return cross_sections.loc[cross_sections["ID"].isin(ids)]
-
-
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     """
     Map the upstream and downstream cross sections for the nwm reach.
@@ -716,11 +691,20 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     """
     # get the xs that intersect the nwm reach
     intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach.geometry)]
-    intersected_xs = check_xs_direction(intersected_xs, reach.geometry)
-    has_junctions = rfc.ras_junctions is not None
-
     if intersected_xs.empty:
-        return {"eclipsed":True}
+        return {"eclipsed": True}
+
+    not_reversed_xs = check_xs_direction(intersected_xs, reach.geometry)
+    logging.info(len(intersected_xs))
+    logging.info(len(not_reversed_xs))
+    intersected_xs["geometry"] = intersected_xs.apply(
+        lambda row: (
+            row.geometry if row["river_reach_rs"] in list(not_reversed_xs["river_reach_rs"]) else reverse(row.geometry)
+        ),
+        axis=1,
+    )
+
+    has_junctions = rfc.ras_junctions is not None
 
     # get start and end points of the nwm reach
     start, end = endpoints_from_multiline(reach.geometry)

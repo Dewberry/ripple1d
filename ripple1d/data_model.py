@@ -16,10 +16,12 @@ from shapely.geometry import LineString, Point
 
 from ripple1d.utils.ripple_utils import (
     data_pairs_from_text_block,
+    fix_reversed_xs,
     search_contents,
     text_block_from_start_end_str,
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
+    xs_concave_hull,
 )
 from ripple1d.utils.s3_utils import init_s3_resources, read_json_from_s3
 
@@ -55,6 +57,14 @@ class RasModelStructure:
     def ras_gpkg_file(self):
         """RAS GeoPackage file."""
         return self.derive_path(".gpkg")
+
+
+    @property
+    def xs_concave_hull(self):
+        """XS Concave Hull."""
+        if self._xs_concave_hull is None:
+            self._xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ras_xs, self.ras_rivers))
+        return self._xs_concave_hull
 
     @property
     def assets(self):

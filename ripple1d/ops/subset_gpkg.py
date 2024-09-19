@@ -12,7 +12,7 @@ from shapely.geometry import LineString
 import ripple1d
 from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
-from ripple1d.utils.ripple_utils import xs_concave_hull
+from ripple1d.utils.ripple_utils import fix_reversed_xs, xs_concave_hull
 
 
 class RippleGeopackageSubsetter:
@@ -161,7 +161,9 @@ class RippleGeopackageSubsetter:
             if gdf.shape[0] > 0:
                 gdf.to_file(self.ripple_gpkg_file, layer=layer)
                 if layer == "XS":
-                    xs_concave_hull(gdf).to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
+                    xs_concave_hull(fix_reversed_xs(gdf, self.subset_gdfs["River"])).to_file(
+                        self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull"
+                    )
 
     @property
     def min_flow(self) -> float:
@@ -432,7 +434,12 @@ class RippleGeopackageSubsetter:
 
         buffer = 10
         while True:
-            concave_hull = xs_concave_hull(xs_subset_gdf).to_crs(epsg=5070).buffer(buffer * METERS_PER_FOOT).to_crs(crs)
+            concave_hull = (
+                xs_concave_hull(fix_reversed_xs(xs_subset_gdf, river_subset_gdf))
+                .to_crs(epsg=5070)
+                .buffer(buffer * METERS_PER_FOOT)
+                .to_crs(crs)
+            )
             clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
 
             buffer += 10

@@ -14,7 +14,7 @@ from shapely.ops import linemerge
 from ripple1d.consts import HYDROFABRIC_CRS, METERS_PER_FOOT
 from ripple1d.data_model import XS
 from ripple1d.ops.subset_gpkg import RippleGeopackageSubsetter
-from ripple1d.utils.ripple_utils import xs_concave_hull
+from ripple1d.utils.ripple_utils import fix_reversed_xs, xs_concave_hull
 
 
 class ConflationMetrics:
@@ -155,7 +155,9 @@ class ConflationMetrics:
         for i, row in to_reaches.iterrows():
             if row[geom_name].intersects(self.xs_gdf.union_all()):
                 overlap = (
-                    row[geom_name].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length
+                    row[geom_name]
+                    .intersection(xs_concave_hull(fix_reversed_xs(self.xs_gdf, self.river_gdf))["geometry"].iloc[0])
+                    .length
                     / METERS_PER_FOOT
                 )
                 return [{"id": str(row["ID"]), "overlap": int(overlap)}]
@@ -165,7 +167,11 @@ class ConflationMetrics:
         """Calculate the overlap between the network reach and the cross sections."""
         if network_reaches.empty:
             return []
-        eclipsed_reaches = network_reaches[network_reaches.covered_by(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0])]
+        eclipsed_reaches = network_reaches[
+            network_reaches.covered_by(
+                xs_concave_hull(fix_reversed_xs(self.xs_gdf, self.river_gdf))["geometry"].iloc[0]
+            )
+        ]
 
         return [str(row["ID"]) for _, row in eclipsed_reaches.iterrows()]
 
