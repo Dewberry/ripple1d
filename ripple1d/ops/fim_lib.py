@@ -174,7 +174,7 @@ def create_fim_lib(
                 table_name,
             )
             if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"))
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"), ignore_errors=True)
         if f"nd" in plan:
             zero_depth_to_sqlite(
                 rm,
@@ -185,7 +185,7 @@ def create_fim_lib(
                 table_name,
             )
             if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"))
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"), ignore_errors=True)
 
     return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
 
