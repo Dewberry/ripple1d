@@ -77,7 +77,7 @@ def create_ras_terrain(
     if not os.path.exists(nwm_rm.terrain_directory):
         os.makedirs(nwm_rm.terrain_directory, exist_ok=True)
 
-    gdf_xs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
+    gdf_xs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").explode(ignore_index=True)
     crs = gdf_xs.crs
 
     with ProcessPoolExecutor() as executor:
