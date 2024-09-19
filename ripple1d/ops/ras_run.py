@@ -139,6 +139,7 @@ def run_known_wse(
     task_id: str = "",
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
+    logging.info(f"{task_id} | run_known_wse starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -194,6 +195,7 @@ def run_known_wse(
             show_ras=show_ras,
             run_ras=True,
         )
+    logging.info(f"{task_id} | run_known_wse complete")
     return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}}
 
 
