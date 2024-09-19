@@ -166,7 +166,7 @@ class TestApi(unittest.TestCase):
             "submodel_directory": self.SUBMODELS_DIRECTORY,
             "plans": ["nd", "kwse"],
             "library_directory": self.FIM_LIB_DIRECTORY,
-            "cleanup": True,
+            "cleanup": False,
         }
         process = "create_fim_lib"
         files = [self.FIM_LIB_DB, self.DEPTH_GRIDS_ND, self.DEPTH_GRIDS_KWSE]
