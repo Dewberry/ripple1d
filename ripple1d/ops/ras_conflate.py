@@ -127,14 +127,14 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
 
     ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
-    conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
+    # conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
 
-    plot_conflation_results(
-        rfc,
-        fim_stream,
-        conflation_png,
-        limit_plot_to_nearby_reaches=True,
-    )
+    # plot_conflation_results(
+    #     rfc,
+    #     fim_stream,
+    #     conflation_png,
+    #     limit_plot_to_nearby_reaches=True,
+    # )
 
     logging.debug(f"{task_id} | Conflation results: {metadata}")
     conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
@@ -142,7 +142,7 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
     metadata["metadata"] = {}
     metadata["metadata"]["source_network"] = source_network.copy()
     metadata["metadata"]["source_network"]["file_name"] = os.path.basename(nwm_pq_path)
-    metadata["metadata"]["conflation_png"] = os.path.basename(conflation_png)
+    # metadata["metadata"]["conflation_png"] = os.path.basename(conflation_png)
     metadata["metadata"]["conflation_ripple1d_version"] = ripple1d.__version__
     metadata["metadata"]["metrics_ripple1d_version"] = ripple1d.__version__
     metadata["metadata"]["source_ras_model"] = {
