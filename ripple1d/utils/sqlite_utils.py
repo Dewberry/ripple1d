@@ -10,9 +10,6 @@ from ripple1d.ras import RasManager
 
 def create_db_and_table(db_name: str, table_name: str):
     """Create sqlite database and table."""
-    if os.path.exists(db_name):
-        os.remove(db_name)
-
     sql_query = f"""
         CREATE TABLE {table_name}(
             reach_id INTEGER,
