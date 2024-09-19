@@ -57,3 +57,4 @@ def setup_data(request):
     request.cls.min_elevation = MIN_ELEVATION
     request.cls.conflation_file = os.path.join(SOURCE_RAS_MODEL_DIRECTORY, f"{RAS_MODEL}.conflation.json")
     request.cls.crs = CRS[RAS_MODEL]
+    request.cls.FIM_LIB_DIRECTORY = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}\\fims")
