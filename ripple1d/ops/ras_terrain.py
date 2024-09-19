@@ -57,7 +57,7 @@ def create_ras_terrain(
     task_id: str = "",
 ) -> None:
     """Create a RAS terrain file."""
-    logging.info(f"{task_id}: create_ras_terrain start")
+    logging.info(f"{task_id} | create_ras_terrain starting")
 
     if resolution and not resolution_units:
         raise ValueError(
@@ -119,5 +119,5 @@ def create_ras_terrain(
     )
     os.remove(src_dem_reprojected_localfile)
     nwm_rm.update_write_ripple1d_parameters({"source_terrain": terrain_source_url})
-    logging.info(f"{task_id}: create_ras_terrain complete")
+    logging.info(f"{task_id} | create_ras_terrain complete")
     return result

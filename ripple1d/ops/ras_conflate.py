@@ -57,7 +57,7 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         raise ValueError(f"nwm_reach_id {nwm_reach_id} not conflating to the ras model geometry.")
 
 
-def conflate_model(source_model_directory: str, source_network: dict):
+def conflate_model(source_model_directory: str, source_network: dict, task_id: str = ""):
     """Conflate a HEC-RAS model with NWM reaches.
 
     source_network example:
@@ -67,6 +67,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         "type": "nwm_hydrofabric" // required
     }
     """
+    logging.info(f"{task_id} | conflate_model starting")
     try:
         nwm_pq_path = source_network["file_name"]
     except KeyError:
@@ -109,7 +110,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
                 continue
 
         logging.info(
-            f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
+            f"{task_id} | {river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
         )
 
         # walk network to get the potential reach ids
@@ -122,7 +123,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
 
     if not conflated(metadata):
-        return "no reaches conflated"
+        return f"{task_id} | no reaches conflated"
 
     ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
@@ -135,7 +136,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         limit_plot_to_nearby_reaches=True,
     )
 
-    logging.info(f"Conflation results: {metadata}")
+    logging.debug(f"{task_id} | Conflation results: {metadata}")
     conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
 
     metadata["metadata"] = {}
@@ -162,9 +163,10 @@ def conflate_model(source_model_directory: str, source_network: dict):
     try:
         compute_conflation_metrics(source_model_directory, source_network)
     except Exception as e:
-        logging.error(f"Error: {e}")
-        logging.error(f"traceback: {traceback.format_exc()}")
+        logging.error(f"{task_id} | Error: {e}")
+        logging.error(f"{task_id} | traceback: {traceback.format_exc()}")
 
+    logging.info(f"{task_id} | conflate_model complete")
     return conflation_file
 
 
