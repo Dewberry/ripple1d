@@ -31,7 +31,7 @@ def create_model_run_normal_depth(
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
 
-    if nwm_rm.ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple1d_parameters["eclipsed"] == True:
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
     else:
         logging.info(f"Working on initial normal depth run for nwm_id: {nwm_rm.model_name}")
@@ -80,18 +80,15 @@ def run_incremental_normal_depth(
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
 
-    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
-        raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
-
     logging.info(f"Working on normal depth run for nwm_id: {nwm_rm.model_name}")
-    if nwm_rm.ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
+    if nwm_rm.ripple1d_parameters["eclipsed"] == True:
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
 
     rm = RasManager(
         nwm_rm.ras_project_file,
         version=ras_version,
         terrain_path=nwm_rm.ras_terrain_hdf,
-        crs=nwm_rm.ripple1d_parameters["crs"],
+        crs=nwm_rm.crs,
     )
 
     # determine flow increments
@@ -139,18 +136,13 @@ def run_known_wse(
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
         raise FileNotFoundError(f"cannot find conflation file {nwm_rm.conflation_file}, please ensure file exists")
 
-    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
-        raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
-
     logging.info(f"Working on known water surface elevation run for nwm_id: {nwm_rm.model_name}")
 
     start_elevation = np.floor(min_elevation * 2) / 2  # round down to nearest .0 or .5
     known_water_surface_elevations = np.arange(start_elevation, max_elevation + depth_increment, depth_increment)
 
-    crs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").crs
-
     # write and compute flow/plans for known water surface elevation runs
-    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
+    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=nwm_rm.crs)
 
     # get resulting depths from the second normal depth runs_nd
     rm.plan = rm.plans[f"{nwm_rm.model_name}_nd"]

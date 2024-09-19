@@ -139,13 +139,14 @@ def create_fim_lib(
     resolution_units: str = "Meters",
 ):
     """Create a new FIM library for a NWM id."""
-    nwm_rm = NwmReachModel(submodel_directory)
-    if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
-        raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
+    nwm_rm = NwmReachModel(submodel_directory, library_directory)
 
-    crs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").crs
-
-    rm = RasManager(nwm_rm.ras_project_file, version=ras_version, terrain_path=nwm_rm.ras_terrain_hdf, crs=crs)
+    rm = RasManager(
+        nwm_rm.ras_project_file,
+        version=ras_version,
+        terrain_path=nwm_rm.ras_terrain_hdf,
+        crs=nwm_rm.crs,
+    )
     ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
     missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
@@ -160,7 +161,8 @@ def create_fim_lib(
     )
 
     # create dabase and table
-    create_db_and_table(nwm_rm.fim_results_database, table_name)
+    if not os.path.exists(nwm_rm.fim_results_database):
+        create_db_and_table(nwm_rm.fim_results_database, table_name)
 
     for plan in plans:
         if f"kwse" in plan:
@@ -173,7 +175,7 @@ def create_fim_lib(
                 table_name,
             )
             if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"))
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"), ignore_errors=True)
         if f"nd" in plan:
             zero_depth_to_sqlite(
                 rm,
@@ -184,7 +186,7 @@ def create_fim_lib(
                 table_name,
             )
             if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"))
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"), ignore_errors=True)
 
     return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
 
