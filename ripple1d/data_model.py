@@ -32,6 +32,11 @@ class RasModelStructure:
     def __init__(self, model_directory: str):
         self.model_directory = model_directory
         self.model_basename = Path(model_directory).name
+        self._ras_junctions = None
+        self._ras_structures = None
+        self._ras_xs = None
+        self._ras_rivers = None
+        self._xs_concave_hull = None
 
     @property
     def model_name(self):
@@ -58,6 +63,35 @@ class RasModelStructure:
         """RAS GeoPackage file."""
         return self.derive_path(".gpkg")
 
+    @property
+    def ras_xs(self):
+        """RAS XS Geodataframe."""
+        if self._ras_xs is None:
+            self._ras_xs = gpd.read_file(self.ras_gpkg_file, layer="XS")
+        return self._ras_xs
+
+    @property
+    def ras_junctions(self):
+        """RAS Junctions Geodataframe."""
+        if "Junction" in fiona.listlayers(self.ras_gpkg_file):
+            if self._ras_junctions is None:
+                self._ras_junctions = gpd.read_file(self.ras_gpkg_file, layer="Junction")
+            return self._ras_junctions
+
+    @property
+    def ras_structures(self):
+        """RAS Structures Geodataframe."""
+        if "Structure" in fiona.listlayers(self.ras_gpkg_file):
+            if self._ras_structures is None:
+                self._ras_structures = gpd.read_file(self.ras_gpkg_file, layer="Structure")
+            return self._ras_structures
+
+    @property
+    def ras_rivers(self):
+        """RAS Rivers Geodataframe."""
+        if self._ras_rivers is None:
+            self._ras_rivers = gpd.read_file(self.ras_gpkg_file, layer="River")
+        return self._ras_rivers
 
     @property
     def xs_concave_hull(self):

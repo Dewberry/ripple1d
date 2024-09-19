@@ -24,6 +24,11 @@ class RippleGeopackageSubsetter:
         self.conflation_json = conflation_json
         self.dst_project_dir = dst_project_dir
         self.nwm_id = nwm_id
+        self._subset_gdf = None
+        self._source_junction = None
+        self._source_river = None
+        self._source_xs = None
+        self._source_structure = None
 
     @property
     def conflation_parameters(self) -> dict:
@@ -69,27 +74,34 @@ class RippleGeopackageSubsetter:
     @property
     def source_xs(self) -> gpd.GeoDataFrame:
         """Extract cross sections from the source geopackage."""
-        xs = gpd.read_file(self.src_gpkg_path, layer="XS")
-        return xs[xs.intersects(self.source_river.union_all())]
+        if self._source_xs is None:
+            xs = gpd.read_file(self.src_gpkg_path, layer="XS")
+            self._source_xs = xs[xs.intersects(self.source_river.union_all())]
+        return self._source_xs
 
     @property
     def source_river(self) -> gpd.GeoDataFrame:
         """Extract river geometry from the source geopackage."""
-        return gpd.read_file(self.src_gpkg_path, layer="River")
+        if self._source_river is None:
+            self._source_river = gpd.read_file(self.src_gpkg_path, layer="River")
+        return self._source_river
 
     @property
     def source_structure(self) -> gpd.GeoDataFrame:
         """Extract structures from the source geopackage."""
         if "Structure" in fiona.listlayers(self.src_gpkg_path):
-            structures = gpd.read_file(self.src_gpkg_path, layer="Structure")
-            return structures[structures.intersects(self.source_river.union_all())]
+            if self._source_structure is None:
+                structures = gpd.read_file(self.src_gpkg_path, layer="Structure")
+                self._source_structure = structures[structures.intersects(self.source_river.union_all())]
+            return self._source_structure
 
     @property
     def source_junction(self) -> gpd.GeoDataFrame:
         """Extract junctions from the source geopackage."""
         if "Junction" in fiona.listlayers(self.src_gpkg_path):
-            return gpd.read_file(self.src_gpkg_path, layer="Junction")
-        return None
+            if self._source_junction is None:
+                self._source_junction = gpd.read_file(self.src_gpkg_path, layer="Junction")
+            return self._source_junction
 
     @property
     def ripple_xs(self) -> gpd.GeoDataFrame:
@@ -109,29 +121,32 @@ class RippleGeopackageSubsetter:
     @property
     def subset_gdfs(self) -> dict:
         """Subset the cross sections, structues, and river geometry for a given NWM reach."""
-        # subset data
-        if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
-            ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
-        else:
-            ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
+        if self._subset_gdf is None:
+            # subset data
+            if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
+                ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
+            else:
+                ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
 
-        # check if only 1 cross section for nwm_reach
-        if len(ripple_xs) <= 1:
-            logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
-            return None
+            # check if only 1 cross section for nwm_reach
+            if len(ripple_xs) <= 1:
+                logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
+                return None
 
-        # update fields
-        ripple_xs = self.update_fields(ripple_xs)
-        ripple_river = self.update_fields(ripple_river)
-        ripple_structure = self.update_fields(ripple_structure)
+            # update fields
+            ripple_xs = self.update_fields(ripple_xs)
+            ripple_river = self.update_fields(ripple_river)
+            ripple_structure = self.update_fields(ripple_structure)
 
-        # clip river to cross sections
-        ripple_river = self.clip_river(ripple_xs, ripple_river)
+            # clip river to cross sections
+            ripple_river = self.clip_river(ripple_xs, ripple_river)
 
-        if ripple_structure is not None and len(ripple_structure) > 0:
-            return {"XS": ripple_xs, "River": ripple_river, "Structure": ripple_structure}
-        else:
-            return {"XS": ripple_xs, "River": ripple_river}
+            if ripple_structure is not None and len(ripple_structure) > 0:
+                self._subset_gdf = {"XS": ripple_xs, "River": ripple_river, "Structure": ripple_structure}
+            else:
+                self._subset_gdf = {"XS": ripple_xs, "River": ripple_river}
+
+        return self._subset_gdf
 
     @property
     def ripple_gpkg_file(self) -> str:
