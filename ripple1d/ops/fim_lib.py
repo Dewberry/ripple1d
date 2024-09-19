@@ -161,7 +161,8 @@ def create_fim_lib(
     )
 
     # create dabase and table
-    create_db_and_table(nwm_rm.fim_results_database, table_name)
+    if not os.path.exists(nwm_rm.fim_results_database):
+        create_db_and_table(nwm_rm.fim_results_database, table_name)
 
     for plan in plans:
         if f"kwse" in plan:
