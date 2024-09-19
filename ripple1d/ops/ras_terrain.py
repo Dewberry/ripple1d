@@ -20,13 +20,12 @@ from ripple1d.consts import (
 from ripple1d.data_model import NwmReachModel
 from ripple1d.ras import create_terrain
 from ripple1d.utils.dg_utils import clip_raster, reproject_raster
-from ripple1d.utils.ripple_utils import xs_concave_hull
+from ripple1d.utils.ripple_utils import fix_reversed_xs, xs_concave_hull
 
 
-def get_geometry_mask(gdf_xs: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
+def get_geometry_mask(gdf_xs_conc_hull: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
     """Get a geometry mask for the DEM based on the cross sections."""
     # build a DEM mask polygon based on the XS extents
-    gdf_xs_conc_hull = xs_concave_hull(gdf_xs)
 
     # Buffer the concave hull by transforming it to Albers, buffering it, then transforming it to the src raster crs
     with rasterio.open(MAP_DEM_UNCLIPPED_SRC_URL) as src:
@@ -75,9 +74,7 @@ def create_ras_terrain(
         os.makedirs(nwm_rm.terrain_directory, exist_ok=True)
 
     # get geometry mask
-    gdf_xs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS", driver="GPKG").explode(ignore_index=True)
-    crs = gdf_xs.crs
-    mask = get_geometry_mask(gdf_xs, terrain_source_url)
+    mask = get_geometry_mask(nwm_rm.xs_concave_hull, terrain_source_url)
 
     # clip dem
     src_dem_clipped_localfile = os.path.join(nwm_rm.terrain_directory, "temp.tif")
@@ -96,11 +93,11 @@ def create_ras_terrain(
 
     # reproject/resample dem
     logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
-    reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, crs, resolution, resolution_units)
+    reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, nwm_rm.crs, resolution, resolution_units)
     os.remove(src_dem_clipped_localfile)
 
     # write projection file
-    projection_file = write_projection_file(gdf_xs.crs, nwm_rm.terrain_directory)
+    projection_file = write_projection_file(nwm_rm.crs, nwm_rm.terrain_directory)
 
     # Make the RAS mapping terrain locally
     result = create_terrain(
