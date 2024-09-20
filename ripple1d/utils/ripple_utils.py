@@ -73,15 +73,24 @@ def get_path(expected_path: str, client: boto3.client = None, bucket: str = None
             if path.endswith(Path(expected_path).suffix.upper()):
                 return path
 
-def fix_reversed_xs(xs:gpd.GeoDataFrame,river:gpd.GeoDataFrame)->gpd.GeoDataFrame:
+
+def fix_reversed_xs(xs: gpd.GeoDataFrame, river: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Check if cross sections are drawn right to left looking downstream. If not reverse them."""
-    subsets=[]
-    for _,reach in river.iterrows():
-        subset_xs=xs.loc[xs["river_reach"]== reach["river_reach"]]
-        not_reversed_xs=check_xs_direction(subset_xs,reach.geometry)
-        subset_xs["geometry"]=subset_xs.apply(lambda row: row.geometry if row["river_reach_rs"] in list(not_reversed_xs["river_reach_rs"]) else reverse(row.geometry),axis=1)
+    subsets = []
+    for _, reach in river.iterrows():
+        subset_xs = xs.loc[xs["river_reach"] == reach["river_reach"]]
+        not_reversed_xs = check_xs_direction(subset_xs, reach.geometry)
+        subset_xs["geometry"] = subset_xs.apply(
+            lambda row: (
+                row.geometry
+                if row["river_reach_rs"] in list(not_reversed_xs["river_reach_rs"])
+                else reverse(row.geometry)
+            ),
+            axis=1,
+        )
         subsets.append(subset_xs)
     return pd.concat(subsets)
+
 
 def validate_point(geom):
     """Validate that point is of type Point. If Multipoint or Linestring create point from first coordinate pair."""
@@ -93,6 +102,7 @@ def validate_point(geom):
         return Point(geom.coords[0])
     else:
         raise TypeError(f"expected point at xs-river intersection got: {type(geom)}")
+
 
 def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
     """Return only cross sections that are drawn right to left looking downstream."""
@@ -112,9 +122,12 @@ def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
                 river_reach_rs.append(xs["river_reach_rs"])
 
         except TypeError as e:
-            logging.warning(f"could not validate xs-river intersection for: {xs["river"]} {xs['reach']} {xs['river_station']}")
+            logging.warning(
+                f"could not validate xs-river intersection for: {xs['river']} {xs['reach']} {xs['river_station']}"
+            )
             continue
     return cross_sections.loc[cross_sections["river_reach_rs"].isin(river_reach_rs)]
+
 
 def xs_concave_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
