@@ -203,8 +203,9 @@ class ConflationMetrics:
             logging.error(f"traceback: {traceback.format_exc()}")
 
 
-def compute_conflation_metrics(source_model_directory: str, source_network: str):
+def compute_conflation_metrics(source_model_directory: str, source_network: str, task_id: str = ""):
     """Compute metrics for a network reach."""
+    logging.info(f"{task_id} | compute_conflation_metrics starting")
     network_pq_path = source_network["file_name"]
     model_name = os.path.basename(source_model_directory)
     src_gpkg_path = os.path.join(source_model_directory, f"{model_name}.gpkg")
@@ -255,6 +256,8 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str)
             conflation_parameters["reaches"][network_id].update({"metrics": {}})
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
+
+    logging.info(f"{task_id} | compute_conflation_metrics complete")
     return conflation_parameters
 
 

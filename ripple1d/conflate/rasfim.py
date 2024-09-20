@@ -313,7 +313,7 @@ class RasFimConflater:
     @ensure_data_loaded
     def ras_structures(self) -> gpd.GeoDataFrame:
         """RAS structures."""
-        logging.info("RAS structures")
+        # logging.info("RAS structures")
         try:
             return self._ras_structures.to_crs(self.common_crs)
         except AttributeError:
@@ -693,8 +693,6 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
         return {"eclipsed": True}
 
     not_reversed_xs = check_xs_direction(intersected_xs, reach.geometry)
-    logging.info(len(intersected_xs))
-    logging.info(len(not_reversed_xs))
     intersected_xs["geometry"] = intersected_xs.apply(
         lambda row: (
             row.geometry if row["river_reach_rs"] in list(not_reversed_xs["river_reach_rs"]) else reverse(row.geometry)

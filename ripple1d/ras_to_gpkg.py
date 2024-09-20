@@ -273,8 +273,9 @@ def detemine_primary_plan(
         return candidate_plans[0]
 
 
-def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
+def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict, task_id: str = ""):
     """Write geometry and flow data to a geopackage locally."""
+    logging.info(f"{task_id} | gpkg_from_ras starting")
     prjs = glob.glob(f"{source_model_directory}/*.prj")
     ras_text_file_path = None
 
@@ -288,6 +289,7 @@ def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
 
     output_gpkg_path = ras_text_file_path.replace(".prj", ".gpkg")
     rp = RasProject(ras_text_file_path)
+    logging.info(f"{task_id} | gpkg_from_ras complete")
     return geom_flow_to_gpkg(rp, crs, output_gpkg_path, metadata)
 
 

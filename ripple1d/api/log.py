@@ -4,15 +4,17 @@ import inspect
 import json
 import logging
 import os
+import time
 import traceback
 from datetime import datetime, timezone
 
+from ripple1d.consts import SUPPRESS_LOGS
 from ripple1d.ripple1d_logger import RippleLogFormatter
 
 LOGS: dict[str, logging.Logger] = {}  # global that is modified by initialize_log()
 
 
-def initialize_log(log_dir: str = "") -> logging.Logger:
+def initialize_log(log_dir: str = "", log_level: int = logging.INFO) -> logging.Logger:
     """Initialize log with JSON-LD style formatting and throttled level for AWS libs.
 
     By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead.
@@ -25,11 +27,11 @@ def initialize_log(log_dir: str = "") -> logging.Logger:
     if filename in LOGS:
         return LOGS[filename]
 
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
+    for module in SUPPRESS_LOGS:
+        logging.getLogger(module).setLevel(logging.ERROR)
 
     log = logging.getLogger()
-    log.setLevel(logging.INFO)
+    log.setLevel(log_level)
     formatter = RippleLogFormatter()
 
     if filename:
