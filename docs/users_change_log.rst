@@ -3,6 +3,28 @@ Change Log for Users
 
 Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`_  page for a list of all releases.
 
+Feature Release 0.6.1
+~~~~~~~~~~~~~~~~~~~~~
+
+Users Changelog
+----------------
+This release of `ripple1d` fixes several bugs identified during testing.
+
+Features Added
+----------------
+- A minor change was added to the logging behavior to improve error tracking. 
+
+Bug Fixes
+----------
+- A bug causing increasing processing time when calling `creat_ras_terrain` in parallel mode.
+- A bug in the `extract_submodel` endpoint which failed when trying to grab the upstream cross section. A check was added for the eclipsed parameter, where if true no geopackage will be created. 
+- Several bugs associated with the `create_fim_lib endpoint`: 
+
+  1. The library_directory arg was not being implemented correctly in the function. 
+  2. If a fim.db already exists append fuctionality has been implemented.
+  3. If the directory containing the raw RAS depth grids is empty the clean up function will not be invoked.
+- Resolves issues introduced when a concave hull from a source model where cross section existed in the wrong direction (resulting in a multipart polygon). A check was added to correct direction and reverses the cross section if it was drawn incorrectly. This is limited to the development of the concave hull and does not modify the cross section direction for use in the modeling. 
+
 Feature Release 0.6.0
 ~~~~~~~~~~~~~~~~~~~~~
 Users Changelog

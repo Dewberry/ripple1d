@@ -16,10 +16,12 @@ from shapely.geometry import LineString, Point
 
 from ripple1d.utils.ripple_utils import (
     data_pairs_from_text_block,
+    fix_reversed_xs,
     search_contents,
     text_block_from_start_end_str,
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
+    xs_concave_hull,
 )
 from ripple1d.utils.s3_utils import init_s3_resources, read_json_from_s3
 
@@ -30,6 +32,11 @@ class RasModelStructure:
     def __init__(self, model_directory: str):
         self.model_directory = model_directory
         self.model_basename = Path(model_directory).name
+        self._ras_junctions = None
+        self._ras_structures = None
+        self._ras_xs = None
+        self._ras_rivers = None
+        self._xs_concave_hull = None
 
     @property
     def model_name(self):
@@ -55,6 +62,43 @@ class RasModelStructure:
     def ras_gpkg_file(self):
         """RAS GeoPackage file."""
         return self.derive_path(".gpkg")
+
+    @property
+    def ras_xs(self):
+        """RAS XS Geodataframe."""
+        if self._ras_xs is None:
+            self._ras_xs = gpd.read_file(self.ras_gpkg_file, layer="XS")
+        return self._ras_xs
+
+    @property
+    def ras_junctions(self):
+        """RAS Junctions Geodataframe."""
+        if "Junction" in fiona.listlayers(self.ras_gpkg_file):
+            if self._ras_junctions is None:
+                self._ras_junctions = gpd.read_file(self.ras_gpkg_file, layer="Junction")
+            return self._ras_junctions
+
+    @property
+    def ras_structures(self):
+        """RAS Structures Geodataframe."""
+        if "Structure" in fiona.listlayers(self.ras_gpkg_file):
+            if self._ras_structures is None:
+                self._ras_structures = gpd.read_file(self.ras_gpkg_file, layer="Structure")
+            return self._ras_structures
+
+    @property
+    def ras_rivers(self):
+        """RAS Rivers Geodataframe."""
+        if self._ras_rivers is None:
+            self._ras_rivers = gpd.read_file(self.ras_gpkg_file, layer="River")
+        return self._ras_rivers
+
+    @property
+    def xs_concave_hull(self):
+        """XS Concave Hull."""
+        if self._xs_concave_hull is None:
+            self._xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ras_xs, self.ras_rivers))
+        return self._xs_concave_hull
 
     @property
     def assets(self):
@@ -198,8 +242,9 @@ class RippleSourceDirectory:
 class NwmReachModel(RasModelStructure):
     """National Water Model reach-based HEC-RAS Model files and directory structure."""
 
-    def __init__(self, model_directory: str):
+    def __init__(self, model_directory: str, library_directory: str = ""):
         super().__init__(model_directory)
+        self.library_directory = library_directory
 
     @property
     def terrain_directory(self):
@@ -214,7 +259,7 @@ class NwmReachModel(RasModelStructure):
     @property
     def fim_results_directory(self):
         """FIM results directory."""
-        return str(Path(self.model_directory) / "fims")
+        return str(Path(self.library_directory) / self.model_name)
 
     @property
     def fim_lib_assets(self):

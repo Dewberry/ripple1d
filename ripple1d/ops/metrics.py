@@ -14,7 +14,7 @@ from shapely.ops import linemerge
 from ripple1d.consts import HYDROFABRIC_CRS, METERS_PER_FOOT
 from ripple1d.data_model import XS
 from ripple1d.ops.subset_gpkg import RippleGeopackageSubsetter
-from ripple1d.utils.ripple_utils import xs_concave_hull
+from ripple1d.utils.ripple_utils import fix_reversed_xs, xs_concave_hull
 
 
 class ConflationMetrics:
@@ -155,7 +155,9 @@ class ConflationMetrics:
         for i, row in to_reaches.iterrows():
             if row[geom_name].intersects(self.xs_gdf.union_all()):
                 overlap = (
-                    row[geom_name].intersection(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0]).length
+                    row[geom_name]
+                    .intersection(xs_concave_hull(fix_reversed_xs(self.xs_gdf, self.river_gdf))["geometry"].iloc[0])
+                    .length
                     / METERS_PER_FOOT
                 )
                 return [{"id": str(row["ID"]), "overlap": int(overlap)}]
@@ -165,7 +167,11 @@ class ConflationMetrics:
         """Calculate the overlap between the network reach and the cross sections."""
         if network_reaches.empty:
             return []
-        eclipsed_reaches = network_reaches[network_reaches.covered_by(xs_concave_hull(self.xs_gdf)["geometry"].iloc[0])]
+        eclipsed_reaches = network_reaches[
+            network_reaches.covered_by(
+                xs_concave_hull(fix_reversed_xs(self.xs_gdf, self.river_gdf))["geometry"].iloc[0]
+            )
+        ]
 
         return [str(row["ID"]) for _, row in eclipsed_reaches.iterrows()]
 
@@ -197,8 +203,9 @@ class ConflationMetrics:
             logging.error(f"traceback: {traceback.format_exc()}")
 
 
-def compute_conflation_metrics(source_model_directory: str, source_network: str):
+def compute_conflation_metrics(source_model_directory: str, source_network: str, task_id: str = ""):
     """Compute metrics for a network reach."""
+    logging.info(f"{task_id} | compute_conflation_metrics starting")
     network_pq_path = source_network["file_name"]
     model_name = os.path.basename(source_model_directory)
     src_gpkg_path = os.path.join(source_model_directory, f"{model_name}.gpkg")
@@ -249,6 +256,8 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str)
             conflation_parameters["reaches"][network_id].update({"metrics": {}})
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
+
+    logging.info(f"{task_id} | compute_conflation_metrics complete")
     return conflation_parameters
 
 
