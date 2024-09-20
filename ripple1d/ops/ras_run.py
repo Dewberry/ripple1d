@@ -21,8 +21,10 @@ def create_model_run_normal_depth(
     num_of_discharges_for_initial_normal_depth_runs: int = 10,
     ras_version: str = "631",
     show_ras: bool = False,
+    task_id: str = "",
 ):
     """Write and compute initial normal depth runs to develop initial rating curves."""
+    logging.info(f"{task_id} | create_model_run_normal_depth starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -63,6 +65,8 @@ def create_model_run_normal_depth(
             show_ras=show_ras,
             run_ras=True,
         )
+
+    logging.info(f"{task_id} | create_model_run_normal_depth complete")
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
 
@@ -73,8 +77,10 @@ def run_incremental_normal_depth(
     depth_increment=0.5,
     write_depth_grids: str = True,
     show_ras: bool = False,
+    task_id: str = "",
 ):
     """Write and compute incremental normal depth runs to develop rating curves and depth grids."""
+    logging.info(f"{task_id} | run_incremental_normal_depth starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -117,6 +123,7 @@ def run_incremental_normal_depth(
         show_ras=show_ras,
         run_ras=True,
     )
+    logging.info(f"{task_id} | run_incremental_normal_depth complete")
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
 
@@ -129,8 +136,10 @@ def run_known_wse(
     ras_version: str = "631",
     write_depth_grids: str = True,
     show_ras: bool = False,
+    task_id: str = "",
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
+    logging.info(f"{task_id} | run_known_wse starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -186,6 +195,7 @@ def run_known_wse(
             show_ras=show_ras,
             run_ras=True,
         )
+    logging.info(f"{task_id} | run_known_wse complete")
     return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}}
 
 
