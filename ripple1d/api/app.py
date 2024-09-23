@@ -127,53 +127,55 @@ def process__sleep():
     return enqueue_async_task(tasks.sleep15)
 
 
+@app.route("/jobs", methods=["GET"])
+def jobs():
+    """Retrieve OGC status and result for all jobs."""
+    task2metadata = tasks.task_status(only_task_id=None)
+    jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
+    ret = {"jobs": jobs}
+    return jsonify(ret), HTTPStatus.OK
+
+
 @app.route("/jobs/<task_id>", methods=["GET"])
-def get_one_job(task_id):
-    """Retrieve OGC status and result for one job.
-
-    Query parameters:
-        tb: Choices are ['true', 'false']. Defaults to 'false'. If 'true', the job result's traceback will be included
-            in the response, as key 'tb'.
-    """
-    include_traceback, problem = parse_request_param__bool(param_name="tb", default=False)
-    if problem is not None:
-        return problem
-
+def job_status(task_id):
+    """Retrieve result for job."""
     task2metadata = tasks.task_status(only_task_id=task_id)
+    resp = get_job_status(task_id, task2metadata[task_id])
+    try:
+        return jsonify(resp), HTTPStatus.OK
 
-    if len(task2metadata) == 0:
-        return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
-
-    if len(task2metadata) > 1:
+    except Exception as e:
         return (
-            jsonify({"type": "process", "detail": f"multiple ({len(task2metadata)}) records matched job ID {task_id}"}),
-            HTTPStatus.INTERNAL_SERVER_ERROR,
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
         )
 
-    huey_metadata = task2metadata[task_id]
-    return get_ogc_job_metadata_from_huey_metadata(task_id, huey_metadata, include_traceback), HTTPStatus.OK
+
+@app.route("/jobs/<task_id>/results", methods=["GET"])
+def job_results(task_id):
+    """Retrieve result for job."""
+    try:
+        result = get_job_results(task_id)
+        return jsonify(result), HTTPStatus.OK
+    except Exception as e:
+        return (
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
+        )
 
 
-@app.route("/jobs", methods=["GET"])
-def get_all_jobs():
-    """Retrieve OGC status and result for all jobs.
+@app.route("/jobs/<task_id>/metadata", methods=["GET"])
+def job_metadata(task_id):
+    """Retrieve result for job."""
+    task2metadata = tasks.task_status(only_task_id=task_id)
+    try:
+        return jsonify(task2metadata), HTTPStatus.OK
 
-    Query parameters:
-        tb: Choices are ['true', 'false']. Defaults to 'false'. If 'true', each job result's traceback will be included
-            in the response, as key 'tb'.
-    """
-    include_traceback, problem = parse_request_param__bool(param_name="tb", default=False)
-    if problem is not None:
-        return problem
-
-    task2metadata = tasks.task_status(only_task_id=None)
-    jobs = [
-        get_ogc_job_metadata_from_huey_metadata(task_id, huey_metadata, include_traceback)
-        for task_id, huey_metadata in task2metadata.items()
-    ]
-    links = []
-    ret = {"jobs": jobs, "links": links}
-    return jsonify(ret), HTTPStatus.OK
+    except Exception as e:
+        return (
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
+        )
 
 
 def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tuple]:
@@ -204,21 +206,22 @@ def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tup
         )
 
 
-def get_ogc_job_metadata_from_huey_metadata(task_id: str, huey_metadata: dict, include_traceback: bool) -> dict:
+def get_job_results(task_id: str, include_traceback: str = False) -> dict:
     """Convert huey-style task status metadata into a OGC-style result dictionary."""
     huey_result = tasks.huey.result(task_id, preserve=True)
     if include_traceback is False and huey_result is not None:
         del huey_result["tb"]  # remove the traceback
-    ogc_job_metadata = {
+    return huey_result
+
+
+def get_job_status(task_id: str, huey_metadata: dict) -> dict:
+    """Convert huey-style task status metadata into a OGC-style job summary dictionary."""
+    return {
         "jobID": task_id,
         "updated": huey_metadata["status_time"],
         "status": huey_metadata["ogc_status"],
         "processID": huey_metadata["func_name"],
-        "type": "process",
-        "submitter": "",
-        "result": huey_result,
     }
-    return ogc_job_metadata
 
 
 @app.route("/jobs/<task_id>", methods=["DELETE"])
