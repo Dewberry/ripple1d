@@ -159,7 +159,7 @@ class RippleGeopackageSubsetter:
         """Return the new NWM reach model object."""
         return NwmReachModel(self.dst_project_dir)
 
-    @log_process
+    # @log_process
     def write_ripple_gpkg(self, task_id: str = None) -> None:
         """Write the subsetted geopackage to the destination project directory."""
         os.makedirs(self.dst_project_dir, exist_ok=True)
