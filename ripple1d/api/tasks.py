@@ -1,18 +1,18 @@
 """huey instance for huey + Flask REST API (to be called by huey_consumer.py)."""
 
 import json
+import logging
 import os
 import time
 import typing
 
-import huey.signals as sigs
-from huey import SqliteHuey
+from huey import SqliteHuey, signals
 from huey.api import Result
 
-from ripple1d.api.log import initialize_log
 from ripple1d.api.utils import tracerbacker
+from ripple1d.ripple1d_logger import initialize_log
 
-LOG = initialize_log()
+initialize_log()
 
 huey = SqliteHuey(filename=os.path.join("huey.db"), results=True)
 
@@ -186,17 +186,18 @@ def ogc_status(task_id: str) -> str:
     return results[0][0]
 
 
-def noop():
+def noop(task_id: str = None):
     """Do nothing except log a message. For ping endpoint and testing."""
-    LOG.info("This message is from the noop function")
+    logging.info(f"{task_id} | noop")
     pass
 
 
-def sleep15():
+def sleep_some(sleep_time: int = 15, task_id: str = None):
     """Do nothing except log a message and then sleep for a while.  For testing."""
-    LOG.info("This message is from the sleep15 function")
-    time.sleep(15)
-    return ("Slept for 15", 123.456)
+    logging.info(f"{task_id} | sleep_some")
+    for i in range(0, sleep_time):
+        time.sleep(1)
+    return f"Slept for {sleep_time}"
 
 
 @huey.task(context=True)
@@ -214,12 +215,13 @@ def _process(func: typing.Callable, kwargs: dict = {}, task=None):
 @huey.signal()
 def _handle_signals(signal, task, exc=None):
     """Update the status in the task_status table When task emits a signal."""
+    logging.info(f"{signal} : {task.id}")
     match signal:
-        case sigs.SIGNAL_EXECUTING:
+        case signals.SIGNAL_EXECUTING:
             time_field = "start_time"
             ogc_status = "running"
 
-        case sigs.SIGNAL_COMPLETE | sigs.SIGNAL_ERROR:
+        case signals.SIGNAL_COMPLETE | signals.SIGNAL_ERROR:
             time_field = "finish_time"
             tracerbacker_return = huey.result(task.id, preserve=True)
             if tracerbacker_return is None:
@@ -230,17 +232,18 @@ def _handle_signals(signal, task, exc=None):
                 else:
                     ogc_status = "failed"
 
-        case sigs.SIGNAL_CANCELED | sigs.SIGNAL_LOCKED | sigs.SIGNAL_EXPIRED | sigs.SIGNAL_INTERRUPTED:
+        case signals.SIGNAL_CANCELED | signals.SIGNAL_LOCKED | signals.SIGNAL_EXPIRED | signals.SIGNAL_INTERRUPTED:
             time_field = "dismiss_time"
             ogc_status = "dismissed"
 
-        case sigs.SIGNAL_REVOKED:
+        case signals.SIGNAL_REVOKED:
             # Set huey status, then short-circuit without setting "ogc_status" or time field.
             # OGC status and dismiss time field are handled at time of revoke call, rather than waiting
             # for the revoke signal which happens later.
             huey.storage.sql(
                 """update "task_status" set huey_status = ? where "task_id" = ?""", (signal, task.id), True
             )
+
             return
 
         case _:  # e.g. SIGNAL_RETRYING, SIGNAL_SCHEDULED
