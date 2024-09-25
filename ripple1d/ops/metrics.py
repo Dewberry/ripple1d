@@ -76,62 +76,70 @@ class ConflationMetrics:
             )
 
             return {
-                "centerline_offset": xs_gdf["centerline_offset"].describe().round().astype(int).to_dict(),
-                "thalweg_offset": xs_gdf["thalweg_offset"].describe().round().astype(int).to_dict(),
+                "centerline_offset": xs_gdf["centerline_offset"].describe().round().fillna(-9999).astype(int).to_dict(),
+                "thalweg_offset": xs_gdf["thalweg_offset"].describe().round().fillna(-9999).astype(int).to_dict(),
             }
         except Exception as e:
             logging.error(f"{self.task_id} | network id: {self.network_id} | Error: {e}")
             logging.error(f"{self.task_id} | network id: {self.network_id} | Traceback: {traceback.format_exc()}")
 
-    def ensure_point(self, geom: Geometry):
-        """Ensure that the geometry is Point."""
-        if isinstance(geom, MultiPoint):
-            return list(geom.geoms)[0]
-        elif isinstance(geom, Point):
-            return geom
-        elif isinstance(geom, LineString):
-            return list(geom.boundary.geoms)[0]
+    def clean_length(self, length: float, meters_to_feet: bool = True):
+        """Clean the length."""
+        if length == 0:
+            length = None
+        elif np.isnan(length):
+            length = None
         else:
-            raise ValueError(f"Not a valid geometry type: {type(geom)}. Only Point, MultiPoint,LineString supported.")
+            if meters_to_feet:
+                length = int(length / METERS_PER_FOOT)
+            else:
+                length = int(length)
+        return length
+
+    def compute_station(self, river: LineString, xs: gpd.GeoDataFrame):
+        """Compute the station for a river reach."""
+        xs["intersection_point"] = xs.apply(lambda row: river.intersection(row.geometry), axis=1)
+
+        xs["station"] = xs.apply(
+            lambda row: (
+                river.project(row["intersection_point"]) if isinstance(row["intersection_point"], Point) else np.nan
+            ),
+            axis=1,
+        )
+        return self.clean_length(xs["station"].max() - xs["station"].min())
+
+    @property
+    def river_line(self):
+        """Get the geomtry for the river centerline."""
+        return self.river_gdf.iloc[0].geometry
+
+    def us_ds_xs(self, xs_gdf: gpd.GeoDataFrame):
+        """Get the most upstream and downstream cross sections."""
+
+        if len(xs_gdf["river_reach"].unique()) > 1:
+            raise ValueError("Cross sections must all be on the same river reach.")
+
+        return xs_gdf[
+            (xs_gdf["river_station"] == xs_gdf["river_station"].max())
+            | (xs_gdf["river_station"] == xs_gdf["river_station"].min())
+        ]
 
     def length_metrics(self, xs_gdf: gpd.GeoDataFrame) -> dict:
         """Calculate the reach length between cross sections along the ras river line and the network reach."""
         try:
-            xs_gdf = xs_gdf[
-                (xs_gdf["river_station"] == xs_gdf["river_station"].max())
-                | (xs_gdf["river_station"] == xs_gdf["river_station"].min())
-            ]
-            xs_gdf["network_intersection_point"] = xs_gdf.apply(
-                lambda row: self.network_reach_plus_ds_reach.intersection(row.geometry), axis=1
-            )
-            xs_gdf["network_intersection_point"] = xs_gdf.apply(
-                lambda row: self.ensure_point(row["network_intersection_point"]), axis=1
-            )
+            xs = self.us_ds_xs(xs_gdf)
+            network_length = self.compute_station(self.network_reach_plus_ds_reach, xs)
+            ras_length = self.compute_station(self.river_line, xs)
 
-            xs_gdf["network_station"] = xs_gdf.apply(
-                lambda row: self.network_reach_plus_ds_reach.project(row["network_intersection_point"]), axis=1
-            )
-            network_length = xs_gdf["network_station"].max() - xs_gdf["network_station"].min()
-
-            if len(xs_gdf["river_reach"].unique()) > 1:
-                raise ValueError("Cross sections must all be on the same river reach.")
+            if ras_length is None or network_length is None:
+                network_ras_ratio = None
             else:
-                river_line = self.river_gdf.loc[
-                    self.river_gdf["river_reach"] == xs_gdf["river_reach"].iloc[0], "geometry"
-                ].iloc[0]
-                xs_gdf["ras_intersection_point"] = xs_gdf.apply(
-                    lambda row: river_line.intersection(row.geometry), axis=1
-                )
-                xs_gdf["ras_station"] = xs_gdf.apply(
-                    lambda row: river_line.project(row["ras_intersection_point"]), axis=1
-                )
-                ras_length = xs_gdf["ras_station"].max() - xs_gdf["ras_station"].min()
+                network_ras_ratio = round(float(network_length / ras_length), 2)
 
-                network_ras_ratio = network_length / ras_length
             return {
-                "ras": int(ras_length / METERS_PER_FOOT),
-                "network": int(network_length / METERS_PER_FOOT),
-                "network_to_ras_ratio": round(float(network_ras_ratio), 2),
+                "ras": ras_length,
+                "network": network_length,
+                "network_to_ras_ratio": network_ras_ratio,
             }
         except Exception as e:
             logging.error(f"{self.task_id} | network id: {self.network_id} | Error: {e}")
@@ -160,12 +168,7 @@ class ConflationMetrics:
         geom_name = to_reaches.geometry.name
         for i, row in to_reaches.iterrows():
             if row[geom_name].intersects(self.xs_gdf.union_all()):
-                overlap = (
-                    row[geom_name]
-                    .intersection(xs_concave_hull(fix_reversed_xs(self.xs_gdf, self.river_gdf))["geometry"].iloc[0])
-                    .length
-                    / METERS_PER_FOOT
-                )
+                overlap = row[geom_name].intersection(self.hull_gdf["geometry"].iloc[0]).length / METERS_PER_FOOT
                 return [{"id": str(row["ID"]), "overlap": int(overlap)}]
         return []
 
@@ -173,11 +176,7 @@ class ConflationMetrics:
         """Calculate the overlap between the network reach and the cross sections."""
         if network_reaches.empty:
             return []
-        eclipsed_reaches = network_reaches[
-            network_reaches.covered_by(
-                xs_concave_hull(fix_reversed_xs(self.xs_gdf, self.river_gdf))["geometry"].iloc[0]
-            )
-        ]
+        eclipsed_reaches = network_reaches[network_reaches.covered_by(self.hull_gdf["geometry"].iloc[0])]
 
         return [str(row["ID"]) for _, row in eclipsed_reaches.iterrows()]
 
@@ -191,13 +190,12 @@ class ConflationMetrics:
             xs_gdf["intersection_point"] = xs_gdf.apply(
                 lambda row: self.network_reach_plus_ds_reach.intersection(row.geometry), axis=1
             )
-            xs_gdf["intersection_point"] = xs_gdf.apply(
-                lambda row: self.ensure_point(row["intersection_point"]), axis=1
-            )
-
             xs_gdf["station_percent"] = xs_gdf.apply(
-                lambda row: self.network_reach_plus_ds_reach.project(row["intersection_point"])
-                / self.network_reach.length,
+                lambda row: (
+                    self.network_reach_plus_ds_reach.project(row["intersection_point"]) / self.network_reach.length
+                    if isinstance(row["intersection_point"], Point)
+                    else np.nan
+                ),
                 axis=1,
             )
             return {
