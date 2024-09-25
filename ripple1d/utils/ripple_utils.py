@@ -213,7 +213,9 @@ def determine_xs_order(row: gpd.GeoSeries, junction_xs: gpd.gpd.GeoDataFrame):
     """Detemine what order cross sections bounding a junction should be in to produce a valid polygon."""
     candidate_lines = junction_xs[junction_xs["river_reach_rs"] != row["river_reach_rs"]]
     candidate_lines["distance"] = candidate_lines["start"].distance(row.end)
-    return candidate_lines.loc[candidate_lines["distance"] == candidate_lines["distance"].min()].geometry.iloc[0]
+    return candidate_lines.loc[candidate_lines["distance"] == candidate_lines["distance"].min(), "river_reach_rs"].iloc[
+        0
+    ]
 
 
 def junction_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
@@ -223,11 +225,17 @@ def junction_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataF
     print(type(junction_xs))
     junction_xs["start"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[0], axis=1)
     junction_xs["end"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[1], axis=1)
-    junction_xs["ordered_lines"] = junction_xs.apply(lambda row: determine_xs_order(row, junction_xs), axis=1)
+    junction_xs["to_line"] = junction_xs.apply(lambda row: determine_xs_order(row, junction_xs), axis=1)
 
     coords = []
-    for _, row in junction_xs.iterrows():
-        coords += list(row["ordered_lines"].coords)
+    first_to_line = junction_xs["to_line"].iloc[0]
+    to_line = first_to_line
+    while True:
+        xs = junction_xs[junction_xs["river_reach_rs"] == to_line]
+        coords += list(xs.iloc[0].geometry.coords)
+        to_line = xs["to_line"].iloc[0]
+        if to_line == first_to_line:
+            break
     return Polygon(coords)
 
 
