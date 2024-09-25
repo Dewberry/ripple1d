@@ -109,26 +109,36 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
                     truncate_distance += 100
                     ras_start_point = river.interpolate(truncate_distance)
 
-                ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
-            except ValueError as e:
-                logging.error(f"Error: {e}")
+                    logging.debug(
+                        f"truncate_distance: {truncate_distance} | length {ras_start_point} |  river reach: {river_reach_name}"
+                    )
+            if us_most_reach_id is None:
                 continue
 
-        logging.info(
-            f"{task_id} | {river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
-        )
+            try:
+                ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
+            except:
+                logging.info(f"Could not identifiy a network reach near the downstream end of {river_reach_name}")
+                continue
 
-        # walk network to get the potential reach ids
-        potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
-        potential_reach_path = list(set(potential_reach_path) - set(metadata.keys()))
+            logging.info(
+                f"{task_id} | {river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
+            )
 
-        # get gdf of the candidate reaches
-        candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
+            # walk network to get the potential reach ids
+            potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id, river_reach_name)
+            potential_reach_path = list(set(potential_reach_path) - set(metadata.keys()))
 
-        metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
+            # get gdf of the candidate reaches
+            candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-    if not conflated(metadata):
-        return f"{task_id} | no reaches conflated"
+            metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches, river_reach_name, task_id))
+        except Exception as e:
+            logging.error(f"{task_id} | river-reach: {river_reach_name} | Error: {e}")
+            logging.error(f"{task_id} | river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
+
+    # if not conflated(metadata):
+    #     return f"{task_id} | no reaches conflated"
 
     ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
@@ -166,10 +176,10 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
         f.write(json.dumps(metadata, indent=4))
 
     try:
-        compute_conflation_metrics(source_model_directory, source_network)
+        compute_conflation_metrics(source_model_directory, source_network, task_id)
     except Exception as e:
         logging.error(f"{task_id} | Error: {e}")
-        logging.error(f"{task_id} | traceback: {traceback.format_exc()}")
+        logging.error(f"{task_id} | Traceback: {traceback.format_exc()}")
 
     logging.info(f"{task_id} | conflate_model complete")
     return conflation_file

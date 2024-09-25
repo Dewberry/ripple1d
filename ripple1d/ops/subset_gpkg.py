@@ -19,7 +19,7 @@ from ripple1d.utils.ripple_utils import clip_ras_centerline, fix_reversed_xs, xs
 class RippleGeopackageSubsetter:
     """Subset a geopackage based on conflation with NWM hydrofabric."""
 
-    def __init__(self, src_gpkg_path: str, conflation_json: str, dst_project_dir: str, nwm_id: str):
+    def __init__(self, src_gpkg_path: str, conflation_json: str, dst_project_dir: str, nwm_id: str = None):
 
         self.src_gpkg_path = src_gpkg_path
         self.conflation_json = conflation_json
@@ -401,9 +401,12 @@ class RippleGeopackageSubsetter:
         for intermediate_river_reach in intermediate_river_reaches:
             xs_intermediate_river_reach = self.source_xs.loc[self.source_xs["river_reach"] == intermediate_river_reach]
             if xs_us_reach["river_station"].min() <= xs_intermediate_river_reach["river_station"].max():
-                logging.warning(
-                    f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
-                    f" than the highest river station on the intermediate reach ({xs_intermediate_river_reach['river_station'].max()}) for nwm_id: {self.nwm_id}"
+                logging.info(
+                    f"The lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
+                    f" than the highest river station on the intermediate reach"
+                    f"({xs_intermediate_river_reach['river_station'].max()}) for nwm_id: {self.nwm_id}. The river"
+                    f" stationing of the upstream reach will be updated to ensure river stationings increase from"
+                    "downstream to upstream"
                 )
                 xs_us_reach["river_station"] = (
                     xs_us_reach["river_station"] + xs_intermediate_river_reach["river_station"].max()
@@ -419,7 +422,7 @@ class RippleGeopackageSubsetter:
     def adjust_river_stations(self, xs_us_reach, structures_us_reach) -> tuple:
         """Adjust river stations of the upstream reach if the min river station of the upstream reach is less than the max river station of the downstream reach."""
         if xs_us_reach["river_station"].min() <= self.xs_ds_reach["river_station"].max():
-            logging.warning(
+            logging.info(
                 f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
                 f" than the highest river station on the downstream reach ({self.xs_ds_reach['river_station'].max()}) for nwm_id: {self.nwm_id}"
             )

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sqlite3
+import traceback
 from collections import OrderedDict
 from typing import List, Tuple
 
@@ -556,7 +557,7 @@ def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "I
 
 
 # analytical functions
-def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int]:
+def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach_name: str) -> List[int]:
     """Walk the network from the start ID to the stop ID."""
     current_id = start_id
     ids = [current_id]
@@ -565,7 +566,9 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int
         result = gdf.query(f"ID == {current_id}")
 
         if result.empty:
-            logging.error(f"No row found with ID = {current_id}")
+            logging.error(
+                f"No row found with ID = {current_id} | start_id: {start_id} | stop_id: {stop_id} | RAS river-reach: {river_reach_name}"
+            )
             break
 
         to_value = result.iloc[0]["to_id"]
@@ -750,7 +753,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
             )
         except ValueError as e:
             ds_data = ras_xs_geometry_data(rfc, ds_xs)
-            logging.warning(f"No downstream XS's: {e}")
+            logging.debug(f"No downstream XS's: {e}")
 
     # if it is not the most downstream xs on this ras reach then compute the next downstream river station and determine the id
     else:
@@ -773,17 +776,22 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 
 
-def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame):
+def ras_reaches_metadata(
+    rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame, river_reach_name: str, task_id: str
+):
     """Return the metadata for the RAS reaches."""
     reach_metadata = OrderedDict()
     hulls = []
     for reach in candidate_reaches.itertuples():
-        # logging.debug(f"REACH: {reach.ID}")
-
-        # get the xs data for the reach
-        ras_xs_data = map_reach_xs(rfc, reach)
-
-        reach_metadata[reach.ID] = ras_xs_data
+        try:
+            # get the xs data for the reach
+            ras_xs_data = map_reach_xs(rfc, reach)
+            reach_metadata[reach.ID] = ras_xs_data
+        except Exception as e:
+            logging.error(f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Error: {e}")
+            logging.error(
+                f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Traceback: {traceback.format_exc()}"
+            )
 
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
