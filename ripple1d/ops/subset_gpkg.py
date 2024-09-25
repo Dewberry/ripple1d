@@ -7,7 +7,8 @@ import os
 import fiona
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import LineString
+from shapely import LineString
+from shapely.ops import split
 
 import ripple1d
 from ripple1d.consts import METERS_PER_FOOT
@@ -245,9 +246,7 @@ class RippleGeopackageSubsetter:
             if gdf.shape[0] > 0:
                 gdf.to_file(self.ripple_gpkg_file, layer=layer)
                 if layer == "XS":
-                    xs_concave_hull(fix_reversed_xs(gdf, self.subset_gdfs["River"])).to_file(
-                        self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull"
-                    )
+                    self.ripple_xs_concave_hull.to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
 
     @property
     def min_flow(self) -> float:
@@ -276,7 +275,14 @@ class RippleGeopackageSubsetter:
         """Check if junctions are present for the given river-reaches."""
         river_reaches = []
         if not self.source_junction.empty:
+            c = 0
             while True:
+                c += 1
+                if c > 100:
+                    logging.warning(
+                        f"Could not find junction for: {self.nwm_id}. The reach may contain cross sections from multiple RAS reaches that are not connected via junctions."
+                    )
+                    return None
 
                 for _, row in self.source_junction.iterrows():
 
