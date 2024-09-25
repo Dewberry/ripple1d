@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sqlite3
+import traceback
 from collections import OrderedDict
 from typing import List, Tuple
 
@@ -14,10 +15,16 @@ import pandas as pd
 import pyproj
 from fiona.errors import DriverError
 from shapely import LineString, MultiLineString, MultiPoint, Point, Polygon, box, reverse
-from shapely.ops import linemerge, nearest_points, transform
+from shapely.ops import linemerge, nearest_points, split, transform
 
 from ripple1d.consts import METERS_PER_FOOT
-from ripple1d.utils.ripple_utils import check_xs_direction, fix_reversed_xs, validate_point, xs_concave_hull
+from ripple1d.utils.ripple_utils import (
+    check_xs_direction,
+    clip_ras_centerline,
+    fix_reversed_xs,
+    validate_point,
+    xs_concave_hull,
+)
 
 HIGH_FLOW_FACTOR = 1.2
 
@@ -355,11 +362,12 @@ class RasFimConflater:
 
     def ras_xs_convex_hull(self, river_reach_name: str = None):
         """Return the convex hull of the cross sections."""
+        lines = pd.concat([self.ras_xs, self.ras_centerlines])
         if river_reach_name:
-            polygon = self.ras_xs["geometry"].union_all().convex_hull
+            polygon = lines[lines["river_reach"] == river_reach_name]["geometry"].union_all().convex_hull
 
         else:
-            polygon = self.ras_xs["geometry"].union_all().convex_hull
+            polygon = lines["geometry"].union_all().convex_hull
 
         return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=self.ras_xs.crs)
 
@@ -380,15 +388,19 @@ class RasFimConflater:
         """NWM reaches."""
         return self._nwm_reaches
 
-    def local_nwm_reaches(self, river_reach_name: str = None) -> gpd.GeoDataFrame:
+    def local_nwm_reaches(self, river_reach_name: str = None, buffer=0) -> gpd.GeoDataFrame:
         """NWM reaches that intersect the RAS cross sections."""
         if river_reach_name:
 
             return self.nwm_reaches[
-                self.nwm_reaches.intersects(self.ras_xs_convex_hull(river_reach_name)["geometry"].iloc[0])
+                self.nwm_reaches.intersects(
+                    self.ras_xs_convex_hull(river_reach_name)["geometry"].iloc[0].buffer(buffer)
+                )
             ]
         else:
-            return self.nwm_reaches[self.nwm_reaches.intersects(self.ras_xs_convex_hull()["geometry"].iloc[0])]
+            return self.nwm_reaches[
+                self.nwm_reaches.intersects(self.ras_xs_convex_hull()["geometry"].iloc[0].buffer(buffer))
+            ]
 
     @property
     def local_gages(self) -> dict:
@@ -431,23 +443,26 @@ class RasFimConflater:
 
     @check_centerline
     def ras_start_end_points(
-        self, river_reach_name: str = None, centerline=None, clip_to_xs=False
+        self, river_reach_name: str = None, centerline=None, clip_to_xs=False, buffer=0
     ) -> Tuple[Point, Point]:
-        """River_reach_name used by the decorator to get the centerline."""
-        if river_reach_name:
-            centerline = self.ras_centerline_by_river_reach_name(river_reach_name, clip_to_xs)
-        return endpoints_from_multiline(centerline)
+        """
+        Get the start and end points for a RAS centerline.
 
-    def ras_centerline_by_river_reach_name(self, river_reach_name: str, clip_to_xs=False) -> LineString:
+        If clip_to_xs is True try to clip the centerline to the most upstream and downstream cross sections.
+        If this fails then return the original centerline.
+        """
+        if river_reach_name:
+            centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
+            try:
+                if clip_to_xs:
+                    centerline = clip_ras_centerline(centerline, self.xs_by_river_reach_name(river_reach_name), buffer)
+                return endpoints_from_multiline(centerline)
+            except Exception as e:
+                return endpoints_from_multiline(centerline)
+
+    def ras_centerline_by_river_reach_name(self, river_reach_name: str) -> LineString:
         """Return the centerline for the specified river reach."""
-        if clip_to_xs:
-            return (
-                self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name]
-                .geometry.iloc[0]
-                .intersection(self.ras_xs_concave_hull(river_reach_name).geometry.iloc[0].buffer(1))
-            )
-        else:
-            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
+        return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
 
     def xs_by_river_reach_name(self, river_reach_name: str) -> gpd.GeoDataFrame:
         """Return the cross sections for the specified river reach."""
@@ -472,16 +487,22 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
         merged_line = linemerge(mline)
     else:
         merged_line = mline
+    if isinstance(merged_line, MultiLineString):  # if line is still multilinestring raise error
+        raise TypeError(f"Could not convert {type(merged_line)} to LineString")
+
     start_point, end_point = merged_line.coords[0], merged_line.coords[-1]
     return Point(start_point), Point(end_point)
 
 
-def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID") -> int:
+def nearest_line_to_point(
+    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", start_reach_distance: int = 1e9
+) -> int:
     """Return the ID of the line closest to the point."""
     if not column_id in lines.columns:
         raise ValueError(f"required `ID` column not found in GeoDataFrame with columns: {lines.columns}")
 
-    start_reach_distance = 1e9
+    limit = start_reach_distance * 0.9
+    # start_reach_distance = 100  # 1e9
     start_reach_id = None
     for _, row in lines.iterrows():
         start_distance = row["geometry"].distance(point)
@@ -489,7 +510,7 @@ def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str 
             start_reach_distance = start_distance
             start_reach_id = row[column_id]
 
-    if start_reach_distance > 1e8:
+    if start_reach_distance >= limit:  # 1e8:
         raise ValueError(
             f"Unable to associate reach with point, minimum distance for {start_reach_id} : {start_reach_distance}"
         )
@@ -536,7 +557,7 @@ def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "I
 
 
 # analytical functions
-def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int]:
+def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach_name: str) -> List[int]:
     """Walk the network from the start ID to the stop ID."""
     current_id = start_id
     ids = [current_id]
@@ -545,7 +566,9 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int
         result = gdf.query(f"ID == {current_id}")
 
         if result.empty:
-            logging.error(f"No row found with ID = {current_id}")
+            logging.error(
+                f"No row found with ID = {current_id} | start_id: {start_id} | stop_id: {stop_id} | RAS river-reach: {river_reach_name}"
+            )
             break
 
         to_value = result.iloc[0]["to_id"]
@@ -730,7 +753,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
             )
         except ValueError as e:
             ds_data = ras_xs_geometry_data(rfc, ds_xs)
-            logging.warning(f"No downstream XS's: {e}")
+            logging.debug(f"No downstream XS's: {e}")
 
     # if it is not the most downstream xs on this ras reach then compute the next downstream river station and determine the id
     else:
@@ -753,17 +776,22 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 
 
-def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame):
+def ras_reaches_metadata(
+    rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame, river_reach_name: str, task_id: str
+):
     """Return the metadata for the RAS reaches."""
     reach_metadata = OrderedDict()
     hulls = []
     for reach in candidate_reaches.itertuples():
-        # logging.debug(f"REACH: {reach.ID}")
-
-        # get the xs data for the reach
-        ras_xs_data = map_reach_xs(rfc, reach)
-
-        reach_metadata[reach.ID] = ras_xs_data
+        try:
+            # get the xs data for the reach
+            ras_xs_data = map_reach_xs(rfc, reach)
+            reach_metadata[reach.ID] = ras_xs_data
+        except Exception as e:
+            logging.error(f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Error: {e}")
+            logging.error(
+                f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Traceback: {traceback.format_exc()}"
+            )
 
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]

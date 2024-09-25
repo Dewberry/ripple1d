@@ -7,6 +7,7 @@ from shapely.ops import linemerge
 
 from ripple1d.ops.metrics import ConflationMetrics, combine_reaches, compute_conflation_metrics
 from ripple1d.ops.subset_gpkg import RippleGeopackageSubsetter
+from ripple1d.utils.ripple_utils import fix_reversed_xs
 
 # Expected counts
 NETWORK_REACHES = 1
@@ -59,7 +60,15 @@ def setup_data(request):
     network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(NETWORK_REACH_ID)].geometry.iloc[0])
     network_reach_plus_ds_reach = combine_reaches(network_reaches, NETWORK_REACH_ID)
 
-    cm = ConflationMetrics(layers["XS"], layers["River"], network_reach, network_reach_plus_ds_reach)
+    cm = ConflationMetrics(
+        fix_reversed_xs(layers["XS"], layers["River"]),
+        layers["River"],
+        rgs.ripple_xs_concave_hull,
+        network_reach,
+        network_reach_plus_ds_reach,
+        "",
+        NETWORK_REACH_ID,
+    )
     request.cls.rgs = rgs
     request.cls.cm = cm
     request.cls.network_reaches = network_reaches

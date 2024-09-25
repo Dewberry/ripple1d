@@ -23,6 +23,7 @@ from shapely import (
     reverse,
     union_all,
 )
+from shapely.ops import split, substring
 
 from ripple1d.errors import (
     RASComputeError,
@@ -33,6 +34,34 @@ from ripple1d.errors import (
 from ripple1d.utils.s3_utils import list_keys
 
 load_dotenv(find_dotenv())
+
+
+def clip_ras_centerline(centerline: LineString, xs: gpd.GeoDataFrame, buffer_distance: float = 0):
+    """Clip RAS centeline to the most upstream and downstream cross sections."""
+    us_xs, ds_xs = us_ds_xs(xs)
+
+    us_offset = us_xs.offset_curve(-buffer_distance)
+    ds_offset = ds_xs.offset_curve(buffer_distance)
+
+    if centerline.intersects(us_offset):
+        start_station = centerline.project(validate_point(centerline.intersection(us_offset)))
+    else:
+        start_station = 0
+
+    if centerline.intersects(ds_offset):
+        stop_station = centerline.project(validate_point(centerline.intersection(ds_offset)))
+    else:
+        stop_station = centerline.length
+
+    return substring(centerline, start_station, stop_station)
+
+
+def us_ds_xs(xs: gpd.GeoDataFrame):
+    """Get most upstream and downstream cross sections."""
+    return (
+        xs[xs["river_station"] == xs["river_station"].max()].geometry.iloc[0],
+        xs[xs["river_station"] == xs["river_station"].min()].geometry.iloc[0],
+    )
 
 
 def prj_is_ras(path: str):
@@ -100,8 +129,10 @@ def validate_point(geom):
         return geom.geoms[0]
     elif isinstance(geom, LineString) and list(geom.coords):
         return Point(geom.coords[0])
+    elif geom.is_empty:
+        raise IndexError(f"expected point at xs-river intersection got: {type(geom)} | {geom}")
     else:
-        raise TypeError(f"expected point at xs-river intersection got: {type(geom)}")
+        raise TypeError(f"expected point at xs-river intersection got: {type(geom)} | {geom}")
 
 
 def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
@@ -114,16 +145,26 @@ def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
             xs_rs = reach.project(point)
 
             offset = xs.geometry.offset_curve(-1)
-            point = reach.intersection(offset)
-            point = validate_point(point)
+            if reach.intersects(offset):  # if the offset line intersects then use this logic
+                point = reach.intersection(offset)
+                point = validate_point(point)
 
-            offset_rs = reach.project(point)
-            if xs_rs > offset_rs:
-                river_reach_rs.append(xs["river_reach_rs"])
+                offset_rs = reach.project(point)
+                if xs_rs > offset_rs:
+                    river_reach_rs.append(xs["river_reach_rs"])
+            else:  # if the original offset line did not intersect then try offsetting the other direction and applying
+                # the opposite stationing logic; the orginal line may have gone beyound the other line.
+                offset = xs.geometry.offset_curve(1)
+                point = reach.intersection(offset)
+                point = validate_point(point)
 
-        except TypeError as e:
-            logging.warning(
-                f"could not validate xs-river intersection for: {xs['river']} {xs['reach']} {xs['river_station']}"
+                offset_rs = reach.project(point)
+                if xs_rs < offset_rs:
+                    river_reach_rs.append(xs["river_reach_rs"])
+
+        except IndexError as e:
+            logging.debug(
+                f"cross section does not intersect river-reach: {xs['river']} {xs['reach']} {xs['river_station']}: error: {e}"
             )
             continue
     return cross_sections.loc[cross_sections["river_reach_rs"].isin(river_reach_rs)]
@@ -172,7 +213,9 @@ def determine_xs_order(row: gpd.GeoSeries, junction_xs: gpd.gpd.GeoDataFrame):
     """Detemine what order cross sections bounding a junction should be in to produce a valid polygon."""
     candidate_lines = junction_xs[junction_xs["river_reach_rs"] != row["river_reach_rs"]]
     candidate_lines["distance"] = candidate_lines["start"].distance(row.end)
-    return candidate_lines.loc[candidate_lines["distance"] == candidate_lines["distance"].min()].geometry.iloc[0]
+    return candidate_lines.loc[candidate_lines["distance"] == candidate_lines["distance"].min(), "river_reach_rs"].iloc[
+        0
+    ]
 
 
 def junction_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
@@ -182,11 +225,17 @@ def junction_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataF
     print(type(junction_xs))
     junction_xs["start"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[0], axis=1)
     junction_xs["end"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[1], axis=1)
-    junction_xs["ordered_lines"] = junction_xs.apply(lambda row: determine_xs_order(row, junction_xs), axis=1)
+    junction_xs["to_line"] = junction_xs.apply(lambda row: determine_xs_order(row, junction_xs), axis=1)
 
     coords = []
-    for _, row in junction_xs.iterrows():
-        coords += list(row["ordered_lines"].coords)
+    first_to_line = junction_xs["to_line"].iloc[0]
+    to_line = first_to_line
+    while True:
+        xs = junction_xs[junction_xs["river_reach_rs"] == to_line]
+        coords += list(xs.iloc[0].geometry.coords)
+        to_line = xs["to_line"].iloc[0]
+        if to_line == first_to_line:
+            break
     return Polygon(coords)
 
 
