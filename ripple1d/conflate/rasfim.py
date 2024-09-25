@@ -355,11 +355,12 @@ class RasFimConflater:
 
     def ras_xs_convex_hull(self, river_reach_name: str = None):
         """Return the convex hull of the cross sections."""
+        lines = pd.concat([self.ras_xs, self.ras_centerlines])
         if river_reach_name:
-            polygon = self.ras_xs["geometry"].union_all().convex_hull
+            polygon = lines[lines["river_reach"] == river_reach_name]["geometry"].union_all().convex_hull
 
         else:
-            polygon = self.ras_xs["geometry"].union_all().convex_hull
+            polygon = lines["geometry"].union_all().convex_hull
 
         return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=self.ras_xs.crs)
 
@@ -380,15 +381,19 @@ class RasFimConflater:
         """NWM reaches."""
         return self._nwm_reaches
 
-    def local_nwm_reaches(self, river_reach_name: str = None) -> gpd.GeoDataFrame:
+    def local_nwm_reaches(self, river_reach_name: str = None, buffer=0) -> gpd.GeoDataFrame:
         """NWM reaches that intersect the RAS cross sections."""
         if river_reach_name:
 
             return self.nwm_reaches[
-                self.nwm_reaches.intersects(self.ras_xs_convex_hull(river_reach_name)["geometry"].iloc[0])
+                self.nwm_reaches.intersects(
+                    self.ras_xs_convex_hull(river_reach_name)["geometry"].iloc[0].buffer(buffer)
+                )
             ]
         else:
-            return self.nwm_reaches[self.nwm_reaches.intersects(self.ras_xs_convex_hull()["geometry"].iloc[0])]
+            return self.nwm_reaches[
+                self.nwm_reaches.intersects(self.ras_xs_convex_hull()["geometry"].iloc[0].buffer(buffer))
+            ]
 
     @property
     def local_gages(self) -> dict:
