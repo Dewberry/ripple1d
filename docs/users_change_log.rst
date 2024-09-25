@@ -3,7 +3,15 @@ Change Log for Users
 
 Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`_  page for a list of all releases.
 
-Feature Release 0.6.1
+Bugfix Release 0.6.2
+~~~~~~~~~~~~~~~~~~~~~
+
+Users Changelog
+----------------
+This release of `ripple1d` fixes several bugs associated with conflation. To aid in identifying and fixing these bugs, improvements were made in the logging for the conflation endpoint. In summary, the fixes and changes incorporated in this PR improve the consistency and quality of the conflation process, computations, and metrics in genera with special attention for handling junctions and headwater reaches.
+
+
+Bugfix Release 0.6.1
 ~~~~~~~~~~~~~~~~~~~~~
 
 Users Changelog
