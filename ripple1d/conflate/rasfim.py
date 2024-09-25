@@ -486,16 +486,22 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
         merged_line = linemerge(mline)
     else:
         merged_line = mline
+    if isinstance(merged_line, MultiLineString):  # if line is still multilinestring raise error
+        raise TypeError(f"Could not convert {type(merged_line)} to LineString")
+
     start_point, end_point = merged_line.coords[0], merged_line.coords[-1]
     return Point(start_point), Point(end_point)
 
 
-def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID") -> int:
+def nearest_line_to_point(
+    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", start_reach_distance: int = 1e9
+) -> int:
     """Return the ID of the line closest to the point."""
     if not column_id in lines.columns:
         raise ValueError(f"required `ID` column not found in GeoDataFrame with columns: {lines.columns}")
 
-    start_reach_distance = 1e9
+    limit = start_reach_distance * 0.9
+    # start_reach_distance = 100  # 1e9
     start_reach_id = None
     for _, row in lines.iterrows():
         start_distance = row["geometry"].distance(point)
@@ -503,7 +509,7 @@ def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str 
             start_reach_distance = start_distance
             start_reach_id = row[column_id]
 
-    if start_reach_distance > 1e8:
+    if start_reach_distance >= limit:  # 1e8:
         raise ValueError(
             f"Unable to associate reach with point, minimum distance for {start_reach_id} : {start_reach_distance}"
         )
