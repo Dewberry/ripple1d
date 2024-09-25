@@ -23,6 +23,7 @@ from shapely import (
     reverse,
     union_all,
 )
+from shapely.ops import split, substring
 
 from ripple1d.errors import (
     RASComputeError,
@@ -33,6 +34,34 @@ from ripple1d.errors import (
 from ripple1d.utils.s3_utils import list_keys
 
 load_dotenv(find_dotenv())
+
+
+def clip_ras_centerline(centerline: LineString, xs: gpd.GeoDataFrame, buffer_distance: float = 0):
+    """Clip RAS centeline to the most upstream and downstream cross sections."""
+    us_xs, ds_xs = us_ds_xs(xs)
+
+    us_offset = us_xs.offset_curve(-buffer_distance)
+    ds_offset = ds_xs.offset_curve(buffer_distance)
+
+    if centerline.intersects(us_offset):
+        start_station = centerline.project(validate_point(centerline.intersection(us_offset)))
+    else:
+        start_station = 0
+
+    if centerline.intersects(ds_offset):
+        stop_station = centerline.project(validate_point(centerline.intersection(ds_offset)))
+    else:
+        stop_station = centerline.length
+
+    return substring(centerline, start_station, stop_station)
+
+
+def us_ds_xs(xs: gpd.GeoDataFrame):
+    """Get most upstream and downstream cross sections."""
+    return (
+        xs[xs["river_station"] == xs["river_station"].max()].geometry.iloc[0],
+        xs[xs["river_station"] == xs["river_station"].min()].geometry.iloc[0],
+    )
 
 
 def prj_is_ras(path: str):

@@ -13,7 +13,7 @@ import ripple1d
 from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
 from ripple1d.ripple1d_logger import log_process
-from ripple1d.utils.ripple_utils import fix_reversed_xs, xs_concave_hull
+from ripple1d.utils.ripple_utils import clip_ras_centerline, fix_reversed_xs, xs_concave_hull
 
 
 class RippleGeopackageSubsetter:
@@ -140,7 +140,9 @@ class RippleGeopackageSubsetter:
             ripple_structure = self.update_fields(ripple_structure)
 
             # clip river to cross sections
-            ripple_river = self.clip_river(ripple_xs, ripple_river)
+            ripple_river["geometry"] = clip_ras_centerline(
+                ripple_river.iloc[0].geometry, fix_reversed_xs(ripple_xs, ripple_river), 2
+            )
 
             if ripple_structure is not None and len(ripple_structure) > 0:
                 self._subset_gdf = {"XS": ripple_xs, "River": ripple_river, "Structure": ripple_structure}
@@ -442,32 +444,6 @@ class RippleGeopackageSubsetter:
                     gdf["ras_data"] = gdf["ras_data"].apply(lambda ras_data: self.clean_river_stations(ras_data))
                     gdf["river_station"] = gdf["river_station"].astype(float)
         return gdf
-
-    def clip_river(self, xs_subset_gdf: gpd.GeoDataFrame, river_subset_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-        """Clip the river to the concave hull of the cross sections."""
-        crs = xs_subset_gdf.crs
-
-        buffer = 10
-        while True:
-            concave_hull = (
-                xs_concave_hull(fix_reversed_xs(xs_subset_gdf, river_subset_gdf))
-                .to_crs(epsg=5070)
-                .buffer(buffer * METERS_PER_FOOT)
-                .to_crs(crs)
-            )
-            clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
-
-            buffer += 10
-            if len(clipped_river_subset_gdf) == 1 & xs_subset_gdf.intersects(
-                clipped_river_subset_gdf["geometry"].iloc[0]
-            ).all() & isinstance(clipped_river_subset_gdf["geometry"].iloc[0], LineString):
-                return clipped_river_subset_gdf
-
-            if buffer > 10000:
-                raise ValueError(
-                    f"buffer too large (>10000ft) for clipping river to concave hull of cross sections. Check data for NWM Reach: {self.nwm_id}."
-                )
-                break
 
     def update_ripple1d_parameters(self, rsd: RippleSourceDirectory):
         """Update ripple1d_parameters with results of subsetting."""
