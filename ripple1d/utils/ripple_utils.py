@@ -129,8 +129,10 @@ def validate_point(geom):
         return geom.geoms[0]
     elif isinstance(geom, LineString) and list(geom.coords):
         return Point(geom.coords[0])
+    elif geom.is_empty:
+        raise IndexError(f"expected point at xs-river intersection got: {type(geom)} | {geom}")
     else:
-        raise TypeError(f"expected point at xs-river intersection got: {type(geom)}")
+        raise TypeError(f"expected point at xs-river intersection got: {type(geom)} | {geom}")
 
 
 def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
@@ -143,16 +145,26 @@ def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
             xs_rs = reach.project(point)
 
             offset = xs.geometry.offset_curve(-1)
-            point = reach.intersection(offset)
-            point = validate_point(point)
+            if reach.intersects(offset):  # if the offset line intersects then use this logic
+                point = reach.intersection(offset)
+                point = validate_point(point)
 
-            offset_rs = reach.project(point)
-            if xs_rs > offset_rs:
-                river_reach_rs.append(xs["river_reach_rs"])
+                offset_rs = reach.project(point)
+                if xs_rs > offset_rs:
+                    river_reach_rs.append(xs["river_reach_rs"])
+            else:  # if the original offset line did not intersect then try offsetting the other direction and applying
+                # the opposite stationing logic; the orginal line may have gone beyound the other line.
+                offset = xs.geometry.offset_curve(1)
+                point = reach.intersection(offset)
+                point = validate_point(point)
 
-        except TypeError as e:
-            logging.warning(
-                f"could not validate xs-river intersection for: {xs['river']} {xs['reach']} {xs['river_station']}"
+                offset_rs = reach.project(point)
+                if xs_rs < offset_rs:
+                    river_reach_rs.append(xs["river_reach_rs"])
+
+        except IndexError as e:
+            logging.debug(
+                f"cross section does not intersect river-reach: {xs['river']} {xs['reach']} {xs['river_station']}: error: {e}"
             )
             continue
     return cross_sections.loc[cross_sections["river_reach_rs"].isin(river_reach_rs)]
