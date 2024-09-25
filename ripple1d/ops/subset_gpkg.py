@@ -395,7 +395,7 @@ class RippleGeopackageSubsetter:
                 & (self.source_structure["river_station"] >= float(self.ds_rs))
             ]
 
-    def add_intermediate_river_reaches(self, xs_us_reach: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def add_intermediate_river_reaches(self, intermediate_river_reaches) -> gpd.GeoDataFrame:
         """Add intermediate river reaches to the xs_us_reach."""
         xs_us_reach = self.xs_us_reach.copy()
         for intermediate_river_reach in intermediate_river_reaches:
@@ -449,7 +449,7 @@ class RippleGeopackageSubsetter:
 
         # add intermediate river reaches to the upstream reach
         if intermediate_river_reaches:
-            xs_us_reach = self.add_intermediate_river_reaches()
+            xs_us_reach = self.add_intermediate_river_reaches(intermediate_river_reaches)
         else:
             xs_us_reach = self.xs_us_reach.copy()
 
