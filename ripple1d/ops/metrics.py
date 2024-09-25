@@ -24,6 +24,7 @@ class ConflationMetrics:
         self,
         xs_gdf: gpd.GeoDataFrame,
         river_gdf: gpd.GeoDataFrame,
+        hull_gdf,
         network_reach: LineString,
         network_reach_plus_ds_reach: LineString,
     ):
@@ -211,13 +212,14 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str,
     src_gpkg_path = os.path.join(source_model_directory, f"{model_name}.gpkg")
     conflation_json = os.path.join(source_model_directory, f"{model_name}.conflation.json")
     conflation_parameters = json.load(open(conflation_json))
+    rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "")
 
     for network_id in conflation_parameters["reaches"].keys():
         try:
             if conflation_parameters["reaches"][network_id]["eclipsed"] == True:
                 continue
 
-            rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "", network_id)
+            rgs.set_nwm_id(network_id)
             layers = {}
             for layer, gdf in rgs.subset_gdfs.items():
                 layers[layer] = gdf.to_crs(HYDROFABRIC_CRS)
@@ -226,7 +228,12 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str,
             network_reach = linemerge(network_reaches.loc[network_reaches["ID"] == int(network_id)].geometry.iloc[0])
             network_reach_plus_ds_reach = combine_reaches(network_reaches, network_id)
 
-            cm = ConflationMetrics(layers["XS"], layers["River"], network_reach, network_reach_plus_ds_reach)
+            cm = ConflationMetrics(
+                fix_reversed_xs(layers["XS"], layers["River"]),
+                layers["River"],
+                rgs.ripple_xs_concave_hull,
+                network_reach,
+                network_reach_plus_ds_reach,
 
             metrics = {
                 "xs": cm.thalweg_metrics(layers["XS"]),

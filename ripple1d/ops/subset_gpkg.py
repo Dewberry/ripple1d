@@ -30,12 +30,61 @@ class RippleGeopackageSubsetter:
         self._source_river = None
         self._source_xs = None
         self._source_structure = None
+        self._conflation_parameters = None
+        self._source_hulls = None
+        self._ripple_xs_concave_hull = None
+
+    def set_nwm_id(self, nwm_id: str):
+        self.nwm_id = nwm_id
+        self._subset_gdf = None
+        self._ripple_xs_concave_hull = None
+
+    @property
+    def ripple_us_xs(self):
+        return self.ripple_xs.loc[
+            self.ripple_xs["river_station"] == self.ripple_xs["river_station"].max(), "geometry"
+        ].iloc[0]
+
+    @property
+    def ripple_ds_xs(self):
+        return self.ripple_xs.loc[
+            self.ripple_xs["river_station"] == self.ripple_xs["river_station"].min(), "geometry"
+        ].iloc[0]
+
+    @property
+    def split_source_hull(self):
+        geoms = split(self.source_hulls.geometry.iloc[0], self.ripple_us_xs).geoms
+        hulls = []
+        for geom in geoms:
+            if geom.intersects(self.ripple_us_xs) and geom.intersects(self.ripple_ds_xs):
+                candidate_geoms = split(geom, self.ripple_ds_xs).geoms
+                for candidate_geom in candidate_geoms:
+                    if candidate_geom.intersects(self.ripple_us_xs) and candidate_geom.intersects(self.ripple_ds_xs):
+                        hulls.append(candidate_geom)
+        if len(hulls) != 1:
+            raise ValueError(
+                f"Expected 1 polygon for ripple xs concave hull; got: {len(hulls)} | network id: {self.nwm_id}"
+            )
+        return hulls
+
+    @property
+    def ripple_xs_concave_hull(self):
+        if self._ripple_xs_concave_hull is None:
+            try:
+                hulls = self.split_source_hull
+                self._ripple_xs_concave_hull = gpd.GeoDataFrame({"geometry": hulls}, geometry="geometry", crs=self.crs)
+            except Exception as e:
+                self._ripple_xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ripple_xs, self.ripple_river))
+
+        return self._ripple_xs_concave_hull
 
     @property
     def conflation_parameters(self) -> dict:
         """Extract conflation parameters from the conflation json."""
-        with open(self.conflation_json, "r") as f:
-            return json.load(f)
+        if self._conflation_parameters is None:
+            with open(self.conflation_json, "r") as f:
+                self._conflation_parameters = json.load(f)
+        return self._conflation_parameters
 
     @property
     def ripple1d_parameters(self) -> dict:
@@ -79,6 +128,17 @@ class RippleGeopackageSubsetter:
             xs = gpd.read_file(self.src_gpkg_path, layer="XS")
             self._source_xs = xs[xs.intersects(self.source_river.union_all())]
         return self._source_xs
+
+    @property
+    def source_hulls(self) -> gpd.GeoDataFrame:
+        """Extract cross sections from the source geopackage."""
+        if self._source_hulls is None:
+            # TODO we can read the concave hull of the source model from the gpkg once we decide that it is required layer.
+            # self._source_hulls = gpd.read_file(self.src_gpkg_path, layer="XS_concave_hull")
+            self._source_hulls = xs_concave_hull(
+                fix_reversed_xs(self.source_xs, self.source_river), self.source_junction
+            )
+        return self._source_hulls
 
     @property
     def source_river(self) -> gpd.GeoDataFrame:
@@ -145,9 +205,16 @@ class RippleGeopackageSubsetter:
             )
 
             if ripple_structure is not None and len(ripple_structure) > 0:
-                self._subset_gdf = {"XS": ripple_xs, "River": ripple_river, "Structure": ripple_structure}
+                self._subset_gdf = {
+                    "XS": ripple_xs,
+                    "River": ripple_river,
+                    "Structure": ripple_structure,
+                }
             else:
-                self._subset_gdf = {"XS": ripple_xs, "River": ripple_river}
+                self._subset_gdf = {
+                    "XS": ripple_xs,
+                    "River": ripple_river,
+                }
 
         return self._subset_gdf
 
