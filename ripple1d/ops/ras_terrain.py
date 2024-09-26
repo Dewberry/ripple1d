@@ -107,7 +107,9 @@ def create_ras_terrain(
 
     # reproject/resample dem
     logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
-    reproject_raster(src_dem_clipped_localfile, src_dem_reprojected_localfile, nwm_rm.crs, resolution, resolution_units)
+    reproject_raster(
+        src_dem_clipped_localfile, src_dem_reprojected_localfile, CRS(nwm_rm.crs), resolution, resolution_units
+    )
     os.remove(src_dem_clipped_localfile)
 
     # write projection file

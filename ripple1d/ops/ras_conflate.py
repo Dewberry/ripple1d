@@ -20,6 +20,7 @@ from ripple1d.conflate.rasfim import (
     walk_network,
 )
 from ripple1d.ops.metrics import compute_conflation_metrics
+from ripple1d.utils.ripple_utils import clip_ras_centerline
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
@@ -80,50 +81,64 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
 
     rfc = RasFimConflater(nwm_pq_path, source_model_directory)
     metadata = {"reaches": {}}
-    # get nwm reaches that intersect the convex hull of the ras model
-    model_local_nwm_reaches = rfc.local_nwm_reaches()
+    buffer = 1000
     for river_reach_name in rfc.ras_river_reach_names:
+        try:
+            local_nwm_reaches = rfc.local_nwm_reaches(river_reach_name, buffer=buffer)
 
-        # get the concave hull of the this river reach
-        concave_hull = rfc.ras_xs_concave_hull(river_reach_name)
+            # get the start and end points of the river reach
+            ras_start_point, ras_stop_point = rfc.ras_start_end_points(
+                river_reach_name=river_reach_name, clip_to_xs=True
+            )
 
-        # get the nwm reaches that intersect the concave hull of the cross section of this river reach using the convex hull for this model
-        local_nwm_reaches = model_local_nwm_reaches[
-            model_local_nwm_reaches.intersects(concave_hull["geometry"].iloc[0])
-        ]
-
-        # get the start and end points of the river reach
-        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name, clip_to_xs=True)
-
-        # get the nearest upstream and downstream nwm reaches to the start and end points of the river reach
-        if len(rfc.ras_river_reach_names) == 1:
-            # if there are multiple river reaches, don't raise error; quitely continue to the next river reach
-            us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point)
-            ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
-        else:
             # if this is the only river reach, raise error
-            try:
-                us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point)
-                ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
-            except ValueError as e:
-                logging.error(f"Error: {e}")
+            river = rfc.ras_centerline_by_river_reach_name(river_reach_name)
+            river = clip_ras_centerline(river, rfc.xs_by_river_reach_name(river_reach_name))
+            truncate_distance = 0
+            us_most_reach_id, ds_most_reach_id = None, None
+            while True:
+                try:
+                    us_most_reach_id = nearest_line_to_point(
+                        local_nwm_reaches, ras_start_point, start_reach_distance=100
+                    )
+                    break
+                except ValueError as e:
+                    if truncate_distance > 10000:
+                        logging.info(f"Could not identifiy a network reach near the upstream end of {river_reach_name}")
+                        break
+                    truncate_distance += 100
+                    ras_start_point = river.interpolate(truncate_distance)
+
+                    logging.debug(
+                        f"truncate_distance: {truncate_distance} | length {ras_start_point} |  river reach: {river_reach_name}"
+                    )
+            if us_most_reach_id is None:
                 continue
 
-        logging.info(
-            f"{task_id} | {river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
-        )
+            try:
+                ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
+            except:
+                logging.info(f"Could not identifiy a network reach near the downstream end of {river_reach_name}")
+                continue
 
-        # walk network to get the potential reach ids
-        potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
-        potential_reach_path = list(set(potential_reach_path) - set(metadata.keys()))
+            logging.info(
+                f"{task_id} | {river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
+            )
 
-        # get gdf of the candidate reaches
-        candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
+            # walk network to get the potential reach ids
+            potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id, river_reach_name)
+            potential_reach_path = list(set(potential_reach_path) - set(metadata.keys()))
 
-        metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches))
+            # get gdf of the candidate reaches
+            candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-    if not conflated(metadata):
-        return f"{task_id} | no reaches conflated"
+            metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches, river_reach_name, task_id))
+        except Exception as e:
+            logging.error(f"{task_id} | river-reach: {river_reach_name} | Error: {e}")
+            logging.error(f"{task_id} | river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
+
+    # if not conflated(metadata):
+    #     return f"{task_id} | no reaches conflated"
 
     ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
@@ -161,10 +176,10 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
         f.write(json.dumps(metadata, indent=4))
 
     try:
-        compute_conflation_metrics(source_model_directory, source_network)
+        compute_conflation_metrics(source_model_directory, source_network, task_id)
     except Exception as e:
         logging.error(f"{task_id} | Error: {e}")
-        logging.error(f"{task_id} | traceback: {traceback.format_exc()}")
+        logging.error(f"{task_id} | Traceback: {traceback.format_exc()}")
 
     logging.info(f"{task_id} | conflate_model complete")
     return conflation_file
