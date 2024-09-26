@@ -517,4 +517,4 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         rgs.write_ripple1d_parameters(ripple1d_parameters)
 
     logging.info(f"{task_id} | extract_submodel complete")
-    return ripple1d_parameters
+    return {"ripple1d_parameters": rsd.conflation_file, "ripple_gpkg_file": rgs.ripple_gpkg_file}

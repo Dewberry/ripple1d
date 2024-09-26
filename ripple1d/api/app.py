@@ -123,17 +123,23 @@ def test():
 
 @app.route("/processes/sleep/execution", methods=["POST"])
 def process__sleep():
-    """Enqueue a task that sleeps for 15 seconds."""
-    return enqueue_async_task(tasks.sleep15)
+    """Enqueue a task that sleeps for `sleep_time` seconds."""
+    return enqueue_async_task(tasks.sleep_some)
 
 
 @app.route("/jobs", methods=["GET"])
 def jobs():
     """Retrieve OGC status and result for all jobs."""
-    task2metadata = tasks.task_status(only_task_id=None)
-    jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
-    ret = {"jobs": jobs}
-    return jsonify(ret), HTTPStatus.OK
+    try:
+        task2metadata = tasks.task_status(only_task_id=None)
+        jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
+        ret = {"jobs": jobs}
+        return jsonify(ret), HTTPStatus.OK
+    except Exception as e:
+        return (
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
+        )
 
 
 @app.route("/jobs/<task_id>", methods=["GET"])
@@ -226,7 +232,10 @@ def get_job_status(task_id: str, huey_metadata: dict) -> dict:
 
 @app.route("/jobs/<task_id>", methods=["DELETE"])
 def dismiss(task_id):
-    """Dismiss a specific task by its ID."""
+    """Dismiss a specific task by its ID.
+
+    Available only for jobs in "accepted" status, dismissal of "running" jobs not implemented
+    """
     try:
         ogc_status = tasks.ogc_status(task_id)
         if ogc_status == "notfound":
