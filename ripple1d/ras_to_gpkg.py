@@ -30,7 +30,7 @@ from ripple1d.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
-from ripple1d.utils.ripple_utils import get_path, prj_is_ras, xs_concave_hull
+from ripple1d.utils.ripple_utils import fix_reversed_xs, get_path, prj_is_ras, xs_concave_hull
 from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -48,6 +48,7 @@ def geom_flow_to_gpkg(
     layers, metadata = geom_flow_to_gdfs(ras_project, crs, metadata, client, bucket)
     for layer, gdf in layers.items():
         if layer == "XS":
+            gdf = fix_reversed_xs(layers["XS"], layers["River"])
             if "Junction" in layers.keys():
                 xs_concave_hull(gdf, layers["Junction"]).to_file(gpkg_file, driver="GPKG", layer="XS_concave_hull")
             else:
@@ -272,8 +273,9 @@ def detemine_primary_plan(
         return candidate_plans[0]
 
 
-def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
+def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict, task_id: str = ""):
     """Write geometry and flow data to a geopackage locally."""
+    logging.info(f"{task_id} | gpkg_from_ras starting")
     prjs = glob.glob(f"{source_model_directory}/*.prj")
     ras_text_file_path = None
 
@@ -287,6 +289,7 @@ def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
 
     output_gpkg_path = ras_text_file_path.replace(".prj", ".gpkg")
     rp = RasProject(ras_text_file_path)
+    logging.info(f"{task_id} | gpkg_from_ras complete")
     return geom_flow_to_gpkg(rp, crs, output_gpkg_path, metadata)
 
 

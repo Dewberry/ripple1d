@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sqlite3
+import traceback
 from collections import OrderedDict
 from typing import List, Tuple
 
@@ -13,11 +14,17 @@ import numpy as np
 import pandas as pd
 import pyproj
 from fiona.errors import DriverError
-from shapely.geometry import LineString, MultiLineString, MultiPoint, Point, Polygon, box
-from shapely.ops import linemerge, nearest_points, transform
+from shapely import LineString, MultiLineString, MultiPoint, Point, Polygon, box, reverse
+from shapely.ops import linemerge, nearest_points, split, transform
 
 from ripple1d.consts import METERS_PER_FOOT
-from ripple1d.utils.ripple_utils import xs_concave_hull
+from ripple1d.utils.ripple_utils import (
+    check_xs_direction,
+    clip_ras_centerline,
+    fix_reversed_xs,
+    validate_point,
+    xs_concave_hull,
+)
 
 HIGH_FLOW_FACTOR = 1.2
 
@@ -74,7 +81,7 @@ class RasFimConflater:
         self.nwm_pq = nwm_pq
         self.source_model_directory = source_model_directory
         self.ras_model_name = os.path.basename(source_model_directory)
-        self.ras_gpkg = os.path.join(source_model_directory,f"{self.ras_model_name}.gpkg")
+        self.ras_gpkg = os.path.join(source_model_directory, f"{self.ras_model_name}.gpkg")
 
         self.output_concave_hull_path = output_concave_hull_path
         self._nwm_reaches = None
@@ -83,7 +90,7 @@ class RasFimConflater:
         self._ras_xs = None
         self._ras_structures = None
         self._ras_junctions = None
-        self._ras_metadata=None
+        self._ras_metadata = None
         self._common_crs = None
         self._xs_hulls = None
         self.__data_loaded = False
@@ -91,12 +98,10 @@ class RasFimConflater:
             self._common_crs = NWM_CRS
             self.load_data()
             self.__data_loaded = True
-            
 
     def __repr__(self):
         """Return the string representation of the object."""
         return f"RasFimConflater(nwm_pq={self.nwm_pq}, ras_gpkg={self.ras_gpkg})"
-
 
     @property
     def stac_api(self):
@@ -104,15 +109,14 @@ class RasFimConflater:
         if self.ras_metadata:
             if "stac_api" in self.ras_metadata.keys():
                 return self.ras_metadata["stac_api"]
-    
+
     @property
     def stac_collection_id(self):
         """The stac_collection_id for the HEC-RAS Model."""
         if self.ras_metadata:
             if "stac_collection_id" in self.ras_metadata.keys():
                 return self.ras_metadata["stac_collection_id"]
-        
-    
+
     @property
     def stac_item_id(self):
         """The stac_item_id for the HEC-RAS Model."""
@@ -131,7 +135,7 @@ class RasFimConflater:
         """The primary flow file for the HEC-RAS Model."""
         if self.ras_metadata:
             return self.ras_metadata["primary_flow_file"]
-    
+
     @property
     def primary_plan_file(self):
         """The primary plan file for the HEC-RAS Model."""
@@ -142,7 +146,7 @@ class RasFimConflater:
     def ras_project_file(self):
         """The source HEC-RAS project file."""
         if self.ras_metadata:
-            return self.ras_metadata["ras_project_file"] 
+            return self.ras_metadata["ras_project_file"]
 
     # @property
     # def xs_length_units(self):
@@ -186,8 +190,7 @@ class RasFimConflater:
     #             return "miles"
     #         else:
     #             raise ValueError(f"Unable to determine reach length units from reach length r values")
-            
-        
+
     # @property
     # def flow_units(self):
     #     """Flow units of the source HEC-RAS model."""
@@ -198,11 +201,11 @@ class RasFimConflater:
     #     elif self.ras_metadata["units"] == "English":
     #         return "cfs"
 
-    def populate_r_station(self, row: pd.Series,assume_ft:bool=True) -> str:
+    def populate_r_station(self, row: pd.Series, assume_ft: bool = True) -> str:
         """Populate the r value for a cross section. The r value is the ratio of the station to actual cross section length."""
-        #TODO check if this is the correct way to calculate r
+        # TODO check if this is the correct way to calculate r
         df = pd.DataFrame(row["station_elevation_points"], index=["elevation"]).T
-        return df.index.max()/(row.geometry.length/METERS_PER_FOOT)
+        return df.index.max() / (row.geometry.length / METERS_PER_FOOT)
 
     @property
     def _gpkg_metadata(self):
@@ -212,24 +215,24 @@ class RasFimConflater:
             cur.execute("select * from metadata")
             return dict(cur.fetchall())
 
-    def determine_station_order(self, xs_gdf: gpd.GeoDataFrame,reach:LineString):
+    def determine_station_order(self, xs_gdf: gpd.GeoDataFrame, reach: LineString):
         """Detemine the order based on stationing of the cross sections along the reach."""
-        rs=[]
+        rs = []
         for _, xs in xs_gdf.iterrows():
-            geom=reach.intersection(xs.geometry)
+            geom = reach.intersection(xs.geometry)
             try:
-                point=validate_point(geom)
+                point = validate_point(geom)
                 rs.append(reach.project(point))
             except TypeError as e:
                 rs.append(rs[-1])
-            
-        xs_gdf["rs"]=rs
-        return xs_gdf.sort_values(by="rs",ignore_index=True)
 
-    def add_hull(self, xs_gdf: gpd.GeoDataFrame,reach:LineString):
+        xs_gdf["rs"] = rs
+        return xs_gdf.sort_values(by="rs", ignore_index=True)
+
+    def add_hull(self, xs_gdf: gpd.GeoDataFrame, reach: LineString):
         """Add the concave hull to the GeoDataFrame."""
         if len(xs_gdf) > 1:
-            xs_gdf=self.determine_station_order(xs_gdf,reach)
+            xs_gdf = self.determine_station_order(xs_gdf, reach)
             hull = xs_concave_hull(xs_gdf)
             if self._xs_hulls is None:
                 self._xs_hulls = hull
@@ -253,20 +256,20 @@ class RasFimConflater:
         if "River" in layers:
             self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
         if "XS" in layers:
-            xs=gpd.read_file(self.ras_gpkg, layer="XS")
+            xs = gpd.read_file(self.ras_gpkg, layer="XS")
             self._ras_xs = xs[xs.intersects(self._ras_centerlines.union_all())]
         if "Junction" in layers:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
         if "Structure" in layers:
-            structures=gpd.read_file(self.ras_gpkg, layer="Structure")
+            structures = gpd.read_file(self.ras_gpkg, layer="Structure")
             self._ras_structures = structures[structures.intersects(self._ras_centerlines.union_all())]
         if "metadata" in layers:
-            self._ras_metadata=self._gpkg_metadata
+            self._ras_metadata = self._gpkg_metadata
 
     def load_pq(self, nwm_pq: str):
         """Load the NWM data from the Parquet file."""
         try:
-            nwm_reaches = gpd.read_parquet(nwm_pq,bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
+            nwm_reaches = gpd.read_parquet(nwm_pq, bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
             self._nwm_reaches = nwm_reaches.set_geometry("geometry")
         except Exception as e:
@@ -317,12 +320,12 @@ class RasFimConflater:
     @ensure_data_loaded
     def ras_structures(self) -> gpd.GeoDataFrame:
         """RAS structures."""
-        logging.info("RAS structures")
+        # logging.info("RAS structures")
         try:
             return self._ras_structures.to_crs(self.common_crs)
         except AttributeError:
             return None
-        
+
     @property
     @ensure_data_loaded
     def ras_junctions(self) -> gpd.GeoDataFrame:
@@ -348,17 +351,23 @@ class RasFimConflater:
     def ras_xs_concave_hull(self, river_reach_name: str = None) -> Polygon:
         """Return the concave hull of the cross sections."""
         if river_reach_name is None:
-            return xs_concave_hull(self.ras_xs,self.ras_junctions)
+            return xs_concave_hull(fix_reversed_xs(self.ras_xs, self.ras_centerlines), self.ras_junctions)
         else:
-            return xs_concave_hull(self.ras_xs[self.ras_xs["river_reach"] == river_reach_name])
+            xs = self.ras_xs[self.ras_xs["river_reach"] == river_reach_name]
+            return xs_concave_hull(
+                fix_reversed_xs(
+                    self.ras_xs, self.ras_centerlines.loc[self.ras_centerlines["river_reach"] == river_reach_name]
+                )
+            )
 
     def ras_xs_convex_hull(self, river_reach_name: str = None):
         """Return the convex hull of the cross sections."""
+        lines = pd.concat([self.ras_xs, self.ras_centerlines])
         if river_reach_name:
-            polygon = self.ras_xs["geometry"].union_all().convex_hull
+            polygon = lines[lines["river_reach"] == river_reach_name]["geometry"].union_all().convex_hull
 
         else:
-            polygon = self.ras_xs["geometry"].union_all().convex_hull
+            polygon = lines["geometry"].union_all().convex_hull
 
         return gpd.GeoDataFrame({"geometry": [polygon]}, geometry="geometry", crs=self.ras_xs.crs)
 
@@ -379,15 +388,19 @@ class RasFimConflater:
         """NWM reaches."""
         return self._nwm_reaches
 
-    def local_nwm_reaches(self, river_reach_name: str = None) -> gpd.GeoDataFrame:
+    def local_nwm_reaches(self, river_reach_name: str = None, buffer=0) -> gpd.GeoDataFrame:
         """NWM reaches that intersect the RAS cross sections."""
         if river_reach_name:
 
             return self.nwm_reaches[
-                self.nwm_reaches.intersects(self.ras_xs_convex_hull(river_reach_name)["geometry"].iloc[0])
+                self.nwm_reaches.intersects(
+                    self.ras_xs_convex_hull(river_reach_name)["geometry"].iloc[0].buffer(buffer)
+                )
             ]
         else:
-            return self.nwm_reaches[self.nwm_reaches.intersects(self.ras_xs_convex_hull()["geometry"].iloc[0])]
+            return self.nwm_reaches[
+                self.nwm_reaches.intersects(self.ras_xs_convex_hull()["geometry"].iloc[0].buffer(buffer))
+            ]
 
     @property
     def local_gages(self) -> dict:
@@ -429,18 +442,27 @@ class RasFimConflater:
         return wrapper
 
     @check_centerline
-    def ras_start_end_points(self, river_reach_name: str = None, centerline=None,clip_to_xs=False) -> Tuple[Point, Point]:
-        """River_reach_name used by the decorator to get the centerline."""
-        if river_reach_name:
-            centerline = self.ras_centerline_by_river_reach_name(river_reach_name,clip_to_xs)
-        return endpoints_from_multiline(centerline)
+    def ras_start_end_points(
+        self, river_reach_name: str = None, centerline=None, clip_to_xs=False, buffer=0
+    ) -> Tuple[Point, Point]:
+        """
+        Get the start and end points for a RAS centerline.
 
-    def ras_centerline_by_river_reach_name(self, river_reach_name: str,clip_to_xs=False) -> LineString:
+        If clip_to_xs is True try to clip the centerline to the most upstream and downstream cross sections.
+        If this fails then return the original centerline.
+        """
+        if river_reach_name:
+            centerline = self.ras_centerline_by_river_reach_name(river_reach_name)
+            try:
+                if clip_to_xs:
+                    centerline = clip_ras_centerline(centerline, self.xs_by_river_reach_name(river_reach_name), buffer)
+                return endpoints_from_multiline(centerline)
+            except Exception as e:
+                return endpoints_from_multiline(centerline)
+
+    def ras_centerline_by_river_reach_name(self, river_reach_name: str) -> LineString:
         """Return the centerline for the specified river reach."""
-        if clip_to_xs:
-            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0].intersection(self.ras_xs_concave_hull(river_reach_name).geometry.iloc[0].buffer(1))
-        else:
-            return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
+        return self.ras_centerlines[self.ras_centerlines["river_reach"] == river_reach_name].geometry.iloc[0]
 
     def xs_by_river_reach_name(self, river_reach_name: str) -> gpd.GeoDataFrame:
         """Return the cross sections for the specified river reach."""
@@ -465,16 +487,22 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
         merged_line = linemerge(mline)
     else:
         merged_line = mline
+    if isinstance(merged_line, MultiLineString):  # if line is still multilinestring raise error
+        raise TypeError(f"Could not convert {type(merged_line)} to LineString")
+
     start_point, end_point = merged_line.coords[0], merged_line.coords[-1]
     return Point(start_point), Point(end_point)
 
 
-def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID") -> int:
+def nearest_line_to_point(
+    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", start_reach_distance: int = 1e9
+) -> int:
     """Return the ID of the line closest to the point."""
     if not column_id in lines.columns:
         raise ValueError(f"required `ID` column not found in GeoDataFrame with columns: {lines.columns}")
 
-    start_reach_distance = 1e9
+    limit = start_reach_distance * 0.9
+    # start_reach_distance = 100  # 1e9
     start_reach_id = None
     for _, row in lines.iterrows():
         start_distance = row["geometry"].distance(point)
@@ -482,7 +510,7 @@ def nearest_line_to_point(lines: gpd.GeoDataFrame, point: Point, column_id: str 
             start_reach_distance = start_distance
             start_reach_id = row[column_id]
 
-    if start_reach_distance > 1e8:
+    if start_reach_distance >= limit:  # 1e8:
         raise ValueError(
             f"Unable to associate reach with point, minimum distance for {start_reach_id} : {start_reach_distance}"
         )
@@ -529,7 +557,7 @@ def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "I
 
 
 # analytical functions
-def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int]:
+def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach_name: str) -> List[int]:
     """Walk the network from the start ID to the stop ID."""
     current_id = start_id
     ids = [current_id]
@@ -538,7 +566,9 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int) -> List[int
         result = gdf.query(f"ID == {current_id}")
 
         if result.empty:
-            logging.error(f"No row found with ID = {current_id}")
+            logging.error(
+                f"No row found with ID = {current_id} | start_id: {start_id} | stop_id: {stop_id} | RAS river-reach: {river_reach_name}"
+            )
             break
 
         to_value = result.iloc[0]["to_id"]
@@ -674,40 +704,6 @@ def get_us_most_xs_from_junction(rfc, us_river, us_reach):
     return ds_xs_id
 
 
-def validate_point(geom):
-    """Validate that point is of type Point. If Multipoint or Linestring create point from first coordinate pair."""
-    if isinstance(geom, Point):
-        return geom
-    elif isinstance(geom, MultiPoint):
-        return geom.geoms[0]
-    elif isinstance(geom, LineString) and list(geom.coords):
-        return Point(geom.coords[0])
-    else:
-        raise TypeError(f"expected point at xs-river intersection got: {type(geom)}")
-
-
-def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
-    """Return only cross sections that are drawn right to left looking downstream."""
-    ids = []
-    for _, xs in cross_sections.iterrows():
-        try:
-            point = reach.intersection(xs["geometry"])
-            point = validate_point(point)
-            xs_rs = reach.project(point)
-
-            offset = xs.geometry.offset_curve(-1)
-            point = reach.intersection(offset)
-            point = validate_point(point)
-
-            offset_rs = reach.project(point)
-            if xs_rs > offset_rs:
-                ids.append(xs["ID"])
-        except TypeError as e:
-            logging.warning(f"could not validate xs-river intersection for: {xs["river"]} {xs['reach']} {xs['river_station']}")
-            continue
-    return cross_sections.loc[cross_sections["ID"].isin(ids)]
-
-
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     """
     Map the upstream and downstream cross sections for the nwm reach.
@@ -716,11 +712,18 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     """
     # get the xs that intersect the nwm reach
     intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach.geometry)]
-    intersected_xs = check_xs_direction(intersected_xs, reach.geometry)
-    has_junctions = rfc.ras_junctions is not None
-
     if intersected_xs.empty:
-        return {"eclipsed":True}
+        return {"eclipsed": True}
+
+    not_reversed_xs = check_xs_direction(intersected_xs, reach.geometry)
+    intersected_xs["geometry"] = intersected_xs.apply(
+        lambda row: (
+            row.geometry if row["river_reach_rs"] in list(not_reversed_xs["river_reach_rs"]) else reverse(row.geometry)
+        ),
+        axis=1,
+    )
+
+    has_junctions = rfc.ras_junctions is not None
 
     # get start and end points of the nwm reach
     start, end = endpoints_from_multiline(reach.geometry)
@@ -750,7 +753,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
             )
         except ValueError as e:
             ds_data = ras_xs_geometry_data(rfc, ds_xs)
-            logging.warning(f"No downstream XS's: {e}")
+            logging.debug(f"No downstream XS's: {e}")
 
     # if it is not the most downstream xs on this ras reach then compute the next downstream river station and determine the id
     else:
@@ -765,29 +768,30 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     # add xs concave hull
     if rfc.output_concave_hull_path:
         xs_gdf = pd.concat([intersected_xs, rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]], ignore_index=True)
-        rfc.add_hull(xs_gdf,reach.geometry)
-    
-    if us_data==ds_data:
-        return {"eclipsed":True}
+        rfc.add_hull(xs_gdf, reach.geometry)
 
-    return {
-        "us_xs": us_data,
-        "ds_xs": ds_data,
-        "eclipsed":False
-    }
+    if us_data == ds_data:
+        return {"eclipsed": True}
+
+    return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 
 
-def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame):
+def ras_reaches_metadata(
+    rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame, river_reach_name: str, task_id: str
+):
     """Return the metadata for the RAS reaches."""
     reach_metadata = OrderedDict()
     hulls = []
     for reach in candidate_reaches.itertuples():
-        # logging.debug(f"REACH: {reach.ID}")
-
-        # get the xs data for the reach
-        ras_xs_data = map_reach_xs(rfc, reach)
-
-        reach_metadata[reach.ID] = ras_xs_data
+        try:
+            # get the xs data for the reach
+            ras_xs_data = map_reach_xs(rfc, reach)
+            reach_metadata[reach.ID] = ras_xs_data
+        except Exception as e:
+            logging.error(f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Error: {e}")
+            logging.error(
+                f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Traceback: {traceback.format_exc()}"
+            )
 
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]

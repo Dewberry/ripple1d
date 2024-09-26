@@ -725,8 +725,8 @@
             "type": "nwm_hydrofabric"
         },
         "conflation_png": "Baxter.conflation.png",
-        "conflation_ripple1d_version": "0.5.0",
-        "metrics_ripple1d_version": "0.5.0",
+        "conflation_ripple1d_version": "0.4.2",
+        "metrics_ripple1d_version": "0.4.2",
         "source_ras_model": {
             "stac_api": "https://stac2.dewberryanalytics.com",
             "stac_collection_id": "ebfe-12090301_LowerColoradoCummins",

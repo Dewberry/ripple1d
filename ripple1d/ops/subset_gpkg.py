@@ -7,29 +7,85 @@ import os
 import fiona
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import LineString
+from shapely import LineString
+from shapely.ops import split
 
 import ripple1d
 from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
-from ripple1d.utils.ripple_utils import xs_concave_hull
+from ripple1d.ripple1d_logger import log_process
+from ripple1d.utils.ripple_utils import clip_ras_centerline, fix_reversed_xs, xs_concave_hull
 
 
 class RippleGeopackageSubsetter:
     """Subset a geopackage based on conflation with NWM hydrofabric."""
 
-    def __init__(self, src_gpkg_path: str, conflation_json: str, dst_project_dir: str, nwm_id: str):
+    def __init__(self, src_gpkg_path: str, conflation_json: str, dst_project_dir: str, nwm_id: str = None):
 
         self.src_gpkg_path = src_gpkg_path
         self.conflation_json = conflation_json
         self.dst_project_dir = dst_project_dir
         self.nwm_id = nwm_id
+        self._subset_gdf = None
+        self._source_junction = None
+        self._source_river = None
+        self._source_xs = None
+        self._source_structure = None
+        self._conflation_parameters = None
+        self._source_hulls = None
+        self._ripple_xs_concave_hull = None
+
+    def set_nwm_id(self, nwm_id: str):
+        self.nwm_id = nwm_id
+        self._subset_gdf = None
+        self._ripple_xs_concave_hull = None
+
+    @property
+    def ripple_us_xs(self):
+        return self.ripple_xs.loc[
+            self.ripple_xs["river_station"] == self.ripple_xs["river_station"].max(), "geometry"
+        ].iloc[0]
+
+    @property
+    def ripple_ds_xs(self):
+        return self.ripple_xs.loc[
+            self.ripple_xs["river_station"] == self.ripple_xs["river_station"].min(), "geometry"
+        ].iloc[0]
+
+    @property
+    def split_source_hull(self):
+        geoms = split(self.source_hulls.geometry.iloc[0], self.ripple_us_xs).geoms
+        hulls = []
+        for geom in geoms:
+            if geom.intersects(self.ripple_us_xs) and geom.intersects(self.ripple_ds_xs):
+                candidate_geoms = split(geom, self.ripple_ds_xs).geoms
+                for candidate_geom in candidate_geoms:
+                    if candidate_geom.intersects(self.ripple_us_xs) and candidate_geom.intersects(self.ripple_ds_xs):
+                        hulls.append(candidate_geom)
+        if len(hulls) != 1:
+            raise ValueError(
+                f"Expected 1 polygon for ripple xs concave hull; got: {len(hulls)} | network id: {self.nwm_id}"
+            )
+        return hulls
+
+    @property
+    def ripple_xs_concave_hull(self):
+        if self._ripple_xs_concave_hull is None:
+            try:
+                hulls = self.split_source_hull
+                self._ripple_xs_concave_hull = gpd.GeoDataFrame({"geometry": hulls}, geometry="geometry", crs=self.crs)
+            except Exception as e:
+                self._ripple_xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ripple_xs, self.ripple_river))
+
+        return self._ripple_xs_concave_hull
 
     @property
     def conflation_parameters(self) -> dict:
         """Extract conflation parameters from the conflation json."""
-        with open(self.conflation_json, "r") as f:
-            return json.load(f)
+        if self._conflation_parameters is None:
+            with open(self.conflation_json, "r") as f:
+                self._conflation_parameters = json.load(f)
+        return self._conflation_parameters
 
     @property
     def ripple1d_parameters(self) -> dict:
@@ -69,27 +125,45 @@ class RippleGeopackageSubsetter:
     @property
     def source_xs(self) -> gpd.GeoDataFrame:
         """Extract cross sections from the source geopackage."""
-        xs = gpd.read_file(self.src_gpkg_path, layer="XS")
-        return xs[xs.intersects(self.source_river.union_all())]
+        if self._source_xs is None:
+            xs = gpd.read_file(self.src_gpkg_path, layer="XS")
+            self._source_xs = xs[xs.intersects(self.source_river.union_all())]
+        return self._source_xs
+
+    @property
+    def source_hulls(self) -> gpd.GeoDataFrame:
+        """Extract cross sections from the source geopackage."""
+        if self._source_hulls is None:
+            # TODO we can read the concave hull of the source model from the gpkg once we decide that it is required layer.
+            # self._source_hulls = gpd.read_file(self.src_gpkg_path, layer="XS_concave_hull")
+            self._source_hulls = xs_concave_hull(
+                fix_reversed_xs(self.source_xs, self.source_river), self.source_junction
+            )
+        return self._source_hulls
 
     @property
     def source_river(self) -> gpd.GeoDataFrame:
         """Extract river geometry from the source geopackage."""
-        return gpd.read_file(self.src_gpkg_path, layer="River")
+        if self._source_river is None:
+            self._source_river = gpd.read_file(self.src_gpkg_path, layer="River")
+        return self._source_river
 
     @property
     def source_structure(self) -> gpd.GeoDataFrame:
         """Extract structures from the source geopackage."""
         if "Structure" in fiona.listlayers(self.src_gpkg_path):
-            structures = gpd.read_file(self.src_gpkg_path, layer="Structure")
-            return structures[structures.intersects(self.source_river.union_all())]
+            if self._source_structure is None:
+                structures = gpd.read_file(self.src_gpkg_path, layer="Structure")
+                self._source_structure = structures[structures.intersects(self.source_river.union_all())]
+            return self._source_structure
 
     @property
     def source_junction(self) -> gpd.GeoDataFrame:
         """Extract junctions from the source geopackage."""
         if "Junction" in fiona.listlayers(self.src_gpkg_path):
-            return gpd.read_file(self.src_gpkg_path, layer="Junction")
-        return None
+            if self._source_junction is None:
+                self._source_junction = gpd.read_file(self.src_gpkg_path, layer="Junction")
+            return self._source_junction
 
     @property
     def ripple_xs(self) -> gpd.GeoDataFrame:
@@ -109,29 +183,41 @@ class RippleGeopackageSubsetter:
     @property
     def subset_gdfs(self) -> dict:
         """Subset the cross sections, structues, and river geometry for a given NWM reach."""
-        # subset data
-        if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
-            ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
-        else:
-            ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
+        if self._subset_gdf is None:
+            # subset data
+            if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
+                ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
+            else:
+                ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
 
-        # check if only 1 cross section for nwm_reach
-        if len(ripple_xs) <= 1:
-            logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
-            return None
+            # check if only 1 cross section for nwm_reach
+            if len(ripple_xs) <= 1:
+                logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
+                return None
 
-        # update fields
-        ripple_xs = self.update_fields(ripple_xs)
-        ripple_river = self.update_fields(ripple_river)
-        ripple_structure = self.update_fields(ripple_structure)
+            # update fields
+            ripple_xs = self.update_fields(ripple_xs)
+            ripple_river = self.update_fields(ripple_river)
+            ripple_structure = self.update_fields(ripple_structure)
 
-        # clip river to cross sections
-        ripple_river = self.clip_river(ripple_xs, ripple_river)
+            # clip river to cross sections
+            ripple_river["geometry"] = clip_ras_centerline(
+                ripple_river.iloc[0].geometry, fix_reversed_xs(ripple_xs, ripple_river), 2
+            )
 
-        if ripple_structure is not None and len(ripple_structure) > 0:
-            return {"XS": ripple_xs, "River": ripple_river, "Structure": ripple_structure}
-        else:
-            return {"XS": ripple_xs, "River": ripple_river}
+            if ripple_structure is not None and len(ripple_structure) > 0:
+                self._subset_gdf = {
+                    "XS": ripple_xs,
+                    "River": ripple_river,
+                    "Structure": ripple_structure,
+                }
+            else:
+                self._subset_gdf = {
+                    "XS": ripple_xs,
+                    "River": ripple_river,
+                }
+
+        return self._subset_gdf
 
     @property
     def ripple_gpkg_file(self) -> str:
@@ -143,9 +229,8 @@ class RippleGeopackageSubsetter:
         """Return the new NWM reach model object."""
         return NwmReachModel(self.dst_project_dir)
 
-    def write_ripple_gpkg(
-        self,
-    ) -> None:
+    @log_process
+    def write_ripple_gpkg(self, task_id: str = None) -> None:
         """Write the subsetted geopackage to the destination project directory."""
         os.makedirs(self.dst_project_dir, exist_ok=True)
 
@@ -161,7 +246,7 @@ class RippleGeopackageSubsetter:
             if gdf.shape[0] > 0:
                 gdf.to_file(self.ripple_gpkg_file, layer=layer)
                 if layer == "XS":
-                    xs_concave_hull(gdf).to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
+                    self.ripple_xs_concave_hull.to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
 
     @property
     def min_flow(self) -> float:
@@ -190,7 +275,14 @@ class RippleGeopackageSubsetter:
         """Check if junctions are present for the given river-reaches."""
         river_reaches = []
         if not self.source_junction.empty:
+            c = 0
             while True:
+                c += 1
+                if c > 100:
+                    logging.warning(
+                        f"Could not find junction for: {self.nwm_id}. The reach may contain cross sections from multiple RAS reaches that are not connected via junctions."
+                    )
+                    return None
 
                 for _, row in self.source_junction.iterrows():
 
@@ -309,15 +401,18 @@ class RippleGeopackageSubsetter:
                 & (self.source_structure["river_station"] >= float(self.ds_rs))
             ]
 
-    def add_intermediate_river_reaches(self, xs_us_reach: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def add_intermediate_river_reaches(self, intermediate_river_reaches) -> gpd.GeoDataFrame:
         """Add intermediate river reaches to the xs_us_reach."""
         xs_us_reach = self.xs_us_reach.copy()
         for intermediate_river_reach in intermediate_river_reaches:
             xs_intermediate_river_reach = self.source_xs.loc[self.source_xs["river_reach"] == intermediate_river_reach]
             if xs_us_reach["river_station"].min() <= xs_intermediate_river_reach["river_station"].max():
-                logging.warning(
-                    f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
-                    f" than the highest river station on the intermediate reach ({xs_intermediate_river_reach['river_station'].max()}) for nwm_id: {self.nwm_id}"
+                logging.info(
+                    f"The lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
+                    f" than the highest river station on the intermediate reach"
+                    f"({xs_intermediate_river_reach['river_station'].max()}) for nwm_id: {self.nwm_id}. The river"
+                    f" stationing of the upstream reach will be updated to ensure river stationings increase from"
+                    "downstream to upstream"
                 )
                 xs_us_reach["river_station"] = (
                     xs_us_reach["river_station"] + xs_intermediate_river_reach["river_station"].max()
@@ -333,7 +428,7 @@ class RippleGeopackageSubsetter:
     def adjust_river_stations(self, xs_us_reach, structures_us_reach) -> tuple:
         """Adjust river stations of the upstream reach if the min river station of the upstream reach is less than the max river station of the downstream reach."""
         if xs_us_reach["river_station"].min() <= self.xs_ds_reach["river_station"].max():
-            logging.warning(
+            logging.info(
                 f"the lowest river station on the upstream reach ({xs_us_reach['river_station'].min()}) is less"
                 f" than the highest river station on the downstream reach ({self.xs_ds_reach['river_station'].max()}) for nwm_id: {self.nwm_id}"
             )
@@ -360,7 +455,7 @@ class RippleGeopackageSubsetter:
 
         # add intermediate river reaches to the upstream reach
         if intermediate_river_reaches:
-            xs_us_reach = self.add_intermediate_river_reaches()
+            xs_us_reach = self.add_intermediate_river_reaches(intermediate_river_reaches)
         else:
             xs_us_reach = self.xs_us_reach.copy()
 
@@ -426,27 +521,6 @@ class RippleGeopackageSubsetter:
                     gdf["river_station"] = gdf["river_station"].astype(float)
         return gdf
 
-    def clip_river(self, xs_subset_gdf: gpd.GeoDataFrame, river_subset_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-        """Clip the river to the concave hull of the cross sections."""
-        crs = xs_subset_gdf.crs
-
-        buffer = 10
-        while True:
-            concave_hull = xs_concave_hull(xs_subset_gdf).to_crs(epsg=5070).buffer(buffer * METERS_PER_FOOT).to_crs(crs)
-            clipped_river_subset_gdf = river_subset_gdf.clip(concave_hull)
-
-            buffer += 10
-            if len(clipped_river_subset_gdf) == 1 & xs_subset_gdf.intersects(
-                clipped_river_subset_gdf["geometry"].iloc[0]
-            ).all() & isinstance(clipped_river_subset_gdf["geometry"].iloc[0], LineString):
-                return clipped_river_subset_gdf
-
-            if buffer > 10000:
-                raise ValueError(
-                    f"buffer too large (>10000ft) for clipping river to concave hull of cross sections. Check data for NWM Reach: {self.nwm_id}."
-                )
-                break
-
     def update_ripple1d_parameters(self, rsd: RippleSourceDirectory):
         """Update ripple1d_parameters with results of subsetting."""
         ripple1d_parameters = self.ripple1d_parameters
@@ -467,26 +541,32 @@ class RippleGeopackageSubsetter:
             json.dump(ripple1d_parameters, f, indent=4)
 
 
-def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int):
+def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, task_id: str = ""):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
+    logging.info(f"{task_id} | extract_submodel starting")
     rsd = RippleSourceDirectory(source_model_directory)
-    logging.info(f"Preparing to extract NWM ID {nwm_id} from {rsd.ras_project_file}")
+    logging.debug(f"{task_id} | preparing to extract NWM ID {nwm_id} from {rsd.ras_project_file}")
 
     if not rsd.file_exists(rsd.ras_gpkg_file):
-        raise FileNotFoundError(f"cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists")
+        raise FileNotFoundError(
+            f"{task_id} | cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists"
+        )
 
     if not rsd.file_exists(rsd.conflation_file):
-        raise FileNotFoundError(f"cannot find conflation file {rsd.conflation_file}, please ensure file exists")
+        raise FileNotFoundError(
+            f"{task_id} | cannot find conflation file {rsd.conflation_file}, please ensure file exists"
+        )
 
     ripple1d_parameters = rsd.nwm_conflation_parameters(str(nwm_id))
-    if ripple1d_parameters["us_xs"]["xs_id"] == "-9999":
+    if ripple1d_parameters["eclipsed"]:
         ripple1d_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple1d_parameters["messages"])
 
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
-        rgs.write_ripple_gpkg()
+        rgs.write_ripple_gpkg(task_id=task_id)
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
 
+    logging.info(f"{task_id} | extract_submodel complete")
     return ripple1d_parameters

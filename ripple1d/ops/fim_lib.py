@@ -137,15 +137,17 @@ def create_fim_lib(
     overviews: bool = False,
     resolution: float = 3,
     resolution_units: str = "Meters",
+    task_id: str = "",
 ):
     """Create a new FIM library for a NWM id."""
+    logging.info(f"{task_id} | create_fim_lib starting")
     nwm_rm = NwmReachModel(submodel_directory, library_directory)
 
     rm = RasManager(
         nwm_rm.ras_project_file,
         version=ras_version,
         terrain_path=nwm_rm.ras_terrain_hdf,
-        crs=nwm_rm.ripple1d_parameters["crs"],
+        crs=nwm_rm.crs,
     )
     ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
@@ -161,7 +163,8 @@ def create_fim_lib(
     )
 
     # create dabase and table
-    create_db_and_table(nwm_rm.fim_results_database, table_name)
+    if not os.path.exists(nwm_rm.fim_results_database):
+        create_db_and_table(nwm_rm.fim_results_database, table_name)
 
     for plan in plans:
         if f"kwse" in plan:
@@ -174,7 +177,7 @@ def create_fim_lib(
                 table_name,
             )
             if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"))
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"), ignore_errors=True)
         if f"nd" in plan:
             zero_depth_to_sqlite(
                 rm,
@@ -185,17 +188,17 @@ def create_fim_lib(
                 table_name,
             )
             if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"))
+                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"), ignore_errors=True)
 
+    logging.info(f"{task_id} | create_fim_lib complete")
     return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
 
 
 def nwm_reach_model_stac(
-    ras_project_directory: str,
-    ras_model_s3_prefix: str = None,
-    bucket: str = None,
+    ras_project_directory: str, ras_model_s3_prefix: str = None, bucket: str = None, task_id: str = ""
 ):
     """Convert a FIM RAS model to a STAC item."""
+    logging.info(f"{task_id} | nwm_reach_model_stac starting")
     nwm_rm = NwmReachModel(ras_project_directory)
 
     # create new stac item
@@ -230,6 +233,7 @@ def nwm_reach_model_stac(
         nwm_rm.update_write_ripple1d_parameters({"model_stac_item": f"https://{bucket}.s3.amazonaws.com/{key}"})
     else:
         nwm_rm.update_write_ripple1d_parameters({"model_stac_item": nwm_rm.model_stac_json_file})
+    logging.info(f"{task_id} | nwm_reach_model_stac complete")
 
 
 def update_stac_s3_location(stac_item_file: pystac.Item, bucket: str, s3_prefix: str):
@@ -313,8 +317,11 @@ def fim_lib_item(item_id: str, assets: list, stac_json: str, metadata: dict) -> 
     return item
 
 
-def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str = None, bucket: str = None):
+def fim_lib_stac(
+    ras_project_directory: str, nwm_reach_id: str, s3_prefix: str = None, bucket: str = None, task_id: str = ""
+):
     """Create a stac item for a fim library."""
+    logging.info(f"{task_id} | fim_lib_stac starting")
     nwm_rm = NwmReachModel(ras_project_directory)
 
     metadata = {
@@ -336,3 +343,4 @@ def fim_lib_stac(ras_project_directory: str, nwm_reach_id: str, s3_prefix: str =
     if s3_prefix and bucket:
         nwm_rm.upload_fim_lib_assets(s3_prefix, bucket)
         update_stac_s3_location(nwm_rm.fim_lib_stac_json_file, bucket, s3_prefix)
+    logging.info(f"{task_id} | fim_lib_stac complete")

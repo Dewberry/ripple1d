@@ -3,6 +3,63 @@ Change Log for Users
 
 Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`_  page for a list of all releases.
 
+Bugfix Release 0.6.2
+~~~~~~~~~~~~~~~~~~~~~
+
+Users Changelog
+----------------
+This release of `ripple1d` fixes several bugs associated with conflation. To aid in identifying and fixing these bugs, improvements were made in the logging for the conflation endpoint. In summary, the fixes and changes incorporated in this PR improve the consistency and quality of the conflation process, computations, and metrics in genera with special attention for handling junctions and headwater reaches.
+
+
+Bugfix Release 0.6.1
+~~~~~~~~~~~~~~~~~~~~~
+
+Users Changelog
+----------------
+This release of `ripple1d` fixes several bugs identified during testing.
+
+Features Added
+----------------
+- A minor change was added to the logging behavior to improve error tracking. 
+
+Bug Fixes
+----------
+- A bug causing increasing processing time when calling `creat_ras_terrain` in parallel mode.
+- A bug in the `extract_submodel` endpoint which failed when trying to grab the upstream cross section. A check was added for the eclipsed parameter, where if true no geopackage will be created. 
+- Several bugs associated with the `create_fim_lib endpoint`: 
+
+  1. The library_directory arg was not being implemented correctly in the function. 
+  2. If a fim.db already exists append fuctionality has been implemented.
+  3. If the directory containing the raw RAS depth grids is empty the clean up function will not be invoked.
+- Resolves issues introduced when a concave hull from a source model where cross section existed in the wrong direction (resulting in a multipart polygon). A check was added to correct direction and reverses the cross section if it was drawn incorrectly. This is limited to the development of the concave hull and does not modify the cross section direction for use in the modeling. 
+
+Feature Release 0.6.0
+~~~~~~~~~~~~~~~~~~~~~
+Users Changelog
+----------------
+
+This release of `ripple1d` adds 2 args to the create_fim_lib endpoint, adds a concave hull of the cross sections to the geopackage, and fixes a bug associated with the depth grids.
+
+Features Added
+----------------
+**New library directory argument**
+
+A new required arg, "library_directory", has been added to the create_fim_lib endpoint. This new arg specifies where the output directory for the FIM grids and database. 
+
+**New cleanup argument**
+
+A new required arg, "cleanup", has been added to the create_fim_lib endpoint. If this arg is True the raw HEC-RAS depth grids are deleted. If False they are not deleted.
+
+**Concave hull of cross sections**
+
+A new layer representing the concave hull of the cross sections has been added to the geopackage for the source model and the network based model. It also improves how the concave hull is handled at junctions by explicitly creating a junction concave hull and then merging it in with the xs concave hull.
+
+
+Bug Fixes
+----------------
+
+- An error was arising when all normal depth runs resulted in water surface elevations that were below the mapping terrain which means no resulting depth grids were being produced. Previously the code assumed at least 1 depth grid would be present. This has been fixed by obtaining the "terrain part" of the raw RAS grid from the RAS terrain instead of the first depth grid in the raw RAS result folder.
+
 
 Feature Release 0.5.0
 ~~~~~~~~~~~~~~~~~~~~~
@@ -35,7 +92,6 @@ Three metrics are computed to asses the qualitiy of the conflation:
  
  
 **Geometry Extraction improvements**
-
 - A new function to verify .prj file is a HEC-RAS file has been added.
 - The extracted geopackage now contians a non-spatial metadata table for the souce HEC-RAS model. 
 - Tests have been added for extracting geopackage from HEC-RAS model.
