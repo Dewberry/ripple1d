@@ -56,7 +56,6 @@ API Reference
 
 .. toctree::
    :maxdepth: 2
-   :caption: For Developers
 
    ripple1d/index.rst
    ripple1d/api/index.rst
