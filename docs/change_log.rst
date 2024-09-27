@@ -1,7 +1,8 @@
-Change Log for Users
-=====================
+Change Log
+==========
 
-Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`_  page for a list of all releases.
+.. note::
+   Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`__  page for a list of all releases.
 
 Bugfix Release 0.6.2
 ~~~~~~~~~~~~~~~~~~~~~

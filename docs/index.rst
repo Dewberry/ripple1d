@@ -8,7 +8,7 @@ Ripple1D
 
 :code:`ripple1d` is a Python utility for repurposing HEC-RAS models for use in
 the production of Flood Inundation Maps (FIMs) and synthetic rating curves
-(SRCs) for use in near-real-time flood forecasting within NOAA’s National Water
+(SRCs) for use in near-real-time flood forecasting within NOAA's National Water
 Model (NWM). 
 
 

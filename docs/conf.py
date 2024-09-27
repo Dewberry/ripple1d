@@ -8,6 +8,8 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
 
+import ripple1d
+
 sys.path.insert(0, os.path.abspath("../"))
 
 # -- Project information -----------------------------------------------------
@@ -41,3 +43,6 @@ master_doc = "index"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_rtd_theme"
+
+# Substitutions
+version = ripple1d.__version__
