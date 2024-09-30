@@ -67,8 +67,14 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
         The path to the directory containing HEC-RAS project, plan, geometry,
         and flow files.
     source_network : dict
-        A dictionary containing ‘file_name’: path/to/nwm_network.parquet,
-        ‘type’: nwm_hydrofabric , and an optional version number
+        Information on the network to conflate
+
+        - **file_name** (str):
+            path/to/nwm_network.parquet (required)
+        - **type** (str):
+            must be 'nwm_hydrofabric' (required)
+        - **version** (str):
+            optional version number to log
     task_id : str, optional
         Task ID to use for logging, by default ""
 
