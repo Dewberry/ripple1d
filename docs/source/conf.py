@@ -29,6 +29,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.doctest",
     "myst_parser",
+    "sphinx.ext.napoleon",
 ]
 
 # numpydoc_show_class_members = False
