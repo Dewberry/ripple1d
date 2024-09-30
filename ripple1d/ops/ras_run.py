@@ -220,7 +220,7 @@ def run_known_wse(
     Parameters
     ----------
     submodel_directory : str
-        The path to the directory containing a submodel geopackage
+        The path to the directory containing a sub model geopackage
     plan_suffix : str
         characters to append to the end of the plan name, by default "_kwse"
     min_elevation : float
