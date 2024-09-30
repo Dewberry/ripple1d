@@ -94,8 +94,8 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
     #. Generate a concave hull (bounding geometry) around the HEC-RAS source model cross-sections
     #. Extract NWM reaches intersecting the hull
     #. For each HEC-RAS river reach within the source model,
-      #. Locate the NWM reaches nearest to the most upstream and most downstream cross-sections (Ex. Yellow and orange reaches above)
-      #. Extract all intermediate NWM reaches by walking   the network from upstream to downstream (Ex. Yellow, red, and orange reaches above would all be selected)
+      #. Locate the NWM reaches nearest to the most upstream and most downstream cross-sections 
+      #. Extract all intermediate NWM reaches by walking   the network from upstream to downstream
     #. For each NWM reach extracted,
       #. Locate the HEC-RAS cross-sections that intersect the reach 
         #. Discard cross-sections that are not drawn right to left looking downstream  
