@@ -60,7 +60,7 @@ a geopackage file.
 ------------------------------------
 
 (relevant endpoints: :doc:`conflate_model <endpoints/conflate_model>`, 
-:doc:`calculate_conflation_metrics <endpoints/calculate_conflation_metrics>`)
+:doc:`compute_conflation_metrics <endpoints/compute_conflation_metrics>`)
 
 .. image:: images/source_w_nwm.png
   :width: 400
