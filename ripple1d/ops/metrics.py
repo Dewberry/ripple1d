@@ -1,3 +1,4 @@
+"""Conflation Metrics."""
 import json
 import logging
 import os
@@ -115,7 +116,6 @@ class ConflationMetrics:
 
     def us_ds_xs(self, xs_gdf: gpd.GeoDataFrame):
         """Get the most upstream and downstream cross sections."""
-
         if len(xs_gdf["river_reach"].unique()) > 1:
             raise ValueError("Cross sections must all be on the same river reach.")
 
