@@ -91,18 +91,27 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
     differences by associating HEC-RAS models and model components (e.g.
     cross-sections) with the NWM reaches they overlap.  
 
-    #. Generate a concave hull (bounding geometry) around the HEC-RAS source model cross-sections
+    #. Generate a concave hull (bounding geometry) around the HEC-RAS source
+       model cross-sections
     #. Extract NWM reaches intersecting the hull
     #. For each HEC-RAS river reach within the source model,
-      #. Locate the NWM reaches nearest to the most upstream and most downstream cross-sections 
-      #. Extract all intermediate NWM reaches by walking   the network from upstream to downstream
+      #. Locate the NWM reaches nearest to the most upstream and most
+         downstream cross-sections 
+      #. Extract all intermediate NWM reaches by walking   the network from
+         upstream to downstream
     #. For each NWM reach extracted,
       #. Locate the HEC-RAS cross-sections that intersect the reach 
-        #. Discard cross-sections that are not drawn right to left looking downstream  
-        #. If no cross-sections intersect the reach, mark the reach as “eclipsed”
-      #. Mark the HEC-RAS cross-section closest to the upstream end of the reach as the “us_xs ”
-      #. Identify the HEC-RAS cross-section that is closest to the downstream end of the reach, and then mark the next HEC-RAS cross-section downstream of it as the “ds_xs”
-        #. If the “ds_xs” would be a HEC-RAS junction, mark the first cross-section downstream of the junction as “ds_xs”
+        #. Discard cross-sections that are not drawn right to left looking
+           downstream  
+        #. If no cross-sections intersect the reach, mark the reach as
+           “eclipsed”
+      #. Mark the HEC-RAS cross-section closest to the upstream end of the
+         reach as the “us_xs ”
+      #. Identify the HEC-RAS cross-section that is closest to the downstream
+         end of the reach, and then mark the next HEC-RAS cross-section
+         downstream of it as the “ds_xs”
+        #. If the “ds_xs” would be a HEC-RAS junction, mark the first
+           cross-section downstream of the junction as “ds_xs”
       #. If “ds_xs” and “us_xs” are the same, mark the reach as eclipsed
     #. Generate a map of the conflated reaches and calculate conflation metrics
 
