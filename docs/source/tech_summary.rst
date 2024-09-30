@@ -8,9 +8,10 @@ What is ripple1d?
 :code:`ripple1d` is a Python utility that repurposes HEC-RAS models for use in
 the production of Flood Inundation Maps (FIMs) and synthetic rating curves
 (SRCs) to support near-real-time flood forecasting within NOAA’s National Water
-Model (NWM).  By using the utility, HEC-RAS models can be broken up into
+Model (NWM).  With the utility, HEC-RAS models can be broken up into
 smaller sub models for each NWM reach within the modeled domain.  Sub models
-may then be used to develop reach-scale SRCs and FIM.  More specifically, the
+may then be used to develop reach-scale SRCs and FIM.
+
 ripple1d currently includes functions to:
 
 * Export HEC-RAS model geometry and metadata from proprietary HEC formats to
@@ -36,8 +37,7 @@ Flood Insurance Rate Map (DFIRM) and Base Level Engineering (BLE) initiatives.
 ripple1d provides utilities to leverage these large catalogs in an operational
 flood forecasting setting by aligning HEC-RAS model domains with forecast
 domains. Aligning model domains reduces computational overhead and allows
-models to easily interface with other modules and functions within the NWM
-ecosystem.
+models to easily interface with other modules and functions of the NWM.
 
 How ripple1d works
 ==================
@@ -76,7 +76,8 @@ each of those NWM reaches, the utility identifies an upstream cross-section as
 the HEC-RAS cross-section that intersects the reach closest to its upstream
 end. It identifies a downstream cross-section as the HEC-RAS cross-section
 **directly downstream** of the HEC-RAS cross-section that intersects the reach
-closest to the downstream end.
+closest to the downstream end.  All cross-sections between the upstream and
+downstream cross-sections are marked as associated with the NWM reach.
 
 .. image:: images/sub_models.png
   :width: 400
@@ -93,10 +94,10 @@ definitions for each of the JSON fields are provided below.
   reported in the conflation metrics output.
 
   * **centerline_offset** measures the straightline distance between RAS centerline 
-    and NWM reach line at each cross-section
+    and NWM reach line
 
   * **thalweg_offset** measures the straightline distance between lowest point
-    along each RAS section and NWM reach intersection point
+    along each RAS section and NWM reach line
 
 .. image:: images/xs_metrics.png
   :width: 400
@@ -137,7 +138,7 @@ definitions for each of the JSON fields are provided below.
 :doc:`create_ras_terrain <endpoints/create_ras_terrain>`)
 
 Once NWM reaches have been associated with relevant parts of the HEC-RAS model,
-a new HEC-RAS submodel specific to each NWM reach will be created.  Rippl1d
+a new HEC-RAS sub model specific to each NWM reach will be created.  Rippl1d
 copies geometry between source HEC-RAS model and submodel so that the submodel
 produces water surface elevation predictions consistent with the original
 engineer-certified model.  For mapping inundation extents, however, ripple1d
@@ -168,7 +169,7 @@ SRCs for a NWM reach.
   has been established, ripple1d will attempt to generate a new depth-discharge
   curve at regular depth intervals.  Discharges determined by interpolating a
   regular depth increment along the initial depth-discharge curve will be
-  incrementally run through the model, and the new curve is recorded.
+  incrementally run through the model, and the new curve will be recorded.
 
 * **Known Water Surface Elevation Run.**  An advantage of HEC-RAS over
   lower-complexity FIM methods is its ability to consider downstream hydraulic

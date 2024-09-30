@@ -245,11 +245,9 @@ def compute_conflation_metrics(source_model_directory: str, source_network: dict
       conflation metrics output.
 
       * centerline_offset measures the straightline distance between RAS
-        centerline and NWM reach line at each cross-section (measured in units
-        of the source network projection)
+        centerline and NWM reach line
       * thalweg_offset measures the straightline distance between lowest point
-        along each RAS section and NWM reach intersection point(measured in
-        units of the source network projection)
+        along each RAS section and NWM reach line
     * **lengths.** These metrics assess centerline length differences between
       HEC-RAS and the NWM reaches.
 
