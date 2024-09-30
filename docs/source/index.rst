@@ -20,6 +20,7 @@ Model (NWM).
    Technical Summary <tech_summary.rst>
    User Guide <user_guide.rst>
    API Reference <api_reference.rst>
+   Postman Collection <postman.rst>
    Change Log <change_log.rst>
 
 
