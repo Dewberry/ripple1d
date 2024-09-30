@@ -35,7 +35,8 @@ for allocating the number of cpu's to dedicate to ripple jobs..
 Starting the server
 -------------------
 
-The utilities of ripple1d are accessed via an API, and the 
+The utilities of ripple1d are accessed via an API, and the backend server must
+be started before any jobs can be processed.
 
 **Start the Ripple Services**:
 
@@ -76,7 +77,8 @@ A healthy status indicates that ripple1d is running and waiting for jobs.
 Index of Endpoints
 ------------------
 Jobs can be submitted using Postman collections, python clients, curl, or any
-other software that can communicate via HTTP REST protocol.
+other software that can communicate via HTTP REST protocol.  The following
+endpoints reflect a typical workflow for ripple1d.
 
 .. toctree::
    :maxdepth: 1
