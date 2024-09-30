@@ -28,7 +28,7 @@ def create_model_run_normal_depth(
     Parameters
     ----------
     submodel_directory : str
-        The path to the directory containing a submodel geopackage
+        The path to the directory containing a sub model geopackage
     plan_suffix : str
         characters to append to the end of the plan name, by default "_ind"
     num_of_discharges_for_initial_normal_depth_runs : int, optional
@@ -121,7 +121,7 @@ def run_incremental_normal_depth(
     Parameters
     ----------
     submodel_directory : str
-        The path to the directory containing a submodel geopackage
+        The path to the directory containing a sub model geopackage
     plan_suffix : str
         characters to append to the end of the plan name, by default "_nd"
     ras_version : str, optional
@@ -215,7 +215,47 @@ def run_known_wse(
     show_ras: bool = False,
     task_id: str = "",
 ):
-    """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
+    """Write and compute known water surface elevation runs to develop rating curves and depth grids.
+
+    Parameters
+    ----------
+    submodel_directory : str
+        The path to the directory containing a submodel geopackage
+    plan_suffix : str
+        characters to append to the end of the plan name, by default "_kwse"
+    min_elevation : float
+        minimum value for downstream boundary condition
+    max_elevation : float
+        maximum value for downstream boundary condition
+    depth_increment : int, optional
+        depth to increment stages between min and max elevation, by default 2
+    ras_version : str, optional
+        which version of HEC-RAS to use, by default "631"
+    write_depth_grids : str, optional
+        whether to generate depth rasters after each model run, by default True
+    show_ras : bool, optional
+        whether to run HEC-RAS headless or not, by default False
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    str
+        string representation of flow file data
+
+    Raises
+    ------
+    FileNotFoundError
+        raised when .conflation.json file not found in submodel_directory
+
+    Notes
+    -----
+    run_known_wse creates a catalog of stage-discharge rating curves
+    conditioned on downstream water surface elevation. For each depth increment
+    between min_elevation and max_elevation, a unique rating curve is
+    generated. Discharges for the rating curves are selected from the HEC-RAS
+    plan with suffix "_nd" generated with Run_incremental_normal_depth.
+    """
     logging.info(f"{task_id} | run_known_wse starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
