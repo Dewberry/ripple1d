@@ -83,7 +83,7 @@ other software that can communicate via HTTP REST protocol.
    
    endpoints/ras_to_gpkg
    endpoints/conflate_model
-   endpoints/calculate_conflation_metrics
+   endpoints/compute_conflation_metrics
    endpoints/extract_submodel
    endpoints/create_ras_terrain
    endpoints/create_model_run_normal_depth
