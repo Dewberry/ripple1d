@@ -56,6 +56,5 @@ API Reference
 
 .. toctree::
    :maxdepth: 2
-  ..  For this to work, you must run sphinx-apidoc first.  Ex: sphinx-apidoc -o docs/api/ ripple1d/
 
    api/ripple1d
