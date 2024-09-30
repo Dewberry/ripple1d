@@ -23,7 +23,44 @@ def create_model_run_normal_depth(
     show_ras: bool = False,
     task_id: str = "",
 ):
-    """Write and compute initial normal depth runs to develop initial rating curves."""
+    """Write and compute initial normal depth runs to develop initial rating curves.
+
+    Parameters
+    ----------
+    submodel_directory : str
+        The path to the directory containing a submodel geopackage
+    plan_suffix : str
+        characters to append to the end of the plan name, by default "_ind"
+    num_of_discharges_for_initial_normal_depth_runs : int, optional
+        number of discharges to run, evenly spaced between low and high flow
+        limits, by default 10
+    ras_version : str, optional
+        which version of HEC-RAS to use, by default "631"
+    show_ras : bool, optional
+        whether to run HEC-RAS headless or not, by default False
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    str
+        string representation of flow file data
+
+    Raises
+    ------
+    FileNotFoundError
+        raised when .conflation.json file not found in submodel_directory
+    FileNotFoundError
+        raised when geopackage file not found in submodel_directory
+
+    Notes
+    -----
+    This function is intended to create an initial stage-discharge rating curve
+    for the HEC-RAS submodel. Analysis flows are evenly spaced between the min
+    and max discharge for the reach that were established by running
+    conflate_model.  The downstream boundary condition for these runs are set
+    to normal depth with slope of 0.001
+    """
     logging.info(f"{task_id} | create_model_run_normal_depth starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
