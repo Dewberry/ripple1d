@@ -65,6 +65,7 @@ a geopackage file.
 .. image:: images/source_w_nwm.png
   :width: 400
   :alt: HEC-RAS source model and National Water Model network
+  :align: center
 
 
 The upstream and downstream limits of HEC-RAS models rarely align with those of
@@ -82,6 +83,7 @@ downstream cross-sections are marked as associated with the NWM reach.
 .. image:: images/sub_models.png
   :width: 400
   :alt: Breaking source model into sub models
+  :align: center
 
 As a part of the conflation process, ripple1d records a set of metrics that may
 be used to assess how well the HEC-RAS model and NWM reaches agree. These
@@ -102,6 +104,7 @@ definitions for each of the JSON fields are provided below.
 .. image:: images/xs_metrics.png
   :width: 400
   :alt: Cross-section conflation metrics
+  :align: center
 
 * **Length metrics.** These metrics assess centerline length differences between
   HEC-RAS and the NWM reaches.
@@ -117,6 +120,7 @@ definitions for each of the JSON fields are provided below.
 .. image:: images/length_metrics.png
   :width: 400
   :alt: Length conflation metrics
+  :align: center
 
 * **Coverage metrics.** These metrics quantify the portion of the NWM reach
   between the upstream and downstream cross-section.
@@ -130,6 +134,7 @@ definitions for each of the JSON fields are provided below.
 .. image:: images/coverage_metrics.png
   :width: 400
   :alt: Coverage conflation metrics
+  :align: center
 
 3 - Sub model creation
 ----------------------
