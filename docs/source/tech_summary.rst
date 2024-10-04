@@ -168,7 +168,9 @@ SRCs for a NWM reach.
 * **Initial Normal Depth Run.** Discharges ranging from 1.2 times the reach
   high flow threshold to the reach 1% AEP discharge will be incrementally run
   through the reach submodel, and their associated flow depths at each
-  cross-section are recorded.
+  cross-section are recorded.  If the source model min flow is lower than 1.2
+  times the high flow threshold or the source model max flow is higher than the
+  1% AEP discharge, those flow bounds will be used instead
 
 * **Regularized Normal Depth Run.**  After the initial depth-discharge curve
   has been established, ripple1d will attempt to generate a new depth-discharge
