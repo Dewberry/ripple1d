@@ -542,7 +542,33 @@ class RippleGeopackageSubsetter:
 
 
 def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, task_id: str = ""):
-    """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
+    """Use ripple conflation data to create a new GPKG from an existing ras geopackage.
+
+    Create a new geopackage with information for a specific NWM reach.  The new geopackage contains layer for the river centerline, cross-sections, and structures.
+
+    Parameters
+    ----------
+    source_model_directory : str
+        The path to the directory containing HEC-RAS project, plan, geometry, and flow files.
+    submodel_directory : str
+        The path to export submodel HEC-RAS files to.
+    nwm_id : int
+        The id of the NWM reach to create a submodel for
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    dict
+        Metadata for the submodel
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised when no geopackage is found in the source model directory
+    FileNotFoundError
+        Raised when no .conflation.json is found in the source model directory
+    """
     logging.info(f"{task_id} | extract_submodel starting")
     rsd = RippleSourceDirectory(source_model_directory)
     logging.debug(f"{task_id} | preparing to extract NWM ID {nwm_id} from {rsd.ras_project_file}")

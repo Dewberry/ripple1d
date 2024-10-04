@@ -1,3 +1,4 @@
+"""Conflation Metrics."""
 import json
 import logging
 import os
@@ -115,7 +116,6 @@ class ConflationMetrics:
 
     def us_ds_xs(self, xs_gdf: gpd.GeoDataFrame):
         """Get the most upstream and downstream cross sections."""
-
         if len(xs_gdf["river_reach"].unique()) > 1:
             raise ValueError("Cross sections must all be on the same river reach.")
 
@@ -207,8 +207,69 @@ class ConflationMetrics:
             logging.error(f"{self.task_id} | network id: {self.network_id} | Traceback: {traceback.format_exc()}")
 
 
-def compute_conflation_metrics(source_model_directory: str, source_network: str, task_id: str = ""):
-    """Compute metrics for a network reach."""
+def compute_conflation_metrics(source_model_directory: str, source_network: dict, task_id: str = ""):
+    """Compute metrics for a network reach.
+
+    Parameters
+    ----------
+    source_model_directory : str
+        The path to the directory containing HEC-RAS project, plan, geometry,
+        and flow files.
+    source_network : dict
+        Information on the network to conflate
+
+        - **file_name** (str):
+            path/to/nwm_network.parquet (required)
+        - **type** (str):
+            must be 'nwm_hydrofabric' (required)
+        - **version** (str):
+            optional version number to log
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    dict
+        Dictionary containing metrics describing model network match
+
+    Notes
+    -----
+    The compute_conflation_metrics endpoint uses the information gathered in
+    conflation to summarize how well a NWM reach and HEC-RAS model section
+    align.  The metrics are broken down into three categories: xs, lengths, and
+    coverage.
+
+    * **xs.**  These metrics quantify the degree of alignment between the NWM
+      reach centerline and the HEC-RAS model.  The metrics below are measured
+      at HEC-RAS cross-section and summary statistics are reported in the
+      conflation metrics output.
+
+      * centerline_offset measures the straightline distance between RAS
+        centerline and NWM reach line
+      * thalweg_offset measures the straightline distance between lowest point
+        along each RAS section and NWM reach line
+    * **lengths.** These metrics assess centerline length differences between
+      HEC-RAS and the NWM reaches.
+
+      * ras is the distance along the RAS centerline between upstream and
+        downstream cross-section
+      * network is the distance along the NWM reach between upstream and
+        downstream cross-section
+      * network_to_ras_ratio is the network length divided by ras length
+    * **coverage.** These metrics quantify the portion of the NWM reach between
+      the upstream and downstream cross-section.
+      
+      * start is the ratio of NWM reach length that occurs u/s of the upstream
+        cross-section
+      * end is the ratio of NWM reach length that occurs u/s of the downstream
+        cross-section
+    
+    compute_conflation_metrics also reports overlapped reaches and eclipsed
+    reaches.  Overlapped_reaches is a list of reaches that are intersected by
+    the most d/s cross-section of this model.  Eclipsed_reaches is a list of
+    NWM reaches that are contained within the concave hull of the
+    cross-sections.
+    """
     logging.info(f"{task_id} | compute_conflation_metrics starting")
     network_pq_path = source_network["file_name"]
     model_name = os.path.basename(source_model_directory)
