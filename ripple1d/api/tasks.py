@@ -4,12 +4,14 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import time
 import typing
-import sys
+
+import psutil
 from huey import SqliteHuey, signals
 from huey.api import Result
-import psutil
+
 from ripple1d.api.utils import tracerbacker
 from ripple1d.ripple1d_logger import initialize_log
 
@@ -153,9 +155,15 @@ def subprocess_caller(func: str, args: dict):
         json.dumps(args),
     ]
     r = subprocess.Popen(subprocess_args)
-    update_p_id(args.get("task_id"), r.pid)
+    task_id = args.get("task_id")
+    update_p_id(task_id, r.pid)
+    # add timeout option
 
-    r.wait()
+    stdout, stderr = r.communicate()
+    exit_code = r.wait()
+    if exit_code != 0:
+        raise TypeError(f"subprocess_caller error: stdout : {stdout} , stderr : {stderr}, exit_code: {exit_code}")
+    logging.info(f"subprocess_caller complete: {task_id} Completed stdout {stdout}")
 
 
 def task_status(only_task_id: str | None) -> dict[str, dict]:
@@ -234,6 +242,19 @@ def ogc_status(task_id: str) -> str:
     return results[0][0]
 
 
+def job_dismissed(task_id: str) -> bool:
+    """For given task ID, return its current status in OGC API terms.
+
+    WARNING assumes function executed by task is wrapped by `tracerbacker`
+    """
+    expression = """select "dismiss_time" from "task_status" where "task_id" = ?"""
+    results = huey.storage.sql(expression, (task_id,), results=True)
+    logging.debug(f"sql response = {results}")
+    if results[0][0] == "None" or results[0][0] is None:
+        return True
+    return False
+
+
 def noop(task_id: str = None):
     """Do nothing except log a message. For ping endpoint and testing."""
     logging.info(f"{task_id} | noop")
@@ -269,18 +290,31 @@ def _handle_signals(signal, task, exc=None):
             time_field = "start_time"
             ogc_status = "running"
 
-        case signals.SIGNAL_COMPLETE | signals.SIGNAL_ERROR:
+        case signals.SIGNAL_COMPLETE:
+            time_field = "finish_time"
+            tracerbacker_return = huey.result(task.id, preserve=True)
+            if job_dismissed(task.id):
+                ogc_status = "dismissed"
+            else:
+                ogc_status = "successful"
+
+        case signals.SIGNAL_ERROR:
             time_field = "finish_time"
             tracerbacker_return = huey.result(task.id, preserve=True)
             if tracerbacker_return is None:
                 ogc_status = "notfound"
             else:
-                if tracerbacker_return["err"] is None:
-                    ogc_status = "successful"
-                else:
-                    ogc_status = "failed"
+                ogc_status = "failed"
 
-        case signals.SIGNAL_CANCELED | signals.SIGNAL_LOCKED | signals.SIGNAL_EXPIRED | signals.SIGNAL_INTERRUPTED:
+        case signals.SIGNAL_LOCKED | signals.SIGNAL_EXPIRED:
+            time_field = "finish_time"
+            tracerbacker_return = huey.result(task.id, preserve=True)
+            if tracerbacker_return is None:
+                ogc_status = "notfound"
+            else:
+                ogc_status = "failed"
+
+        case signals.SIGNAL_CANCELED | signals.SIGNAL_INTERRUPTED:
             time_field = "dismiss_time"
             ogc_status = "dismissed"
 
