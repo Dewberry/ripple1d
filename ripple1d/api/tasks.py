@@ -109,6 +109,19 @@ def revoke_task(task_id: str):
     args = (task_id,)
     huey.storage.sql(expression, args, True)
 
+def subprocess_caller(func: str, args: dict):
+    """Call the specified function through a subprocess."""
+    subprocess_args = [
+        sys.executable,
+        os.path.dirname(__file__).replace("api", "ops/endpoints.py"),
+        func,
+        json.dumps(args),
+    ]
+    r = subprocess.Popen(subprocess_args)
+    update_p_id(args.get("task_id"), r.pid)
+
+    r.wait()
+
 
 def task_status(only_task_id: str | None) -> dict[str, dict]:
     """Return dictionary of tasks, where key is task ID and value is subdict (fields related to each task).
