@@ -1,0 +1,40 @@
+import json
+import subprocess
+import sys
+from typing import Callable
+
+from ripple1d.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
+from ripple1d.ops.metrics import compute_conflation_metrics
+from ripple1d.ops.ras_conflate import conflate_model
+from ripple1d.ops.ras_run import (
+    create_model_run_normal_depth,
+    run_incremental_normal_depth,
+    run_known_wse,
+)
+from ripple1d.ops.ras_terrain import create_ras_terrain
+from ripple1d.ops.subset_gpkg import extract_submodel
+from ripple1d.ras_to_gpkg import gpkg_from_ras
+
+func_lookup = {
+    "extract_submodel": extract_submodel,
+    "conflate_model": conflate_model,
+    "compute_conflation_metrics": compute_conflation_metrics,
+    "gpkg_from_ras": gpkg_from_ras,
+    "create_ras_terrain": create_ras_terrain,
+    "create_model_run_normal_depth": create_model_run_normal_depth,
+    "run_incremental_normal_depth": run_incremental_normal_depth,
+    "run_known_wse": run_known_wse,
+    "create_fim_lib": create_fim_lib,
+    "nwm_reach_model_stac": nwm_reach_model_stac,
+    "fim_lib_stac": fim_lib_stac,
+}
+
+
+def execute_endpoint(func: str, args: dict):
+    """Execute the specified function."""
+    return func_lookup[func](**json.loads(args))
+
+
+if __name__ == "__main__":
+
+    r = execute_endpoint(*sys.argv[1:])
