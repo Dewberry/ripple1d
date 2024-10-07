@@ -243,6 +243,8 @@ def dismiss(task_id):
         elif ogc_status == "accepted":
             tasks.revoke_task(task_id)
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+        elif ogc_status == "running":
+            tasks.revoke_task_by_pid(task_id)
         elif ogc_status == "dismissed":
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
         else:
@@ -257,7 +259,12 @@ def dismiss(task_id):
             )
     except Exception as e:
         return (
-            jsonify({"type": "process", "detail": f"failed to dismiss job ID {task_id} due to internal server error"}),
+            jsonify(
+                {
+                    "type": "process",
+                    "detail": f"failed to dismiss job ID {task_id} due to internal server error: {e} | {traceback.format_exc()}",
+                }
+            ),
             HTTPStatus.INTERNAL_SERVER_ERROR,
         )
 
