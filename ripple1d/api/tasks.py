@@ -3,12 +3,13 @@
 import json
 import logging
 import os
+import subprocess
 import time
 import typing
-
+import sys
 from huey import SqliteHuey, signals
 from huey.api import Result
-
+import psutil
 from ripple1d.api.utils import tracerbacker
 from ripple1d.ripple1d_logger import initialize_log
 
@@ -21,6 +22,7 @@ huey.storage.sql(
     """
     create table if not exists "task_status" (
         "task_id" text not null,
+        "p_id" text,
         "func_name" text not null,
         "func_kwargs" text not null,
         "huey_status" text not null,
@@ -255,7 +257,7 @@ def _process(func: typing.Callable, kwargs: dict = {}, task=None):
     """
     if task:
         kwargs["task_id"] = task.id
-    return func(**kwargs)
+    return subprocess_caller(func.__name__, kwargs)
 
 
 @huey.signal()
