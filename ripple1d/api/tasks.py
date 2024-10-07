@@ -96,6 +96,26 @@ def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
     return huey.enqueue(task_instance)
 
 
+def revoke_task_by_pid(task_id: str):
+    """Revoke a task by pid."""
+    expression = """select "p_id" from "task_status" where "task_id" = ?"""
+    args = (task_id,)
+    pid = huey.storage.sql(expression, args, results=True)
+
+    p = psutil.Process(int(pid[0][0]))
+    p.terminate()  # or p.kill()
+
+    expression = f"""
+    update "task_status"
+    set
+        "ogc_status" = 'dismissed',
+        "dismiss_time" = datetime('now')
+    where "task_id" = ?
+    """
+    args = (task_id,)
+    huey.storage.sql(expression, args, True)
+
+
 def revoke_task(task_id: str):
     """Revoke a task."""
     huey.revoke_by_id(task_id)
