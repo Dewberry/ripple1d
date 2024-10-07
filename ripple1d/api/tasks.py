@@ -109,6 +109,19 @@ def revoke_task(task_id: str):
     args = (task_id,)
     huey.storage.sql(expression, args, True)
 
+
+def update_p_id(task_id: str, p_id: str):
+    """Update p_id."""
+    expression = f"""
+    update "task_status"
+    set
+        "p_id" = '{p_id}'
+    where "task_id" = ?
+    """
+    args = (task_id,)
+    huey.storage.sql(expression, args, True)
+
+
 def subprocess_caller(func: str, args: dict):
     """Call the specified function through a subprocess."""
     subprocess_args = [
