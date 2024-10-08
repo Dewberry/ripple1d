@@ -107,7 +107,7 @@ def revoke_task_by_pid(task_id: str):
     pid = huey.storage.sql(expression, args, results=True)
 
     p = psutil.Process(int(pid[0][0]))
-    p.terminate()  # or p.kill()
+    p.terminate()
 
     expression = f"""
     update "task_status"
@@ -249,10 +249,10 @@ def job_dismissed(task_id: str) -> bool:
     """
     expression = """select "dismiss_time" from "task_status" where "task_id" = ?"""
     results = huey.storage.sql(expression, (task_id,), results=True)
-    logging.debug(f"sql response = {results}")
+    logging.debug(f"job_dismissed response = {results}")
     if results[0][0] == "None" or results[0][0] is None:
-        return True
-    return False
+        return False
+    return True
 
 
 def noop(task_id: str = None):
@@ -284,7 +284,8 @@ def _process(func: typing.Callable, kwargs: dict = {}, task=None):
 @huey.signal()
 def _handle_signals(signal, task, exc=None):
     """Update the status in the task_status table When task emits a signal."""
-    logging.info(f"{signal} : {task.id}")
+    # logging.info(f"{signal} : {task.id}")
+    task_status = signal
     match signal:
         case signals.SIGNAL_EXECUTING:
             time_field = "start_time"
@@ -294,7 +295,12 @@ def _handle_signals(signal, task, exc=None):
             time_field = "finish_time"
             tracerbacker_return = huey.result(task.id, preserve=True)
             if job_dismissed(task.id):
+                task_status = "revoked"
                 ogc_status = "dismissed"
+                huey.storage.sql(
+                    """update "task_status" set huey_status = ? where "task_id" = ?""", (task_status, task.id), True
+                )
+
             else:
                 ogc_status = "successful"
 
@@ -331,6 +337,9 @@ def _handle_signals(signal, task, exc=None):
         case _:  # e.g. SIGNAL_RETRYING, SIGNAL_SCHEDULED
             raise ValueError(f"Unhandled signal: {signal}")
 
+    if ogc_status == "dismissed":
+        return
+
     expression = f"""
         update "task_status"
         set
@@ -340,5 +349,5 @@ def _handle_signals(signal, task, exc=None):
         where "task_id" = ?
         """
 
-    args = (signal, ogc_status, task.id)
+    args = (task_status, ogc_status, task.id)
     huey.storage.sql(expression, args, True)
