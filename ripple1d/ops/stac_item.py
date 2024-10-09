@@ -15,6 +15,7 @@ from typing import List
 import pandas as pd
 import pystac
 import pystac.item
+import requests
 from pystac.extensions.projection import AssetProjectionExtension
 from pystac.extensions.storage import StorageExtension
 from shapely import to_geojson
@@ -57,6 +58,18 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
     bbox = pd.concat(gdfs).total_bounds.tolist()
     concave_hull = xs_concave_hull(gdfs["XS"])
     geometry = json.loads(to_geojson(concave_hull.iloc[0]['geometry']))
+    centroid = concave_hull.centroid.iloc[0]
+
+    # get huc8
+    tries = 0
+    while tries < 5:
+        resp = requests.get('https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/4/query?geometry={},{}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&f=json&outFields=huc8'.format(centroid.x, centroid.y))
+        try:
+            huc8 = resp.json()['features'][0]['attributes']['huc8']
+        except Exception:
+            tries += 1
+        else:
+            tries = 9999
 
     # datetime
     ras_data = gdfs["River"]["ras_data"].iloc[0].split("\n")
@@ -79,8 +92,7 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
         "flows": {key: val.file_extension for key, val in rasmanager.flows.items()},
         "river_miles": str(river_miles),
         "datetime_source": datetime_source,
-        "proj:wkt2": og_crs.to_wkt(),
-        "proj:epsg": og_crs.to_epsg(),
+        'assigned_HUC8': huc8,
     }
 
     # collection
@@ -171,6 +183,7 @@ def process_model(keys: List[str], crs: str, model_source:str, bucket: str="fim"
         rm = RippleSourceModel(ras_prj_path, crs)
         logging.info(f"Making stac item for {ras_prj_path}")
         stac = rasmodel_to_stac(rm, save_json=False)
+        stac.properties['model_source'] = model_source
 
         # Upload png and gpkg to s3
         assets["Thumbnail"] = upload_file(
