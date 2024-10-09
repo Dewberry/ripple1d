@@ -11,9 +11,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import List
+
 import pandas as pd
 import pystac
 import pystac.item
+from pystac.extensions.projection import AssetProjectionExtension
+from pystac.extensions.storage import StorageExtension
 from shapely import to_geojson
 
 import ripple1d
@@ -45,9 +48,15 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
     # Geometry, bbox, and misc geospatial
     og_crs = gdfs["River"].crs
     river_miles = get_river_miles(gdfs["River"])
+    proj_ext_concave_hull = xs_concave_hull(gdfs["XS"])
+    proj_ext_geom = to_geojson(proj_ext_concave_hull.iloc[0]['geometry'])
+    proj_ext_centroid = to_geojson(proj_ext_concave_hull.centroid.iloc[0])
+    proj_ext_bbox = pd.concat(gdfs).total_bounds.tolist()
+
     gdfs = reproject(gdfs)
-    bbox = pd.concat(gdfs).total_bounds
-    footprint = xs_concave_hull(gdfs["XS"])
+    bbox = pd.concat(gdfs).total_bounds.tolist()
+    concave_hull = xs_concave_hull(gdfs["XS"])
+    geometry = json.loads(to_geojson(concave_hull.iloc[0]['geometry']))
 
     # datetime
     ras_data = gdfs["River"]["ras_data"].iloc[0].split("\n")
@@ -86,14 +95,18 @@ def rasmodel_to_stac(rasmodel: RippleSourceModel, save_json: bool = False):
     # Make pystac item
     stac = pystac.item.Item(
         id=item_id,
-        geometry=json.loads(footprint.to_json()),
-        bbox=bbox.tolist(),
+        geometry=geometry,
+        bbox=bbox,
         datetime=dt,
         properties=properties,
         collection=collection,
         assets=assets,
-        stac_extensions=["Projection", "Storage"],
     )
+
+    stor_ext = StorageExtension.ext(stac, add_if_missing=True)
+    stor_ext.apply(platform='AWS', region='us-east-1')
+    prj_ext = AssetProjectionExtension.ext(stac, add_if_missing=True)
+    prj_ext.apply(epsg=og_crs.to_epsg(), wkt2=og_crs.to_wkt(), geometry=proj_ext_geom, bbox=proj_ext_bbox, centroid=proj_ext_centroid)
 
     if save_json:
         # Export STAC item
@@ -123,17 +136,6 @@ def make_stac_assets(asset_list: list, bucket: str = None):
         )
         assets[title] = asset
     return assets
-
-def s3_ras_to_stac(bucket: str, key: str, crs: str) -> dict:
-    """Process s3 key, and on error, return null dict."""
-    try:
-        return process_key(bucket, key, crs)
-    except Exception:
-        return {
-            "stac_item": None,
-            "thumbnail": None,
-            "gpkg": None,
-        }
 
 def process_model(keys: List[str], crs: str, model_source:str, bucket: str="fim") -> dict:
     """Convert RAS model associated with a .prj S3 key to stac."""
