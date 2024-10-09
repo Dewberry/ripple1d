@@ -14,7 +14,7 @@ from ripple1d.ras import RasFlowText
 
 def start_server():
     return subprocess.Popen(
-        ["ripple1d", "start"],
+        ["ripple1d", "start", "--thread_count", "3"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )

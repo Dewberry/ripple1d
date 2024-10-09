@@ -39,24 +39,28 @@ class RippleGeopackageSubsetter:
         self._ripple_xs_concave_hull = None
 
     def set_nwm_id(self, nwm_id: str):
+        """Set the NWM ID."""
         self.nwm_id = nwm_id
         self._subset_gdf = None
         self._ripple_xs_concave_hull = None
 
     @property
     def ripple_us_xs(self):
+        """Return upstream xs."""
         return self.ripple_xs.loc[
             self.ripple_xs["river_station"] == self.ripple_xs["river_station"].max(), "geometry"
         ].iloc[0]
 
     @property
     def ripple_ds_xs(self):
+        """Return downstream xs."""
         return self.ripple_xs.loc[
             self.ripple_xs["river_station"] == self.ripple_xs["river_station"].min(), "geometry"
         ].iloc[0]
 
     @property
     def split_source_hull(self):
+        """Split source hull."""
         geoms = split(self.source_hulls.geometry.iloc[0], self.ripple_us_xs).geoms
         hulls = []
         for geom in geoms:
@@ -73,6 +77,7 @@ class RippleGeopackageSubsetter:
 
     @property
     def ripple_xs_concave_hull(self):
+        """Return concave hull."""
         if self._ripple_xs_concave_hull is None:
             try:
                 hulls = self.split_source_hull

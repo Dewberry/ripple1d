@@ -238,21 +238,11 @@ def huey_status(task_id: str) -> str:
 
 def fetch_ogc_status(task_id: str) -> str:
     """For given task ID, return its current status in OGC API terms."""
-    # expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
-    # results = huey.storage.sql(expression, (task_id,), results=True)
-    # if not results:
-    #     return "notfound"
-    # return results[0][0]
     return fetch_one_query(task_id, "ogc_status", "task_status")
 
 
 def fetch_results(task_id: str) -> str:
-    """For given task ID, return results"""
-    # expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
-    # results = huey.storage.sql(expression, (task_id,), results=True)
-    # if not results:
-    #     return "notfound"
-    # return results[0][0]
+    """For given task ID, return results."""
     results = fetch_one_query(task_id, "results", "task_logs")
     return json.loads(results)
 
@@ -274,14 +264,16 @@ def fetch_logs(task_id: str) -> str:
         for line in std_out:
             results["logs"].append(json.loads(line))
     except:
-        results["logs"] = None
+        results["logs"] = results_raw[0][0]
 
     try:
         std_err = ast.literal_eval(results_raw[0][1])
         for line in std_err:
             results["errors"].append(json.loads(line))
+        else:
+            results["errors"].append(results_raw[0][1])
     except:
-        results["errors"] = None
+        results["errors"] = results_raw[0][1]
 
     return results
 

@@ -65,7 +65,7 @@ def create_model_run_normal_depth(
             run_ras=True,
         )
 
-    logging.info(f"create_model_run_normal_depth complete")
+    logging.info("create_model_run_normal_depth complete")
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
 
@@ -78,7 +78,7 @@ def run_incremental_normal_depth(
     show_ras: bool = False,
 ):
     """Write and compute incremental normal depth runs to develop rating curves and depth grids."""
-    logging.info(f"run_incremental_normal_depth starting")
+    logging.info("run_incremental_normal_depth starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -121,7 +121,7 @@ def run_incremental_normal_depth(
         show_ras=show_ras,
         run_ras=True,
     )
-    logging.info(f"run_incremental_normal_depth complete")
+    logging.info("run_incremental_normal_depth complete")
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
 
 
@@ -136,7 +136,7 @@ def run_known_wse(
     show_ras: bool = False,
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids."""
-    logging.info(f"run_known_wse starting")
+    logging.info("run_known_wse starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -296,11 +296,11 @@ def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_na
 def establish_order_of_nwm_ids(conflation_parameters: dict) -> list[str]:
     """Establish the order of NWM IDs based on the cross section IDs."""
     order = []
-    for id, data in conflation_parameters.items():
+    for idx, data in conflation_parameters.items():
         if conflation_parameters[id]["us_xs"]["xs_id"] == "-9999":
-            logging.warning(f"skipping {id}; no cross sections conflated.")
+            logging.warning(f"skipping {idx}; no cross sections conflated.")
         else:
-            order.append((float(data["us_xs"]["xs_id"]), id))
+            order.append((float(data["us_xs"]["xs_id"]), idx))
     order.sort()
     return [i[1] for i in order]
 

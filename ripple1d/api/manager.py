@@ -43,6 +43,7 @@ class RippleManager:
 
     def start(self):
         """Start the Ripple API and Huey consumer in separate terminals."""
+        # TODO: Add check for running instance
         if sys.platform != "win32":
             raise SystemError("API can only be run from a windows system")
 
