@@ -1,5 +1,7 @@
 """Flask API."""
 
+import json
+import logging
 import time
 import traceback
 import typing
@@ -150,11 +152,24 @@ def job_status(task_id):
         )
 
 
+@app.route("/jobs/<task_id>/logs", methods=["GET"])
+def job_logs(task_id):
+    """Retrieve result for job."""
+    try:
+        result = tasks.fetch_logs(task_id)
+        return jsonify(result), HTTPStatus.OK
+    except Exception as e:
+        return (
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
+        )
+
+
 @app.route("/jobs/<task_id>/results", methods=["GET"])
 def job_results(task_id):
     """Retrieve result for job."""
     try:
-        result = get_job_results(task_id)
+        result = tasks.fetch_results(task_id)
         return jsonify(result), HTTPStatus.OK
     except Exception as e:
         return (
@@ -203,14 +218,6 @@ def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tup
                 HTTPStatus.BAD_REQUEST,
             ),
         )
-
-
-def get_job_results(task_id: str, include_traceback: str = False) -> dict:
-    """Convert huey-style task status metadata into a OGC-style result dictionary."""
-    huey_result = tasks.huey.result(task_id, preserve=True)
-    if include_traceback is False and huey_result is not None:
-        del huey_result["tb"]  # remove the traceback
-    return huey_result
 
 
 def get_job_status(task_id: str, huey_metadata: dict) -> dict:

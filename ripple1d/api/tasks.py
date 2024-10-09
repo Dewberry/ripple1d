@@ -1,5 +1,6 @@
 """huey instance for huey + Flask REST API (to be called by huey_consumer.py)."""
 
+import ast
 import json
 import logging
 import os
@@ -55,7 +56,6 @@ huey.storage.sql(
     commit=True,
 )
 
-
 # Create custom triggers to keep status_time field updated
 huey.storage.sql(
     """
@@ -74,6 +74,7 @@ huey.storage.sql(
     """,
     commit=True,
 )
+
 huey.storage.sql(
     """
     create trigger if not exists "trg_task_status_update" after update on "task_status"
@@ -161,6 +162,156 @@ def update_p_id(task_id: str, p_id: str):
     huey.storage.sql(expression, args, True)
 
 
+def task_status(only_task_id: str | None) -> dict[str, dict]:
+    """Return dictionary of tasks, where key is task ID and value is subdict (fields related to each task).
+
+    If only_task_id is None, all tasks will be returned.
+    If only_task_id is *not* None, only the provided task will be returned.
+    """
+    expression = """
+        select
+            "task_id",
+            "func_name",
+            "func_kwargs",
+            "huey_status",
+            "ogc_status",
+            "accept_time",
+            "dismiss_time",
+            "start_time",
+            "finish_time",
+            "status_time",
+            "finish_duration_minutes"
+        from "task_status"
+        order by "status_time" desc
+        """
+    results_raw = huey.storage.sql(expression, results=True)
+    results_dict = {}
+    for (
+        task_id,
+        func_name,
+        func_kwargs,
+        huey_status,
+        ogc_status,
+        accept_time,
+        dismiss_time,
+        start_time,
+        finish_time,
+        status_time,
+        finish_duration_minutes,
+    ) in results_raw:
+        if only_task_id is not None and task_id != only_task_id:
+            continue
+
+        results_dict[task_id] = {
+            "huey_status": huey_status,
+            "func_name": func_name,
+            "func_kwargs": json.loads(func_kwargs),
+            "ogc_status": ogc_status,
+            "accept_time": accept_time,
+            "dismiss_time": dismiss_time,
+            "start_time": start_time,
+            "finish_time": finish_time,
+            "status_time": status_time,
+            "finish_duration_minutes": finish_duration_minutes,
+        }
+    return results_dict
+
+
+def fetch_one_query(task_id: str, field: str, table: str) -> str:
+    """Return a fetch one query given table and field given task_id."""
+    expression = f"""select "{field}" from "{table}" where "task_id" = ?"""
+    results = huey.storage.sql(expression, (task_id,), results=True)
+    if not results:
+        return "notfound"
+    return results[0][0]
+
+
+def huey_status(task_id: str) -> str:
+    """For given task ID, return its current status in huey terms."""
+    # expression = """select "huey_status" from "task_status" where "task_id" = ?"""
+    # results = huey.storage.sql(expression, (task_id,), results=True)
+    # if not results:
+    #     return "notfound"
+    # return results[0][0]
+    return fetch_one_query(task_id, "huey_status", "task_status")
+
+
+def fetch_ogc_status(task_id: str) -> str:
+    """For given task ID, return its current status in OGC API terms."""
+    # expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
+    # results = huey.storage.sql(expression, (task_id,), results=True)
+    # if not results:
+    #     return "notfound"
+    # return results[0][0]
+    return fetch_one_query(task_id, "ogc_status", "task_status")
+
+
+def fetch_results(task_id: str) -> str:
+    """For given task ID, return results"""
+    # expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
+    # results = huey.storage.sql(expression, (task_id,), results=True)
+    # if not results:
+    #     return "notfound"
+    # return results[0][0]
+    results = fetch_one_query(task_id, "results", "task_logs")
+    return json.loads(results)
+
+
+def fetch_logs(task_id: str) -> str:
+    """For given task ID, return logs."""
+    expression = f"""
+        select
+            "stdout", 
+            "stderr" 
+        from "task_logs" 
+        where "task_id" = ?"""
+
+    results_raw = huey.storage.sql(expression, (task_id,), results=True)
+
+    results = {"logs": [], "errors": []}
+    try:
+        std_out = ast.literal_eval(results_raw[0][0])
+        for line in std_out:
+            results["logs"].append(json.loads(line))
+    except:
+        results["logs"] = None
+
+    try:
+        std_err = ast.literal_eval(results_raw[0][1])
+        for line in std_err:
+            results["errors"].append(json.loads(line))
+    except:
+        results["errors"] = None
+
+    return results
+
+
+def job_dismissed(task_id: str) -> bool:
+    """For given task ID, return its current status in OGC API terms."""
+    expression = """select "dismiss_time" from "task_status" where "task_id" = ?"""
+    results = huey.storage.sql(expression, (task_id,), results=True)
+    logging.debug(f"job_dismissed response = {results}")
+    if results[0][0] == "None" or results[0][0] is None:
+        return False
+    return True
+
+
+def task_results(task_id: str) -> str:
+    """For given task ID, return its current status in OGC API terms."""
+    expression = """select "results" from "task_logs" where "task_id" = ?"""
+    results = huey.storage.sql(expression, (task_id,), results=True)
+    if not results:
+        return "notfound"
+    elif results[0][0] == "failed":
+        return "failed"
+
+
+def noop(task_id: str = None):
+    """Do nothing except log a message. For ping endpoint and testing."""
+    logging.info(f"{task_id} | noop")
+    pass
+
+
 def subprocess_caller(
     func: str, args: dict, task_id: str, log_dir: str = "", log_level: int = logging.INFO, timeout: int = None
 ):
@@ -220,116 +371,6 @@ def subprocess_caller(
     elif exit_code != 0:
         logging.debug(f"{task_id} exit code {exit_code}")
         huey.storage.sql("""update "task_status" set "ogc_status" = ? where "task_id" = ?""", ("failed", task_id), True)
-
-
-def task_status(only_task_id: str | None) -> dict[str, dict]:
-    """Return dictionary of tasks, where key is task ID and value is subdict (fields related to each task).
-
-    If only_task_id is None, all tasks will be returned.
-    If only_task_id is *not* None, only the provided task will be returned.
-    """
-    expression = """
-        select
-            "task_id",
-            "func_name",
-            "func_kwargs",
-            "huey_status",
-            "ogc_status",
-            "accept_time",
-            "dismiss_time",
-            "start_time",
-            "finish_time",
-            "status_time",
-            "finish_duration_minutes"
-        from "task_status"
-        order by "status_time" desc
-        """
-    results_raw = huey.storage.sql(expression, results=True)
-    results_dict = {}
-    for (
-        task_id,
-        func_name,
-        func_kwargs,
-        huey_status,
-        ogc_status,
-        accept_time,
-        dismiss_time,
-        start_time,
-        finish_time,
-        status_time,
-        finish_duration_minutes,
-    ) in results_raw:
-        if only_task_id is not None and task_id != only_task_id:
-            continue
-
-        results_dict[task_id] = {
-            "huey_status": huey_status,
-            "func_name": func_name,
-            "func_kwargs": func_kwargs,
-            "ogc_status": ogc_status,
-            "accept_time": accept_time,
-            "dismiss_time": dismiss_time,
-            "start_time": start_time,
-            "finish_time": finish_time,
-            "status_time": status_time,
-            "finish_duration_minutes": finish_duration_minutes,
-        }
-    return results_dict
-
-
-def fetch_one_query(task_id: str, field: str, table: str) -> str:
-    """Return a fetch one query given table and field given task_id."""
-    expression = f"""select "{field}" from "{table}" where "task_id" = ?"""
-    results = huey.storage.sql(expression, (task_id,), results=True)
-    if not results:
-        return "notfound"
-    return results[0][0]
-
-
-def huey_status(task_id: str) -> str:
-    """For given task ID, return its current status in huey terms."""
-    # expression = """select "huey_status" from "task_status" where "task_id" = ?"""
-    # results = huey.storage.sql(expression, (task_id,), results=True)
-    # if not results:
-    #     return "notfound"
-    # return results[0][0]
-    return fetch_one_query(task_id, "huey_status", "task_status")
-
-
-def fetch_ogc_status(task_id: str) -> str:
-    """For given task ID, return its current status in OGC API terms."""
-    # expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
-    # results = huey.storage.sql(expression, (task_id,), results=True)
-    # if not results:
-    #     return "notfound"
-    # return results[0][0]
-    return fetch_one_query(task_id, "ogc_status", "task_status")
-
-
-def job_dismissed(task_id: str) -> bool:
-    """For given task ID, return its current status in OGC API terms."""
-    expression = """select "dismiss_time" from "task_status" where "task_id" = ?"""
-    results = huey.storage.sql(expression, (task_id,), results=True)
-    logging.debug(f"job_dismissed response = {results}")
-    if results[0][0] == "None" or results[0][0] is None:
-        return False
-    return True
-
-
-def task_results(task_id: str) -> str:
-    """For given task ID, return its current status in OGC API terms."""
-    expression = """select "results" from "task_logs" where "task_id" = ?"""
-    results = huey.storage.sql(expression, (task_id,), results=True)
-    if not results:
-        return "notfound"
-    elif results[0][0] == "failed":
-        return "failed"
-
-
-def noop(task_id: str = None):
-    """Do nothing except log a message. For ping endpoint and testing."""
-    logging.info(f"{task_id} | noop")
-    pass
 
 
 @huey.task(context=True)
