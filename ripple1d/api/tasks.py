@@ -13,11 +13,11 @@ from huey import SqliteHuey, signals
 from huey.api import Result
 
 from ripple1d.api.utils import tracerbacker
-from ripple1d.ripple1d_logger import initialize_log
+from ripple1d.ripple1d_logger import initialize_server_logger
 
-initialize_log()
+initialize_server_logger()
 
-huey = SqliteHuey(filename=os.path.join("huey.db"), results=True)
+huey = SqliteHuey(filename=os.path.join("jobs.db"), results=True)
 
 # Create custom table task_status
 huey.storage.sql(
@@ -35,6 +35,20 @@ huey.storage.sql(
         "finish_time" timestamptz,
         "status_time" timestamptz,
         "finish_duration_minutes" real,
+        "results" text,
+        primary key("task_id")
+    );
+    """,
+    commit=True,
+)
+
+# Create custom table task_logs
+huey.storage.sql(
+    """
+    create table if not exists "task_logs" (
+        "task_id" text not null,
+        "stdout" text,
+        "stderr" text,
         "results" text,
         primary key("task_id")
     );
@@ -92,10 +106,10 @@ def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
     task_instance = _process.s(func, kwargs)
     huey.storage.sql(
         """
-    insert into "task_status"
-        ("task_id", "func_name", "func_kwargs", "huey_status", "ogc_status", "accept_time")
-    values
-        (?, ?, ?, 'queued', 'accepted', datetime('now'))""",
+        insert into "task_status"
+            ("task_id", "func_name", "func_kwargs", "huey_status", "ogc_status", "accept_time")
+        values
+            (?, ?, ?, 'queued', 'accepted', datetime('now'))""",
         (task_instance.id, func.__name__, json.dumps(kwargs)),
         True,
     )
@@ -112,12 +126,12 @@ def revoke_task_by_pid(task_id: str):
     p.terminate()
 
     expression = f"""
-    update "task_status"
-    set
-        "ogc_status" = 'dismissed',
-        "dismiss_time" = datetime('now')
-    where "task_id" = ?
-    """
+        update "task_status"
+        set
+            "ogc_status" = 'dismissed',
+            "dismiss_time" = datetime('now')
+        where "task_id" = ?
+        """
     args = (task_id,)
     huey.storage.sql(expression, args, True)
 
@@ -126,12 +140,12 @@ def revoke_task(task_id: str):
     """Revoke a task."""
     huey.revoke_by_id(task_id)
     expression = f"""
-    update "task_status"
-    set
-        "ogc_status" = 'dismissed',
-        "dismiss_time" = datetime('now')
-    where "task_id" = ?
-    """
+        update "task_status"
+        set
+            "ogc_status" = 'dismissed',
+            "dismiss_time" = datetime('now')
+        where "task_id" = ?
+        """
     args = (task_id,)
     huey.storage.sql(expression, args, True)
 
@@ -139,11 +153,11 @@ def revoke_task(task_id: str):
 def update_p_id(task_id: str, p_id: str):
     """Update p_id."""
     expression = f"""
-    update "task_status"
-    set
-        "p_id" = '{p_id}'
-    where "task_id" = ?
-    """
+        update "task_status"
+        set
+            "p_id" = '{p_id}'
+        where "task_id" = ?
+        """
     args = (task_id,)
     huey.storage.sql(expression, args, True)
 
@@ -163,16 +177,19 @@ def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int =
     task_id = args.get("task_id")
     update_p_id(task_id, process.pid)
 
+    stderr_logs = []
+    stdout_logs = []
+
     try:
         stdout_lines, stderr_output = process.communicate(timeout=timeout)
         for line in stdout_lines.splitlines():
             if '"results"' in line:
                 program_output = json.loads(line)
             else:
-                logging.info(f"{task_id}: {line}")
+                stdout_logs.append(line)
 
         if stderr_output:
-            logging.error(f"{task_id}: {stderr_output}")
+            stderr_logs.append(line)
 
     except subprocess.TimeoutExpired:
         process.kill()
@@ -184,19 +201,24 @@ def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int =
     exit_code = process.wait()
 
     if exit_code != 0:
-        huey.storage.sql("""update "task_status" set results = ? where "task_id" = ?""", ("failed", task_id), True)
-        return None
+        results = "failed"
 
     try:
-        results = program_output.get("results")
-        huey.storage.sql(
-            """update "task_status" set results = ? where "task_id" = ?""", (json.dumps(results), task_id), True
-        )
-        return None
+        results = json.dumps(program_output.get("results"))
 
     except json.JSONDecodeError:
+        results = None
         logging.error(f"{task_id}: Failed to decode JSON result.")
-        return None
+
+    huey.storage.sql(
+        """
+        insert into "task_logs"
+            ("task_id", "stdout", "stderr", "results")
+        values
+            (?, ?, ?, ?)""",
+        (task_id, str(stdout_logs), str(stderr_logs), results),
+        True,
+    )
 
 
 def task_status(only_task_id: str | None) -> dict[str, dict]:
@@ -254,13 +276,23 @@ def task_status(only_task_id: str | None) -> dict[str, dict]:
     return results_dict
 
 
-def huey_status(task_id: str) -> str:
-    """For given task ID, return its current status in huey terms."""
-    expression = """select "huey_status" from "task_status" where "task_id" = ?"""
+def fetch_one_query(task_id: str, field: str, table: str) -> str:
+    """Return a fetch one query given table and field given task_id."""
+    expression = f"""select "{field}" from "{table}" where "task_id" = ?"""
     results = huey.storage.sql(expression, (task_id,), results=True)
     if not results:
         return "notfound"
     return results[0][0]
+
+
+def huey_status(task_id: str) -> str:
+    """For given task ID, return its current status in huey terms."""
+    # expression = """select "huey_status" from "task_status" where "task_id" = ?"""
+    # results = huey.storage.sql(expression, (task_id,), results=True)
+    # if not results:
+    #     return "notfound"
+    # return results[0][0]
+    return fetch_one_query(task_id, "huey_status", "task_status")
 
 
 def ogc_status(task_id: str) -> str:
@@ -268,11 +300,12 @@ def ogc_status(task_id: str) -> str:
 
     WARNING assumes function executed by task is wrapped by `tracerbacker`
     """
-    expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
-    results = huey.storage.sql(expression, (task_id,), results=True)
-    if not results:
-        return "notfound"
-    return results[0][0]
+    # expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
+    # results = huey.storage.sql(expression, (task_id,), results=True)
+    # if not results:
+    #     return "notfound"
+    # return results[0][0]
+    return fetch_one_query(task_id, "ogc_status", "task_status")
 
 
 def job_dismissed(task_id: str) -> bool:
@@ -293,7 +326,7 @@ def task_results(task_id: str) -> str:
 
     WARNING assumes function executed by task is wrapped by `tracerbacker`
     """
-    expression = """select "results" from "task_status" where "task_id" = ?"""
+    expression = """select "results" from "task_logs" where "task_id" = ?"""
     results = huey.storage.sql(expression, (task_id,), results=True)
     if not results:
         return "notfound"
@@ -307,16 +340,8 @@ def noop(task_id: str = None):
     pass
 
 
-def sleep_some(sleep_time: int = 15, task_id: str = None):
-    """Do nothing except log a message and then sleep for a while.  For testing."""
-    logging.info(f"{task_id} | sleep_some")
-    for i in range(0, sleep_time):
-        time.sleep(1)
-    return f"Slept for {sleep_time}"
-
-
 @huey.task(context=True)
-@tracerbacker
+# @tracerbacker
 def _process(func: typing.Callable, kwargs: dict = {}, task=None):
     """Execute generic huey task that calls the provided func with provided kwargs, asynchronously.
 
@@ -325,8 +350,7 @@ def _process(func: typing.Callable, kwargs: dict = {}, task=None):
     if task:
         kwargs["task_id"] = task.id
 
-    status = subprocess_caller(func.__name__, kwargs)
-    return status
+    return subprocess_caller(func.__name__, kwargs)
 
 
 @huey.signal()
