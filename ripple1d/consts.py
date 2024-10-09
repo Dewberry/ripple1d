@@ -2,6 +2,8 @@
 
 from collections import OrderedDict
 
+SUPPRESS_LOGS = ["boto3", "botocore", "geopandas", "fiona", "rasterio", "pyogrio", "shapely"]
+
 MAP_DEM_UNCLIPPED_SRC_URL = (
     "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
 )

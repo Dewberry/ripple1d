@@ -52,18 +52,6 @@ class RippleManager:
             print("Error: huey consumer script was not discoverable.")
             exit(1)
 
-        # if os.path.exists(self.logs_dir):
-        #     shutil.rmtree(self.logs_dir, onerror=self._handle_remove_readonly)
-
-        # if os.path.exists(self.logs_dir):
-        #     print(f"Error: could not delete {self.logs_dir}")
-        #     exit(1)
-
-        # os.makedirs(self.logs_dir, exist_ok=True)
-        # if not os.path.exists(self.logs_dir):
-        #     print(f"Error: could not create {self.logs_dir}")
-        #     exit(1)
-
         python_executable = sys.executable
 
         print("Starting ripple1d-huey")
@@ -74,6 +62,8 @@ class RippleManager:
             "ripple1d.api.tasks.huey",
             "-w",
             str(self.huey["thread_count"]),
+            "--flush-locks",
+            "--no-periodic",
         ]
         if self.huey["hide_huey_shell"]:
             subprocess.Popen(["start", "cmd", "/k", " ".join(huey_command)], shell=False)

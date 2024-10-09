@@ -199,12 +199,15 @@ def sleep15():
     return ("Slept for 15", 123.456)
 
 
-# If needing the worker to know about its own task, then use `@huey.task(context=True)``
-# and add `task=None` to the task function definition.
-@huey.task()
+@huey.task(context=True)
 @tracerbacker
-def _process(func: typing.Callable, kwargs: dict = {}):
-    """Execute generic huey task that calls the provided func with provided kwargs, asynchronously."""
+def _process(func: typing.Callable, kwargs: dict = {}, task=None):
+    """Execute generic huey task that calls the provided func with provided kwargs, asynchronously.
+
+    task expected for all funcitons in the ops module to pass through task id for logging
+    """
+    if task:
+        kwargs["task_id"] = task.id
     return func(**kwargs)
 
 
