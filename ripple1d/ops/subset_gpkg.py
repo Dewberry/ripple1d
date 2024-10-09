@@ -15,7 +15,6 @@ from shapely.ops import split
 import ripple1d
 from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
-from ripple1d.ripple1d_logger import log_process
 from ripple1d.utils.ripple_utils import clip_ras_centerline, fix_reversed_xs, xs_concave_hull
 
 warnings.filterwarnings("ignore")
@@ -233,8 +232,7 @@ class RippleGeopackageSubsetter:
         """Return the new NWM reach model object."""
         return NwmReachModel(self.dst_project_dir)
 
-    # @log_process
-    def write_ripple_gpkg(self, task_id: str = None) -> None:
+    def write_ripple_gpkg(self) -> None:
         """Write the subsetted geopackage to the destination project directory."""
         os.makedirs(self.dst_project_dir, exist_ok=True)
 
@@ -545,7 +543,7 @@ class RippleGeopackageSubsetter:
             json.dump(ripple1d_parameters, f, indent=4)
 
 
-def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, task_id: str = ""):
+def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
     # time.sleep(10)
 
@@ -555,7 +553,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         )
     rsd = RippleSourceDirectory(source_model_directory)
 
-    print(f"extract_submodel starting for nwm_id {nwm_id}")
+    logging.info(f"extract_submodel starting for nwm_id {nwm_id}")
     # print(f"preparing to extract NWM ID {nwm_id} from {os.path.basename(rsd.ras_project_file)}")
 
     if not rsd.file_exists(rsd.ras_gpkg_file):
@@ -571,9 +569,9 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
 
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
-        rgs.write_ripple_gpkg(task_id=task_id)
+        rgs.write_ripple_gpkg()
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
 
-    print(f"extract_submodel complete for nwm_id {nwm_id}")
+    logging.info(f"extract_submodel complete for nwm_id {nwm_id}")
     return {"ripple1d_parameters": rsd.conflation_file, "ripple_gpkg_file": rgs.ripple_gpkg_file}

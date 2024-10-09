@@ -58,7 +58,7 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         raise ValueError(f"nwm_reach_id {nwm_reach_id} not conflating to the ras model geometry.")
 
 
-def conflate_model(source_model_directory: str, source_network: dict, task_id: str = ""):
+def conflate_model(source_model_directory: str, source_network: dict):
     """Conflate a HEC-RAS model with NWM reaches.
 
     source_network example:
@@ -68,7 +68,7 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
         "type": "nwm_hydrofabric" // required
     }
     """
-    logging.info(f"{task_id} | conflate_model starting")
+    logging.info(f"conflate_model starting")
     try:
         nwm_pq_path = source_network["file_name"]
     except KeyError:
@@ -122,7 +122,7 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
                 continue
 
             logging.info(
-                f"{task_id} | {river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
+                f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
             )
 
             # walk network to get the potential reach ids
@@ -132,13 +132,13 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
             # get gdf of the candidate reaches
             candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-            metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches, river_reach_name, task_id))
+            metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches, river_reach_name))
         except Exception as e:
-            logging.error(f"{task_id} | river-reach: {river_reach_name} | Error: {e}")
-            logging.error(f"{task_id} | river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
+            logging.error(f"river-reach: {river_reach_name} | Error: {e}")
+            logging.error(f"river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
 
     # if not conflated(metadata):
-    #     return f"{task_id} | no reaches conflated"
+    #     return f"no reaches conflated"
 
     ids = list(metadata["reaches"].keys())
     fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
@@ -151,7 +151,7 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
     #     limit_plot_to_nearby_reaches=True,
     # )
 
-    logging.debug(f"{task_id} | Conflation results: {metadata}")
+    logging.debug(f"Conflation results: {metadata}")
     conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
 
     metadata["metadata"] = {}
@@ -176,12 +176,12 @@ def conflate_model(source_model_directory: str, source_network: dict, task_id: s
         f.write(json.dumps(metadata, indent=4))
 
     try:
-        compute_conflation_metrics(source_model_directory, source_network, task_id)
+        compute_conflation_metrics(source_model_directory, source_network)
     except Exception as e:
-        logging.error(f"{task_id} | Error: {e}")
-        logging.error(f"{task_id} | Traceback: {traceback.format_exc()}")
+        logging.error(f"| Error: {e}")
+        logging.error(f"| Traceback: {traceback.format_exc()}")
 
-    logging.info(f"{task_id} | conflate_model complete")
+    logging.info(f"conflate_model complete")
     return conflation_file
 
 

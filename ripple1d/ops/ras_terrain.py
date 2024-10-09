@@ -20,13 +20,11 @@ from ripple1d.consts import (
 )
 from ripple1d.data_model import NwmReachModel
 from ripple1d.ras import create_terrain
-
-# from ripple1d.ripple1d_logger import log_process
 from ripple1d.utils.dg_utils import clip_raster, reproject_raster
 from ripple1d.utils.ripple_utils import fix_reversed_xs, xs_concave_hull
 
 
-def get_geometry_mask(gdf_xs_conc_hull: str, MAP_DEM_UNCLIPPED_SRC_URL: str, task_id: str = None) -> gpd.GeoDataFrame:
+def get_geometry_mask(gdf_xs_conc_hull: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
     """Get a geometry mask for the DEM based on the cross sections."""
     # build a DEM mask polygon based on the XS extents
 
@@ -55,26 +53,23 @@ def create_ras_terrain(
     vertical_units: str = MAP_DEM_VERT_UNITS,
     resolution: float = None,
     resolution_units: str = None,
-    task_id: str = "",
 ) -> None:
     """Create a RAS terrain file."""
-    logging.info(f"{task_id} | create_ras_terrain starting")
+    logging.info(f"create_ras_terrain starting")
 
     if resolution and not resolution_units:
         raise ValueError(
-            f"{task_id} | 'resolution' arg has been provided but 'resolution_units' arg has not been provided. Please provide both"
+            f"'resolution' arg has been provided but 'resolution_units' arg has not been provided. Please provide both"
         )
 
     if resolution_units:
         if resolution_units not in ["Feet", "Meters"]:
-            raise ValueError(f"{task_id} | invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
+            raise ValueError(f"invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
 
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
-        raise FileNotFoundError(
-            f"{task_id} | NwmReachModel class expecting ras_gpkg_file {nwm_rm.ras_gpkg_file}, file not found"
-        )
+        raise FileNotFoundError(f"NwmReachModel class expecting ras_gpkg_file {nwm_rm.ras_gpkg_file}, file not found")
 
     if not os.path.exists(nwm_rm.terrain_directory):
         os.makedirs(nwm_rm.terrain_directory, exist_ok=True)
@@ -124,5 +119,5 @@ def create_ras_terrain(
     )
     os.remove(src_dem_reprojected_localfile)
     nwm_rm.update_write_ripple1d_parameters({"source_terrain": terrain_source_url})
-    logging.info(f"{task_id} | create_ras_terrain complete")
+    logging.info(f"create_ras_terrain complete")
     return result

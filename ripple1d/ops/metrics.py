@@ -27,7 +27,6 @@ class ConflationMetrics:
         hull_gdf,
         network_reach: LineString,
         network_reach_plus_ds_reach: LineString,
-        task_id: str,
         network_id: str,
     ):
         self.xs_gdf = xs_gdf
@@ -36,7 +35,6 @@ class ConflationMetrics:
         self.network_reach = network_reach
         self.network_reach_plus_ds_reach = network_reach_plus_ds_reach
         self.crs = xs_gdf.crs
-        self.task_id = task_id
         self.network_id = network_id
 
     def populate_station_elevation(self, row: pd.Series) -> dict:
@@ -80,8 +78,8 @@ class ConflationMetrics:
                 "thalweg_offset": xs_gdf["thalweg_offset"].describe().round().fillna(-9999).astype(int).to_dict(),
             }
         except Exception as e:
-            logging.error(f"{self.task_id} | network id: {self.network_id} | Error: {e}")
-            logging.error(f"{self.task_id} | network id: {self.network_id} | Traceback: {traceback.format_exc()}")
+            logging.error(f"network id: {self.network_id} | Error: {e}")
+            logging.error(f"network id: {self.network_id} | Traceback: {traceback.format_exc()}")
 
     def clean_length(self, length: float, meters_to_feet: bool = True):
         """Clean the length."""
@@ -142,8 +140,8 @@ class ConflationMetrics:
                 "network_to_ras_ratio": network_ras_ratio,
             }
         except Exception as e:
-            logging.error(f"{self.task_id} | network id: {self.network_id} | Error: {e}")
-            logging.error(f"{self.task_id} | network id: {self.network_id} | Traceback: {traceback.format_exc()}")
+            logging.error(f"network id: {self.network_id} | Error: {e}")
+            logging.error(f"network id: {self.network_id} | Traceback: {traceback.format_exc()}")
 
     # def parrallel_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
     #     """Calculate the overlap between the network reach and the cross sections."""
@@ -203,13 +201,13 @@ class ConflationMetrics:
                 "end": min([round(xs_gdf["station_percent"].max(), 2), 1]),
             }
         except Exception as e:
-            logging.error(f"{self.task_id} | network id: {self.network_id} | Error: {e}")
-            logging.error(f"{self.task_id} | network id: {self.network_id} | Traceback: {traceback.format_exc()}")
+            logging.error(f"network id: {self.network_id} | Error: {e}")
+            logging.error(f"network id: {self.network_id} | Traceback: {traceback.format_exc()}")
 
 
-def compute_conflation_metrics(source_model_directory: str, source_network: str, task_id: str = ""):
+def compute_conflation_metrics(source_model_directory: str, source_network: str):
     """Compute metrics for a network reach."""
-    logging.info(f"{task_id} | compute_conflation_metrics starting")
+    logging.info(f"compute_conflation_metrics starting")
     network_pq_path = source_network["file_name"]
     model_name = os.path.basename(source_model_directory)
     src_gpkg_path = os.path.join(source_model_directory, f"{model_name}.gpkg")
@@ -237,7 +235,6 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str,
                 rgs.ripple_xs_concave_hull,
                 network_reach,
                 network_reach_plus_ds_reach,
-                task_id,
                 network_id,
             )
 
@@ -264,13 +261,13 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str,
             conflation_parameters["metadata"]["length_units"] = "feet"
             conflation_parameters["metadata"]["flow_units"] = "cfs"
         except Exception as e:
-            logging.error(f"{task_id} | network id: {network_id} | Error: {e}")
-            logging.error(f"{task_id} | network id: {network_id} | Traceback: {traceback.format_exc()}")
+            logging.error(f"network id: {network_id} | Error: {e}")
+            logging.error(f"network id: {network_id} | Traceback: {traceback.format_exc()}")
             conflation_parameters["reaches"][network_id].update({"metrics": {}})
     with open(conflation_json, "w") as f:
         f.write(json.dumps(conflation_parameters, indent=4))
 
-    logging.info(f"{task_id} | compute_conflation_metrics complete")
+    logging.info(f"compute_conflation_metrics complete")
     return conflation_parameters
 
 

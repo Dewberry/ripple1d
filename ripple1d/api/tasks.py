@@ -161,7 +161,9 @@ def update_p_id(task_id: str, p_id: str):
     huey.storage.sql(expression, args, True)
 
 
-def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int = logging.INFO, timeout: int = None):
+def subprocess_caller(
+    func: str, args: dict, task_id: str, log_dir: str = "", log_level: int = logging.INFO, timeout: int = None
+):
     """Call the specified function through a subprocess."""
     subprocess_args = [
         sys.executable,
@@ -173,15 +175,16 @@ def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int =
 
     process = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     results = None
-    task_id = args.get("task_id")
     update_p_id(task_id, process.pid)
 
     try:
         stdout_lines, stderr_output = process.communicate(timeout=timeout)
-        for line in stdout_lines.splitlines():
+        logs = stdout_lines.splitlines()
+        for i, line in enumerate(logs):
             if '"results"' in line:
                 program_output = json.loads(line)
                 results = json.dumps(program_output.get("results", None))
+                del logs[i]
 
     except subprocess.TimeoutExpired:
         process.kill()
@@ -205,11 +208,17 @@ def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int =
             ("task_id", "stdout", "stderr", "results")
         values
             (?, ?, ?, ?)""",
-        (task_id, str(stdout_lines), errors, results),
+        (task_id, str(logs), errors, results),
         True,
     )
 
-    if exit_code != 0:
+    if exit_code == 15:
+        huey.storage.sql(
+            """update "task_status" set "ogc_status" = ? where "task_id" = ?""", ("dismissed", task_id), True
+        )
+
+    elif exit_code != 0:
+        logging.debug(f"{task_id} exit code {exit_code}")
         huey.storage.sql("""update "task_status" set "ogc_status" = ? where "task_id" = ?""", ("failed", task_id), True)
 
 
@@ -325,14 +334,12 @@ def noop(task_id: str = None):
 
 @huey.task(context=True)
 def _process(func: typing.Callable, kwargs: dict = {}, task=None):
-    """Execute generic huey task that calls the provided func with provided kwargs, asynchronously.
-
-    task expected for all funcitons in the ops module to pass through task id for logging
-    """
+    """Execute generic huey task that calls the provided func with provided kwargs, asynchronously."""
     if task:
-        kwargs["task_id"] = task.id
-
-    return subprocess_caller(func.__name__, kwargs)
+        task_id = task.id
+    else:
+        task_id = None
+    return subprocess_caller(func.__name__, kwargs, task_id)
 
 
 @huey.signal()
@@ -378,8 +385,7 @@ def _handle_signals(signal, task, exc=None):
             huey.storage.sql(
                 """update "task_status" set huey_status = ? where "task_id" = ?""", (signal, task.id), True
             )
-
-            return
+            ogc_status = "dismissed"
 
         case _:  # e.g. SIGNAL_RETRYING, SIGNAL_SCHEDULED
             raise ValueError(f"Unhandled signal: {signal}")

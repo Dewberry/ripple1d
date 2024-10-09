@@ -109,7 +109,7 @@ def test():
     start = time.time()
     while time.time() - start < timeout_seconds:
         time.sleep(0.2)
-        status = tasks.ogc_status(response.json["jobID"])
+        status = tasks.fetch_ogc_status(response.json["jobID"])
         if status == "failed":
             return jsonify({"status": "not healthy"}), HTTPStatus.INTERNAL_SERVER_ERROR
         if status == "successful":
@@ -118,12 +118,6 @@ def test():
         jsonify({"status": f"huey is busy or not active, ping timed out after {timeout_seconds} seconds"}),
         HTTPStatus.GATEWAY_TIMEOUT,
     )
-
-
-@app.route("/processes/sleep/execution", methods=["POST"])
-def process__sleep():
-    """Enqueue a task that sleeps for `sleep_time` seconds."""
-    return enqueue_async_task(tasks.sleep_some)
 
 
 @app.route("/jobs", methods=["GET"])
@@ -236,7 +230,7 @@ def dismiss(task_id):
     Available only for jobs in "accepted" status, dismissal of "running" jobs not implemented
     """
     try:
-        ogc_status = tasks.ogc_status(task_id)
+        ogc_status = tasks.fetch_ogc_status(task_id)
         if ogc_status == "notfound":
             return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
 
