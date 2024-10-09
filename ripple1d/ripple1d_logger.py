@@ -137,12 +137,12 @@ def configure_logging(level, logfile: str = None, milliseconds: bool = False, ve
     )
 
 
-def initialize_log(log_dir: str = "", log_level: int = logging.INFO) -> logging.Logger:
+def initialize_server_logger(log_dir: str = "", log_level: int = logging.INFO) -> logging.Logger:
     """Initialize log with JSON-LD style formatting and throttled level for AWS libs.
 
     By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead.
     """
-    filename = os.path.join(log_dir, f"{_get_log_filename_suffix()}.jsonld")
+    filename = os.path.join(log_dir, "server-logs.jsonld")
 
     for module in SUPPRESS_LOGS:
         logging.getLogger(module).setLevel(logging.ERROR)
@@ -163,17 +163,3 @@ def initialize_log(log_dir: str = "", log_level: int = logging.INFO) -> logging.
         log.addHandler(stream_handler)
 
     return log
-
-
-def _get_log_filename_suffix():
-    stack_filenames = [frame.filename for frame in inspect.stack()]
-
-    # Check for specific patterns in the stack filenames
-    if any("huey" in filename for filename in stack_filenames):
-        return "huey"
-    elif any("flask" in filename for filename in stack_filenames):
-        return "flask"
-    else:
-        raise ValueError(
-            f"Could not determine if process invoked by huey or by flask. Stack filenames: {stack_filenames}"
-        )
