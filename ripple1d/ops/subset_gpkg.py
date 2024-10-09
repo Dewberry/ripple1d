@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+import time
+import warnings
 
 import fiona
 import geopandas as gpd
@@ -15,6 +17,8 @@ from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
 from ripple1d.ripple1d_logger import log_process
 from ripple1d.utils.ripple_utils import clip_ras_centerline, fix_reversed_xs, xs_concave_hull
+
+warnings.filterwarnings("ignore")
 
 
 class RippleGeopackageSubsetter:
@@ -543,19 +547,22 @@ class RippleGeopackageSubsetter:
 
 def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, task_id: str = ""):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
-    logging.info(f"{task_id} | extract_submodel starting")
+    # time.sleep(10)
+
+    if not os.path.exists(source_model_directory):
+        raise FileNotFoundError(
+            f"cannot find directory for source model {source_model_directory}, please ensure dir exists"
+        )
     rsd = RippleSourceDirectory(source_model_directory)
-    logging.debug(f"{task_id} | preparing to extract NWM ID {nwm_id} from {rsd.ras_project_file}")
+
+    print(f"extract_submodel starting for nwm_id {nwm_id}")
+    # print(f"preparing to extract NWM ID {nwm_id} from {os.path.basename(rsd.ras_project_file)}")
 
     if not rsd.file_exists(rsd.ras_gpkg_file):
-        raise FileNotFoundError(
-            f"{task_id} | cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists"
-        )
+        raise FileNotFoundError(f"cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists")
 
     if not rsd.file_exists(rsd.conflation_file):
-        raise FileNotFoundError(
-            f"{task_id} | cannot find conflation file {rsd.conflation_file}, please ensure file exists"
-        )
+        raise FileNotFoundError(f"cannot find conflation file {rsd.conflation_file}, please ensure file exists")
 
     ripple1d_parameters = rsd.nwm_conflation_parameters(str(nwm_id))
     if ripple1d_parameters["eclipsed"]:
@@ -568,5 +575,5 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
 
-    logging.info(f"{task_id} | extract_submodel complete")
+    print(f"extract_submodel complete for nwm_id {nwm_id}")
     return {"ripple1d_parameters": rsd.conflation_file, "ripple_gpkg_file": rgs.ripple_gpkg_file}
