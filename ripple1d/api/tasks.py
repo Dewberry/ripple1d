@@ -12,7 +12,6 @@ import psutil
 from huey import SqliteHuey, signals
 from huey.api import Result
 
-from ripple1d.api.utils import tracerbacker
 from ripple1d.ripple1d_logger import initialize_server_logger
 
 initialize_server_logger()
@@ -173,42 +172,32 @@ def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int =
     ]
 
     process = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
+    results = None
     task_id = args.get("task_id")
     update_p_id(task_id, process.pid)
-
-    stderr_logs = []
-    stdout_logs = []
 
     try:
         stdout_lines, stderr_output = process.communicate(timeout=timeout)
         for line in stdout_lines.splitlines():
             if '"results"' in line:
                 program_output = json.loads(line)
-            else:
-                stdout_logs.append(line)
-
-        if stderr_output:
-            stderr_logs.append(line)
+                results = json.dumps(program_output.get("results", None))
 
     except subprocess.TimeoutExpired:
         process.kill()
+        stderr_output.append("Process timed out")
         raise TimeoutError(f"{task_id}: Process timed out")
 
     except Exception as e:
+        stderr_output.append(str(e))
         raise SystemError(f"{task_id}: Exception occurred: {e}")
 
     exit_code = process.wait()
 
-    if exit_code != 0:
-        results = "failed"
-
-    try:
-        results = json.dumps(program_output.get("results"))
-
-    except json.JSONDecodeError:
-        results = None
-        logging.error(f"{task_id}: Failed to decode JSON result.")
+    if len(stderr_output) == 0:
+        errors = None
+    else:
+        errors = str(stderr_output)
 
     huey.storage.sql(
         """
@@ -216,9 +205,12 @@ def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int =
             ("task_id", "stdout", "stderr", "results")
         values
             (?, ?, ?, ?)""",
-        (task_id, str(stdout_logs), str(stderr_logs), results),
+        (task_id, str(stdout_lines), errors, results),
         True,
     )
+
+    if exit_code != 0:
+        huey.storage.sql("""update "task_status" set "ogc_status" = ? where "task_id" = ?""", ("failed", task_id), True)
 
 
 def task_status(only_task_id: str | None) -> dict[str, dict]:
@@ -295,11 +287,8 @@ def huey_status(task_id: str) -> str:
     return fetch_one_query(task_id, "huey_status", "task_status")
 
 
-def ogc_status(task_id: str) -> str:
-    """For given task ID, return its current status in OGC API terms.
-
-    WARNING assumes function executed by task is wrapped by `tracerbacker`
-    """
+def fetch_ogc_status(task_id: str) -> str:
+    """For given task ID, return its current status in OGC API terms."""
     # expression = """select "ogc_status" from "task_status" where "task_id" = ?"""
     # results = huey.storage.sql(expression, (task_id,), results=True)
     # if not results:
@@ -309,10 +298,7 @@ def ogc_status(task_id: str) -> str:
 
 
 def job_dismissed(task_id: str) -> bool:
-    """For given task ID, return its current status in OGC API terms.
-
-    WARNING assumes function executed by task is wrapped by `tracerbacker`
-    """
+    """For given task ID, return its current status in OGC API terms."""
     expression = """select "dismiss_time" from "task_status" where "task_id" = ?"""
     results = huey.storage.sql(expression, (task_id,), results=True)
     logging.debug(f"job_dismissed response = {results}")
@@ -322,10 +308,7 @@ def job_dismissed(task_id: str) -> bool:
 
 
 def task_results(task_id: str) -> str:
-    """For given task ID, return its current status in OGC API terms.
-
-    WARNING assumes function executed by task is wrapped by `tracerbacker`
-    """
+    """For given task ID, return its current status in OGC API terms."""
     expression = """select "results" from "task_logs" where "task_id" = ?"""
     results = huey.storage.sql(expression, (task_id,), results=True)
     if not results:
@@ -341,7 +324,6 @@ def noop(task_id: str = None):
 
 
 @huey.task(context=True)
-# @tracerbacker
 def _process(func: typing.Callable, kwargs: dict = {}, task=None):
     """Execute generic huey task that calls the provided func with provided kwargs, asynchronously.
 
@@ -365,14 +347,13 @@ def _handle_signals(signal, task, exc=None):
 
         case signals.SIGNAL_COMPLETE:
             time_field = "finish_time"
-            tracerbacker_return = huey.result(task.id, preserve=True)
             if job_dismissed(task.id):
                 task_status = "revoked"
                 ogc_status = "dismissed"
                 huey.storage.sql(
                     """update "task_status" set huey_status = ? where "task_id" = ?""", (task_status, task.id), True
                 )
-            elif task_results(task.id) == "failed":
+            elif fetch_ogc_status(task.id) == "failed":
                 task_status = "completed"
                 ogc_status = "failed"
             else:
@@ -380,19 +361,11 @@ def _handle_signals(signal, task, exc=None):
 
         case signals.SIGNAL_ERROR:
             time_field = "finish_time"
-            tracerbacker_return = huey.result(task.id, preserve=True)
-            if tracerbacker_return is None:
-                ogc_status = "notfound"
-            else:
-                ogc_status = "failed"
+            ogc_status = "failed"
 
         case signals.SIGNAL_LOCKED | signals.SIGNAL_EXPIRED:
             time_field = "finish_time"
-            tracerbacker_return = huey.result(task.id, preserve=True)
-            if tracerbacker_return is None:
-                ogc_status = "notfound"
-            else:
-                ogc_status = "failed"
+            ogc_status = "failed"
 
         case signals.SIGNAL_CANCELED | signals.SIGNAL_INTERRUPTED:
             time_field = "dismiss_time"
