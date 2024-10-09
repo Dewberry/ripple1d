@@ -36,5 +36,9 @@ def execute_endpoint(func: str, args: dict):
 
 
 if __name__ == "__main__":
-
-    r = execute_endpoint(*sys.argv[1:])
+    try:
+        r = execute_endpoint(sys.argv[1], sys.argv[2])
+        print((json.dumps({"results": r})))
+    except Exception as e:
+        raise SystemError(f"Exception occurred: {e}")
+        sys.exit(1)

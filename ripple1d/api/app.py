@@ -10,7 +10,6 @@ from werkzeug.exceptions import BadRequest
 
 from ripple1d.api import tasks
 from ripple1d.api.utils import get_unexpected_and_missing_args
-from ripple1d.consts import SUPPRESS_LOGS
 from ripple1d.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
 from ripple1d.ops.metrics import compute_conflation_metrics
 from ripple1d.ops.ras_conflate import conflate_model
@@ -240,13 +239,18 @@ def dismiss(task_id):
         ogc_status = tasks.ogc_status(task_id)
         if ogc_status == "notfound":
             return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
+
         elif ogc_status == "accepted":
             tasks.revoke_task(task_id)
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
         elif ogc_status == "running":
             tasks.revoke_task_by_pid(task_id)
+            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
         elif ogc_status == "dismissed":
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
         else:
             return (
                 jsonify(
@@ -262,7 +266,7 @@ def dismiss(task_id):
             jsonify(
                 {
                     "type": "process",
-                    "detail": f"failed to dismiss job ID {task_id} due to internal server error: {e} | {traceback.format_exc()}",
+                    "detail": f"failed to dismiss job ID {task_id} due to internal server error {str(e)}",
                 }
             ),
             HTTPStatus.INTERNAL_SERVER_ERROR,

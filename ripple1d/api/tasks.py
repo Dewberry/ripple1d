@@ -35,11 +35,13 @@ huey.storage.sql(
         "finish_time" timestamptz,
         "status_time" timestamptz,
         "finish_duration_minutes" real,
+        "results" text,
         primary key("task_id")
     );
     """,
     commit=True,
 )
+
 
 # Create custom triggers to keep status_time field updated
 huey.storage.sql(
@@ -146,24 +148,55 @@ def update_p_id(task_id: str, p_id: str):
     huey.storage.sql(expression, args, True)
 
 
-def subprocess_caller(func: str, args: dict):
+def subprocess_caller(func: str, args: dict, log_dir: str = "", log_level: int = logging.INFO, timeout: int = None):
     """Call the specified function through a subprocess."""
     subprocess_args = [
         sys.executable,
+        "-u",
         os.path.dirname(__file__).replace("api", "ops/endpoints.py"),
         func,
         json.dumps(args),
     ]
-    r = subprocess.Popen(subprocess_args)
-    task_id = args.get("task_id")
-    update_p_id(task_id, r.pid)
-    # add timeout option
 
-    stdout, stderr = r.communicate()
-    exit_code = r.wait()
+    process = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    task_id = args.get("task_id")
+    update_p_id(task_id, process.pid)
+
+    try:
+        stdout_lines, stderr_output = process.communicate(timeout=timeout)
+        for line in stdout_lines.splitlines():
+            if '"results"' in line:
+                program_output = json.loads(line)
+            else:
+                logging.info(f"{task_id}: {line}")
+
+        if stderr_output:
+            logging.error(f"{task_id}: {stderr_output}")
+
+    except subprocess.TimeoutExpired:
+        process.kill()
+        raise TimeoutError(f"{task_id}: Process timed out")
+
+    except Exception as e:
+        raise SystemError(f"{task_id}: Exception occurred: {e}")
+
+    exit_code = process.wait()
+
     if exit_code != 0:
-        raise TypeError(f"subprocess_caller error: stdout : {stdout} , stderr : {stderr}, exit_code: {exit_code}")
-    logging.info(f"subprocess_caller complete: {task_id} Completed stdout {stdout}")
+        huey.storage.sql("""update "task_status" set results = ? where "task_id" = ?""", ("failed", task_id), True)
+        return None
+
+    try:
+        results = program_output.get("results")
+        huey.storage.sql(
+            """update "task_status" set results = ? where "task_id" = ?""", (json.dumps(results), task_id), True
+        )
+        return None
+
+    except json.JSONDecodeError:
+        logging.error(f"{task_id}: Failed to decode JSON result.")
+        return None
 
 
 def task_status(only_task_id: str | None) -> dict[str, dict]:
@@ -255,6 +288,19 @@ def job_dismissed(task_id: str) -> bool:
     return True
 
 
+def task_results(task_id: str) -> str:
+    """For given task ID, return its current status in OGC API terms.
+
+    WARNING assumes function executed by task is wrapped by `tracerbacker`
+    """
+    expression = """select "results" from "task_status" where "task_id" = ?"""
+    results = huey.storage.sql(expression, (task_id,), results=True)
+    if not results:
+        return "notfound"
+    elif results[0][0] == "failed":
+        return "failed"
+
+
 def noop(task_id: str = None):
     """Do nothing except log a message. For ping endpoint and testing."""
     logging.info(f"{task_id} | noop")
@@ -278,7 +324,9 @@ def _process(func: typing.Callable, kwargs: dict = {}, task=None):
     """
     if task:
         kwargs["task_id"] = task.id
-    return subprocess_caller(func.__name__, kwargs)
+
+    status = subprocess_caller(func.__name__, kwargs)
+    return status
 
 
 @huey.signal()
@@ -300,7 +348,9 @@ def _handle_signals(signal, task, exc=None):
                 huey.storage.sql(
                     """update "task_status" set huey_status = ? where "task_id" = ?""", (task_status, task.id), True
                 )
-
+            elif task_results(task.id) == "failed":
+                task_status = "completed"
+                ogc_status = "failed"
             else:
                 ogc_status = "successful"
 
