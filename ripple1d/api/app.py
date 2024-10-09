@@ -7,7 +7,7 @@ import traceback
 import typing
 from http import HTTPStatus
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, render_template, request
 from werkzeug.exceptions import BadRequest
 
 from ripple1d.api import tasks
@@ -125,16 +125,16 @@ def test():
 @app.route("/jobs", methods=["GET"])
 def jobs():
     """Retrieve OGC status and result for all jobs."""
-    try:
-        task2metadata = tasks.task_status(only_task_id=None)
-        jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
-        ret = {"jobs": jobs}
-        return jsonify(ret), HTTPStatus.OK
-    except Exception as e:
-        return (
-            jsonify(str(e)),
-            HTTPStatus.NOT_FOUND,
-        )
+    # try:
+    format_option = request.args.get("f")
+    task2metadata = tasks.task_status(only_task_id=None)
+    jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
+    response = {"jobs": jobs}
+
+    if format_option == "json":
+        return jsonify(response), HTTPStatus.OK
+    else:
+        return render_template("jobs.html", response=response)
 
 
 @app.route("/jobs/<task_id>", methods=["GET"])
