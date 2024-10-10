@@ -309,8 +309,9 @@ def create_flow_depth_array(flow: list[float], depth: list[float], increment: fl
     """Interpolate flow values to a new depth array with a specified increment."""
     min_depth = np.min(depth)
     max_depth = np.max(depth)
-    start_depth = np.floor(min_depth * 2) / 2  # round down to nearest .0 or .5
+    start_depth = np.floor(min_depth / increment) * increment  # round down to nearest increment
     new_depth = np.arange(start_depth, max_depth + increment, increment)
+    new_depth = np.clip(new_depth, depth.min(), depth.max())  # "new_flow" will be limited to "flow" range by np.interp.  This line makes "new_depth" max and min line up with those values.
     new_flow = np.interp(new_depth, np.sort(depth), np.sort(flow))
 
     return new_depth, new_flow
