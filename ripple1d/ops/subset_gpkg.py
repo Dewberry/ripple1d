@@ -525,7 +525,7 @@ class RippleGeopackageSubsetter:
         """Update ripple1d_parameters with results of subsetting."""
         ripple1d_parameters = self.ripple1d_parameters
         ripple1d_parameters["source_model"] = rsd.ras_project_file
-        ripple1d_parameters["crs"] = self.crs.to_epsg()
+        ripple1d_parameters["crs"] = self.crs.to_wkt()
         ripple1d_parameters["version"] = ripple1d.__version__
         ripple1d_parameters["high_flow"] = max([ripple1d_parameters["high_flow"], self.max_flow])
         ripple1d_parameters["low_flow"] = min([ripple1d_parameters["low_flow"], self.min_flow])
