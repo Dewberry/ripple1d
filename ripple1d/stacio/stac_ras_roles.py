@@ -58,6 +58,14 @@ def add_extra_fields(asset_key: str, base_asset: dict, bucket: str = None) -> di
         base_asset["extra_fields"]["number_of_reaches"] = geom.n_reaches
         base_asset["extra_fields"]["number_of_cross_sections"] = geom.n_cross_sections
         base_asset["extra_fields"]["number_of_junctions"] = geom.n_junctions
+    if asset_key.endswith(".prj"):
+        asset_string = get_asset_string(asset_key, client, bucket)
+        if "Proj Title" in asset_string.split("\n")[0]:
+            base_asset["roles"].extend(["project-file", "ras-file", pystac.MediaType.TEXT])
+            description = """Project file for ras. Contains current plan files, units, and project description."""
+        elif "PROJCS" in asset_string:
+            base_asset["roles"].extend(["projection-file", "ras-file", pystac.MediaType.TEXT])
+            description = """Projection file."""
 
     return base_asset
 
@@ -176,14 +184,6 @@ def ras_plan_asset_info(s3_key: str) -> dict:
     elif ras_extension == "blf":
         roles.extend(["binary-log-file", "ras-file", pystac.MediaType.TEXT])
         description = """Binary Log file."""
-
-    elif ras_extension == "prj" and title != "MMC_Projection.prj":
-        roles.extend(["project-file", "ras-file", pystac.MediaType.TEXT])
-        description = """Project file for ras. Contains current plan files, units, and project description."""
-
-    elif ras_extension == "prj" and title == "MMC_Projection.prj":
-        roles.extend(["projection-file", "ras-file", pystac.MediaType.TEXT])
-        description = """Projection file."""
 
     elif ras_extension == "dss":
         roles.extend(["ras-dss", "ras-file"])
