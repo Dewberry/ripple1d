@@ -3,14 +3,30 @@
 import inspect
 import json
 import logging
+import time
 import traceback
 from logging.handlers import RotatingFileHandler
 
-SUPPRESS_LOGS = ["boto3", "botocore", "geopandas", "fiona", "rasterios"]
+SUPPRESS_LOGS = ["boto3", "botocore", "geopandas", "fiona", "rasterio", "pyogrio"]
 import inspect
 import json
 import logging
 import traceback
+
+
+def log_process(func):
+    """Log time to run function (called by huey task)."""
+
+    def wrapper(*args, **kwargs):
+        if logging.getLogger().isEnabledFor(logging.INFO):
+            start = time.time()
+        result = func(*args, **kwargs)
+        if logging.getLogger().isEnabledFor(logging.INFO):
+            elapsed_time = time.time() - start
+            logging.info(f"{kwargs.get('task_id')} | {func.__name__} | process time {elapsed_time:.2f} seconds")
+        return result
+
+    return wrapper
 
 
 class RippleLogFormatter(logging.Formatter):
