@@ -165,12 +165,13 @@ class ConflationMetrics:
         """Calculate the overlap between the network reach and the cross sections."""
         if to_reaches.empty:
             return []
+        reach_ids = []
         geom_name = to_reaches.geometry.name
         for i, row in to_reaches.iterrows():
             if row[geom_name].intersects(self.xs_gdf.union_all()):
                 overlap = row[geom_name].intersection(self.hull_gdf["geometry"].iloc[0]).length / METERS_PER_FOOT
-                return [{"id": str(row["ID"]), "overlap": int(overlap)}]
-        return []
+                reach_ids.append({"id": str(row["ID"]), "overlap": int(overlap)})
+        return reach_ids
 
     def eclipsed_reaches(self, network_reaches: gpd.GeoDataFrame) -> dict:
         """Calculate the overlap between the network reach and the cross sections."""
@@ -234,7 +235,7 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str,
             cm = ConflationMetrics(
                 fix_reversed_xs(layers["XS"], layers["River"]),
                 layers["River"],
-                rgs.ripple_xs_concave_hull,
+                rgs.ripple_xs_concave_hull.to_crs(HYDROFABRIC_CRS),
                 network_reach,
                 network_reach_plus_ds_reach,
                 task_id,
