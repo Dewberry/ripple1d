@@ -234,7 +234,7 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str,
             cm = ConflationMetrics(
                 fix_reversed_xs(layers["XS"], layers["River"]),
                 layers["River"],
-                rgs.ripple_xs_concave_hull,
+                rgs.ripple_xs_concave_hull.to_crs(HYDROFABRIC_CRS),
                 network_reach,
                 network_reach_plus_ds_reach,
                 task_id,
@@ -256,7 +256,9 @@ def compute_conflation_metrics(source_model_directory: str, source_network: str,
             overlapped_reaches = cm.overlapped_reaches(
                 network_reaches[network_reaches["ID"].isin([int(to_id), next_to_id])]
             )
-            eclipsed_reaches = cm.eclipsed_reaches(network_reaches[network_reaches["ID"] != int(network_id)])
+            eclipsed_reaches = cm.eclipsed_reaches(
+                network_reaches[network_reaches["ID"].isin([int(to_id), next_to_id])]
+            )
 
             conflation_parameters["reaches"][network_id].update({"metrics": metrics})
             conflation_parameters["reaches"][network_id].update({"overlapped_reaches": overlapped_reaches})
