@@ -468,16 +468,6 @@ class RasFimConflater:
         """Return the cross sections for the specified river reach."""
         return self.ras_xs[self.ras_xs["river_reach"] == river_reach_name]
 
-    def river_reach_name_by_xs(self, xs_id: str) -> Tuple[str, str]:
-        """Return the river and reach names for the specified cross section."""
-        data = self.ras_xs[self.ras_xs["ID"] == int(xs_id)]
-        if data.empty:
-            raise ValueError(f"XS ID {xs_id} not found in ras_xs")
-        elif data.shape[0] != 1:
-            raise ValueError(f"Multiple XS found with ID = {xs_id}")
-        else:
-            return data.iloc[0]["river"], data.iloc[0]["reach"]
-
 
 # general geospatial functions
 def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
@@ -551,11 +541,6 @@ def count_intersecting_lines(ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataF
     return join_gdf
 
 
-def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "ID") -> gpd.GeoDataFrame:
-    """Filter a GeoDataFrame based on the values in a column."""
-    return gdf[~gdf[column_name].isin(column_values)]
-
-
 # analytical functions
 def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach_name: str) -> List[int]:
     """Walk the network from the start ID to the stop ID."""
@@ -578,73 +563,6 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach
             break
 
     return ids
-
-
-# def calculate_conflation_metrics(
-#     rfc: RasFimConflater,
-#     candidate_reaches: gpd.GeoDataFrame,
-#     xs_group: gpd.GeoDataFrame,
-#     ras_points: gpd.GeoDataFrame,
-# ) -> dict:
-#     """Calculate the conflation metrics for the candidate reaches."""
-#     next_round_candidates = []
-#     xs_hits_ids = []
-#     total_hits = 0
-#     for i in candidate_reaches.index:
-#         candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
-#         # TODO: Evaluate this constant.
-#         if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
-#             next_round_candidates.append(candidate_reaches.loc[i]["ID"])
-#             gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
-#             xs_hits = count_intersecting_lines(xs_group, gdftmp)
-
-#             total_hits += xs_hits.shape[0]
-#             xs_hits_ids.extend(xs_hits.ID.tolist())
-
-#             logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
-
-#     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
-
-#     dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_reaches, predicate="intersects")
-
-#     conflation_score = round(total_hits / xs_group.shape[0], 2)
-
-#     if conflation_score == 1:
-#         conlfation_notes = "Probable Conflation, no dangling xs"
-#         manual_check_required = False
-
-#     # elif dangling_xs_interesects.shape[0] == 0:
-#     #     conlfation_notes = f"Probable Conflation..."
-#     #     manual_check_required = False
-
-#     elif conflation_score >= 0.95:
-#         conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = False
-
-#     elif conflation_score >= 0.25:
-#         conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = True
-
-#     elif conflation_score < 0.25:
-#         conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = True
-
-#     elif conflation_score > 1:
-#         conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = True
-
-#     else:
-#         conlfation_notes = "Unknown error"
-#         manual_check_required = True
-
-#     # Convert next_round_candidates from int64 to serialize
-#     conlfation_metrics = {
-#         # "fim_reaches": [int(c) for c in next_round_candidates],
-#         "conflation_score": round(total_hits / xs_group.shape[0], 2),
-#         "conlfation_notes": conlfation_notes,
-#         "manual_check_required": manual_check_required,
-#     }
-#     return conlfation_metrics
 
 
 def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
