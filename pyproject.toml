@@ -46,7 +46,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pre-commit", "ruff", "pytest", "pytest-cov"]
-docs = ["sphinx", "numpydoc", "sphinx_rtd_theme"]
+docs = ["sphinx", "numpydoc", "sphinx_rtd_theme", "sphinx_design", "pydata-sphinx-theme"]
 
 [project.urls]
 repository = "https://github.com/dewberry/ripple1d"
