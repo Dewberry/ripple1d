@@ -9,7 +9,6 @@ Utilities for repurposing HEC-RAS models for use in the production of Flood Inun
 ## Contents
 
  - [api](api/) : Source code for the [Flask](https://flask.palletsprojects.com/en/3.0.x/) API and [Huey](https://huey.readthedocs.io/en/latest/) queueing system for managing parallel compute. 
- - [production](production/) (*Deprecation Warning*) : This directory contains scripts used by the development team for testing ripple1d outside of the API. The contents are not included in the PyPi package and may not be stable or up to date. 
  - [ripple1d](ripple1d/): Source code for the ripple1d library.
  - [tests](tests/): Unit tests.up
 

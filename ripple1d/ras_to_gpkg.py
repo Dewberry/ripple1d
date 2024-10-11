@@ -1,9 +1,11 @@
 """Extract geospatial data from HEC-RAS files."""
 
+import glob
 import json
 import logging
 import os
 import shutil
+import sqlite3
 import tempfile
 from pathlib import Path, PurePosixPath
 
@@ -28,7 +30,7 @@ from ripple1d.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
-from ripple1d.utils.ripple_utils import get_path
+from ripple1d.utils.ripple_utils import fix_reversed_xs, get_path, prj_is_ras, xs_concave_hull
 from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -36,15 +38,24 @@ from ripple1d.utils.s3_utils import (
     s3_key_public_url_converter,
     str_from_s3,
 )
+from ripple1d.utils.sqlite_utils import create_non_spatial_table
 
 
 def geom_flow_to_gpkg(
-    ras_project: RasProject, crs: CRS, gpkg_file: str, client: boto3.client = None, bucket: str = None
+    ras_project: RasProject, crs: str, gpkg_file: str, metadata: dict, client: boto3.client = None, bucket: str = None
 ) -> None:
     """Write geometry and flow data to a geopackage."""
-    layers = geom_flow_to_gdfs(ras_project, crs, client, bucket)
+    layers, metadata = geom_flow_to_gdfs(ras_project, crs, metadata, client, bucket)
     for layer, gdf in layers.items():
+        if layer == "XS":
+            gdf = fix_reversed_xs(layers["XS"], layers["River"])
+            if "Junction" in layers.keys():
+                xs_concave_hull(gdf, layers["Junction"]).to_file(gpkg_file, driver="GPKG", layer="XS_concave_hull")
+            else:
+                xs_concave_hull(gdf).to_file(gpkg_file, driver="GPKG", layer="XS_concave_hull")
         gdf.to_file(gpkg_file, driver="GPKG", layer=layer)
+    create_non_spatial_table(gpkg_file, metadata)
+    return metadata
 
 
 def find_a_valid_file(
@@ -54,18 +65,62 @@ def find_a_valid_file(
     if client and bucket:
         paths = list_keys(client, bucket, directory)
     else:
-        paths = glob.glob(directory)
+        paths = glob.glob(f"{directory}/*")
     for path in paths:
         if Path(path).suffix in valid_extensions:
             return path
 
 
+def gather_metdata(metadata: dict, ras_project: RasProject, rp: RasPlanText, rf: RasFlowText, rg: RasGeomText) -> dict:
+    """Gather metadata from the ras project and its components."""
+    metadata["plans_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.plans if get_path(i)]
+    )
+    metadata["geom_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.geoms if get_path(i)]
+    )
+    metadata["steady_flow_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.steady_flows if get_path(i)]
+    )
+    metadata["unsteady_flow_files"] = "\n".join(
+        [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.unsteady_flows if get_path(i)]
+    )
+    metadata["ras_project_file"] = ras_project._ras_text_file_path.replace(f"{ras_project._ras_dir}\\", "")
+    metadata["ras_project_title"] = ras_project.title
+    metadata["plans_titles"] = "\n".join(
+        [RasPlanText(get_path(i), rg.crs).title for i in ras_project.plans if get_path(i)]
+    )
+    metadata["geom_titles"] = "\n".join(
+        [RasGeomText(get_path(i), rg.crs).title for i in ras_project.geoms if get_path(i)]
+    )
+    metadata["steady_flow_titles"] = "\n".join(
+        [RasFlowText(get_path(i)).title for i in ras_project.steady_flows if get_path(i)]
+    )
+    metadata["active_plan"] = get_path(ras_project._ras_root_path + ras_project.current_plan).replace(
+        f"{ras_project._ras_dir}\\", ""
+    )
+    metadata["primary_plan_file"] = get_path(rp._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+    metadata["primary_plan_title"] = rp.title
+    metadata["primary_flow_file"] = get_path(rf._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+    metadata["primary_geom_file"] = get_path(rg._ras_text_file_path).replace(f"{ras_project._ras_dir}\\", "")
+    metadata["primary_geom_title"] = rg.title
+    metadata["primary_flow_title"] = rf.title
+    if len(rg.version) >= 1:
+        metadata["ras_version"] = rg.version[0]
+    else:
+        metadata["ras_version"] = None
+    metadata["ripple1d_version"] = ripple1d.__version__
+    fcls = pd.DataFrame(rf.flow_change_locations)
+    metadata["profile_names"] = "\n".join(fcls["profile_names"].iloc[0])
+    metadata["units"] = ras_project.units
+    return metadata
+
+
 def geom_flow_to_gdfs(
-    ras_project: RasProject, crs: CRS, client: boto3.client = None, bucket: str = None
-) -> gpd.GeoDataFrame:
+    ras_project: RasProject, crs: str, metadata: dict, client: boto3.client = None, bucket: str = None
+) -> tuple:
     """Write geometry and flow data to a geopackage."""
     if client and bucket:
-
         rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path, client, bucket)
         # get steady flow file
         try:
@@ -74,9 +129,6 @@ def geom_flow_to_gdfs(
             logging.warning(e)
             plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS, client, bucket)
 
-        string = str_from_s3(plan_steady_file, client, bucket)
-        rf = RasFlowText.from_str(string, " .f01")
-
         # get geometry file
         try:
             plan_geom_file = get_path(rp.plan_geom_file, client, bucket)
@@ -84,15 +136,28 @@ def geom_flow_to_gdfs(
             logging.warning(e)
             plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS, client, bucket)
 
+        string = str_from_s3(plan_steady_file, client, bucket)
+        rf = RasFlowText.from_str(string, " .f01")
+
         string = str_from_s3(plan_geom_file, client, bucket)
         rg = RasGeomText.from_str(string, crs, " .g01")
+
     else:
         rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path)
 
-        plan_steady_file = get_path(rp.plan_steady_file)
-        rf = RasFlowText(plan_steady_file)
+        try:
+            plan_steady_file = get_path(rp.plan_steady_file)
+        except NoFlowFileSpecifiedError as e:
+            logging.warning(e)
+            plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS)
 
-        plan_geom_file = get_path(rp.plan_geom_file)
+        try:
+            plan_geom_file = get_path(rp.plan_geom_file)
+        except NoFlowFileSpecifiedError as e:
+            logging.warning(e)
+            plan_geom_file = find_a_valid_file(ras_project._ras_dir, VALID_GEOMS)
+
+        rf = RasFlowText(plan_steady_file)
         rg = RasGeomText(plan_geom_file, crs)
 
     layers = {}
@@ -114,12 +179,14 @@ def geom_flow_to_gdfs(
 
     if rg.reaches:
         layers["River"] = rg.reach_gdf
+
     if rg.junctions:
         layers["Junction"] = rg.junction_gdf
 
     if rg.structures:
         layers["Structure"] = rg.structures_gdf
-    return layers
+
+    return layers, gather_metdata(metadata, ras_project, rp, rf, rg)
 
 
 def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -156,8 +223,8 @@ def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame)
 
 
 def detemine_primary_plan(
-    ras_project: str,
-    crs: CRS,
+    ras_project: RasProject,
+    crs: str,
     ras_text_file_path: str,
     client: boto3.session.Session.client = None,
     bucket: str = None,
@@ -206,13 +273,27 @@ def detemine_primary_plan(
         return candidate_plans[0]
 
 
-def geom_to_gpkg(ras_text_file_path: str, crs: CRS, output_gpkg_path: str):
+def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict, task_id: str = ""):
     """Write geometry and flow data to a geopackage locally."""
-    ras_project = RasProject(ras_text_file_path)
-    geom_flow_to_gpkg(ras_project, crs, output_gpkg_path)
+    logging.info(f"{task_id} | gpkg_from_ras starting")
+    prjs = glob.glob(f"{source_model_directory}/*.prj")
+    ras_text_file_path = None
+
+    for prj in prjs:
+        if prj_is_ras(prj):
+            ras_text_file_path = prj
+            break
+
+    if not ras_text_file_path:
+        raise FileNotFoundError(f"No ras project file found in {source_model_directory}")
+
+    output_gpkg_path = ras_text_file_path.replace(".prj", ".gpkg")
+    rp = RasProject(ras_text_file_path)
+    logging.info(f"{task_id} | gpkg_from_ras complete")
+    return geom_flow_to_gpkg(rp, crs, output_gpkg_path, metadata)
 
 
-def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bucket: str):
+def gpkg_from_ras_s3(s3_prefix: str, crs: str, metadata: dict, bucket: str):
     """Write geometry and flow data to a geopackage on s3."""
     _, client, _ = init_s3_resources()
 
@@ -220,14 +301,23 @@ def geom_to_gpkg_s3(ras_text_file_path: str, crs: CRS, output_gpkg_path: str, bu
     temp_dir = tempfile.mkdtemp()
     temp_path = os.path.join(temp_dir, "temp.gpkg")
 
+    ras_text_file_path = None
+    for key in list_keys(client, bucket, s3_prefix, ".prj"):
+        string = str_from_s3(key, client, bucket)
+        if "Proj Title" in string.split("\n")[0]:
+            ras_text_file_path = key
+            break
+
+    if not ras_text_file_path:
+        raise FileNotFoundError(f"No ras project file found in {s3_prefix}")
+
     # read ras project file get list of plans
-    string = str_from_s3(ras_text_file_path, client, bucket)
     ras_project = RasProject.from_str(string, ras_text_file_path)
 
-    geom_flow_to_gpkg(ras_project, crs, temp_path, client, bucket)
+    geom_flow_to_gpkg(ras_project, crs, temp_path, metadata, client, bucket)
 
     # move geopackage to s3
-    output_gpkg_path = output_gpkg_path.replace(f"s3://{bucket}/", "")
+    output_gpkg_path = ras_text_file_path.replace(f"s3://{bucket}/", "").replace(".prj", ".gpkg")
     logging.debug(f"uploading {output_gpkg_path} to s3")
     client.upload_file(
         Bucket=bucket,
