@@ -650,7 +650,7 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach
 def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
     """Return the geometry data (max/min xs elevation) for the specified cross section."""
     # TODO: Need to verify units in the RAS data
-    xs = rfc.ras_xs[rfc.ras_xs["ID"] == xs_id]
+    xs = rfc.ras_xs[rfc.ras_xs["river_reach_rs"] == xs_id]
     if xs.shape[0] > 1:
         raise ValueError(f"Multiple XS found with ID = {xs_id}")
 
@@ -700,7 +700,7 @@ def get_us_most_xs_from_junction(rfc, us_river, us_reach):
 
     ds_river_reach_gdf = rfc.ras_xs.loc[(rfc.ras_xs["river"] == ds_river) & (rfc.ras_xs["reach"] == ds_reach), :]
     max_rs = ds_river_reach_gdf.loc[:, "river_station"].max()
-    ds_xs_id = int(ds_river_reach_gdf.loc[ds_river_reach_gdf["river_station"] == max_rs, "ID"].iloc[0])
+    ds_xs_id = ds_river_reach_gdf.loc[ds_river_reach_gdf["river_station"] == max_rs, "river_reach_rs"].iloc[0]
     return ds_xs_id
 
 
@@ -729,18 +729,18 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     start, end = endpoints_from_multiline(reach.geometry)
 
     # Begin with us_xs data
-    us_xs = nearest_line_to_point(intersected_xs, start, column_id="ID")
+    us_xs = nearest_line_to_point(intersected_xs, start, column_id="river_reach_rs")
 
     # Initialize us_xs data with min /max elevation, then build the dict with added info
     us_data = ras_xs_geometry_data(rfc, us_xs)
 
     # Add downstream xs data
-    ds_xs = nearest_line_to_point(intersected_xs, end, column_id="ID")
+    ds_xs = nearest_line_to_point(intersected_xs, end, column_id="river_reach_rs")
 
     # get infor for the current ds_xs
-    ras_river = rfc.ras_xs.loc[rfc.ras_xs["ID"] == ds_xs, "river"].iloc[0]
-    ras_reach = rfc.ras_xs.loc[rfc.ras_xs["ID"] == ds_xs, "reach"].iloc[0]
-    river_station = rfc.ras_xs.loc[rfc.ras_xs["ID"] == ds_xs, "river_station"].iloc[0]
+    ras_river = rfc.ras_xs.loc[rfc.ras_xs["river_reach_rs"] == ds_xs, "river"].iloc[0]
+    ras_reach = rfc.ras_xs.loc[rfc.ras_xs["river_reach_rs"] == ds_xs, "reach"].iloc[0]
+    river_station = rfc.ras_xs.loc[rfc.ras_xs["river_reach_rs"] == ds_xs, "river_station"].iloc[0]
     river_reach_gdf = rfc.ras_xs.loc[(rfc.ras_xs["river"] == ras_river) & (rfc.ras_xs["reach"] == ras_reach), :]
 
     # check if this is the most downstream xs on this ras reach
@@ -762,12 +762,12 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
             index = 0
         else:
             index = ds_xs_gdf["river_station"].idxmax()
-        ds_xs = ds_xs_gdf["ID"].iloc[index]
+        ds_xs = ds_xs_gdf["river_reach_rs"].iloc[index]
         ds_data = ras_xs_geometry_data(rfc, ds_xs)
 
     # add xs concave hull
     if rfc.output_concave_hull_path:
-        xs_gdf = pd.concat([intersected_xs, rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]], ignore_index=True)
+        xs_gdf = pd.concat([intersected_xs, rfc.ras_xs[rfc.ras_xs["river_reach_rs"] == ds_xs]], ignore_index=True)
         rfc.add_hull(xs_gdf, reach.geometry)
 
     if us_data == ds_data:
