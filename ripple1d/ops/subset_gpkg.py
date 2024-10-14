@@ -74,7 +74,7 @@ class RippleGeopackageSubsetter:
 
     @property
     def ripple_xs_concave_hull(self):
-        """Get the concave hul of the cross sections."""
+        """Get the concave hull of the cross sections."""
         if self._ripple_xs_concave_hull is None:
             try:
                 hulls = self.split_source_hull
