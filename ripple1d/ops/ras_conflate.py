@@ -61,12 +61,70 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
 def conflate_model(source_model_directory: str, source_network: dict, task_id: str = ""):
     """Conflate a HEC-RAS model with NWM reaches.
 
-    source_network example:
-    {
-        "file_name": "nwm_flows_v3.parquet", // required
-        "version": "2.1" // could be empty if not provided by the caller
-        "type": "nwm_hydrofabric" // required
-    }
+    Parameters
+    ----------
+    source_model_directory : str
+        The path to the directory containing HEC-RAS project, plan, geometry,
+        and flow files.
+    source_network : dict
+        Information on the network to conflate
+
+        - **file_name** (str):
+            path/to/nwm_network.parquet (required)
+        - **type** (str):
+            must be 'nwm_hydrofabric' (required)
+        - **version** (str):
+            optional version number to log
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    str
+        Path to the .conflation.json file generated
+
+    Raises
+    ------
+    KeyError
+        Raises when source_network dict does not contain a file_name value
+    ValueError
+        Raises when source_network type is not nwm_hydrofabric
+
+    Notes
+    -----
+    The spatial extents of HEC-RAS river reaches and National Water model (NWM)
+    reaches are not aligned.  The conflate_model endpoint resolves these
+    differences by associating HEC-RAS models and model components (e.g.
+    cross-sections) with the NWM reaches they overlap.  
+
+    #. Generate a concave hull (bounding geometry) around the HEC-RAS source
+       model cross-sections
+    #. Extract NWM reaches intersecting the hull
+    #. For each HEC-RAS river reach within the source model,
+      #. Locate the NWM reaches nearest to the most upstream and most
+         downstream cross-sections 
+      #. Extract all intermediate NWM reaches by walking   the network from
+         upstream to downstream
+    #. For each NWM reach extracted,
+      #. Locate the HEC-RAS cross-sections that intersect the reach 
+        #. Discard cross-sections that are not drawn right to left looking
+           downstream  
+        #. If no cross-sections intersect the reach, mark the reach as
+           “eclipsed”
+      #. Mark the HEC-RAS cross-section closest to the upstream end of the
+         reach as the “us_xs ”
+      #. Identify the HEC-RAS cross-section that is closest to the downstream
+         end of the reach, and then mark the next HEC-RAS cross-section
+         downstream of it as the “ds_xs”
+        #. If the “ds_xs” would be a HEC-RAS junction, mark the first
+           cross-section downstream of the junction as “ds_xs”
+      #. If “ds_xs” and “us_xs” are the same, mark the reach as eclipsed
+    #. Generate a map of the conflated reaches and calculate conflation metrics
+
+    Additionally, high and low flows are generated for each reach to bound the
+    SRC generated in later steps. The low flow is 1.2 times the high flow
+    threshold listed for the reach in the NWM network.  The high flow is the
+    100 year flow from the NWM network.
     """
     logging.info(f"{task_id} | conflate_model starting")
     try:
