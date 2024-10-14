@@ -13,11 +13,7 @@ from ripple1d.ras import RasFlowText
 
 
 def start_server():
-    return subprocess.Popen(
-        ["ripple1d", "start"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    return subprocess.Popen(["ripple1d", "start"])
 
 
 def submit_job(process: str, payload: dict):
