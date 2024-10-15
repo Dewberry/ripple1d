@@ -53,8 +53,54 @@ def create_ras_terrain(
     vertical_units: str = MAP_DEM_VERT_UNITS,
     resolution: float = None,
     resolution_units: str = None,
-) -> None:
-    """Create a RAS terrain file."""
+):
+    """Create a RAS terrain file.
+
+    Parameters
+    ----------
+    submodel_directory : str
+        The path to the directory containing a submodel geopackage
+    terrain_source_url : str, optional
+        URL to a vrt or other raster with topographic data, by default
+        MAP_DEM_UNCLIPPED_SRC_URL
+    vertical_units : str, optional
+        label for the vertical units of the source terrain (ex. Meters), by
+        default MAP_DEM_VERT_UNITS
+    resolution : float, optional
+        horizontal resolution that terrain will be projected to, by default
+        None
+    resolution_units : str, optional
+        unit for resolution parameter, by default None
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    str
+        descriptive string detailing where terrain was saved
+
+    Raises
+    ------
+    ValueError
+        Raised when resolution arg has been provided but resolution_units arg
+        has not been provided
+    ValueError
+        Raised when resolution_units are not Feet or Meters
+    FileNotFoundError
+        Raised when no geopackage file is found in submodel_directory
+
+    Notes
+    -----
+    The create_ras_terrain endpoint downloads a digital elevation model (DEM)
+    for the modeled area and exports it to a HEC-RAS terrain file.  DEM data
+    may be sourced from any virtual raster source, but the default source is
+    the `USGS 3DEP 1/3 arcsecond dataset
+    <https://www.sciencebase.gov/catalog/item/4f70aa9fe4b058caae3f8de5>`_.  By
+    default, terrain data is clipped to a 1,000-foot buffer around a concave
+    hull of the submodel cross-sections, however, the buffer distance may be
+    adjusted.  If resolution data is passed to the endpoint, the terrain raster
+    will be resampled to that resolution.
+    """
     logging.info(f"create_ras_terrain starting")
 
     if resolution and not resolution_units:

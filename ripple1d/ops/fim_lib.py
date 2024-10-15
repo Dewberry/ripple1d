@@ -24,9 +24,18 @@ from ripple1d.data_model import NwmReachModel
 from ripple1d.errors import DepthGridNotFoundError
 from ripple1d.ras import RasManager
 from ripple1d.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
-from ripple1d.utils.dg_utils import bbox_to_polygon, get_raster_bounds, get_raster_metadata, reproject_raster
+from ripple1d.utils.dg_utils import (
+    bbox_to_polygon,
+    get_raster_bounds,
+    get_raster_metadata,
+    reproject_raster,
+)
 from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources
-from ripple1d.utils.sqlite_utils import create_db_and_table, rating_curves_to_sqlite, zero_depth_to_sqlite
+from ripple1d.utils.sqlite_utils import (
+    create_db_and_table,
+    rating_curves_to_sqlite,
+    zero_depth_to_sqlite,
+)
 
 
 def post_process_depth_grids(
@@ -138,7 +147,43 @@ def create_fim_lib(
     resolution: float = 3,
     resolution_units: str = "Meters",
 ):
-    """Create a new FIM library for a NWM id."""
+    """Create a new FIM library for a NWM id.
+
+    Export depth rasters and stage-discharge rating curves from HEC-RAS to
+    rasters and a sqlite database.
+
+    Parameters
+    ----------
+    submodel_directory : str
+        The path to the directory containing a sub model geopackage
+    plans : list
+        suffixes of plans to create fim library for.
+    library_directory : str
+        No function
+    cleanup : bool
+        whether to delete the source depth grids once they've been processed
+    ras_version : str, optional
+        which version of HEC-RAS to use, by default "631"
+    table_name : str, optional
+        name for the table holding stage-discharge rating curves in the output
+        database, by default "rating_curves"
+    tiled : bool, optional
+        No function
+    overviews : bool, optional
+        whether to generate overviews for output rasters (overviews at levels
+        [4, 8, 16]), by default False
+    resolution : float, optional
+        horizontal resolution to resample output raster to, by default 3
+    resolution_units : str, optional
+        unit for resolution, by default "Meters"
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    dict
+        dictionary with paths to output rasters and rating curve database
+    """
     logging.info(f"create_fim_lib starting")
     nwm_rm = NwmReachModel(submodel_directory, library_directory)
 

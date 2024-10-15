@@ -19,7 +19,15 @@ from pyproj import CRS
 import ripple1d
 from ripple1d.data_model import NwmReachModel, RippleSourceModel
 from ripple1d.errors import CouldNotIdentifyPrimaryPlanError, NoFlowFileSpecifiedError
-from ripple1d.ras import VALID_GEOMS, VALID_STEADY_FLOWS, RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
+from ripple1d.ras import (
+    VALID_GEOMS,
+    VALID_STEADY_FLOWS,
+    RasFlowText,
+    RasGeomText,
+    RasManager,
+    RasPlanText,
+    RasProject,
+)
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.utils.gpkg_utils import (
     create_geom_item,
@@ -30,7 +38,12 @@ from ripple1d.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
-from ripple1d.utils.ripple_utils import fix_reversed_xs, get_path, prj_is_ras, xs_concave_hull
+from ripple1d.utils.ripple_utils import (
+    fix_reversed_xs,
+    get_path,
+    prj_is_ras,
+    xs_concave_hull,
+)
 from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -274,7 +287,47 @@ def detemine_primary_plan(
 
 
 def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
-    """Write geometry and flow data to a geopackage locally."""
+    """Write geometry and flow data to a geopackage locally.
+
+    Parameters
+    ----------
+    source_model_directory : str
+        The path to the directory containing HEC-RAS project, plan, geometry,
+        and flow files.
+    crs : str
+        This can be any string interpretable by the pyproj CRS function
+        (https://pyproj4.github.io/pyproj/stable/api/crs/crs.html)
+    metadata : dict
+        A dictionary of miscellaneous metadata that will be appended to the
+        non-spatial metadata table in the final geopackage.
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Raises
+    ------
+    FileNotFoundError
+        Raises when no rar project (.prj) file is found
+
+    Notes
+    -----
+    The gpkg_from_ras endpoint extracts data contained within the HEC-RAS
+    geometry and flow files and exports them to a geopackage file.  When the
+    directory containing a HEC-RAS project is submitted, ripple1d will scan the
+    directory for the following files
+
+    * **Project file (.prj)** ripple1d scans the directory for .prj files and identifies any that are HEC-RAS project files (*Note: if more than one valid project file is identified, one will be arbitrarily selected*).
+    * **Plan file (.p0x)** ripple1d scans the project file for a list of plans and determine whether the plans contain encroachments. Since encroachments are often indicative of a floodway run as opposed to an existing condition run, the first listed plan without any encroachments is selected as the primary plan.
+    * **Flow file (.f0x)** ripple1d checks to see if the flow file listed in the primary plan exists.  If no flow file is specified within the primary plan, or if the specified flow file does not exist, ripple1d will search the directory for any valid steady flow files in the directory and select an arbitrary one.  If no steady flow file is found, geopackage creation will continue with no flow metadata being recorded.
+    * **Geometry file (.g0x)** ripple1d checks to see if the geometry file listed in the primary plan exists.  If no geometry file is specified within the primary plan, or if the specified geometry file does not exist , ripple1d will search the directory for any valid geometry files in the directory and select an arbitrary one.
+
+    Once a set of HEC-RAS files are identified, ripple1d will extract
+    cross-sectional geometry, reach centerlines, junction points, and structure
+    extents and save them as individual layers within a geopackage.  Ripple1d
+    creates an additional non-spatial table within the geopackage for metadata
+    such as HEC-RAS version, project units, etc.  The geopackage will be saved
+    to the project directory with the same base name as the HEC-RAS project
+    file.
+    """
     logging.info("gpkg_from_ras starting")
     prjs = glob.glob(f"{source_model_directory}/*.prj")
     ras_text_file_path = None

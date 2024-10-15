@@ -15,7 +15,11 @@ from shapely.ops import split
 import ripple1d
 from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
-from ripple1d.utils.ripple_utils import clip_ras_centerline, fix_reversed_xs, xs_concave_hull
+from ripple1d.utils.ripple_utils import (
+    clip_ras_centerline,
+    fix_reversed_xs,
+    xs_concave_hull,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -39,28 +43,28 @@ class RippleGeopackageSubsetter:
         self._ripple_xs_concave_hull = None
 
     def set_nwm_id(self, nwm_id: str):
-        """Set the NWM ID."""
+        """Set the network ID."""
         self.nwm_id = nwm_id
         self._subset_gdf = None
         self._ripple_xs_concave_hull = None
 
     @property
     def ripple_us_xs(self):
-        """Return upstream xs."""
+        """The most upstream cross section for the ripple model."""
         return self.ripple_xs.loc[
             self.ripple_xs["river_station"] == self.ripple_xs["river_station"].max(), "geometry"
         ].iloc[0]
 
     @property
     def ripple_ds_xs(self):
-        """Return downstream xs."""
+        """The most downstream cross section for the ripple model."""
         return self.ripple_xs.loc[
             self.ripple_xs["river_station"] == self.ripple_xs["river_station"].min(), "geometry"
         ].iloc[0]
 
     @property
     def split_source_hull(self):
-        """Split source hull."""
+        """Split the concave hull of the source model using the upstream and downstream cross sections of the submodel."""
         geoms = split(self.source_hulls.geometry.iloc[0], self.ripple_us_xs).geoms
         hulls = []
         for geom in geoms:
@@ -77,7 +81,7 @@ class RippleGeopackageSubsetter:
 
     @property
     def ripple_xs_concave_hull(self):
-        """Return concave hull."""
+        """Get the concave hull of the cross sections."""
         if self._ripple_xs_concave_hull is None:
             try:
                 hulls = self.split_source_hull
@@ -532,7 +536,7 @@ class RippleGeopackageSubsetter:
         """Update ripple1d_parameters with results of subsetting."""
         ripple1d_parameters = self.ripple1d_parameters
         ripple1d_parameters["source_model"] = rsd.ras_project_file
-        ripple1d_parameters["crs"] = self.crs.to_epsg()
+        ripple1d_parameters["crs"] = self.crs.to_wkt()
         ripple1d_parameters["version"] = ripple1d.__version__
         ripple1d_parameters["high_flow"] = max([ripple1d_parameters["high_flow"], self.max_flow])
         ripple1d_parameters["low_flow"] = min([ripple1d_parameters["low_flow"], self.min_flow])
@@ -549,7 +553,33 @@ class RippleGeopackageSubsetter:
 
 
 def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int):
-    """Use ripple conflation data to create a new GPKG from an existing ras geopackage."""
+    """Use ripple conflation data to create a new GPKG from an existing ras geopackage.
+
+    Create a new geopackage with information for a specific NWM reach.  The new geopackage contains layer for the river centerline, cross-sections, and structures.
+
+    Parameters
+    ----------
+    source_model_directory : str
+        The path to the directory containing HEC-RAS project, plan, geometry, and flow files.
+    submodel_directory : str
+        The path to export submodel HEC-RAS files to.
+    nwm_id : int
+        The id of the NWM reach to create a submodel for
+    task_id : str, optional
+        Task ID to use for logging, by default ""
+
+    Returns
+    -------
+    dict
+        Metadata for the submodel
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised when no geopackage is found in the source model directory
+    FileNotFoundError
+        Raised when no .conflation.json is found in the source model directory
+    """
     # time.sleep(10)
 
     if not os.path.exists(source_model_directory):
