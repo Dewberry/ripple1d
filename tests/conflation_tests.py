@@ -13,7 +13,6 @@ from ripple1d.conflate.rasfim import (
     cacl_avg_nearest_points,
     count_intersecting_lines,
     endpoints_from_multiline,
-    filter_gdf,
     nearest_line_to_point,
 )
 from ripple1d.ops.ras_conflate import conflate_model
@@ -108,12 +107,6 @@ class TestRasFimConflater(unittest.TestCase):
         nwm_reaches = gpd.GeoDataFrame({"geometry": [LineString([(0, 0), (1, 1)])]}, crs="EPSG:4326")
         count = count_intersecting_lines(ras_xs, nwm_reaches)
         self.assertEqual(count.shape[0], 1)
-
-    def test_filter_gdf(self):
-        gdf = gpd.GeoDataFrame({"ID": [1, 2, 3], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]})
-        filtered_gdf = filter_gdf(gdf, [1, 2])
-        self.assertEqual(filtered_gdf.shape[0], 1)
-        self.assertEqual(filtered_gdf.iloc[0]["ID"], 3)
 
 
 # TODO: Update to remove refernce to windows User directory
