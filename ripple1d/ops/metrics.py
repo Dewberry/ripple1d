@@ -295,7 +295,7 @@ def compute_conflation_metrics(source_model_directory: str, source_network: dict
             cm = ConflationMetrics(
                 fix_reversed_xs(layers["XS"], layers["River"]),
                 layers["River"],
-                rgs.ripple_xs_concave_hull,
+                rgs.ripple_xs_concave_hull.to_crs(HYDROFABRIC_CRS),
                 network_reach,
                 network_reach_plus_ds_reach,
                 task_id,
@@ -317,7 +317,7 @@ def compute_conflation_metrics(source_model_directory: str, source_network: dict
             overlapped_reaches = cm.overlapped_reaches(
                 network_reaches[network_reaches["ID"].isin([int(to_id), next_to_id])]
             )
-            eclipsed_reaches = cm.eclipsed_reaches(network_reaches[network_reaches["ID"] != int(network_id)])
+            eclipsed_reaches = get_eclipsed_reaches(conflation_parameters, network_id)
 
             conflation_parameters["reaches"][network_id].update({"metrics": metrics})
             conflation_parameters["reaches"][network_id].update({"overlapped_reaches": overlapped_reaches})
@@ -356,3 +356,18 @@ def combine_reaches(network_reaches: gpd.GeoDataFrame, network_id: str) -> LineS
                     ]
                 )
             )
+
+def get_eclipsed_reaches(conflation_parameters, network_id):
+    """Walk the network to find all eclipsed reaches until the next non-eclipsed reach."""
+    walking = True
+    next_ds = conflation_parameters["reaches"][network_id]["network_to_id"]
+    eclipsed = []
+    while walking:
+        if not next_ds in conflation_parameters["reaches"]:
+            break
+        if not conflation_parameters["reaches"][next_ds]['eclipsed']:
+            break
+        else:
+            eclipsed.append(next_ds)
+            next_ds = conflation_parameters["reaches"][next_ds]["network_to_id"]
+    return eclipsed
