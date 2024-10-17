@@ -131,17 +131,6 @@ def check_windows(func):
     return wrapper
 
 
-def add_fid_index(func):
-    """Add FID index decorator."""
-
-    def wrapper(*args, **kwargs):
-        gdf = func(*args, **kwargs)
-        gdf.index.name = "ID"
-        return gdf
-
-    return wrapper
-
-
 # classes
 class RasManager:
     """Manage HEC-RAS projects."""
