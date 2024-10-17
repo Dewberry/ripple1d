@@ -394,7 +394,7 @@ def _handle_signals(signal, task, exc=None):
                     """update "task_status" set huey_status = ? where "task_id" = ?""", (task_status, task.id), True
                 )
             elif fetch_ogc_status(task.id) == "failed":
-                task_status = "completed"
+                task_status = "complete"
                 ogc_status = "failed"
             else:
                 ogc_status = "successful"
