@@ -601,12 +601,14 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     if ripple1d_parameters["eclipsed"]:
         ripple1d_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple1d_parameters["messages"])
+        gpkg_path = None
 
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
         rgs.write_ripple_gpkg()
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
+        gpkg_path = rgs.ripple_gpkg_file
 
     logging.info(f"extract_submodel complete for nwm_id {nwm_id}")
-    return {"ripple1d_parameters": rsd.conflation_file, "ripple_gpkg_file": rgs.ripple_gpkg_file}
+    return {"ripple1d_parameters": rsd.conflation_file, "ripple_gpkg_file": gpkg_path}
