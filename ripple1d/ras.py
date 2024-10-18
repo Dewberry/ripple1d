@@ -131,17 +131,6 @@ def check_windows(func):
     return wrapper
 
 
-def add_fid_index(func):
-    """Add FID index decorator."""
-
-    def wrapper(*args, **kwargs):
-        gdf = func(*args, **kwargs)
-        gdf.index.name = "ID"
-        return gdf
-
-    return wrapper
-
-
 # classes
 class RasManager:
     """Manage HEC-RAS projects."""
@@ -988,14 +977,12 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_crs
-    @add_fid_index
     def reach_gdf(self):
         """A GeodataFrame of the reaches contained in the HEC-RAS geometry file."""
         return pd.concat([reach.gdf for reach in self.reaches.values()], ignore_index=True)
 
     @property
     @check_crs
-    @add_fid_index
     def junction_gdf(self):
         """A GeodataFrame of the junctions contained in the HEC-RAS geometry file."""
         if self.junctions:
@@ -1006,14 +993,12 @@ class RasGeomText(RasTextFile):
 
     @property
     @check_crs
-    @add_fid_index
     def xs_gdf(self):
         """Geodataframe of all cross sections in the geometry text file."""
         return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
 
     @property
     @check_crs
-    @add_fid_index
     def structures_gdf(self):
         """Geodataframe of all structures in the geometry text file."""
         return pd.concat([structure.gdf for structure in self.structures.values()], ignore_index=True)
@@ -1051,12 +1036,12 @@ class RasGeomText(RasTextFile):
     @check_crs
     def to_gpkg(self, gpkg_path: str):
         """Write the HEC-RAS Geometry file to geopackage."""
-        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
-        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
+        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS", ignore_index=True)
+        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River", ignore_index=True)
         if self.junctions:
-            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
+            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction", ignore_index=True)
         if self.structures:
-            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
+            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure", ignore_index=True)
 
 
 class RasFlowText(RasTextFile):
