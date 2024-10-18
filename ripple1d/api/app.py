@@ -180,7 +180,7 @@ def job_results(task_id):
 
 @app.route("/jobs/<task_id>/metadata", methods=["GET"])
 def job_metadata(task_id):
-    """Retrieve result for job."""
+    """Retrieve metadata for job."""
     task2metadata = tasks.task_status(only_task_id=task_id)
     try:
         return jsonify(task2metadata), HTTPStatus.OK
