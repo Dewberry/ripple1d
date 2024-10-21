@@ -2,8 +2,16 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main", "dev" ]
+    paths:
+      - 'ripple1d/**'
+      - 'tests/**'
+  pull_request:
+    branches: [ "main", "dev" ]
+    paths:
+      - 'ripple1d/**'
+      - 'tests/**'
+  workflow_dispatch:
 
 permissions:
   contents: write
