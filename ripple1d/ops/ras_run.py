@@ -12,7 +12,7 @@ import pandas as pd
 
 from ripple1d.consts import DEFAULT_EPSG, MIN_FLOW
 from ripple1d.data_model import FlowChangeLocation, NwmReachModel
-from ripple1d.ras import RasManager
+from ripple1d.ras import RASController, RasManager
 
 
 def create_model_run_normal_depth(

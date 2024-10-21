@@ -132,6 +132,80 @@ def check_windows(func):
 
 
 # classes
+class RASController:
+    r"""
+    Context-managed class implementing calls to RAS COM API.
+    Example usage:
+    with RASController('610') as rc:
+        rc.compute_current_plan(r'C:\path\to\ras\model.prj', timeout_seconds=120)
+    """
+
+    def __init__(self, ras_ver: str):
+        self.com_object_handle = None
+        com_key = f"RAS{ras_ver}.HECRASCONTROLLER"
+        try:
+            self.com_object_handle = win32com.client.Dispatch(com_key, pythoncom.CoInitialize())
+        except pywintypes.com_error as exc:
+            raise RuntimeError(f"Could not get COM object for key: {com_key}") from exc
+        if self.com_object_handle is None:
+            raise RuntimeError(f"Could not get COM object for key: {com_key}")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self) -> None:
+        """Safely close the project and the RAS runtime. Automatically called when using context manager."""
+        if self.com_object_handle is not None:
+            self.com_object_handle.Project_Close()
+            self.com_object_handle.QuitRAS()
+            self.com_object_handle = None
+
+    def compute_current_plan(self, ras_project_file: str, timeout_seconds: float = 0.0) -> None:
+        """
+        Run current plan of provided HEC-RAS project. Will produce all typical RAS outputs such as .hdf results.
+        Also produces mapping products, as long as the project's RAS Mapper file (*.rasmap) is set up appropriately.
+        """
+        if self.com_object_handle is None:
+            raise RuntimeError("RASController COM object handler is no longer available.")
+        if not os.path.isfile(ras_project_file):
+            raise FileNotFoundError(ras_project_file)
+        if not ras_project_file.endswith(".prj"):
+            raise ValueError(f"Provided RAS project file name does not end with .prj: {ras_project_file}")
+        deadline = (timeout_seconds + time.time()) if timeout_seconds else float("inf")
+
+        with open(ras_project_file) as f:
+            for line in f.read().splitlines():
+                if line.startswith("Current Plan="):
+                    current_plan_code = line[len("Current Plan=") :].strip()
+        compute_message_file = os.path.splitext(ras_project_file)[0] + f".{current_plan_code}.computeMsgs.txt"
+
+        logging.info(f"computing current plan {current_plan_code} for RAS project: {ras_project_file}")
+        self.com_object_handle.Project_Open(ras_project_file)
+        self.com_object_handle.Compute_CurrentPlan()
+        while not self.com_object_handle.Compute_Complete():
+            time.sleep(15)
+            if time.time() > deadline:
+                raise RASComputeTimeoutError(f"timed out computing current plan for RAS project: {ras_project_file}")
+            # must keep checking for mesh errors while RAS is running because mesh error will cause blocking popup message
+            assert_no_mesh_error(compute_message_file, require_exists=False)  # file might not exist immediately
+            time.sleep(0.2)
+        time.sleep(5)  # ample sleep to account for race condition of RAS flushing final lines to compute_message_file
+        assert_no_mesh_error(compute_message_file, require_exists=True)
+        assert_no_ras_geometry_error(compute_message_file)
+        assert_no_ras_compute_error_message(compute_message_file)
+
+    @staticmethod
+    def _get_ras_controller_com_key(ras_ver: str) -> str:
+        try:
+            com_key = RAS_COM_STRINGS[ras_ver]
+        except KeyError as e:
+            raise ValueError(f"Unsupported ras_ver {ras_ver}. Choose from: {sorted(RAS_COM_STRINGS)}") from e
+        return com_key
+
+
 class RasManager:
     """Manage HEC-RAS projects."""
 
@@ -460,8 +534,10 @@ class RasManager:
             self.update_rasmapper_for_mapping()
 
         if run_ras:
+            with RASController(self.version) as RC:
+                RC.compute_current_plan(self.ras_project._ras_text_file_path, timeout_seconds=None)
             # run the RAS plan
-            self.run_sim(close_ras=True, show_ras=show_ras, ignore_store_all_maps_error=True)
+            # self.run_sim(close_ras=True, show_ras=show_ras, ignore_store_all_maps_error=True)
 
 
 class RasTextFile:

@@ -356,6 +356,7 @@ def subprocess_caller(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NEW_CONSOLE,
     )
     results = None
     update_p_id(task_id, process.pid)
