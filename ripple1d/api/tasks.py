@@ -14,6 +14,7 @@ from huey import SqliteHuey, signals
 from huey.api import Result
 
 from ripple1d.ripple1d_logger import initialize_server_logger
+from ripple1d.utils.subprocess_utils import send_ctrl_c_event
 
 initialize_server_logger()
 
@@ -94,7 +95,7 @@ huey.storage.sql(
 )
 
 
-def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
+def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}, priority: int = None) -> Result:
     """Create a task instance, then add it to the custom table "task_status" before adding it to the queue.
 
     Return the Result object associated with the task, which is the same class type that would be returned by
@@ -103,7 +104,7 @@ def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
     This is needed to avoid a race condition, this ensures that the task exists in the custom table before
     it starts executing.
     """
-    task_instance = _process.s(func, kwargs)
+    task_instance = _process.s(func, kwargs, priority=priority)
     huey.storage.sql(
         """
         insert into "task_status"
@@ -114,6 +115,40 @@ def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
         True,
     )
     return huey.enqueue(task_instance)
+
+
+def kill_task(task_id):
+    """Attempt to gracefully kill task.  Terminate if necessary."""
+    # Get task process ID (PID)
+    expression = """select "p_id" from "task_status" where "task_id" = ?"""
+    args = (task_id,)
+    pid = int(huey.storage.sql(expression, args, results=True)[0][0])
+
+    # Attempt graceful shut down
+    interrupt_task = create_and_enqueue_task(send_ctrl_c_event, {"pid": pid}, priority=9999)
+
+    # Terminate, if necessary
+    counter = 0  # Waits for 10 seconds before killing
+    while psutil.pid_exists(pid):
+        if counter > 10:
+            print(counter)
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                break
+        counter += 1
+
+    # Log updates
+    expression = f"""
+        update "task_status"
+        set
+            "huey_status" = 'complete',
+            "ogc_status" = 'dismissed',
+            "dismiss_time" = datetime('now')
+        where "task_id" = ?
+        """
+    args = (task_id,)
+    huey.storage.sql(expression, args, True)
 
 
 def revoke_task_by_pid(task_id: str):
@@ -316,7 +351,12 @@ def subprocess_caller(
         json.dumps(args),
     ]
 
-    process = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = subprocess.Popen(
+        subprocess_args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
     results = None
     update_p_id(task_id, process.pid)
 

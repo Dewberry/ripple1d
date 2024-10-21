@@ -19,6 +19,7 @@ from ripple1d.ops.ras_terrain import create_ras_terrain
 from ripple1d.ops.subset_gpkg import extract_submodel
 from ripple1d.ras_to_gpkg import gpkg_from_ras
 from ripple1d.ripple1d_logger import RippleLogFormatter  # , initialize_process_logger
+from ripple1d.utils.subprocess_utils import send_ctrl_c_event
 
 func_lookup = {
     "extract_submodel": extract_submodel,
@@ -32,6 +33,7 @@ func_lookup = {
     "create_fim_lib": create_fim_lib,
     "nwm_reach_model_stac": nwm_reach_model_stac,
     "fim_lib_stac": fim_lib_stac,
+    "send_ctrl_c_event": send_ctrl_c_event,
 }
 
 
