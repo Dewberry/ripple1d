@@ -1,7 +1,23 @@
-Change Log for Users
-=====================
+Change Log
+==========
 
-Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`_  page for a list of all releases.
+.. note::
+   Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`__  page for a list of all releases.
+
+Bugfix Release 0.6.3
+~~~~~~~~~~~~~~~~~~~~~
+ 
+Users Changelog
+----------------
+This release of `ripple1d` fixes several bugs identified during testing.
+
+Bug Fixes
+----------
+- Technical Documentation has been updated with high level summary of package functionality.
+- The ID column was removed from geopackage layers. All code dependencies on the ID column have been removed. 
+- Now only reaches that are connected via the "to_id" are considered eclipsed reaches.
+- Precision has been added to the rating curves used to inform the incremental normal depth runs by reducing the amount of rounding.
+- CRS is now stored as WKT instead of EPSG in the ripple.json file to more robustly represent all possible CRSs; e.g., ESRI.  
 
 Bugfix Release 0.6.2
 ~~~~~~~~~~~~~~~~~~~~~

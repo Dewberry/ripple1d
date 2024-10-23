@@ -468,16 +468,6 @@ class RasFimConflater:
         """Return the cross sections for the specified river reach."""
         return self.ras_xs[self.ras_xs["river_reach"] == river_reach_name]
 
-    def river_reach_name_by_xs(self, xs_id: str) -> Tuple[str, str]:
-        """Return the river and reach names for the specified cross section."""
-        data = self.ras_xs[self.ras_xs["ID"] == int(xs_id)]
-        if data.empty:
-            raise ValueError(f"XS ID {xs_id} not found in ras_xs")
-        elif data.shape[0] != 1:
-            raise ValueError(f"Multiple XS found with ID = {xs_id}")
-        else:
-            return data.iloc[0]["river"], data.iloc[0]["reach"]
-
 
 # general geospatial functions
 def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
@@ -551,11 +541,6 @@ def count_intersecting_lines(ras_xs: gpd.GeoDataFrame, nwm_reaches: gpd.GeoDataF
     return join_gdf
 
 
-def filter_gdf(gdf: gpd.GeoDataFrame, column_values: list, column_name: str = "ID") -> gpd.GeoDataFrame:
-    """Filter a GeoDataFrame based on the values in a column."""
-    return gdf[~gdf[column_name].isin(column_values)]
-
-
 # analytical functions
 def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach_name: str) -> List[int]:
     """Walk the network from the start ID to the stop ID."""
@@ -580,77 +565,10 @@ def walk_network(gdf: gpd.GeoDataFrame, start_id: int, stop_id: int, river_reach
     return ids
 
 
-# def calculate_conflation_metrics(
-#     rfc: RasFimConflater,
-#     candidate_reaches: gpd.GeoDataFrame,
-#     xs_group: gpd.GeoDataFrame,
-#     ras_points: gpd.GeoDataFrame,
-# ) -> dict:
-#     """Calculate the conflation metrics for the candidate reaches."""
-#     next_round_candidates = []
-#     xs_hits_ids = []
-#     total_hits = 0
-#     for i in candidate_reaches.index:
-#         candidate_reach_points = convert_linestring_to_points(candidate_reaches.loc[i].geometry, crs=rfc.common_crs)
-#         # TODO: Evaluate this constant.
-#         if cacl_avg_nearest_points(candidate_reach_points, ras_points) < 10000:
-#             next_round_candidates.append(candidate_reaches.loc[i]["ID"])
-#             gdftmp = gpd.GeoDataFrame(geometry=[candidate_reaches.loc[i].geometry], crs=rfc.nwm_reaches.crs)
-#             xs_hits = count_intersecting_lines(xs_group, gdftmp)
-
-#             total_hits += xs_hits.shape[0]
-#             xs_hits_ids.extend(xs_hits.ID.tolist())
-
-#             logging.debug(f"conflation: {total_hits} xs hits out of {xs_group.shape[0]}")
-
-#     dangling_xs = filter_gdf(xs_group, xs_hits_ids)
-
-#     dangling_xs_interesects = gpd.sjoin(dangling_xs, rfc.nwm_reaches, predicate="intersects")
-
-#     conflation_score = round(total_hits / xs_group.shape[0], 2)
-
-#     if conflation_score == 1:
-#         conlfation_notes = "Probable Conflation, no dangling xs"
-#         manual_check_required = False
-
-#     # elif dangling_xs_interesects.shape[0] == 0:
-#     #     conlfation_notes = f"Probable Conflation..."
-#     #     manual_check_required = False
-
-#     elif conflation_score >= 0.95:
-#         conlfation_notes = f"Probable Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = False
-
-#     elif conflation_score >= 0.25:
-#         conlfation_notes = f"Possible Conflation: partial nwm reach coverage with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = True
-
-#     elif conflation_score < 0.25:
-#         conlfation_notes = f"Unable to conflate: potential disconnected reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = True
-
-#     elif conflation_score > 1:
-#         conlfation_notes = f"Unable to conflate: potential diverging reaches with {dangling_xs.shape[0]}/{xs_group.shape[0]} dangling xs"
-#         manual_check_required = True
-
-#     else:
-#         conlfation_notes = "Unknown error"
-#         manual_check_required = True
-
-#     # Convert next_round_candidates from int64 to serialize
-#     conlfation_metrics = {
-#         # "fim_reaches": [int(c) for c in next_round_candidates],
-#         "conflation_score": round(total_hits / xs_group.shape[0], 2),
-#         "conlfation_notes": conlfation_notes,
-#         "manual_check_required": manual_check_required,
-#     }
-#     return conlfation_metrics
-
-
 def ras_xs_geometry_data(rfc: RasFimConflater, xs_id: str) -> dict:
     """Return the geometry data (max/min xs elevation) for the specified cross section."""
     # TODO: Need to verify units in the RAS data
-    xs = rfc.ras_xs[rfc.ras_xs["ID"] == xs_id]
+    xs = rfc.ras_xs[rfc.ras_xs["river_reach_rs"] == xs_id]
     if xs.shape[0] > 1:
         raise ValueError(f"Multiple XS found with ID = {xs_id}")
 
@@ -700,7 +618,7 @@ def get_us_most_xs_from_junction(rfc, us_river, us_reach):
 
     ds_river_reach_gdf = rfc.ras_xs.loc[(rfc.ras_xs["river"] == ds_river) & (rfc.ras_xs["reach"] == ds_reach), :]
     max_rs = ds_river_reach_gdf.loc[:, "river_station"].max()
-    ds_xs_id = int(ds_river_reach_gdf.loc[ds_river_reach_gdf["river_station"] == max_rs, "ID"].iloc[0])
+    ds_xs_id = ds_river_reach_gdf.loc[ds_river_reach_gdf["river_station"] == max_rs, "river_reach_rs"].iloc[0]
     return ds_xs_id
 
 
@@ -729,18 +647,18 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     start, end = endpoints_from_multiline(reach.geometry)
 
     # Begin with us_xs data
-    us_xs = nearest_line_to_point(intersected_xs, start, column_id="ID")
+    us_xs = nearest_line_to_point(intersected_xs, start, column_id="river_reach_rs")
 
     # Initialize us_xs data with min /max elevation, then build the dict with added info
     us_data = ras_xs_geometry_data(rfc, us_xs)
 
     # Add downstream xs data
-    ds_xs = nearest_line_to_point(intersected_xs, end, column_id="ID")
+    ds_xs = nearest_line_to_point(intersected_xs, end, column_id="river_reach_rs")
 
     # get infor for the current ds_xs
-    ras_river = rfc.ras_xs.loc[rfc.ras_xs["ID"] == ds_xs, "river"].iloc[0]
-    ras_reach = rfc.ras_xs.loc[rfc.ras_xs["ID"] == ds_xs, "reach"].iloc[0]
-    river_station = rfc.ras_xs.loc[rfc.ras_xs["ID"] == ds_xs, "river_station"].iloc[0]
+    ras_river = rfc.ras_xs.loc[rfc.ras_xs["river_reach_rs"] == ds_xs, "river"].iloc[0]
+    ras_reach = rfc.ras_xs.loc[rfc.ras_xs["river_reach_rs"] == ds_xs, "reach"].iloc[0]
+    river_station = rfc.ras_xs.loc[rfc.ras_xs["river_reach_rs"] == ds_xs, "river_station"].iloc[0]
     river_reach_gdf = rfc.ras_xs.loc[(rfc.ras_xs["river"] == ras_river) & (rfc.ras_xs["reach"] == ras_reach), :]
 
     # check if this is the most downstream xs on this ras reach
@@ -762,12 +680,12 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
             index = 0
         else:
             index = ds_xs_gdf["river_station"].idxmax()
-        ds_xs = ds_xs_gdf["ID"].iloc[index]
+        ds_xs = ds_xs_gdf["river_reach_rs"].iloc[index]
         ds_data = ras_xs_geometry_data(rfc, ds_xs)
 
     # add xs concave hull
     if rfc.output_concave_hull_path:
-        xs_gdf = pd.concat([intersected_xs, rfc.ras_xs[rfc.ras_xs["ID"] == ds_xs]], ignore_index=True)
+        xs_gdf = pd.concat([intersected_xs, rfc.ras_xs[rfc.ras_xs["river_reach_rs"] == ds_xs]], ignore_index=True)
         rfc.add_hull(xs_gdf, reach.geometry)
 
     if us_data == ds_data:

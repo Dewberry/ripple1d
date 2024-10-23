@@ -27,6 +27,8 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.doctest",
     "myst_parser",
+    "sphinx.ext.napoleon",
+    "sphinx_design",
 ]
 
 # numpydoc_show_class_members = False
@@ -40,4 +42,21 @@ master_doc = "index"
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme"
+html_css_files = ["custom.css"]
+
+html_static_path = ["_static"]
+
+html_theme = "pydata_sphinx_theme"
+
+html_theme_options = {
+    "navbar_start": ["navbar-logo", "navbar-version"],
+    "navbar_center": ["navbar-nav"],
+    "navbar_end": ["navbar-icon-links"],
+    "navbar_persistent": ["search-button"],
+}
+
+html_sidebars = {
+    "tech_summary": [],
+    "postman": [],
+    "change_log": [],
+}

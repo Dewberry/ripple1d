@@ -103,6 +103,8 @@ six==1.16.0
 snowballstemmer==2.2.0
 snuggs==1.4.7
 Sphinx==7.4.7
+sphinx_design==0.6.1
+pydata-sphinx-theme==0.15.4
 sphinx-autodoc-typehints==2.2.3
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0

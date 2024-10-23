@@ -2,8 +2,11 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+    paths:
+      - 'ripple1d/**'
+  
+  workflow_dispatch:
 
 permissions:
   contents: write

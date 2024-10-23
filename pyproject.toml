@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ripple1d"
-version = "0.6.2"
+version = "0.6.3"
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
@@ -46,7 +46,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pre-commit", "ruff", "pytest", "pytest-cov"]
-docs = ["sphinx", "numpydoc", "sphinx_rtd_theme"]
+docs = ["sphinx", "numpydoc", "sphinx_rtd_theme", "sphinx_design", "pydata-sphinx-theme"]
 
 [project.urls]
 repository = "https://github.com/dewberry/ripple1d"
