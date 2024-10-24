@@ -21,7 +21,7 @@ from rasterio.shutil import copy as copy_raster
 import ripple1d
 from ripple1d.conflate.rasfim import RasFimConflater
 from ripple1d.data_model import NwmReachModel
-from ripple1d.errors import DepthGridNotFoundError
+from ripple1d.errors import DepthGridNotFoundError, PlanNameNotFoundError
 from ripple1d.ras import RasManager
 from ripple1d.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
 from ripple1d.utils.dg_utils import (
@@ -121,18 +121,9 @@ def post_process_depth_grids(
                     dst.build_overviews([4, 8, 16], Resampling.nearest)
                     dst.update_tags(ns="rio_overview", resampling="nearest")
 
-            # gdal.UseExceptions()
-            # # open the file
-            # ds = gdal.Open(dest_path, gdal.GA_Update)  # GA_Update == 1, aka Write mode
-            # if ds is None:
-            #     raise RuntimeError(f"Could not open: {file_path}")
-            # ds.BuildOverviews(
-            #     "NEAREST", [4, 8, 16], options={"COMPRESS_OVERVIEW": "DEFLATE", "PREDICTOR_OVERVIEW": "3"}
-            # )
-            # # close the file
-            # del ds
-
-    return missing_grids_kwse, missing_grids_nd
+    if plan_name not in rm.plans:
+        logging.error(f"Plan {plan_name} not found in the model, skipping...")
+        raise PlanNameNotFoundError(f"Plan {plan_name} not found in the model")
 
 
 def create_fim_lib(

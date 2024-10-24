@@ -90,5 +90,9 @@ class DepthGridNotFoundError(Exception):
     """Raised when a depth grid is not found when clipping raw RAS output."""
 
 
+class PlanNameNotFoundError(Exception):
+    """Raised when a plan is not found during post processing depth grids and rating curve dbs."""
+
+
 class UnknownVerticalUnits(Exception):
     """Raised when unknown vertical units are specified."""
