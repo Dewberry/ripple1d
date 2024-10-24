@@ -295,7 +295,7 @@ def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
         The path to the directory containing HEC-RAS project, plan, geometry,
         and flow files.
     crs : str
-        This can be any string interpretable by the pyproj CRS function
+        This crs of the source model. This can be any string interpretable by the pyproj CRS function
         (https://pyproj4.github.io/pyproj/stable/api/crs/crs.html)
     metadata : dict
         A dictionary of miscellaneous metadata that will be appended to the
