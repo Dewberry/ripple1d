@@ -10,6 +10,7 @@ from ripple1d.ras import RasManager
 
 def create_db_and_table(db_name: str, table_name: str):
     """Create sqlite database and table."""
+    os.makedirs(os.path.dirname(os.path.abspath(db_name)), exist_ok=True)
     sql_query = f"""
         CREATE TABLE {table_name}(
             reach_id INTEGER,
@@ -19,10 +20,11 @@ def create_db_and_table(db_name: str, table_name: str):
             us_depth REAL,
             us_wse REAL,
             boundary_condition TEXT, -- [kwse, nd]
-            UNIQUE(reach_id, us_flow, ds_wse, boundary_condition)
+            plan_suffix,
+            map_exist,
+            UNIQUE(reach_id, us_flow, ds_wse, boundary_condition,plan_suffix)
         )
     """
-    os.makedirs(os.path.dirname(os.path.abspath(db_name)), exist_ok=True)
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
     c.execute(sql_query)
@@ -30,16 +32,22 @@ def create_db_and_table(db_name: str, table_name: str):
     conn.close()
 
 
-def insert_data(db_name: str, table_name: str, data: pd.DataFrame, boundary_condition: str):
+def insert_data(
+    db_name: str, table_name: str, data: pd.DataFrame, plan_suffix: str, missing_grids: list, boundary_condition: str
+):
     """Insert data into the sqlite database."""
     conn = sqlite3.connect(db_name)
     c = conn.cursor()
 
     for row in data.itertuples():
+        if f"{row.us_flow}-{row.ds_wse}" in missing_grids:
+            map_exist = False
+        else:
+            map_exist = True
         c.execute(
             f"""
-            INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, boundary_condition)
-            VALUES ( ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, boundary_condition,  plan_suffix, map_exist)
+            VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 int(row.reach_id),
@@ -49,6 +57,8 @@ def insert_data(db_name: str, table_name: str, data: pd.DataFrame, boundary_cond
                 round(float(row.us_depth), 1),
                 round(float(row.us_wse), 1),
                 str(boundary_condition),
+                str(plan_suffix),
+                str(map_exist),
             ),
         )
 
@@ -70,7 +80,13 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
 
 
 def zero_depth_to_sqlite(
-    rm: RasManager, plan_name: str, nwm_id: str, missing_grids_nd: list, database_path: str, table_name: str
+    rm: RasManager,
+    plan_name: str,
+    plan_suffix: str,
+    nwm_id: str,
+    missing_grids: list,
+    database_path: str,
+    table_name: str,
 ):
     """Export zero depth (normal depth) results to sqlite."""
     # set the plan
@@ -78,9 +94,6 @@ def zero_depth_to_sqlite(
 
     # read in flow/wse
     wses, flows = rm.plan.read_rating_curves()
-    if missing_grids_nd:
-        wses.drop(columns=missing_grids_nd, inplace=True)
-        flows.drop(columns=missing_grids_nd, inplace=True)
 
     # get river-reach-rs
     us_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs
@@ -107,11 +120,17 @@ def zero_depth_to_sqlite(
     # add control id
     df["reach_id"] = [nwm_id] * len(df)
 
-    insert_data(database_path, table_name, df, boundary_condition="nd")
+    insert_data(database_path, table_name, df, plan_suffix, missing_grids, boundary_condition="nd")
 
 
 def rating_curves_to_sqlite(
-    rm: RasManager, plan_name: str, nwm_id: str, missing_grids_kwse: list, database_path: str, table_name: str
+    rm: RasManager,
+    plan_name: str,
+    plan_suffix: str,
+    nwm_id: str,
+    missing_grids: list,
+    database_path: str,
+    table_name: str,
 ):
     """Export rating curves to sqlite."""
     # set the plan
@@ -121,9 +140,6 @@ def rating_curves_to_sqlite(
 
     # read in flow/wse
     wses, flows = rm.plan.read_rating_curves()
-    if missing_grids_kwse:
-        wses.drop(columns=missing_grids_kwse, inplace=True)
-        flows.drop(columns=missing_grids_kwse, inplace=True)
 
     # parse applied stage and flow from profile names
     wses = parse_stage_flow(wses)
@@ -147,7 +163,7 @@ def rating_curves_to_sqlite(
     thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.thalweg
     df["ds_depth"] = df["ds_wse"] - thalweg
 
-    insert_data(database_path, table_name, df, boundary_condition="kwse")
+    insert_data(database_path, table_name, df, plan_suffix, missing_grids, boundary_condition="kwse")
 
 
 def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
