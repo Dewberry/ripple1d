@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+import time
+import warnings
 
 import fiona
 import geopandas as gpd
@@ -13,8 +15,13 @@ from shapely.ops import split
 import ripple1d
 from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory, RippleSourceModel
-from ripple1d.ripple1d_logger import log_process
-from ripple1d.utils.ripple_utils import clip_ras_centerline, fix_reversed_xs, xs_concave_hull
+from ripple1d.utils.ripple_utils import (
+    clip_ras_centerline,
+    fix_reversed_xs,
+    xs_concave_hull,
+)
+
+warnings.filterwarnings("ignore")
 
 
 class RippleGeopackageSubsetter:
@@ -234,8 +241,7 @@ class RippleGeopackageSubsetter:
         """Return the new NWM reach model object."""
         return NwmReachModel(self.dst_project_dir)
 
-    @log_process
-    def write_ripple_gpkg(self, task_id: str = None) -> None:
+    def write_ripple_gpkg(self) -> None:
         """Write the subsetted geopackage to the destination project directory."""
         os.makedirs(self.dst_project_dir, exist_ok=True)
 
@@ -546,7 +552,7 @@ class RippleGeopackageSubsetter:
             json.dump(ripple1d_parameters, f, indent=4)
 
 
-def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, task_id: str = ""):
+def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage.
 
     Create a new geopackage with information for a specific NWM reach.  The new geopackage contains layer for the river centerline, cross-sections, and structures.
@@ -574,30 +580,35 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     FileNotFoundError
         Raised when no .conflation.json is found in the source model directory
     """
-    logging.info(f"{task_id} | extract_submodel starting")
+    # time.sleep(10)
+
+    if not os.path.exists(source_model_directory):
+        raise FileNotFoundError(
+            f"cannot find directory for source model {source_model_directory}, please ensure dir exists"
+        )
     rsd = RippleSourceDirectory(source_model_directory)
-    logging.debug(f"{task_id} | preparing to extract NWM ID {nwm_id} from {rsd.ras_project_file}")
+
+    logging.info(f"extract_submodel starting for nwm_id {nwm_id}")
+    # print(f"preparing to extract NWM ID {nwm_id} from {os.path.basename(rsd.ras_project_file)}")
 
     if not rsd.file_exists(rsd.ras_gpkg_file):
-        raise FileNotFoundError(
-            f"{task_id} | cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists"
-        )
+        raise FileNotFoundError(f"cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists")
 
     if not rsd.file_exists(rsd.conflation_file):
-        raise FileNotFoundError(
-            f"{task_id} | cannot find conflation file {rsd.conflation_file}, please ensure file exists"
-        )
+        raise FileNotFoundError(f"cannot find conflation file {rsd.conflation_file}, please ensure file exists")
 
     ripple1d_parameters = rsd.nwm_conflation_parameters(str(nwm_id))
     if ripple1d_parameters["eclipsed"]:
         ripple1d_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple1d_parameters["messages"])
+        gpkg_path = None
 
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
-        rgs.write_ripple_gpkg(task_id=task_id)
+        rgs.write_ripple_gpkg()
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
+        gpkg_path = rgs.ripple_gpkg_file
 
-    logging.info(f"{task_id} | extract_submodel complete")
-    return ripple1d_parameters
+    logging.info(f"extract_submodel complete for nwm_id {nwm_id}")
+    return {"ripple1d_parameters": rsd.conflation_file, "ripple_gpkg_file": gpkg_path}

@@ -1,16 +1,17 @@
 """Flask API."""
 
+import json
+import logging
 import time
 import traceback
 import typing
 from http import HTTPStatus
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, render_template, request
 from werkzeug.exceptions import BadRequest
 
 from ripple1d.api import tasks
 from ripple1d.api.utils import get_unexpected_and_missing_args
-from ripple1d.consts import SUPPRESS_LOGS
 from ripple1d.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
 from ripple1d.ops.metrics import compute_conflation_metrics
 from ripple1d.ops.ras_conflate import conflate_model
@@ -110,7 +111,7 @@ def test():
     start = time.time()
     while time.time() - start < timeout_seconds:
         time.sleep(0.2)
-        status = tasks.ogc_status(response.json["jobID"])
+        status = tasks.fetch_ogc_status(response.json["jobID"])
         if status == "failed":
             return jsonify({"status": "not healthy"}), HTTPStatus.INTERNAL_SERVER_ERROR
         if status == "successful":
@@ -121,59 +122,74 @@ def test():
     )
 
 
-@app.route("/processes/sleep/execution", methods=["POST"])
-def process__sleep():
-    """Enqueue a task that sleeps for 15 seconds."""
-    return enqueue_async_task(tasks.sleep15)
+@app.route("/jobs", methods=["GET"])
+def jobs():
+    """Retrieve OGC status and result for all jobs."""
+    # try:
+    format_option = request.args.get("f")
+    task2metadata = tasks.task_status(only_task_id=None)
+    jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
+    response = {"jobs": jobs}
+
+    if format_option == "json":
+        return jsonify(response), HTTPStatus.OK
+    else:
+        return render_template("jobs.html", response=response)
 
 
 @app.route("/jobs/<task_id>", methods=["GET"])
-def get_one_job(task_id):
-    """Retrieve OGC status and result for one job.
-
-    Query parameters:
-        tb: Choices are ['true', 'false']. Defaults to 'false'. If 'true', the job result's traceback will be included
-            in the response, as key 'tb'.
-    """
-    include_traceback, problem = parse_request_param__bool(param_name="tb", default=False)
-    if problem is not None:
-        return problem
-
+def job_status(task_id):
+    """Retrieve result for job."""
     task2metadata = tasks.task_status(only_task_id=task_id)
+    resp = get_job_status(task_id, task2metadata[task_id])
+    try:
+        return jsonify(resp), HTTPStatus.OK
 
-    if len(task2metadata) == 0:
-        return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
-
-    if len(task2metadata) > 1:
+    except Exception as e:
         return (
-            jsonify({"type": "process", "detail": f"multiple ({len(task2metadata)}) records matched job ID {task_id}"}),
-            HTTPStatus.INTERNAL_SERVER_ERROR,
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
         )
 
-    huey_metadata = task2metadata[task_id]
-    return get_ogc_job_metadata_from_huey_metadata(task_id, huey_metadata, include_traceback), HTTPStatus.OK
+
+@app.route("/jobs/<task_id>/logs", methods=["GET"])
+def job_logs(task_id):
+    """Retrieve result for job."""
+    try:
+        result = tasks.fetch_logs(task_id)
+        return jsonify(result), HTTPStatus.OK
+    except Exception as e:
+        return (
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
+        )
 
 
-@app.route("/jobs", methods=["GET"])
-def get_all_jobs():
-    """Retrieve OGC status and result for all jobs.
+@app.route("/jobs/<task_id>/results", methods=["GET"])
+def job_results(task_id):
+    """Retrieve result for job."""
+    try:
+        result = tasks.fetch_results(task_id)
+        return jsonify(result), HTTPStatus.OK
+    except Exception as e:
+        return (
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
+        )
 
-    Query parameters:
-        tb: Choices are ['true', 'false']. Defaults to 'false'. If 'true', each job result's traceback will be included
-            in the response, as key 'tb'.
-    """
-    include_traceback, problem = parse_request_param__bool(param_name="tb", default=False)
-    if problem is not None:
-        return problem
 
-    task2metadata = tasks.task_status(only_task_id=None)
-    jobs = [
-        get_ogc_job_metadata_from_huey_metadata(task_id, huey_metadata, include_traceback)
-        for task_id, huey_metadata in task2metadata.items()
-    ]
-    links = []
-    ret = {"jobs": jobs, "links": links}
-    return jsonify(ret), HTTPStatus.OK
+@app.route("/jobs/<task_id>/metadata", methods=["GET"])
+def job_metadata(task_id):
+    """Retrieve metadata for job."""
+    task2metadata = tasks.task_status(only_task_id=task_id)
+    try:
+        return jsonify(task2metadata), HTTPStatus.OK
+
+    except Exception as e:
+        return (
+            jsonify(str(e)),
+            HTTPStatus.NOT_FOUND,
+        )
 
 
 def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tuple]:
@@ -204,35 +220,38 @@ def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tup
         )
 
 
-def get_ogc_job_metadata_from_huey_metadata(task_id: str, huey_metadata: dict, include_traceback: bool) -> dict:
-    """Convert huey-style task status metadata into a OGC-style result dictionary."""
-    huey_result = tasks.huey.result(task_id, preserve=True)
-    if include_traceback is False and huey_result is not None:
-        del huey_result["tb"]  # remove the traceback
-    ogc_job_metadata = {
+def get_job_status(task_id: str, huey_metadata: dict) -> dict:
+    """Convert huey-style task status metadata into a OGC-style job summary dictionary."""
+    return {
         "jobID": task_id,
         "updated": huey_metadata["status_time"],
         "status": huey_metadata["ogc_status"],
         "processID": huey_metadata["func_name"],
-        "type": "process",
-        "submitter": "",
-        "result": huey_result,
     }
-    return ogc_job_metadata
 
 
 @app.route("/jobs/<task_id>", methods=["DELETE"])
 def dismiss(task_id):
-    """Dismiss a specific task by its ID."""
+    """Dismiss a specific task by its ID.
+
+    Available only for jobs in "accepted" status, dismissal of "running" jobs not implemented
+    """
     try:
-        ogc_status = tasks.ogc_status(task_id)
+        ogc_status = tasks.fetch_ogc_status(task_id)
         if ogc_status == "notfound":
             return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
+
         elif ogc_status == "accepted":
             tasks.revoke_task(task_id)
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
+        elif ogc_status == "running":
+            tasks.revoke_task_by_pid(task_id)
+            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
         elif ogc_status == "dismissed":
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
         else:
             return (
                 jsonify(
@@ -245,7 +264,12 @@ def dismiss(task_id):
             )
     except Exception as e:
         return (
-            jsonify({"type": "process", "detail": f"failed to dismiss job ID {task_id} due to internal server error"}),
+            jsonify(
+                {
+                    "type": "process",
+                    "detail": f"failed to dismiss job ID {task_id} due to internal server error {str(e)}",
+                }
+            ),
             HTTPStatus.INTERNAL_SERVER_ERROR,
         )
 

@@ -694,9 +694,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 
 
-def ras_reaches_metadata(
-    rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame, river_reach_name: str, task_id: str
-):
+def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame, river_reach_name: str):
     """Return the metadata for the RAS reaches."""
     reach_metadata = OrderedDict()
     hulls = []
@@ -706,9 +704,9 @@ def ras_reaches_metadata(
             ras_xs_data = map_reach_xs(rfc, reach)
             reach_metadata[reach.ID] = ras_xs_data
         except Exception as e:
-            logging.error(f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Error: {e}")
+            logging.error(f"river-reach: {river_reach_name} | network id: {reach.ID} | Error: {e}")
             logging.error(
-                f"{task_id} | river-reach: {river_reach_name} | network id: {reach.ID} | Traceback: {traceback.format_exc()}"
+                f"river-reach: {river_reach_name} | network id: {reach.ID} | Traceback: {traceback.format_exc()}"
             )
 
     for k in reach_metadata.keys():

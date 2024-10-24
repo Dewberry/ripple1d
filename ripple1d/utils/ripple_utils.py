@@ -222,7 +222,6 @@ def junction_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataF
     """Compute and return the concave hull (polygon) for a juction."""
     junction_xs = determine_junction_xs(xs, junction)
 
-    print(type(junction_xs))
     junction_xs["start"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[0], axis=1)
     junction_xs["end"] = junction_xs.apply(lambda row: row.geometry.boundary.geoms[1], axis=1)
     junction_xs["to_line"] = junction_xs.apply(lambda row: determine_xs_order(row, junction_xs), axis=1)

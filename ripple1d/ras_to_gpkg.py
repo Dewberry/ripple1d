@@ -19,7 +19,15 @@ from pyproj import CRS
 import ripple1d
 from ripple1d.data_model import NwmReachModel, RippleSourceModel
 from ripple1d.errors import CouldNotIdentifyPrimaryPlanError, NoFlowFileSpecifiedError
-from ripple1d.ras import VALID_GEOMS, VALID_STEADY_FLOWS, RasFlowText, RasGeomText, RasManager, RasPlanText, RasProject
+from ripple1d.ras import (
+    VALID_GEOMS,
+    VALID_STEADY_FLOWS,
+    RasFlowText,
+    RasGeomText,
+    RasManager,
+    RasPlanText,
+    RasProject,
+)
 from ripple1d.utils.dg_utils import bbox_to_polygon
 from ripple1d.utils.gpkg_utils import (
     create_geom_item,
@@ -30,7 +38,12 @@ from ripple1d.utils.gpkg_utils import (
     reproject,
     write_thumbnail_to_s3,
 )
-from ripple1d.utils.ripple_utils import fix_reversed_xs, get_path, prj_is_ras, xs_concave_hull
+from ripple1d.utils.ripple_utils import (
+    fix_reversed_xs,
+    get_path,
+    prj_is_ras,
+    xs_concave_hull,
+)
 from ripple1d.utils.s3_utils import (
     get_basic_object_metadata,
     init_s3_resources,
@@ -273,14 +286,14 @@ def detemine_primary_plan(
         return candidate_plans[0]
 
 
-def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict, task_id: str = ""):
+def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
     """Write geometry and flow data to a geopackage locally.
 
     Parameters
     ----------
     source_model_directory : str
         The path to the directory containing HEC-RAS project, plan, geometry,
-        and flow files.  
+        and flow files.
     crs : str
         This can be any string interpretable by the pyproj CRS function
         (https://pyproj4.github.io/pyproj/stable/api/crs/crs.html)
@@ -313,9 +326,9 @@ def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict, task_id
     creates an additional non-spatial table within the geopackage for metadata
     such as HEC-RAS version, project units, etc.  The geopackage will be saved
     to the project directory with the same base name as the HEC-RAS project
-    file. 
+    file.
     """
-    logging.info(f"{task_id} | gpkg_from_ras starting")
+    logging.info("gpkg_from_ras starting")
     prjs = glob.glob(f"{source_model_directory}/*.prj")
     ras_text_file_path = None
 
@@ -329,7 +342,7 @@ def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict, task_id
 
     output_gpkg_path = ras_text_file_path.replace(".prj", ".gpkg")
     rp = RasProject(ras_text_file_path)
-    logging.info(f"{task_id} | gpkg_from_ras complete")
+    logging.info("gpkg_from_ras complete")
     return geom_flow_to_gpkg(rp, crs, output_gpkg_path, metadata)
 
 

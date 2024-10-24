@@ -497,7 +497,7 @@ class RasTextFile:
         if os.path.exists(self._ras_text_file_path):
             raise FileExistsError(f"The specified file already exists {self._ras_text_file_path}")
 
-        logging.info(f"writing: {self._ras_text_file_path}")
+        logging.info(f"writing: {os.path.basename(self._ras_text_file_path)}")
         with open(self._ras_text_file_path, "w") as f:
             f.write("\n".join(self.contents))
 
@@ -506,7 +506,7 @@ class RasTextFile:
         if not os.path.exists(self._ras_text_file_path):
             raise FileNotFoundError(f"The specified file doesn't exists {self._ras_text_file_path}")
 
-        logging.info(f"updating: {self._ras_text_file_path}")
+        logging.info(f"updating: {os.path.basename(self._ras_text_file_path)}")
         with open(self._ras_text_file_path, "w") as f:
             f.write("\n".join(self.contents))
 
@@ -1349,7 +1349,7 @@ class RasMap:
 
     def write(self):
         """Write Ras Map contents to file."""
-        logging.info(f"writing: {self.text_file}")
+        logging.info(f"writing: {os.path.basename(self.text_file)}")
 
         with open(self.text_file, "w") as f:
             f.write(self.contents)
@@ -1439,7 +1439,9 @@ def create_terrain(
     ]
     # add list of input rasters from which to build the Terrain
     subproc_args.extend([os.path.abspath(p) for p in src_terrain_filepaths])
-    logging.debug(f"Running the following args, from {exe_parent_dir}:" + "\n  ".join([""] + subproc_args))
+    logging.debug(
+        f"Running the following args, from {os.path.basename(exe_parent_dir)}:" + "\n  ".join([""] + subproc_args)
+    )
     subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
     return f"Terrain written to {dst_terrain_filepath}"
 
