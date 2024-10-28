@@ -126,8 +126,7 @@ def create_rating_curves_db(
     """
     logging.info(f"create_rating_curves_db starting")
 
-    library_directory = os.path.join(submodel_directory, "fims")
-    nwm_rm = NwmReachModel(submodel_directory, library_directory)
+    nwm_rm = NwmReachModel(submodel_directory, submodel_directory)
 
     rm = RasManager(
         nwm_rm.ras_project_file,
