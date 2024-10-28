@@ -13,7 +13,7 @@ from ripple1d.ras import RasFlowText
 
 
 def start_server():
-    return subprocess.Popen(["ripple1d", "start", "--thread_count", "3"])
+    return subprocess.Popen(["ripple1d", "start", "--thread_count", "10"])
 
 
 def submit_job(process: str, payload: dict):
@@ -40,6 +40,7 @@ def check_process(func):
         process, payload, files = func(self)
         response = submit_job(process, payload)
         status = wait_for_job(response["jobID"])
+        time.sleep(1)
 
         self.assertEqual(status, "successful")
         for file in files:
@@ -92,10 +93,6 @@ class TestPreprocessAPI(unittest.TestCase):
 
 @pytest.mark.usefixtures("setup_data")
 class TestApi(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     cls.server_process = start_server()
-    #     time.sleep(10)  # Give the server some time to start
 
     @check_process
     def test_b_extract_submodel(self):
@@ -141,7 +138,34 @@ class TestApi(unittest.TestCase):
         return process, payload, files
 
     @check_process
-    def test_f_run_known_wse(self):
+    def test_f_run_known_wse_initial(self):
+        payload = {
+            "submodel_directory": self.SUBMODELS_DIRECTORY,
+            "plan_suffix": "ikwse",
+            "min_elevation": self.min_elevation + 40,
+            "max_elevation": self.min_elevation + 41,
+            "depth_increment": 1.0,
+            "ras_version": "631",
+            "show_ras": False,
+            "write_depth_grids": False,
+        }
+        process = "run_known_wse"
+        files = [self.PLAN3_FILE, self.FLOW3_FILE, self.RESULT3_FILE]
+        return process, payload, files
+
+    @check_process
+    def test_g_create_rating_curves_db_initial(self):
+
+        payload = {
+            "submodel_directory": self.SUBMODELS_DIRECTORY,
+            "plans": ["ikwse"],
+        }
+        process = "create_rating_curves_db"
+        files = [self.FIM_LIB_DB]
+        return process, payload, files
+
+    @check_process
+    def test_h_run_known_wse(self):
         payload = {
             "submodel_directory": self.SUBMODELS_DIRECTORY,
             "plan_suffix": "kwse",
@@ -150,13 +174,25 @@ class TestApi(unittest.TestCase):
             "depth_increment": 1.0,
             "ras_version": "631",
             "show_ras": False,
+            "write_depth_grids": True,
         }
         process = "run_known_wse"
-        files = [self.PLAN3_FILE, self.FLOW3_FILE, self.RESULT3_FILE]
+        files = [self.PLAN4_FILE, self.FLOW4_FILE, self.RESULT4_FILE]
         return process, payload, files
 
     @check_process
-    def test_g_create_fim_lib(self):
+    def test_i_create_rating_curves_db(self):
+
+        payload = {
+            "submodel_directory": self.SUBMODELS_DIRECTORY,
+            "plans": ["nd", "kwse"],
+        }
+        process = "create_rating_curves_db"
+        files = [self.FIM_LIB_DB]
+        return process, payload, files
+
+    @check_process
+    def test_j_create_fim_lib(self):
 
         payload = {
             "submodel_directory": self.SUBMODELS_DIRECTORY,
@@ -165,10 +201,10 @@ class TestApi(unittest.TestCase):
             "cleanup": False,
         }
         process = "create_fim_lib"
-        files = [self.FIM_LIB_DB, self.DEPTH_GRIDS_ND, self.DEPTH_GRIDS_KWSE]
+        files = [self.DEPTH_GRIDS_ND, self.DEPTH_GRIDS_KWSE]
         return process, payload, files
 
-    def test_h_check_flows_are_equal(self):
+    def test_k_check_flows_are_equal(self):
         rf2 = pd.DataFrame(RasFlowText(self.FLOW2_FILE).flow_change_locations)
         rf3 = pd.DataFrame(RasFlowText(self.FLOW3_FILE).flow_change_locations)
         self.assertTrue(len(set(rf3["flows"].iloc[0]) - set(rf2["flows"].iloc[0])) == 0)
