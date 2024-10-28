@@ -61,6 +61,7 @@ def post_process_depth_grids(
     if plan_name not in rm.plans:
         logging.info(f"Plan {plan_name} not found in the model, skipping...")
         return
+
     for profile_name in rm.plans[plan_name].flow.profile_names:
         # construct the default path to the depth grid for this plan/profile
         src_dir = os.path.join(rm.ras_project._ras_dir, str(plan_name))
@@ -75,7 +76,7 @@ def post_process_depth_grids(
         if not os.path.exists(src_path):
             if accept_missing_grid:
                 logging.warning(f"depth raster does not exists: {src_path}")
-                return
+                continue
             else:
                 raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
 
@@ -88,6 +89,7 @@ def post_process_depth_grids(
         flow_sub_directory = os.path.join(dest_directory, depth)
         os.makedirs(flow_sub_directory, exist_ok=True)
         dest_path = os.path.join(flow_sub_directory, f"{flow}.tif")
+        logging.debug(dest_path)
         reproject_raster(src_path, dest_path, CRS(dest_crs), resolution, resolution_units)
         logging.debug(f"Building overviews for: {dest_path}")
 
@@ -123,7 +125,8 @@ def create_rating_curves_db(
         dictionary with paths to output rating curve database
     """
     logging.info(f"create_rating_curves_db starting")
-    library_directory = os.path.join(submodel_directory, "fim")
+
+    library_directory = os.path.join(submodel_directory, "fims")
     nwm_rm = NwmReachModel(submodel_directory, library_directory)
 
     rm = RasManager(
@@ -164,7 +167,7 @@ def create_rating_curves_db(
             )
 
     logging.info(f"create_rating_curves_db complete")
-    return {"fim_results_database": nwm_rm.fim_results_database}
+    return {"rating_curve_database": nwm_rm.fim_results_database}
 
 
 def find_missing_grids(
@@ -202,6 +205,7 @@ def create_fim_lib(
     overviews: bool = False,
     resolution: float = 3,
     resolution_units: str = "Meters",
+    dest_crs:str=5070
 ):
     """Create a new FIM library for a NWM id.
 
@@ -227,6 +231,8 @@ def create_fim_lib(
         horizontal resolution to resample output raster to, by default 3
     resolution_units : str, optional
         unit for resolution, by default "Meters"
+    dest_crs : str, optional
+        Destination crs. 
 
     Returns
     -------
@@ -256,11 +262,11 @@ def create_fim_lib(
             overviews=overviews,
             resolution=resolution,
             resolution_units=resolution_units,
+            dest_crs=dest_crs
         )
 
-    if cleanup:
-        shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"), ignore_errors=True)
-        shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"), ignore_errors=True)
+        if cleanup:
+            shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_{plan}", ignore_errors=True))
 
     logging.info(f"create_fim_lib complete")
 
