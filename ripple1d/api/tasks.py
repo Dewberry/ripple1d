@@ -117,52 +117,17 @@ def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}, priority: 
     return huey.enqueue(task_instance)
 
 
-def kill_task(task_id):
-    """Attempt to gracefully kill task.  Terminate if necessary."""
-    # Get task process ID (PID)
-    expression = """select "p_id" from "task_status" where "task_id" = ?"""
-    args = (task_id,)
-    pid = int(huey.storage.sql(expression, args, results=True)[0][0])
-
-    # Attempt graceful shut down
-    interrupt_task = create_and_enqueue_task(send_ctrl_c_event, {"pid": pid}, priority=9999)
-
-    # Terminate, if necessary
-    counter = 0  # Waits for 10 seconds before killing
-    while psutil.pid_exists(pid):
-        if counter > 10:
-            print(counter)
-            try:
-                os.kill(pid, 0)
-            except OSError:
-                break
-        counter += 1
-
-    # Log updates
-    expression = f"""
-        update "task_status"
-        set
-            "huey_status" = 'complete',
-            "ogc_status" = 'dismissed',
-            "dismiss_time" = datetime('now')
-        where "task_id" = ?
-        """
-    args = (task_id,)
-    huey.storage.sql(expression, args, True)
-
-
 def revoke_task_by_pid(task_id: str):
     """Revoke a task by pid."""
     expression = """select "p_id" from "task_status" where "task_id" = ?"""
     args = (task_id,)
-    pid = huey.storage.sql(expression, args, results=True)
-
-    p = psutil.Process(int(pid[0][0]))
-    p.terminate()
-
+    pid = huey.storage.sql(expression, args, results=True)[0][0]
+    logging.info(int(pid))
+    psutil.Process(int(pid)).terminate()
     expression = f"""
         update "task_status"
         set
+            "huey_status" = 'complete',
             "ogc_status" = 'dismissed',
             "dismiss_time" = datetime('now')
         where "task_id" = ?
@@ -356,9 +321,9 @@ def subprocess_caller(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NEW_CONSOLE,
+        # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NEW_CONSOLE,
     )
-    results = None
+    results, pid = None, None
     update_p_id(task_id, process.pid)
 
     try:
@@ -369,6 +334,7 @@ def subprocess_caller(
                 program_output = json.loads(line)
                 results = json.dumps(program_output.get("results", None))
                 del logs[i]
+                pid = program_output.get("results", None).get("pid", None)
 
     except subprocess.TimeoutExpired:
         process.kill()
@@ -385,6 +351,14 @@ def subprocess_caller(
         errors = None
     else:
         errors = str(stderr_output)
+
+    # for RAS computes only
+    if pid is not None:
+        # update database pid to be ras pid
+        huey.storage.sql("""update "task_status" set "p_id" = ? where "task_id" = ?""", (pid, task_id), True)
+        # wait for pid status to be finished.
+        while psutil.pid_exists(pid):
+            time.sleep(1)
 
     huey.storage.sql(
         """

@@ -132,80 +132,6 @@ def check_windows(func):
 
 
 # classes
-class RASController:
-    r"""
-    Context-managed class implementing calls to RAS COM API.
-    Example usage:
-    with RASController('610') as rc:
-        rc.compute_current_plan(r'C:\path\to\ras\model.prj', timeout_seconds=120)
-    """
-
-    def __init__(self, ras_ver: str):
-        self.com_object_handle = None
-        com_key = f"RAS{ras_ver}.HECRASCONTROLLER"
-        try:
-            self.com_object_handle = win32com.client.Dispatch(com_key, pythoncom.CoInitialize())
-        except pywintypes.com_error as exc:
-            raise RuntimeError(f"Could not get COM object for key: {com_key}") from exc
-        if self.com_object_handle is None:
-            raise RuntimeError(f"Could not get COM object for key: {com_key}")
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def close(self) -> None:
-        """Safely close the project and the RAS runtime. Automatically called when using context manager."""
-        if self.com_object_handle is not None:
-            self.com_object_handle.Project_Close()
-            self.com_object_handle.QuitRAS()
-            self.com_object_handle = None
-
-    def compute_current_plan(self, ras_project_file: str, timeout_seconds: float = 0.0) -> None:
-        """
-        Run current plan of provided HEC-RAS project. Will produce all typical RAS outputs such as .hdf results.
-        Also produces mapping products, as long as the project's RAS Mapper file (*.rasmap) is set up appropriately.
-        """
-        if self.com_object_handle is None:
-            raise RuntimeError("RASController COM object handler is no longer available.")
-        if not os.path.isfile(ras_project_file):
-            raise FileNotFoundError(ras_project_file)
-        if not ras_project_file.endswith(".prj"):
-            raise ValueError(f"Provided RAS project file name does not end with .prj: {ras_project_file}")
-        deadline = (timeout_seconds + time.time()) if timeout_seconds else float("inf")
-
-        with open(ras_project_file) as f:
-            for line in f.read().splitlines():
-                if line.startswith("Current Plan="):
-                    current_plan_code = line[len("Current Plan=") :].strip()
-        compute_message_file = os.path.splitext(ras_project_file)[0] + f".{current_plan_code}.computeMsgs.txt"
-
-        logging.info(f"computing current plan {current_plan_code} for RAS project: {ras_project_file}")
-        self.com_object_handle.Project_Open(ras_project_file)
-        self.com_object_handle.Compute_CurrentPlan()
-        while not self.com_object_handle.Compute_Complete():
-            time.sleep(15)
-            if time.time() > deadline:
-                raise RASComputeTimeoutError(f"timed out computing current plan for RAS project: {ras_project_file}")
-            # must keep checking for mesh errors while RAS is running because mesh error will cause blocking popup message
-            assert_no_mesh_error(compute_message_file, require_exists=False)  # file might not exist immediately
-            time.sleep(0.2)
-        time.sleep(5)  # ample sleep to account for race condition of RAS flushing final lines to compute_message_file
-        assert_no_mesh_error(compute_message_file, require_exists=True)
-        assert_no_ras_geometry_error(compute_message_file)
-        assert_no_ras_compute_error_message(compute_message_file)
-
-    @staticmethod
-    def _get_ras_controller_com_key(ras_ver: str) -> str:
-        try:
-            com_key = RAS_COM_STRINGS[ras_ver]
-        except KeyError as e:
-            raise ValueError(f"Unsupported ras_ver {ras_ver}. Choose from: {sorted(RAS_COM_STRINGS)}") from e
-        return com_key
-
-
 class RasManager:
     """Manage HEC-RAS projects."""
 
@@ -302,57 +228,6 @@ class RasManager:
                 logging.warning(f"Could not find flow file: {flow_file}")
         return flows
 
-    @check_windows
-    @check_version_installed("631")
-    def run_sim(
-        self,
-        pid_running=None,
-        close_ras=True,
-        show_ras=False,
-        ignore_store_all_maps_error: bool = False,
-        timeout_seconds=None,
-    ):
-        """
-        Run the current plan.
-
-        Args:
-            pid_running (_type_, optional): _description_. Defaults to None.
-            close_ras (bool, optional): boolean to close RAS or not after computing. Defaults to True.
-            show_ras (bool, optional): boolean to show RAS or not when computing. Defaults to False.
-        """
-        compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
-
-        RC = win32com.client.Dispatch(f"RAS{self.version}.HECRASCONTROLLER", pythoncom.CoInitialize())
-        try:
-            RC.Project_Open(self.ras_project._ras_text_file_path)
-            if show_ras:
-                RC.ShowRas()
-
-            RC.Compute_CurrentPlan()
-            deadline = (timeout_seconds + time.time()) if timeout_seconds else float("inf")
-            while not RC.Compute_Complete():
-                if time.time() > deadline:
-                    raise RASComputeTimeoutError(
-                        f"timed out computing current plan for RAS project: {self.ras_project._ras_text_file_path}"
-                    )
-                # must keep checking for mesh errors while RAS is running
-                # because mesh error will cause blocking popup message
-                assert_no_mesh_error(compute_message_file, require_exists=False)  # file might not exist immediately
-                time.sleep(0.2)
-            time.sleep(
-                3
-            )  # ample sleep to account for race condition of RAS flushing final lines to compute_message_file
-
-            assert_no_mesh_error(compute_message_file, require_exists=True)
-            assert_no_ras_geometry_error(compute_message_file)
-            assert_no_ras_compute_error_message(compute_message_file)
-            if not ignore_store_all_maps_error:
-                assert_no_store_all_maps_error_message(compute_message_file)
-        finally:
-            if close_ras:
-                RC.Project_Close()
-                RC.QuitRas()
-
     def normal_depth_run(
         self,
         plan_flow_title: str,
@@ -396,7 +271,7 @@ class RasManager:
         # add to ras project contents
         self.ras_project.contents.append(f"Flow File=f{new_extension_number}")
 
-        self.write_new_plan_text_file(plan_flow_title, geom_title, write_depth_grids, show_ras, run_ras)
+        return self.write_new_plan_text_file(plan_flow_title, geom_title, write_depth_grids, show_ras, run_ras)
 
     def kwses_run(
         self,
@@ -444,7 +319,7 @@ class RasManager:
         # add to ras project contents
         self.ras_project.contents.append(f"Flow File=f{new_extension_number}")
 
-        self.write_new_plan_text_file(plan_flow_title, geom_title, write_depth_grids, show_ras, run_ras)
+        return self.write_new_plan_text_file(plan_flow_title, geom_title, write_depth_grids, show_ras, run_ras)
 
     def new_geom_from_gpkg(
         self,
@@ -484,6 +359,8 @@ class RasManager:
         rasmap.add_result_layers(self.plan.title, self.plan.flow.profile_names, "Depth")
         rasmap.write()
 
+    @check_windows
+    @check_version_installed("631")
     def write_new_plan_text_file(
         self, plan_flow_title, geom_title, write_depth_grids: bool = False, show_ras=False, run_ras=True
     ):
@@ -534,10 +411,11 @@ class RasManager:
             self.update_rasmapper_for_mapping()
 
         if run_ras:
-            with RASController(self.version) as RC:
-                RC.compute_current_plan(self.ras_project._ras_text_file_path, timeout_seconds=None)
-            # run the RAS plan
-            # self.run_sim(close_ras=True, show_ras=show_ras, ignore_store_all_maps_error=True)
+            compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
+            runRAS = f'C:\\Program Files (x86)\\HEC\\HEC-RAS\\6.3.1\\Ras.exe "{self.ras_project._ras_text_file_path}" \
+                "{self.ras_project._ras_root_path}{self.plan.file_extension}" -c'  # -hideCompute'
+            p = subprocess.Popen(runRAS)
+            return p.pid
 
 
 class RasTextFile:

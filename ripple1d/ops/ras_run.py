@@ -12,7 +12,7 @@ import pandas as pd
 
 from ripple1d.consts import DEFAULT_EPSG, MIN_FLOW
 from ripple1d.data_model import FlowChangeLocation, NwmReachModel
-from ripple1d.ras import RASController, RasManager
+from ripple1d.ras import RasManager
 
 
 def create_model_run_normal_depth(
@@ -92,7 +92,7 @@ def create_model_run_normal_depth(
             initial_flows.tolist(),
         )
 
-        rm.normal_depth_run(
+        pid = rm.normal_depth_run(
             f"{nwm_rm.model_name}_{plan_suffix}",
             nwm_rm.model_name,
             [fcl],
@@ -103,7 +103,7 @@ def create_model_run_normal_depth(
         )
 
     logging.info("create_model_run_normal_depth complete")
-    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
+    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl), "pid": pid}
 
 
 def run_incremental_normal_depth(
@@ -189,7 +189,7 @@ def run_incremental_normal_depth(
         flows.tolist(),
     )
     # write and compute flow/plans for normal_depth run
-    rm.normal_depth_run(
+    pid = rm.normal_depth_run(
         f"{nwm_rm.model_name}_{plan_suffix}",
         nwm_rm.model_name,
         [fcl],
@@ -199,7 +199,7 @@ def run_incremental_normal_depth(
         run_ras=True,
     )
     logging.info("run_incremental_normal_depth complete")
-    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
+    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl), "pid": pid}
 
 
 def run_known_wse(
@@ -296,7 +296,7 @@ def run_known_wse(
  for the normal depth run for a given flow was alway higher than the known water surface elevations of the downstream reach"
         )
     else:
-        rm.kwses_run(
+        pid = rm.kwses_run(
             f"{nwm_rm.model_name}_{plan_suffix}",
             nwm_rm.model_name,
             depths,
@@ -310,7 +310,7 @@ def run_known_wse(
             run_ras=True,
         )
     logging.info("run_known_wse complete")
-    return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}}
+    return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}, "pid": pid}
 
 
 def get_flow_depth_arrays(

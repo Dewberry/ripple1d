@@ -208,7 +208,7 @@ def dismiss(task_id):
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
 
         elif ogc_status == "running":
-            tasks.kill_task(task_id)
+            tasks.revoke_task_by_pid(task_id)
             return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
 
         elif ogc_status == "dismissed":
