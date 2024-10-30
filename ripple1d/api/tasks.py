@@ -122,7 +122,6 @@ def revoke_task_by_pid(task_id: str):
     expression = """select "p_id" from "task_status" where "task_id" = ?"""
     args = (task_id,)
     pid = huey.storage.sql(expression, args, results=True)[0][0]
-    logging.info(int(pid))
     psutil.Process(int(pid)).terminate()
     expression = f"""
         update "task_status"
