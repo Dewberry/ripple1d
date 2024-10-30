@@ -14,7 +14,6 @@ from huey import SqliteHuey, signals
 from huey.api import Result
 
 from ripple1d.ripple1d_logger import initialize_server_logger
-from ripple1d.utils.subprocess_utils import send_ctrl_c_event
 
 initialize_server_logger()
 
@@ -320,7 +319,6 @@ def subprocess_caller(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NEW_CONSOLE,
     )
     results, pid = None, None
     update_p_id(task_id, process.pid)
