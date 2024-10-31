@@ -274,7 +274,7 @@ class NwmReachModel(RasModelStructure):
     @property
     def fim_results_database(self):
         """Results database."""
-        return str(Path(self.fim_results_directory) / f"{self.model_name}.db")
+        return str(Path(self.library_directory) / f"{self.model_name}.db")
 
     @property
     def fim_rating_curve(self):
