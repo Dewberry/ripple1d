@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import geopandas as gpd
@@ -123,11 +122,7 @@ def create_ras_terrain(
     gdf_xs = gpd.read_file(nwm_rm.ras_gpkg_file, layer="XS").explode(ignore_index=True)
     crs = gdf_xs.crs
 
-    with ProcessPoolExecutor() as executor:
-        future = executor.submit(
-            get_geometry_mask, gdf_xs_conc_hull=nwm_rm.xs_concave_hull, MAP_DEM_UNCLIPPED_SRC_URL=terrain_source_url
-        )
-        mask = future.result()
+    mask = get_geometry_mask(nwm_rm.xs_concave_hull, terrain_source_url)
 
     # clip dem
     src_dem_clipped_localfile = os.path.join(nwm_rm.terrain_directory, "temp.tif")
@@ -136,15 +131,12 @@ def create_ras_terrain(
         nwm_rm.terrain_directory, map_dem_clipped_basename.replace(".vrt", ".tif")
     )
 
-    with ProcessPoolExecutor() as executor:
-        future = executor.submit(
-            clip_raster,
-            src_path=terrain_source_url,
-            dst_path=src_dem_clipped_localfile,
-            mask_polygon=mask,
-            vertical_units=vertical_units,
-        )
-        future.result()
+    clip_raster(
+        terrain_source_url,
+        src_dem_clipped_localfile,
+        mask,
+        vertical_units,
+    )
 
     # reproject/resample dem
     logging.debug(f"Reprojecting/Resampling DEM {src_dem_clipped_localfile} to {src_dem_clipped_localfile}")
