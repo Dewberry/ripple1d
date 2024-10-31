@@ -192,6 +192,50 @@ def job_metadata(task_id):
         )
 
 
+@app.route("/jobs/<task_id>", methods=["DELETE"])
+def dismiss(task_id):
+    """Dismiss a specific task by its ID.
+
+    Available only for jobs in "accepted" status, dismissal of "running" jobs not implemented
+    """
+    try:
+        ogc_status = tasks.fetch_ogc_status(task_id)
+        if ogc_status == "notfound":
+            return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
+
+        elif ogc_status == "accepted":
+            tasks.revoke_task(task_id)
+            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
+        elif ogc_status == "running":
+            tasks.revoke_task_by_pid(task_id)
+            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
+        elif ogc_status == "dismissed":
+            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
+
+        else:
+            return (
+                jsonify(
+                    {
+                        "type": "process",
+                        "detail": f"failed to dismiss job ID {task_id} due to job status '{ogc_status}'",
+                    }
+                ),
+                HTTPStatus.CONFLICT,
+            )
+    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "type": "process",
+                    "detail": f"failed to dismiss job ID {task_id} due to internal server error {str(e)}",
+                }
+            ),
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+
+
 def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tuple]:
     """Get the parameter, assert it is true or false, and return the appropriate Python boolean value as well as a status tuple.
 
@@ -228,50 +272,6 @@ def get_job_status(task_id: str, huey_metadata: dict) -> dict:
         "status": huey_metadata["ogc_status"],
         "processID": huey_metadata["func_name"],
     }
-
-
-@app.route("/jobs/<task_id>", methods=["DELETE"])
-def dismiss(task_id):
-    """Dismiss a specific task by its ID.
-
-    Available only for jobs in "accepted" status, dismissal of "running" jobs not implemented
-    """
-    try:
-        ogc_status = tasks.fetch_ogc_status(task_id)
-        if ogc_status == "notfound":
-            return jsonify({"type": "process", "detail": f"job ID not found: {task_id}"}), HTTPStatus.NOT_FOUND
-
-        elif ogc_status == "accepted":
-            tasks.revoke_task(task_id)
-            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
-
-        elif ogc_status == "running":
-            tasks.revoke_task_by_pid(task_id)
-            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
-
-        elif ogc_status == "dismissed":
-            return jsonify({"type": "process", "detail": f"job ID dismissed: {task_id}"}), HTTPStatus.OK
-
-        else:
-            return (
-                jsonify(
-                    {
-                        "type": "process",
-                        "detail": f"failed to dismiss job ID {task_id} due to existing job status '{ogc_status}'",
-                    }
-                ),
-                HTTPStatus.CONFLICT,
-            )
-    except Exception as e:
-        return (
-            jsonify(
-                {
-                    "type": "process",
-                    "detail": f"failed to dismiss job ID {task_id} due to internal server error {str(e)}",
-                }
-            ),
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-        )
 
 
 def enqueue_async_task(func: typing.Callable) -> tuple[Response, HTTPStatus]:

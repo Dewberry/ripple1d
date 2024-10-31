@@ -94,7 +94,7 @@ huey.storage.sql(
 )
 
 
-def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
+def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}, priority: int = None) -> Result:
     """Create a task instance, then add it to the custom table "task_status" before adding it to the queue.
 
     Return the Result object associated with the task, which is the same class type that would be returned by
@@ -103,7 +103,7 @@ def create_and_enqueue_task(func: typing.Callable, kwargs: dict = {}) -> Result:
     This is needed to avoid a race condition, this ensures that the task exists in the custom table before
     it starts executing.
     """
-    task_instance = _process.s(func, kwargs)
+    task_instance = _process.s(func, kwargs, priority=priority)
     huey.storage.sql(
         """
         insert into "task_status"
@@ -120,14 +120,12 @@ def revoke_task_by_pid(task_id: str):
     """Revoke a task by pid."""
     expression = """select "p_id" from "task_status" where "task_id" = ?"""
     args = (task_id,)
-    pid = huey.storage.sql(expression, args, results=True)
-
-    p = psutil.Process(int(pid[0][0]))
-    p.terminate()
-
+    pid = huey.storage.sql(expression, args, results=True)[0][0]
+    psutil.Process(int(pid)).terminate()
     expression = f"""
         update "task_status"
         set
+            "huey_status" = 'complete',
             "ogc_status" = 'dismissed',
             "dismiss_time" = datetime('now')
         where "task_id" = ?
@@ -316,8 +314,13 @@ def subprocess_caller(
         json.dumps(args),
     ]
 
-    process = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    results = None
+    process = subprocess.Popen(
+        subprocess_args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    results, pid = None, None
     update_p_id(task_id, process.pid)
 
     try:
@@ -328,6 +331,7 @@ def subprocess_caller(
                 program_output = json.loads(line)
                 results = json.dumps(program_output.get("results", None))
                 del logs[i]
+                pid = program_output.get("results", None).get("pid", None)
 
     except subprocess.TimeoutExpired:
         process.kill()
@@ -344,6 +348,14 @@ def subprocess_caller(
         errors = None
     else:
         errors = str(stderr_output)
+
+    # for RAS computes only
+    if pid is not None:
+        # update database pid to be ras pid
+        huey.storage.sql("""update "task_status" set "p_id" = ? where "task_id" = ?""", (pid, task_id), True)
+        # wait for pid status to be finished.
+        while psutil.pid_exists(pid):
+            time.sleep(1)
 
     huey.storage.sql(
         """
