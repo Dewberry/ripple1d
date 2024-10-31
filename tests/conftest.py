@@ -53,7 +53,7 @@ def setup_data(request):
     request.cls.FLOW4_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.f04")
     request.cls.RESULT4_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.r04")
 
-    request.cls.FIM_LIB_DB = os.path.join(FIM_LIB_DIRECTORY, f"{REACH_ID}\\{REACH_ID}.db")
+    request.cls.FIM_LIB_DB = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.db")
     request.cls.DEPTH_GRIDS_ND = os.path.join(FIM_LIB_DIRECTORY, f"{REACH_ID}\\z_nd")
     integer, decimal = str(np.floor((MIN_ELEVATION + 41) * 2) / 2).split(".")
     request.cls.DEPTH_GRIDS_KWSE = os.path.join(FIM_LIB_DIRECTORY, f"{REACH_ID}\\z_{integer}_{decimal}")

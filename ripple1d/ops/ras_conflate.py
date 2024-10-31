@@ -95,20 +95,20 @@ def conflate_model(source_model_directory: str, source_network: dict):
     The spatial extents of HEC-RAS river reaches and National Water model (NWM)
     reaches are not aligned.  The conflate_model endpoint resolves these
     differences by associating HEC-RAS models and model components (e.g.
-    cross-sections) with the NWM reaches they overlap.  
+    cross-sections) with the NWM reaches they overlap.
 
     #. Generate a concave hull (bounding geometry) around the HEC-RAS source
        model cross-sections
     #. Extract NWM reaches intersecting the hull
     #. For each HEC-RAS river reach within the source model,
       #. Locate the NWM reaches nearest to the most upstream and most
-         downstream cross-sections 
+         downstream cross-sections
       #. Extract all intermediate NWM reaches by walking   the network from
          upstream to downstream
     #. For each NWM reach extracted,
-      #. Locate the HEC-RAS cross-sections that intersect the reach 
+      #. Locate the HEC-RAS cross-sections that intersect the reach
         #. Discard cross-sections that are not drawn right to left looking
-           downstream  
+           downstream
         #. If no cross-sections intersect the reach, mark the reach as
            “eclipsed”
       #. Mark the HEC-RAS cross-section closest to the upstream end of the
@@ -240,7 +240,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         logging.error(f"| Traceback: {traceback.format_exc()}")
 
     logging.info(f"conflate_model complete")
-    return conflation_file
+    return {"conflation_file": conflation_file}
 
 
 def conflated(metadata: dict) -> bool:
