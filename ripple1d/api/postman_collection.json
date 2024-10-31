@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "a4bea940-f7c1-4dba-a6e3-dbc8c4ec3e3a",
+		"_postman_id": "b196b3d0-69cf-4536-b536-dd0345037fd0",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -220,7 +220,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 5,\r\n    \"show_ras\":false\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ind\",\r\n    \"num_of_discharges_for_initial_normal_depth_runs\": 50,\r\n    \"show_ras\":true\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -249,7 +249,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"nd\",\r\n    \"depth_increment\": 1,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":false,\r\n    \"write_depth_grids\":true\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -278,7 +278,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"kwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":true\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ikwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":true,\r\n    \"write_depth_grids\":false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -307,7 +307,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"library_directory\":\"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\\\\fim\",\r\n    \"cleanup\":true,\r\n    \"resolution\":3,\r\n    \"resolution_units\":\"Meters\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"library_directory\":\"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\\\\fims\",\r\n    \"cleanup\":true,\r\n    \"resolution\":3,\r\n    \"resolution_units\":\"Meters\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -326,6 +326,35 @@
 							]
 						},
 						"description": "Create a Flood Inundation Map library from the results of an existing HEC-RAS model."
+					},
+					"response": []
+				},
+				{
+					"name": "create_rating_curves_db",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/create_rating_curves_db/execution",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								"create_rating_curves_db",
+								"execution"
+							]
+						},
+						"description": "Create a rating curve db from the results of an existing HEC-RAS model."
 					},
 					"response": []
 				},

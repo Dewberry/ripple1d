@@ -139,7 +139,6 @@ def reproject_raster(
         kwargs = src.meta.copy()
         kwargs.update({"crs": dst_crs, "transform": transform, "width": width, "height": height})
 
-        logging.info(resolution)
         kwargs.update(
             {
                 "blockysize": blocksize,

@@ -7,7 +7,7 @@ import sys
 from typing import Callable
 
 from ripple1d.consts import SUPPRESS_LOGS
-from ripple1d.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
+from ripple1d.ops.fim_lib import create_fim_lib, create_rating_curves_db, fim_lib_stac, nwm_reach_model_stac
 from ripple1d.ops.metrics import compute_conflation_metrics
 from ripple1d.ops.ras_conflate import conflate_model
 from ripple1d.ops.ras_run import (
@@ -32,6 +32,7 @@ func_lookup = {
     "create_fim_lib": create_fim_lib,
     "nwm_reach_model_stac": nwm_reach_model_stac,
     "fim_lib_stac": fim_lib_stac,
+    "create_rating_curves_db": create_rating_curves_db,
 }
 
 

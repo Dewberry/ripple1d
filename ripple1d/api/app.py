@@ -12,7 +12,7 @@ from werkzeug.exceptions import BadRequest
 
 from ripple1d.api import tasks
 from ripple1d.api.utils import get_unexpected_and_missing_args
-from ripple1d.ops.fim_lib import create_fim_lib, fim_lib_stac, nwm_reach_model_stac
+from ripple1d.ops.fim_lib import create_fim_lib, create_rating_curves_db, fim_lib_stac, nwm_reach_model_stac
 from ripple1d.ops.metrics import compute_conflation_metrics
 from ripple1d.ops.ras_conflate import conflate_model
 from ripple1d.ops.ras_run import (
@@ -73,6 +73,12 @@ def process__run_incremental_normal_depth():
 def process__run_known_wse():
     """Enqueue a task to calculate the water surface elevation (WSE) based on known inputs."""
     return enqueue_async_task(run_known_wse)
+
+
+@app.route("/processes/create_rating_curves_db/execution", methods=["POST"])
+def process__create_rating_curves_db():
+    """Enqueue a task to create a rating curve db."""
+    return enqueue_async_task(create_rating_curves_db)
 
 
 @app.route("/processes/create_fim_lib/execution", methods=["POST"])

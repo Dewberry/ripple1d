@@ -21,7 +21,7 @@ from rasterio.shutil import copy as copy_raster
 import ripple1d
 from ripple1d.conflate.rasfim import RasFimConflater
 from ripple1d.data_model import NwmReachModel
-from ripple1d.errors import DepthGridNotFoundError
+from ripple1d.errors import DepthGridNotFoundError, PlanNameNotFoundError
 from ripple1d.ras import RasManager
 from ripple1d.ras_to_gpkg import geom_flow_to_gdfs, new_stac_item
 from ripple1d.utils.dg_utils import (
@@ -40,10 +40,9 @@ from ripple1d.utils.sqlite_utils import (
 
 def post_process_depth_grids(
     rm: RasManager,
-    plan_names: str,
+    plan_name: str,
     dest_directory: str,
-    except_missing_grid: bool = False,
-    tiled=False,
+    accept_missing_grid: bool = False,
     overviews=False,
     dest_crs: CRS = 5070,
     resolution: float = 3,
@@ -59,80 +58,141 @@ def post_process_depth_grids(
         if resolution_units not in ["Feet", "Meters"]:
             raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
 
-    missing_grids_kwse, missing_grids_nd = [], []
-    for plan_name in plan_names:
-        if plan_name not in rm.plans:
-            logging.info(f"Plan {plan_name} not found in the model, skipping...")
-            continue
-        for profile_name in rm.plans[plan_name].flow.profile_names:
-            # construct the default path to the depth grid for this plan/profile
-            src_dir = os.path.join(rm.ras_project._ras_dir, str(plan_name))
-            terrain_dir = os.path.join(rm.ras_project._ras_dir, "Terrain")
-            terrain_part = os.path.basename(glob.glob(terrain_dir + "\\*.tif")[0]).split(".")[-2]
-            src_path = os.path.join(
-                src_dir,
-                f"Depth ({profile_name}).{rm.ras_project.title}.{terrain_part}.tif",
+    if plan_name not in rm.plans:
+        logging.info(f"Plan {plan_name} not found in the model, skipping...")
+        return
+
+    for profile_name in rm.plans[plan_name].flow.profile_names:
+        # construct the default path to the depth grid for this plan/profile
+        src_dir = os.path.join(rm.ras_project._ras_dir, str(plan_name))
+        terrain_dir = os.path.join(rm.ras_project._ras_dir, "Terrain")
+        terrain_part = os.path.basename(glob.glob(terrain_dir + "\\*.tif")[0]).split(".")[-2]
+        src_path = os.path.join(
+            src_dir,
+            f"Depth ({profile_name}).{rm.ras_project.title}.{terrain_part}.tif",
+        )
+
+        # if the depth grid path does not exists print a warning then continue to the next profile
+        if not os.path.exists(src_path):
+            if accept_missing_grid:
+                logging.warning(f"depth raster does not exists: {src_path}")
+                continue
+            else:
+                raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
+
+        if "kwse" in plan_name:
+            flow, depth = profile_name.split("-", 1)
+        elif "nd" in plan_name:
+            flow = f"f_{profile_name}"
+            depth = "z_nd"
+
+        flow_sub_directory = os.path.join(dest_directory, depth)
+        os.makedirs(flow_sub_directory, exist_ok=True)
+        dest_path = os.path.join(flow_sub_directory, f"{flow}.tif")
+        logging.debug(dest_path)
+        reproject_raster(src_path, dest_path, CRS(dest_crs), resolution, resolution_units)
+        logging.debug(f"Building overviews for: {dest_path}")
+
+        if overviews:
+            with rasterio.open(dest_path, "r+") as dst:
+                dst.build_overviews([4, 8, 16], Resampling.nearest)
+                dst.update_tags(ns="rio_overview", resampling="nearest")
+
+
+def create_rating_curves_db(
+    submodel_directory: str, plans: list, ras_version: str = "631", table_name: str = "rating_curves"
+):
+    """Create a new rating curve database for a NWM id.
+
+    Export stage-discharge rating curves from HEC-RAS to
+    rasters and a sqlite database.
+
+    Parameters
+    ----------
+    submodel_directory : str
+        The path to the directory containing a sub model geopackage
+    plans : list
+        suffixes of plans to create fim library for.
+    ras_version : str, optional
+        which version of HEC-RAS to use, by default "631"
+    table_name : str, optional
+        name for the table holding stage-discharge rating curves in the output
+        database, by default "rating_curves"
+
+    Returns
+    -------
+    dict
+        dictionary with paths to output rating curve database
+    """
+    logging.info(f"create_rating_curves_db starting")
+
+    nwm_rm = NwmReachModel(submodel_directory, submodel_directory)
+
+    rm = RasManager(
+        nwm_rm.ras_project_file,
+        version=ras_version,
+        terrain_path=nwm_rm.ras_terrain_hdf,
+        crs=nwm_rm.crs,
+    )
+
+    missing_grids = {}
+    for plan in plans:
+        missing_grids[plan] = find_missing_grids(rm, f"{nwm_rm.model_name}_{plan}")
+
+    # create dabase and table
+    if not os.path.exists(nwm_rm.fim_results_database):
+        create_db_and_table(nwm_rm.fim_results_database, table_name)
+
+    for plan in plans:
+        if f"kwse" in plan:
+            rating_curves_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_{plan}",
+                plan,
+                nwm_rm.model_name,
+                missing_grids[plan],
+                nwm_rm.fim_results_database,
+                table_name,
+            )
+        if f"nd" in plan:
+            zero_depth_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_{plan}",
+                plan,
+                nwm_rm.model_name,
+                missing_grids[plan],
+                nwm_rm.fim_results_database,
+                table_name,
             )
 
-            # if the depth grid path does not exists print a warning then continue to the next profile
-            if not os.path.exists(src_path):
-                if "_kwse" in plan_name:
-                    missing_grids_kwse.append(profile_name)
-                elif "_nd" in plan_name:
-                    missing_grids_nd.append(profile_name)
-                if except_missing_grid:
-                    logging.warning(f"depth raster does not exists: {src_path}")
-                    continue
-                else:
-                    raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
+    logging.info(f"create_rating_curves_db complete")
+    return {"rating_curve_database": nwm_rm.fim_results_database}
 
-            if "_kwse" in plan_name:
-                flow, depth = profile_name.split("-", 1)
-            elif "_nd" in plan_name:
-                flow = f"f_{profile_name}"
-                depth = "z_nd"
 
-            flow_sub_directory = os.path.join(dest_directory, depth)
-            os.makedirs(flow_sub_directory, exist_ok=True)
-            dest_path = os.path.join(flow_sub_directory, f"{flow}.tif")
+def find_missing_grids(
+    rm: RasManager,
+    plan_name: str,
+):
+    """Find missing depth grids."""
+    if plan_name not in rm.plans:
+        logging.error(f"Plan {plan_name} not found in the model, skipping...")
+        raise PlanNameNotFoundError(f"Plan {plan_name} not found in the model")
+    missing_grids = []
+    for profile_name in rm.plans[plan_name].flow.profile_names:
+        # construct the default path to the depth grid for this plan/profile
+        src_dir = os.path.join(rm.ras_project._ras_dir, str(plan_name))
+        terrain_dir = os.path.join(rm.ras_project._ras_dir, "Terrain")
+        terrain_part = os.path.basename(glob.glob(terrain_dir + "\\*.tif")[0]).split(".")[-2]
+        src_path = os.path.join(
+            src_dir,
+            f"Depth ({profile_name}).{rm.ras_project.title}.{terrain_part}.tif",
+        )
 
-            if tiled:
-                tiled = "yes"
-            else:
-                tiled = "no"
-            # copy_raster(
-            #     src_path,
-            #     dest_path,
-            #     COMPRESS="DEFLATE",
-            #     PREDICTOR="3",
-            #     num_threads=4,
-            #     tiled=tiled,
-            #     blockxsize=512,
-            #     blockysize=512,
-            # )
-            reproject_raster(src_path, dest_path, CRS(dest_crs), resolution, resolution_units)
+        # if the depth grid path does not exists print a warning then continue to the next profile
+        if not os.path.exists(src_path):
+            missing_grids.append(profile_name)
 
-            # TODO currently the compression for the overviews does not seem to be working.
-            # need to figure out why this is not working.
-            logging.debug(f"Building overviews for: {dest_path}")
-            # with rasterio.Env(COMPRESS_OVERVIEW="DEFLATE", PREDICTOR_OVERVIEW="3"):
-            if overviews:
-                with rasterio.open(dest_path, "r+") as dst:
-                    dst.build_overviews([4, 8, 16], Resampling.nearest)
-                    dst.update_tags(ns="rio_overview", resampling="nearest")
-
-            # gdal.UseExceptions()
-            # # open the file
-            # ds = gdal.Open(dest_path, gdal.GA_Update)  # GA_Update == 1, aka Write mode
-            # if ds is None:
-            #     raise RuntimeError(f"Could not open: {file_path}")
-            # ds.BuildOverviews(
-            #     "NEAREST", [4, 8, 16], options={"COMPRESS_OVERVIEW": "DEFLATE", "PREDICTOR_OVERVIEW": "3"}
-            # )
-            # # close the file
-            # del ds
-
-    return missing_grids_kwse, missing_grids_nd
+    return missing_grids
 
 
 def create_fim_lib(
@@ -141,11 +201,10 @@ def create_fim_lib(
     library_directory: str,
     cleanup: bool,
     ras_version: str = "631",
-    table_name: str = "rating_curves",
-    tiled: bool = False,
     overviews: bool = False,
     resolution: float = 3,
     resolution_units: str = "Meters",
+    dest_crs:str=5070
 ):
     """Create a new FIM library for a NWM id.
 
@@ -164,11 +223,6 @@ def create_fim_lib(
         whether to delete the source depth grids once they've been processed
     ras_version : str, optional
         which version of HEC-RAS to use, by default "631"
-    table_name : str, optional
-        name for the table holding stage-discharge rating curves in the output
-        database, by default "rating_curves"
-    tiled : bool, optional
-        No function
     overviews : bool, optional
         whether to generate overviews for output rasters (overviews at levels
         [4, 8, 16]), by default False
@@ -176,8 +230,8 @@ def create_fim_lib(
         horizontal resolution to resample output raster to, by default 3
     resolution_units : str, optional
         unit for resolution, by default "Meters"
-    task_id : str, optional
-        Task ID to use for logging, by default ""
+    dest_crs : str, optional
+        Destination crs. 
 
     Returns
     -------
@@ -193,49 +247,29 @@ def create_fim_lib(
         terrain_path=nwm_rm.ras_terrain_hdf,
         crs=nwm_rm.crs,
     )
-    ras_plans = [f"{nwm_rm.model_name}_{plan}" for plan in plans]
 
-    missing_grids_kwse, missing_grids_nd = post_process_depth_grids(
-        rm,
-        ras_plans,
-        nwm_rm.fim_results_directory,
-        except_missing_grid=True,
-        tiled=tiled,
-        overviews=overviews,
-        resolution=resolution,
-        resolution_units=resolution_units,
-    )
-
-    # create dabase and table
-    if not os.path.exists(nwm_rm.fim_results_database):
-        create_db_and_table(nwm_rm.fim_results_database, table_name)
+    missing_grids = {}
+    for plan in plans:
+        missing_grids[plan] = find_missing_grids(rm, f"{nwm_rm.model_name}_{plan}")
 
     for plan in plans:
-        if f"kwse" in plan:
-            rating_curves_to_sqlite(
-                rm,
-                f"{nwm_rm.model_name}_kwse",
-                nwm_rm.model_name,
-                missing_grids_kwse,
-                nwm_rm.fim_results_database,
-                table_name,
-            )
-            if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_kwse"), ignore_errors=True)
-        if f"nd" in plan:
-            zero_depth_to_sqlite(
-                rm,
-                f"{nwm_rm.model_name}_nd",
-                nwm_rm.model_name,
-                missing_grids_nd,
-                nwm_rm.fim_results_database,
-                table_name,
-            )
-            if cleanup:
-                shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_nd"), ignore_errors=True)
+        post_process_depth_grids(
+            rm,
+            f"{nwm_rm.model_name}_{plan}",
+            nwm_rm.fim_results_directory,
+            accept_missing_grid=True,
+            overviews=overviews,
+            resolution=resolution,
+            resolution_units=resolution_units,
+            dest_crs=dest_crs
+        )
+
+        if cleanup:
+            shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_{plan}", ignore_errors=True))
 
     logging.info(f"create_fim_lib complete")
-    return {"fim_results_directory": nwm_rm.fim_results_directory, "fim_results_database": nwm_rm.fim_results_database}
+
+    return {"fim_results_directory": nwm_rm.fim_results_directory}
 
 
 def nwm_reach_model_stac(ras_project_directory: str, ras_model_s3_prefix: str = None, bucket: str = None):
