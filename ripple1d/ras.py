@@ -1397,7 +1397,7 @@ def create_terrain(
         f"Running the following args, from {os.path.basename(exe_parent_dir)}:" + "\n  ".join([""] + subproc_args)
     )
     subprocess.check_call(subproc_args, cwd=exe_parent_dir, stdout=subprocess.DEVNULL)
-    return f"Terrain written to {dst_terrain_filepath}"
+    return {"RAS Terrain": dst_terrain_filepath}
 
     # TODO this recompression does work but RAS does not accept the recompressed tif for unknown reason...
     # # compress the output tif(s) that RasProcess.exe created (otherwise could be 1+ GB at HUC12 size)

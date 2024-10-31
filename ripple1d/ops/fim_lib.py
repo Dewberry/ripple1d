@@ -204,7 +204,7 @@ def create_fim_lib(
     overviews: bool = False,
     resolution: float = 3,
     resolution_units: str = "Meters",
-    dest_crs:str=5070
+    dest_crs: str = 5070,
 ):
     """Create a new FIM library for a NWM id.
 
@@ -231,7 +231,7 @@ def create_fim_lib(
     resolution_units : str, optional
         unit for resolution, by default "Meters"
     dest_crs : str, optional
-        Destination crs. 
+        Destination crs.
 
     Returns
     -------
@@ -261,7 +261,7 @@ def create_fim_lib(
             overviews=overviews,
             resolution=resolution,
             resolution_units=resolution_units,
-            dest_crs=dest_crs
+            dest_crs=dest_crs,
         )
 
         if cleanup:
