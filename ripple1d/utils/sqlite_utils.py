@@ -12,7 +12,7 @@ def create_db_and_table(db_name: str, table_name: str):
     """Create sqlite database and table."""
     os.makedirs(os.path.dirname(os.path.abspath(db_name)), exist_ok=True)
     sql_query = f"""
-        CREATE TABLE rating_curves(
+        CREATE TABLE {table_name}(
             reach_id INTEGER,
             ds_depth REAL,
             ds_wse REAL,
