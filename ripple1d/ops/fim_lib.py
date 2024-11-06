@@ -260,7 +260,7 @@ def create_fim_lib(
             )
 
         if cleanup:
-            shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_{plan}", ignore_errors=True))
+            shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_{plan}"), ignore_errors=True)
 
     logging.info(f"create_fim_lib complete")
 
