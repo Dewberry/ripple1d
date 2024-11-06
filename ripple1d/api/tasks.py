@@ -196,7 +196,10 @@ def task_results(only_task_id: str | None) -> dict[str, dict]:
         task_id = r[0]
         results_dict[task_id] = {}
         results_dict[task_id]['val'] = r[2]
-        results_dict[task_id]['err'] = r[1].splitlines()[-1]
+        if r[1] is not None:
+            results_dict[task_id]['err'] = r[1].splitlines()[-1]
+        else:
+            results_dict[task_id]['err'] = None
         results_dict[task_id]['tb'] = r[1]
     return results_dict
 
