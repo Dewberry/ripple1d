@@ -194,7 +194,7 @@ def run_incremental_normal_depth(
         nwm_rm.model_name,
         [fcl],
         flows.astype(str),
-        write_depth_grids=True,
+        write_depth_grids=write_depth_grids,
         show_ras=show_ras,
         run_ras=True,
     )
