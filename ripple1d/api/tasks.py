@@ -196,7 +196,10 @@ def task_results(only_task_id: str | None) -> dict[str, dict]:
         task_id = r[0]
         results_dict[task_id] = {}
         results_dict[task_id]['val'] = r[2]
-        results_dict[task_id]['err'] = r[1].splitlines()[-1]
+        if r[1] is not None:
+            results_dict[task_id]['err'] = r[1].splitlines()[-1]
+        else:
+            results_dict[task_id]['err'] = None
         results_dict[task_id]['tb'] = r[1]
     return results_dict
 
@@ -208,9 +211,11 @@ def task_summary(only_task_id: str | None) -> dict[str, dict]:
     """
     status = task_status(only_task_id)
     results = task_results(only_task_id)
-    assert status.keys() == results.keys(), f"Mismatch between status and result keys. Status had {status.keys()}, results had {results.keys()}"
     for t in status:
-        status[t]['result'] = results[t]
+        if t in results:
+            status[t]['result'] = results[t]
+        else:
+            status[t]['result'] = None
     return status
 
 def fetch_one_query(task_id: str, field: str, table: str) -> str:

@@ -146,8 +146,11 @@ def jobs():
 @app.route("/jobs/<task_id>", methods=["GET"])
 def job_status(task_id):
     """Retrieve result for job."""
+    include_traceback, problem = parse_request_param__bool(param_name="tb", default=False)
+    if problem is not None:
+        return problem
     task2metadata = tasks.task_summary(only_task_id=task_id)
-    resp = get_job_status(task_id, task2metadata[task_id], return_result=True)
+    resp = get_job_status(task_id, task2metadata[task_id], return_result=True, include_traceback=include_traceback)
     try:
         return jsonify(resp), HTTPStatus.OK
 
@@ -270,7 +273,7 @@ def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tup
         )
 
 
-def get_job_status(task_id: str, huey_metadata: dict, return_result: bool = False) -> dict:
+def get_job_status(task_id: str, huey_metadata: dict, return_result: bool = False, include_traceback: bool = False) -> dict:
     """Convert huey-style task status metadata into a OGC-style job summary dictionary."""
     out_dict = {
         "jobID": task_id,
@@ -279,6 +282,8 @@ def get_job_status(task_id: str, huey_metadata: dict, return_result: bool = Fals
         "processID": huey_metadata["func_name"],
     }
     if return_result:
+        if not include_traceback and huey_metadata['result'] is not None:
+            del huey_metadata['result']['tb']
         out_dict["result"] = huey_metadata['result']
     return out_dict
 
