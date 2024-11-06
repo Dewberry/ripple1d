@@ -133,12 +133,9 @@ def jobs():
     """Retrieve OGC status and result for all jobs."""
     # try:
     format_option = request.args.get("f")
-    try:
-        task2metadata = tasks.task_status(only_task_id=None)
-        jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
-        response = {"jobs": jobs}
-    except Exception as e:
-        print(e)
+    task2metadata = tasks.task_status(only_task_id=None)
+    jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
+    response = {"jobs": jobs}
 
     if format_option == "json":
         return jsonify(response), HTTPStatus.OK
