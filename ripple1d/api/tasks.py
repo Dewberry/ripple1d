@@ -8,10 +8,12 @@ import subprocess
 import sys
 import time
 import typing
+from math import exp
 
 import psutil
 from huey import SqliteHuey, signals
 from huey.api import Result
+from matplotlib.image import resample
 
 from ripple1d.ripple1d_logger import initialize_server_logger
 
@@ -159,61 +161,57 @@ def update_p_id(task_id: str, p_id: str):
     args = (task_id,)
     huey.storage.sql(expression, args, True)
 
-
 def task_status(only_task_id: str | None) -> dict[str, dict]:
-    """Return dictionary of tasks, where key is task ID and value is subdict (fields related to each task).
+    """Return dictionary of tasks, where key is task ID and value is subdict (status fields related to each task).
 
     If only_task_id is None, all tasks will be returned.
     If only_task_id is *not* None, only the provided task will be returned.
     """
-    expression = """
-        select
-            "task_id",
-            "func_name",
-            "func_kwargs",
-            "huey_status",
-            "ogc_status",
-            "accept_time",
-            "dismiss_time",
-            "start_time",
-            "finish_time",
-            "status_time",
-            "finish_duration_minutes"
-        from "task_status"
-        order by "status_time" desc
-        """
+    fields = ["task_id","func_name","func_kwargs","huey_status","ogc_status","accept_time","dismiss_time","start_time","finish_time","status_time","finish_duration_minutes"]
+    if only_task_id is not None:
+        filterer = f' WHERE task_id = "{only_task_id}"'
+    else:
+        filterer = ''
+    expression = f'SELECT {", ".join(fields)} FROM task_status{filterer} ORDER BY status_time DESC;'
     results_raw = huey.storage.sql(expression, results=True)
     results_dict = {}
-    for (
-        task_id,
-        func_name,
-        func_kwargs,
-        huey_status,
-        ogc_status,
-        accept_time,
-        dismiss_time,
-        start_time,
-        finish_time,
-        status_time,
-        finish_duration_minutes,
-    ) in results_raw:
-        if only_task_id is not None and task_id != only_task_id:
-            continue
-
-        results_dict[task_id] = {
-            "huey_status": huey_status,
-            "func_name": func_name,
-            "func_kwargs": json.loads(func_kwargs),
-            "ogc_status": ogc_status,
-            "accept_time": accept_time,
-            "dismiss_time": dismiss_time,
-            "start_time": start_time,
-            "finish_time": finish_time,
-            "status_time": status_time,
-            "finish_duration_minutes": finish_duration_minutes,
-        }
+    for r in results_raw:
+        task_id = r[0]
+        results_dict[task_id] = {k: v for k, v in zip(fields[1:], r[1:])}
     return results_dict
 
+def task_results(only_task_id: str | None) -> dict[str, dict]:
+    """Return dictionary of tasks, where key is task ID and value is subdict with val, err, and tb.
+
+    If only_task_id is None, all tasks will be returned.
+    If only_task_id is *not* None, only the provided task will be returned.
+    """
+    fields = ["task_id","stderr","results"]
+    if only_task_id is None:
+        only_task_id = '%'
+    expression = f'SELECT {", ".join(fields)} FROM task_logs WHERE task_id = "{only_task_id}";'
+    results_raw = huey.storage.sql(expression, results=True)
+    results_dict = {}
+    for r in results_raw:
+        task_id = r[0]
+        results_dict[task_id] = {}
+        results_dict[task_id]['val'] = r[2]
+        results_dict[task_id]['err'] = r[1].splitlines()[-1]
+        results_dict[task_id]['tb'] = r[1]
+    return results_dict
+
+def task_summary(only_task_id: str | None) -> dict[str, dict]:
+    """Return dictionary of tasks, where key is task ID and value is subdict with status and results.
+
+    If only_task_id is None, all tasks will be returned.
+    If only_task_id is *not* None, only the provided task will be returned.
+    """
+    status = task_status(only_task_id)
+    results = task_results(only_task_id)
+    assert status.keys() == results.keys(), f"Mismatch between status and result keys. Status had {status.keys()}, results had {results.keys()}"
+    for t in status:
+        status[t]['result'] = results[t]
+    return status
 
 def fetch_one_query(task_id: str, field: str, table: str) -> str:
     """Return a fetch one query given table and field given task_id."""
@@ -249,9 +247,9 @@ def fetch_logs(task_id: str) -> str:
     """For given task ID, return logs."""
     expression = f"""
         select
-            "stdout", 
-            "stderr" 
-        from "task_logs" 
+            "stdout",
+            "stderr"
+        from "task_logs"
         where "task_id" = ?"""
 
     results_raw = huey.storage.sql(expression, (task_id,), results=True)
@@ -284,17 +282,6 @@ def job_dismissed(task_id: str) -> bool:
     if results[0][0] == "None" or results[0][0] is None:
         return False
     return True
-
-
-def task_results(task_id: str) -> str:
-    """For given task ID, return its current status in OGC API terms."""
-    expression = """select "results" from "task_logs" where "task_id" = ?"""
-    results = huey.storage.sql(expression, (task_id,), results=True)
-    if not results:
-        return "notfound"
-    elif results[0][0] == "failed":
-        return "failed"
-
 
 def noop(task_id: str = None):
     """Do nothing except log a message. For ping endpoint and testing."""
