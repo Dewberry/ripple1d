@@ -211,6 +211,10 @@ def task_summary(only_task_id: str | None) -> dict[str, dict]:
     """
     status = task_status(only_task_id)
     results = task_results(only_task_id)
+    if len(results) == 0:
+        for t in status:
+            status[t]['result'] = {'val': None, 'err': None, 'tb': None}
+        return status
     assert status.keys() == results.keys(), f"Mismatch between status and result keys. Status had {status.keys()}, results had {results.keys()}"
     for t in status:
         status[t]['result'] = results[t]
