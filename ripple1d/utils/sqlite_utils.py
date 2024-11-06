@@ -20,9 +20,9 @@ def create_db_and_table(db_name: str, table_name: str):
             us_depth REAL,
             us_wse REAL,
             boundary_condition TEXT, -- [kwse, nd]
-            plan_suffix,
-            map_exist,
-            UNIQUE(reach_id, us_flow, ds_wse, boundary_condition,plan_suffix)
+            plan_suffix TEXT,
+            map_exist BOOL CHECK(map_exist IN (0, 1)),
+            UNIQUE(reach_id, us_flow, ds_wse, boundary_condition, plan_suffix)
         )
     """
     conn = sqlite3.connect(db_name)
