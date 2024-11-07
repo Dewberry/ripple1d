@@ -58,10 +58,6 @@ def post_process_depth_grids(
         if resolution_units not in ["Feet", "Meters"]:
             raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
 
-    if plan_name not in rm.plans:
-        logging.info(f"Plan {plan_name} not found in the model, skipping...")
-        return
-
     for profile_name in rm.plans[plan_name].flow.profile_names:
         # construct the default path to the depth grid for this plan/profile
         src_dir = os.path.join(rm.ras_project._ras_dir, str(plan_name))
@@ -135,22 +131,24 @@ def create_rating_curves_db(
         crs=nwm_rm.crs,
     )
 
-    missing_grids = {}
-    for plan in plans:
-        missing_grids[plan] = find_missing_grids(rm, f"{nwm_rm.model_name}_{plan}")
-
     # create dabase and table
     if not os.path.exists(nwm_rm.fim_results_database):
         create_db_and_table(nwm_rm.fim_results_database, table_name)
 
     for plan in plans:
+        if f"{nwm_rm.model_name}_{plan}" not in rm.plans:
+            logging.error(f"Plan {nwm_rm.model_name}_{plan} not found in the model, skipping...")
+            continue
+        else:
+            missing_grids = find_missing_grids(rm, f"{nwm_rm.model_name}_{plan}")
+
         if f"kwse" in plan:
             rating_curves_to_sqlite(
                 rm,
                 f"{nwm_rm.model_name}_{plan}",
                 plan,
                 nwm_rm.model_name,
-                missing_grids[plan],
+                missing_grids,
                 nwm_rm.fim_results_database,
                 table_name,
             )
@@ -160,7 +158,7 @@ def create_rating_curves_db(
                 f"{nwm_rm.model_name}_{plan}",
                 plan,
                 nwm_rm.model_name,
-                missing_grids[plan],
+                missing_grids,
                 nwm_rm.fim_results_database,
                 table_name,
             )
@@ -174,9 +172,6 @@ def find_missing_grids(
     plan_name: str,
 ):
     """Find missing depth grids."""
-    if plan_name not in rm.plans:
-        logging.error(f"Plan {plan_name} not found in the model, skipping...")
-        raise PlanNameNotFoundError(f"Plan {plan_name} not found in the model")
     missing_grids = []
     for profile_name in rm.plans[plan_name].flow.profile_names:
         # construct the default path to the depth grid for this plan/profile
@@ -248,24 +243,24 @@ def create_fim_lib(
         crs=nwm_rm.crs,
     )
 
-    missing_grids = {}
     for plan in plans:
-        missing_grids[plan] = find_missing_grids(rm, f"{nwm_rm.model_name}_{plan}")
-
-    for plan in plans:
-        post_process_depth_grids(
-            rm,
-            f"{nwm_rm.model_name}_{plan}",
-            nwm_rm.fim_results_directory,
-            accept_missing_grid=True,
-            overviews=overviews,
-            resolution=resolution,
-            resolution_units=resolution_units,
-            dest_crs=dest_crs,
-        )
+        if f"{nwm_rm.model_name}_{plan}" not in rm.plans:
+            logging.error(f"Plan {nwm_rm.model_name}_{plan} not found in the model, skipping...")
+            continue
+        else:
+            post_process_depth_grids(
+                rm,
+                f"{nwm_rm.model_name}_{plan}",
+                nwm_rm.fim_results_directory,
+                accept_missing_grid=True,
+                overviews=overviews,
+                resolution=resolution,
+                resolution_units=resolution_units,
+                dest_crs=dest_crs,
+            )
 
         if cleanup:
-            shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_{plan}", ignore_errors=True))
+            shutil.rmtree(os.path.join(rm.ras_project._ras_dir, f"{nwm_rm.model_name}_{plan}"), ignore_errors=True)
 
     logging.info(f"create_fim_lib complete")
 

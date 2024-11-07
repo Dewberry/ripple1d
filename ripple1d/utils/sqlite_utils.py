@@ -20,9 +20,9 @@ def create_db_and_table(db_name: str, table_name: str):
             us_depth REAL,
             us_wse REAL,
             boundary_condition TEXT, -- [kwse, nd]
-            plan_suffix,
-            map_exist,
-            UNIQUE(reach_id, us_flow, ds_wse, boundary_condition,plan_suffix)
+            plan_suffix TEXT,
+            map_exist BOOL CHECK(map_exist IN (0, 1)),
+            UNIQUE(reach_id, us_flow, ds_wse, boundary_condition, plan_suffix)
         )
     """
     conn = sqlite3.connect(db_name)
@@ -40,10 +40,21 @@ def insert_data(
     c = conn.cursor()
 
     for row in data.itertuples():
-        if f"{row.us_flow}-{row.ds_wse}" in missing_grids:
-            map_exist = False
+        if boundary_condition == "kwse":
+            if f"f_{int(row.us_flow)}-z_{str(row.ds_wse).replace(".","_")}" in missing_grids:
+                map_exist = 0
+            else:
+                map_exist = 1
+        elif boundary_condition == "nd":
+            if str(int(row.us_flow)) in missing_grids:
+                map_exist = 0
+            else:
+                map_exist = 1
         else:
-            map_exist = True
+            raise ValueError(
+                f"Could not detemine boundary condition type for {boundary_condition}; expected kwse or nd"
+            )
+
         c.execute(
             f"""
             INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, boundary_condition,  plan_suffix, map_exist)

@@ -4,6 +4,50 @@ Change Log
 .. note::
    Go to the `Releases <https://github.com/Dewberry/ripple1d/releases.html>`__  page for a list of all releases.
 
+Feature Release 0.7.0
+~~~~~~~~~~~~~~~~~~~~~
+Users Changelog
+----------------
+
+This release of `ripple1d` attempts to speed up the known water surface elevation (kwse) computes by parallelizing the creation of the depth grids. To do this, all kwse runs are ran without producing depth grids. From these initial kwse runs the rating curve database are created and used to inform the boundary condition for the next reach upstream. Once all of the boundary conditions are known, a second kwse run is ran to produce the depth grids in parallel. To make this happen some changes were necessary to the endpoints.
+
+In addition to adding/modifying the endpoints, this release of `ripple1d` makes significant updates to both ripple1d execution and logging. This includes running each endpoint as a separate subprocess which allows the user to have the ability to dismiss running jobs. This should be handy for when jobs appear to have hung up. Dismissing these hung up jobs will free up cpu for new jobs. 
+
+Features Added
+----------------
+**Write depth grids argument**
+A new argument boolean "write_depth_grids" was added to the "run_incremental_normal_depth" and "run_known_wse" endpoints. This allows the user to specify whether ripple1d should compute raw RAS depth grids or not.
+
+**Create rating curves database**
+A new endpoint called "create_rating_curves_db" was added. This endpoint is a post processing step that creates a rating curve database from RAS plan hdf results. This endpoint only requires 2 args: "submodel_directory" and "plans. The location of the rating curve database is inferred from the submodel directory. It will be located directly in the submodel directory and will be named as the network reach name; e.g., "2820002/2820002.db".
+
+The "create_rating_curves_db" endpoint checks for the presence of the depth grid for each profile and records its existence or absence along with the plan suffix in the database table. The columns are "plan_suffix" and "map_exist" and are of type string and boolean, respectively.
+
+**Create FIM library update**
+The "create_fim_lib" endpoint no longer produces the rating curve database.
+
+**Update to the Ripple1d workflow**
+The user should take care with the args when calling the new/modified endpoints; specifically the plan names. The recommended order for calling these endpoints is:
+
+1. run_known_wse : with "write_depth_grids" set to false and "plan_suffix" set to ["ikwse"]
+2. create_rating_curves_db: with "plans" set to ["ikwse"]
+3. run_known_wse: with "write_depth_grids" set to true and "plan_suffix" set to ["nd","kwse"]
+4. create_rating_curves_db: with "plans" set to ["nd","kwse"]
+5. create_fim_lib: with "plans" set to ["nd","kwse"]
+
+**Subprocess encapsulation**
+The execution of all endpoints are now encapsulated within subprocesses
+
+**Logs and database**
+
+- Huey and flask logs have been combined into a single log file (server-logs.jsonld).
+- Huey.db has been renamed to jobs.db
+- The process id for each endpoint are now tracked in a p_id field of the task_status table in jobs.db
+- A huey_status field has been added to the task_status table. This field tracks the execution status of the endpoint subprocess.
+- A new table called task_logs has been added to jobs.db. This table contains stdout, stderr, and results stemming from endpoint subprocesses.
+- A proof of concept graphical (html-based) job status page has been added
+
+
 Bugfix Release 0.6.3
 ~~~~~~~~~~~~~~~~~~~~~
  

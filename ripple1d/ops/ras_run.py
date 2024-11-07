@@ -194,7 +194,7 @@ def run_incremental_normal_depth(
         nwm_rm.model_name,
         [fcl],
         flows.astype(str),
-        write_depth_grids=True,
+        write_depth_grids=write_depth_grids,
         show_ras=show_ras,
         run_ras=True,
     )
@@ -295,6 +295,7 @@ def run_known_wse(
             f"No controling known water surface elevations were identified for {nwm_rm.model_name}; i.e., the depth of flooding\
  for the normal depth run for a given flow was alway higher than the known water surface elevations of the downstream reach"
         )
+        pid = None
     else:
         pid = rm.kwses_run(
             f"{nwm_rm.model_name}_{plan_suffix}",
