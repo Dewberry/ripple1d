@@ -3,30 +3,13 @@
 import inspect
 import json
 import logging
+import os
 import time
 import traceback
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 
-SUPPRESS_LOGS = ["boto3", "botocore", "geopandas", "fiona", "rasterio", "pyogrio"]
-import inspect
-import json
-import logging
-import traceback
-
-
-def log_process(func):
-    """Log time to run function (called by huey task)."""
-
-    def wrapper(*args, **kwargs):
-        if logging.getLogger().isEnabledFor(logging.INFO):
-            start = time.time()
-        result = func(*args, **kwargs)
-        if logging.getLogger().isEnabledFor(logging.INFO):
-            elapsed_time = time.time() - start
-            logging.info(f"{kwargs.get('task_id')} | {func.__name__} | process time {elapsed_time:.2f} seconds")
-        return result
-
-    return wrapper
+from ripple1d.consts import SUPPRESS_LOGS
 
 
 class RippleLogFormatter(logging.Formatter):
@@ -137,3 +120,31 @@ def configure_logging(level, logfile: str = None, milliseconds: bool = False, ve
         level=level,
         handlers=handlers,
     )
+
+
+def initialize_server_logger(log_dir: str = "", log_level: int = logging.INFO) -> logging.Logger:
+    """Initialize log with JSON-LD style formatting and throttled level for AWS libs.
+
+    By default sends to StreamHandler (stdout/stderr), but can provide a filename to log to disk instead.
+    """
+    filename = os.path.join(log_dir, "server-logs.jsonld")
+
+    for module in SUPPRESS_LOGS:
+        logging.getLogger(module).setLevel(logging.ERROR)
+
+    log = logging.getLogger()
+    log.setLevel(log_level)
+    formatter = RippleLogFormatter()
+
+    if filename:
+        print(f"Initializing log file: {filename}")
+        os.makedirs(os.path.dirname(os.path.abspath(filename)), exist_ok=True)
+        file_handler = logging.FileHandler(filename=filename)
+        file_handler.setFormatter(formatter)
+        log.addHandler(file_handler)
+    else:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        log.addHandler(stream_handler)
+
+    return log

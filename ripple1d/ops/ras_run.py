@@ -21,7 +21,6 @@ def create_model_run_normal_depth(
     num_of_discharges_for_initial_normal_depth_runs: int = 10,
     ras_version: str = "631",
     show_ras: bool = False,
-    task_id: str = "",
 ):
     """Write and compute initial normal depth runs to develop initial rating curves.
 
@@ -61,7 +60,7 @@ def create_model_run_normal_depth(
     established by running conflate_model.  The downstream boundary condition
     for these runs are set to normal depth with slope of 0.001.
     """
-    logging.info(f"{task_id} | create_model_run_normal_depth starting")
+    logging.info(f"create_model_run_normal_depth starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -93,7 +92,7 @@ def create_model_run_normal_depth(
             initial_flows.tolist(),
         )
 
-        rm.normal_depth_run(
+        pid = rm.normal_depth_run(
             f"{nwm_rm.model_name}_{plan_suffix}",
             nwm_rm.model_name,
             [fcl],
@@ -103,8 +102,8 @@ def create_model_run_normal_depth(
             run_ras=True,
         )
 
-    logging.info(f"{task_id} | create_model_run_normal_depth complete")
-    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
+    logging.info("create_model_run_normal_depth complete")
+    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl), "pid": pid}
 
 
 def run_incremental_normal_depth(
@@ -114,7 +113,6 @@ def run_incremental_normal_depth(
     depth_increment=0.5,
     write_depth_grids: str = True,
     show_ras: bool = False,
-    task_id: str = "",
 ):
     """Write and compute incremental normal depth runs to develop rating curves and depth grids.
 
@@ -157,7 +155,7 @@ def run_incremental_normal_depth(
     the model with a normal depth downstream boundary condition with slope of
     0.001.
     """
-    logging.info(f"{task_id} | run_incremental_normal_depth starting")
+    logging.info("run_incremental_normal_depth starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -191,17 +189,17 @@ def run_incremental_normal_depth(
         flows.tolist(),
     )
     # write and compute flow/plans for normal_depth run
-    rm.normal_depth_run(
+    pid = rm.normal_depth_run(
         f"{nwm_rm.model_name}_{plan_suffix}",
         nwm_rm.model_name,
         [fcl],
         flows.astype(str),
-        write_depth_grids=True,
+        write_depth_grids=write_depth_grids,
         show_ras=show_ras,
         run_ras=True,
     )
-    logging.info(f"{task_id} | run_incremental_normal_depth complete")
-    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl)}
+    logging.info("run_incremental_normal_depth complete")
+    return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl), "pid": pid}
 
 
 def run_known_wse(
@@ -213,7 +211,6 @@ def run_known_wse(
     ras_version: str = "631",
     write_depth_grids: str = True,
     show_ras: bool = False,
-    task_id: str = "",
 ):
     """Write and compute known water surface elevation runs to develop rating curves and depth grids.
 
@@ -256,7 +253,7 @@ def run_known_wse(
     generated. Discharges for the rating curves are selected from the HEC-RAS
     plan with suffix "_nd" generated with Run_incremental_normal_depth.
     """
-    logging.info(f"{task_id} | run_known_wse starting")
+    logging.info("run_known_wse starting")
     nwm_rm = NwmReachModel(submodel_directory)
 
     if not nwm_rm.file_exists(nwm_rm.conflation_file):
@@ -298,8 +295,9 @@ def run_known_wse(
             f"No controling known water surface elevations were identified for {nwm_rm.model_name}; i.e., the depth of flooding\
  for the normal depth run for a given flow was alway higher than the known water surface elevations of the downstream reach"
         )
+        pid = None
     else:
-        rm.kwses_run(
+        pid = rm.kwses_run(
             f"{nwm_rm.model_name}_{plan_suffix}",
             nwm_rm.model_name,
             depths,
@@ -312,8 +310,8 @@ def run_known_wse(
             show_ras=show_ras,
             run_ras=True,
         )
-    logging.info(f"{task_id} | run_known_wse complete")
-    return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}}
+    logging.info("run_known_wse complete")
+    return {f"{nwm_rm.model_name}_{plan_suffix}": {"kwse": known_water_surface_elevations.tolist()}, "pid": pid}
 
 
 def get_flow_depth_arrays(
@@ -416,11 +414,11 @@ def get_kwse_from_ds_model(ds_nwm_id: str, ds_nwm_ras_project_file: str, plan_na
 def establish_order_of_nwm_ids(conflation_parameters: dict) -> list[str]:
     """Establish the order of NWM IDs based on the cross section IDs."""
     order = []
-    for id, data in conflation_parameters.items():
+    for idx, data in conflation_parameters.items():
         if conflation_parameters[id]["us_xs"]["xs_id"] == "-9999":
-            logging.warning(f"skipping {id}; no cross sections conflated.")
+            logging.warning(f"skipping {idx}; no cross sections conflated.")
         else:
-            order.append((float(data["us_xs"]["xs_id"]), id))
+            order.append((float(data["us_xs"]["xs_id"]), idx))
     order.sort()
     return [i[1] for i in order]
 
@@ -431,7 +429,8 @@ def create_flow_depth_array(flow: list[float], depth: list[float], increment: fl
     max_depth = np.max(depth)
     start_depth = np.floor(min_depth / increment) * increment  # round down to nearest increment
     new_depth = np.arange(start_depth, max_depth + increment, increment)
-    new_depth = np.clip(new_depth, depth.min(), depth.max())  # "new_flow" will be limited to "flow" range by np.interp.  This line makes "new_depth" max and min line up with those values.
+    new_depth = np.clip(new_depth, depth.min(), depth.max())  # "new_flow" will be limited to "flow" range by np.interp.
+    # This line makes "new_depth" max and min line up with those values.
     new_flow = np.interp(new_depth, np.sort(depth), np.sort(flow))
 
     return new_depth, new_flow
