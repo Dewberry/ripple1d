@@ -411,9 +411,8 @@ class RasManager:
             self.update_rasmapper_for_mapping()
 
         if run_ras:
-            compute_message_file = self.ras_project._ras_root_path + f"{self.plan.file_extension}.computeMsgs.txt"
             runRAS = f'C:\\Program Files (x86)\\HEC\\HEC-RAS\\6.3.1\\Ras.exe "{self.ras_project._ras_text_file_path}" \
-                "{self.ras_project._ras_root_path}{self.plan.file_extension}" -c'  # -hideCompute'
+                "{self.ras_project._ras_root_path}{self.plan.file_extension}" -c'
             p = subprocess.Popen(runRAS)
             return p.pid
 
