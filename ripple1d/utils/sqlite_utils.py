@@ -209,37 +209,44 @@ def terrain_metrics_to_sqlite(db_path: str, metrics: dict, reach_id: str) -> Non
         fields = [
             "reach_id INTEGER",
             "river_reach_rs TEXT",
-            "discharge REAL",
+            "wse REAL",
             "below_lidar_flow_area REAL",
             "below_lidar_depth REAL",
-            "below_lidar_discharge REAL",
             "terrain_bias REAL",
             "flow_area_pct_difference REAL",
             "inundated_area_pct_difference REAL",
             "pct_incorrectly_inundated REAL",
-            "boundary_condition TEXT",
-            "plan_suffix TEXT",
+            "diff_25 REAL",
+            "diff_50 REAL",
+            "diff_75 REAL",
+            "diff_mean REAL",
+            "diff_std REAL",
+            "diff_max REAL",
+            "diff_min REAL",
         ]
         cur.execute(f"CREATE TABLE IF NOT EXISTS error_metrics ({', '.join(fields)})")
 
-        out_dicts = []
         for section in metrics:
-            for flow in metrics[section]["specific_metrics"]:
+            for i in range(len(metrics[section]["wse"])):
                 cur.execute(
-                    """INSERT INTO error_metrics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    """INSERT INTO error_metrics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         reach_id,
                         section,
-                        flow,
+                        metrics[section]["wse"][i],
                         metrics[section]["below_lidar_flow_area"],
                         metrics[section]["below_lidar_depth"],
-                        metrics[section]["below_lidar_discharge"],
                         metrics[section]["terrain_bias"],
-                        metrics[section]["specific_metrics"][flow]["flow_area_pct_difference"],
-                        metrics[section]["specific_metrics"][flow]["inundated_area_pct_difference"],
-                        metrics[section]["specific_metrics"][flow]["pct_incorrectly_inundated"],
-                        metrics[section]["specific_metrics"][flow]["boundary_condition"],
-                        metrics[section]["specific_metrics"][flow]["plan_suffix"],
+                        metrics[section]["flow_area_pct_difference"][i],
+                        metrics[section]["inundated_area_pct_difference"][i],
+                        metrics[section]["pct_incorrectly_inundated"][i],
+                        metrics[section]["diff_25%"],
+                        metrics[section]["diff_50%"],
+                        metrics[section]["diff_75%"],
+                        metrics[section]["diff_mean"],
+                        metrics[section]["diff_std"],
+                        metrics[section]["diff_max"],
+                        metrics[section]["diff_min"],
                     ),
                 )
         con.commit()

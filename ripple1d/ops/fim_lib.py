@@ -146,31 +146,31 @@ def create_rating_curves_db(
             missing_grids = find_missing_grids(rm, f"{nwm_rm.model_name}_{plan}")
             plan_paths.append(rm.plans[f"{nwm_rm.model_name}_{plan}"]._ras_text_file_path)
 
-        # if f"kwse" in plan:
-        #     rating_curves_to_sqlite(
-        #         rm,
-        #         f"{nwm_rm.model_name}_{plan}",
-        #         plan,
-        #         nwm_rm.model_name,
-        #         missing_grids,
-        #         nwm_rm.fim_results_database,
-        #         table_name,
-        #     )
-        # if f"nd" in plan:
-        #     zero_depth_to_sqlite(
-        #         rm,
-        #         f"{nwm_rm.model_name}_{plan}",
-        #         plan,
-        #         nwm_rm.model_name,
-        #         missing_grids,
-        #         nwm_rm.fim_results_database,
-        #         table_name,
-        #     )
+        if f"kwse" in plan:
+            rating_curves_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_{plan}",
+                plan,
+                nwm_rm.model_name,
+                missing_grids,
+                nwm_rm.fim_results_database,
+                table_name,
+            )
+        if f"nd" in plan:
+            zero_depth_to_sqlite(
+                rm,
+                f"{nwm_rm.model_name}_{plan}",
+                plan,
+                nwm_rm.model_name,
+                missing_grids,
+                nwm_rm.fim_results_database,
+                table_name,
+            )
 
     # Quantify DEM + source model agreement
     geom_path = rm.current_plan.plan_geom_file
     terrain_path = rm.terrain_path.replace(".hdf", ".USGS_Seamless_DEM_13.tif")
-    metrics = terrain_quality_metrics(plan_paths, geom_path, terrain_path, make_plots=True)
+    metrics = terrain_quality_metrics(plan_paths, geom_path, terrain_path, make_plots=False)
     terrain_metrics_to_sqlite(nwm_rm.fim_results_database, metrics, nwm_rm.model_name)
 
     logging.info(f"create_rating_curves_db complete")

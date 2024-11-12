@@ -11,13 +11,6 @@ import numpy as np
 import pandas as pd
 import rasterio
 import rasterio.transform
-from delta_terrain_metrics import (
-    below_lidar_discharge,
-    pct_incorrect_inundation,
-    series_pct_diff,
-    terrain_bias,
-    terrain_diff_summary,
-)
 from shapely.geometry import LineString
 
 from ripple1d.ras import RasGeomText, RasManager, RasPlanText
@@ -117,7 +110,6 @@ def generate_plot(
     src_ie: np.ndarray,
     dem_ie: np.ndarray,
     metrics: dict,
-    wsels: dict,
 ) -> None:
     """Generate a plot comparing the source and DEM stage-area curves."""
     fig, ax = plt.subplots(2, 4, figsize=(14, 6))
@@ -144,36 +136,44 @@ def generate_plot(
     ax[0, 2].set_xlabel("Inundated Area (ft^2)")
     ax[0, 2].legend()
 
-    # Add horizontal lines for WSELs
-    for f in wsels:
-        wse = wsels[f]
-        for i in range(3):
-            ax[0, i].axhline(wse, c="b", ls="--", lw=0.1)
+    # Plot the percent correct inundation metric
+    ax[1, 0].plot(metrics["pct_incorrectly_inundated"], metrics["wse"], c="k", marker="o", markersize=3)
+    ax[1, 0].set_title("Percent Incorrectly Inundated")
+    ax[1, 0].set_xlabel("Percent")
+    ax[1, 0].set_ylabel("Water Surface Elevation (ft)")
+    ax[1, 0].set_xlim(-5, 105)
 
-    # Plot the error metrics for each discharge
-    flows = list(metrics["specific_metrics"].keys())
-    for i, series_name in enumerate(metrics["specific_metrics"][flows[0]].keys()):
-        tmp_series = [metrics["specific_metrics"][flow][series_name] for flow in flows]
-        ax[1, i].plot(flows, tmp_series, c="k", marker="o", markersize=3)
-        ax[1, i].set_title(series_name.replace("_", " ").title())
-        ax[1, i].set_xlabel("Flow (cfs)")
-        ax[1, i].set_ylabel("Percent")
-        ax[1, i].set_ylim(-5, 105)
-        ax[1, i].set_xticks(flows)
-        ax[1, i].set_xticklabels(flows, rotation=45, ha="right")
+    # Plot the flow area percent difference metric
+    ax[1, 1].plot(metrics["flow_area_pct_difference"], metrics["wse"], c="k", marker="o", markersize=3)
+    ax[1, 1].set_title("Flow Area Percent Difference")
+    ax[1, 1].set_xlabel("Percent")
+    ax[1, 1].set_ylabel("Water Surface Elevation (ft)")
+    ax[1, 1].set_xlim(-5, 105)
+
+    # Plot the inundated area percent difference metric
+    ax[1, 2].plot(metrics["inundated_area_pct_difference"], metrics["wse"], c="k", marker="o", markersize=3)
+    ax[1, 2].set_title("Inundated Area Percent Difference")
+    ax[1, 2].set_xlabel("Percent")
+    ax[1, 2].set_ylabel("Water Surface Elevation (ft)")
+    ax[1, 2].set_xlim(-5, 105)
 
     # merge last column into one plot
     gs = ax[0, 3].get_gridspec()
     for a in ax[:, 3]:
         a.remove()
     axbig = fig.add_subplot(gs[:, 3])
-    metric_subset = {k: metrics[k] for k in metrics if k != "specific_metrics"}
+    metric_subset = {k: metrics[k] for k in metrics if isinstance(metrics[k], (int, float))}
     labels_formatted = [k.replace("_", " ").replace("%", r"\%").title() for k in metric_subset.keys()]
     labels_formatted = [r"$\bf{" + k + r"}$" for k in labels_formatted]
     values_formatted = [f"{v:.2f}" for k, v in metric_subset.items()]
     info_text = "\n".join([f"{k}: {v}" for k, v in zip(labels_formatted, values_formatted)])
     axbig.text(-0.1, 0.95, info_text, fontsize=12, transform=axbig.transAxes, va="top", ha="left")
     axbig.axis("off")
+
+    # Add horizontal lines for WSELs
+    for wse in metrics["wse"]:
+        for a in ax.flatten():
+            a.axhline(wse, c="b", ls="--", lw=0.1)
 
     # Formatting and saving
     for a in ax.flatten():
@@ -186,7 +186,9 @@ def generate_plot(
     plt.close(fig)
 
 
-def process_section_metrics(rch_id: str, rc: pd.DataFrame, src_el: np.ndarray, dem_el: np.ndarray, plot: bool) -> dict:
+def process_section_metrics(
+    xs_id: str, wsels: pd.DataFrame, src_el: np.ndarray, dem_el: np.ndarray, plot: bool
+) -> dict:
     """Process error metrics for a single cross section."""
     # Preprocess
     src_fa_curve = derive_stage_flow_area_curve(src_el)
@@ -195,65 +197,52 @@ def process_section_metrics(rch_id: str, rc: pd.DataFrame, src_el: np.ndarray, d
     dem_ia_curve = derive_stage_inundated_area_curve(dem_el)
 
     # Calculate general error metrics
-    metrics = {}
+    metrics = defaultdict(list)
+    metrics["wse"] = wsels
     metrics["below_lidar_flow_area"] = np.interp(dem_el[:, 1].min(), src_fa_curve[:, 0], src_fa_curve[:, 1])
     metrics["below_lidar_depth"] = dem_el[:, 1].min() - src_el[:, 1].min()
-    metrics["below_lidar_discharge"] = below_lidar_discharge(rc, dem_el[:, 1].min())
+    # metrics["below_lidar_discharge"] = below_lidar_discharge(rc, dem_el[:, 1].min())
     metrics["terrain_bias"] = terrain_bias(src_el, dem_el)
     for k, v in terrain_diff_summary(src_el, dem_el).items():
         metrics[k] = v
 
-    # Calculate discharge-specific error metrics
-    specifics_dict = defaultdict(dict)
-    for flow in rc:
-        wse = rc[flow]
-        specifics_dict[flow]["pct_incorrectly_inundated"] = pct_incorrect_inundation(src_el, dem_el, wse)
-        specifics_dict[flow]["flow_area_pct_difference"] = series_pct_diff(src_fa_curve, dem_fa_curve, wse)
-        specifics_dict[flow]["inundated_area_pct_difference"] = series_pct_diff(src_ia_curve, dem_ia_curve, wse)
-    metrics["specific_metrics"] = specifics_dict
+    # Calculate stage-specific error metrics
+    for wse in wsels:
+        metrics["pct_incorrectly_inundated"].append(pct_incorrect_inundation(src_el, dem_el, wse))
+        metrics["flow_area_pct_difference"].append(series_pct_diff(src_fa_curve, dem_fa_curve, wse))
+        metrics["inundated_area_pct_difference"].append(series_pct_diff(src_ia_curve, dem_ia_curve, wse))
 
     # Generate a plot
     if plot:
-        generate_plot(rch_id, src_el, dem_el, src_fa_curve, dem_fa_curve, src_ia_curve, dem_ia_curve, metrics, rc)
+        generate_plot(xs_id, src_el, dem_el, src_fa_curve, dem_fa_curve, src_ia_curve, dem_ia_curve, metrics)
 
     return metrics
 
 
 def parse_plans(paths: list) -> dict:
     """Parse the HEC-RAS plan file."""
-    all_rcs = []
+    all_wses = defaultdict(list)
     for p in paths:
         plan = RasPlanText(p)
         wses, flows = plan.read_rating_curves()
-        wses = pd.melt(wses.reset_index(), id_vars="index", var_name="flow_bc", value_name="wse")
-        if "kwse" in plan.title:
-            wses[["flow_str", "bc_str"]] = wses["flow_bc"].str.split("-", expand=True)
-            wses["flow"] = wses["bc_str"].str[2:].astype(float)
-            wses["boundary_condition"] = wses["bc_str"].str[2:].str.replace("_", ".").astype(str)
-        else:
-            wses["flow"] = wses["flow_bc"].astype(float)
-            wses["boundary_condition"] = "nd"
-        all_rcs.append(wses[["index", "boundary_condition", "flow", "wse"]])
-
-    all_rcs = pd.concat(all_rcs)
-    wse_dict = (
-        all_rcs.groupby("index")
-        .apply(lambda x: x.groupby("boundary_condition").agg({"flow": list, "wse": list}).to_dict(orient="index"))
-        .to_dict()
-    )
-    return wse_dict
+        wses = wses.to_dict(orient="index")
+        for wse in wses:
+            all_wses[wse].extend(wses[wse].values())
+    for k in all_wses:
+        all_wses[k] = np.sort(all_wses[k])
+    return all_wses
 
 
 def terrain_quality_metrics(plan_paths: list, geom_path: str, terrain_path: str, make_plots: bool = False) -> float:
     """Quantify the agreement of HEC-RAS cross-sections and DEM used to generate FIM."""
     # Load plan data (rating curves)
-    rcs = parse_plans(plan_paths)
+    wsels = parse_plans(plan_paths)
 
     # Get the station-elevation series from the HEC-RAS geometry files
     src, dem = get_model_terrains(geom_path, terrain_path)
 
     # Derive various error metrics for each cross-section
-    return {s: process_section_metrics(s, rcs[s], src[s], dem[s], make_plots) for s in src}
+    return {s: process_section_metrics(s, wsels[s], src[s], dem[s], make_plots) for s in src}
 
 
 def terrain_bias(src_el: np.ndarray, dem_el: np.ndarray) -> np.ndarray:
