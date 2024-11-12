@@ -199,3 +199,48 @@ def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
         curs.execute("COMMIT;")
         curs.close()
     return None
+
+
+def terrain_metrics_to_sqlite(db_path: str, metrics: dict, reach_id: str) -> None:
+    """Log the error metrics to a database."""
+    # TODO: update this whole .py file to be generalized.  It's currently just for rating curve db
+    with sqlite3.connect(db_path) as con:
+        cur = con.cursor()
+        fields = [
+            "reach_id INTEGER",
+            "river_reach_rs TEXT",
+            "discharge REAL",
+            "below_lidar_flow_area REAL",
+            "below_lidar_depth REAL",
+            "below_lidar_discharge REAL",
+            "terrain_bias REAL",
+            "flow_area_pct_difference REAL",
+            "inundated_area_pct_difference REAL",
+            "pct_incorrectly_inundated REAL",
+            "boundary_condition TEXT",
+            "plan_suffix TEXT",
+        ]
+        cur.execute(f"CREATE TABLE IF NOT EXISTS error_metrics ({', '.join(fields)})")
+
+        out_dicts = []
+        for section in metrics:
+            for flow in metrics[section]["specific_metrics"]:
+                cur.execute(
+                    """INSERT INTO error_metrics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        reach_id,
+                        section,
+                        flow,
+                        metrics[section]["below_lidar_flow_area"],
+                        metrics[section]["below_lidar_depth"],
+                        metrics[section]["below_lidar_discharge"],
+                        metrics[section]["terrain_bias"],
+                        metrics[section]["specific_metrics"][flow]["flow_area_pct_difference"],
+                        metrics[section]["specific_metrics"][flow]["inundated_area_pct_difference"],
+                        metrics[section]["specific_metrics"][flow]["pct_incorrectly_inundated"],
+                        metrics[section]["specific_metrics"][flow]["boundary_condition"],
+                        metrics[section]["specific_metrics"][flow]["plan_suffix"],
+                    ),
+                )
+        con.commit()
+    con.close()

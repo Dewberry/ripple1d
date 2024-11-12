@@ -11,10 +11,16 @@ import numpy as np
 import pandas as pd
 import rasterio
 import rasterio.transform
-from delta_terrain_metrics import pct_incorrect_inundation, series_pct_diff, terrain_bias
+from delta_terrain_metrics import (
+    below_lidar_discharge,
+    pct_incorrect_inundation,
+    series_pct_diff,
+    terrain_bias,
+    terrain_diff_summary,
+)
 from shapely.geometry import LineString
 
-from ripple1d.ras import RasGeomText, RasPlanText
+from ripple1d.ras import RasGeomText, RasManager, RasPlanText
 
 
 def get_model_terrains(path, raster_path):
@@ -114,32 +120,37 @@ def generate_plot(
     wsels: dict,
 ) -> None:
     """Generate a plot comparing the source and DEM stage-area curves."""
-    fig, ax = plt.subplots(2, 3, figsize=(12, 6))
+    fig, ax = plt.subplots(2, 4, figsize=(14, 6))
 
+    # Plot the source and DEM terrain profiles
     ax[0, 0].plot(src_el[:, 0], src_el[:, 1], label="Source", c="k", alpha=0.7)
     ax[0, 0].plot(dem_el[:, 0], dem_el[:, 1], label="DEM", c="r", alpha=0.7)
     ax[0, 0].set_title(f"Cross Section")
     ax[0, 0].set_xlabel("Station (ft)")
     ax[0, 0].set_ylabel("Elevation (ft)")
 
-    info_text = "\n".join(
-        [f"{k.replace('_', ' ').title()}: {v:.2f}" for k, v in metrics.items() if k != "specific_metrics"]
-    )
-    ax[0, 0].text(0.05, 0.95, info_text, fontsize=8, transform=ax[0, 0].transAxes, va="top")
-
+    # Plot the source and DEM stage-area curves
     ax[0, 1].plot(src_fa[:, 1], src_fa[:, 0], label="Source", c="k", alpha=0.7)
     ax[0, 1].plot(dem_fa[:, 1], dem_fa[:, 0], label="DEM", c="r", alpha=0.7)
-    ax[0, 1].set_title(f"Stage-Area Curve")
+    ax[0, 1].set_title(f"Flow Area Curve")
     ax[0, 1].set_ylabel("Water Surface Elevation (ft)")
-    ax[0, 1].set_xlabel("Area (ft^2)")
+    ax[0, 1].set_xlabel("Flow Area (ft^2)")
 
+    # Plot the source and DEM inundated area curves
     ax[0, 2].plot(src_ie[:, 1], src_ie[:, 0], label="Source", c="k", alpha=0.7)
     ax[0, 2].plot(dem_ie[:, 1], dem_ie[:, 0], label="DEM", c="r", alpha=0.7)
     ax[0, 2].set_title(f"Inundated Area Curve")
     ax[0, 2].set_ylabel("Water Surface Elevation (ft)")
-    ax[0, 2].set_xlabel("Area (ft^2)")
+    ax[0, 2].set_xlabel("Inundated Area (ft^2)")
     ax[0, 2].legend()
 
+    # Add horizontal lines for WSELs
+    for f in wsels:
+        wse = wsels[f]
+        for i in range(3):
+            ax[0, i].axhline(wse, c="b", ls="--", lw=0.1)
+
+    # Plot the error metrics for each discharge
     flows = list(metrics["specific_metrics"].keys())
     for i, series_name in enumerate(metrics["specific_metrics"][flows[0]].keys()):
         tmp_series = [metrics["specific_metrics"][flow][series_name] for flow in flows]
@@ -151,30 +162,31 @@ def generate_plot(
         ax[1, i].set_xticks(flows)
         ax[1, i].set_xticklabels(flows, rotation=45, ha="right")
 
-    for f in wsels:
-        wse = wsels[f]
-        for i in range(3):
-            ax[0, i].axhline(wse, c="b", ls="--", lw=0.3)
+    # merge last column into one plot
+    gs = ax[0, 3].get_gridspec()
+    for a in ax[:, 3]:
+        a.remove()
+    axbig = fig.add_subplot(gs[:, 3])
+    metric_subset = {k: metrics[k] for k in metrics if k != "specific_metrics"}
+    labels_formatted = [k.replace("_", " ").replace("%", r"\%").title() for k in metric_subset.keys()]
+    labels_formatted = [r"$\bf{" + k + r"}$" for k in labels_formatted]
+    values_formatted = [f"{v:.2f}" for k, v in metric_subset.items()]
+    info_text = "\n".join([f"{k}: {v}" for k, v in zip(labels_formatted, values_formatted)])
+    axbig.text(-0.1, 0.95, info_text, fontsize=12, transform=axbig.transAxes, va="top", ha="left")
+    axbig.axis("off")
 
+    # Formatting and saving
     for a in ax.flatten():
         a.set_facecolor("whitesmoke")
-
     fig.suptitle(section)
     fig.tight_layout()
-    os.makedirs("plots", exist_ok=True)
-    fig.savefig(f"plots/{section}.png")
+    out_path = Path("plots") / section.split(" ")[0]
+    out_path.mkdir(parents=True, exist_ok=True)
+    fig.savefig(str(out_path / f"{section}.png"), dpi=300)
     plt.close(fig)
 
 
-def parse_plan(path: str) -> dict:
-    """Parse the HEC-RAS plan file."""
-    plan = RasPlanText(path)
-    wses, flows = plan.read_rating_curves()
-    wses = wses.to_dict(orient="index")
-    return wses
-
-
-def process_section_metrics(reach_id: str, rc: pd.DataFrame, src_el: np.ndarray, dem_el: np.ndarray) -> dict:
+def process_section_metrics(rch_id: str, rc: pd.DataFrame, src_el: np.ndarray, dem_el: np.ndarray, plot: bool) -> dict:
     """Process error metrics for a single cross section."""
     # Preprocess
     src_fa_curve = derive_stage_flow_area_curve(src_el)
@@ -186,7 +198,10 @@ def process_section_metrics(reach_id: str, rc: pd.DataFrame, src_el: np.ndarray,
     metrics = {}
     metrics["below_lidar_flow_area"] = np.interp(dem_el[:, 1].min(), src_fa_curve[:, 0], src_fa_curve[:, 1])
     metrics["below_lidar_depth"] = dem_el[:, 1].min() - src_el[:, 1].min()
+    metrics["below_lidar_discharge"] = below_lidar_discharge(rc, dem_el[:, 1].min())
     metrics["terrain_bias"] = terrain_bias(src_el, dem_el)
+    for k, v in terrain_diff_summary(src_el, dem_el).items():
+        metrics[k] = v
 
     # Calculate discharge-specific error metrics
     specifics_dict = defaultdict(dict)
@@ -198,83 +213,96 @@ def process_section_metrics(reach_id: str, rc: pd.DataFrame, src_el: np.ndarray,
     metrics["specific_metrics"] = specifics_dict
 
     # Generate a plot
-    generate_plot(reach_id, src_el, dem_el, src_fa_curve, dem_fa_curve, src_ia_curve, dem_ia_curve, metrics, rc)
+    if plot:
+        generate_plot(rch_id, src_el, dem_el, src_fa_curve, dem_fa_curve, src_ia_curve, dem_ia_curve, metrics, rc)
 
     return metrics
 
 
-def update_database(db_path: str, metrics: dict, reach_id: str) -> None:
-    """Log the error metrics to a database."""
-    with sqlite3.connect(db_path) as con:
-        cur = con.cursor()
-        fields = [
-            "reach_id INTEGER",
-            "river_reach_rs TEXT",
-            "discharge REAL",
-            "below_lidar_flow_area REAL",
-            "below_lidar_depth REAL",
-            "terrain_bias REAL",
-            "flow_area_pct_difference REAL",
-            "inundated_area_pct_difference REAL",
-            "pct_incorrectly_inundated REAL",
-        ]
-        cur.execute(f"CREATE TABLE IF NOT EXISTS error_metrics ({', '.join(fields)})")
+def parse_plans(paths: list) -> dict:
+    """Parse the HEC-RAS plan file."""
+    all_rcs = []
+    for p in paths:
+        plan = RasPlanText(p)
+        wses, flows = plan.read_rating_curves()
+        wses = pd.melt(wses.reset_index(), id_vars="index", var_name="flow_bc", value_name="wse")
+        if "kwse" in plan.title:
+            wses[["flow_str", "bc_str"]] = wses["flow_bc"].str.split("-", expand=True)
+            wses["flow"] = wses["bc_str"].str[2:].astype(float)
+            wses["boundary_condition"] = wses["bc_str"].str[2:].str.replace("_", ".").astype(str)
+        else:
+            wses["flow"] = wses["flow_bc"].astype(float)
+            wses["boundary_condition"] = "nd"
+        all_rcs.append(wses[["index", "boundary_condition", "flow", "wse"]])
 
-        for section in metrics:
-            for flow in metrics[section]["specific_metrics"]:
-                cur.execute(
-                    """INSERT INTO error_metrics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        reach_id,
-                        section,
-                        flow,
-                        metrics[section]["below_lidar_flow_area"],
-                        metrics[section]["below_lidar_depth"],
-                        metrics[section]["terrain_bias"],
-                        metrics[section]["specific_metrics"][flow]["flow_area_pct_difference"],
-                        metrics[section]["specific_metrics"][flow]["inundated_area_pct_difference"],
-                        metrics[section]["specific_metrics"][flow]["pct_incorrectly_inundated"],
-                    ),
-                )
-        con.commit()
-    con.close()
+    all_rcs = pd.concat(all_rcs)
+    wse_dict = (
+        all_rcs.groupby("index")
+        .apply(lambda x: x.groupby("boundary_condition").agg({"flow": list, "wse": list}).to_dict(orient="index"))
+        .to_dict()
+    )
+    return wse_dict
 
 
-def compare_src_dem(path_dict: dict, make_plots: bool = False) -> float:
-    """Compare the stage-area curve derived from DEM with the one from HEC-RAS geometry file."""
-    # Load plan data
-    rcs = parse_plan(path_dict["plan"])
+def terrain_quality_metrics(plan_paths: list, geom_path: str, terrain_path: str, make_plots: bool = False) -> float:
+    """Quantify the agreement of HEC-RAS cross-sections and DEM used to generate FIM."""
+    # Load plan data (rating curves)
+    rcs = parse_plans(plan_paths)
 
     # Get the station-elevation series from the HEC-RAS geometry files
-    src, dem = get_model_terrains(path_dict["geometry"], path_dict["terrain"])
+    src, dem = get_model_terrains(geom_path, terrain_path)
 
-    # Derive the stage-area curve from the station-elevation series and calculate the error metric
-    section_metrics = {s: process_section_metrics(s, rcs[s], src[s], dem[s]) for s in src}
-    update_database(path_dict["rc_db"], section_metrics, path_dict["reach_id"])
-
-    # Generate plots
-    # if make_plots:
-    #     for section in src:
-    #         generate_plot_v2(section, src[section], dem[section], section_metrics[section])
-
-    # out_df = pd.DataFrame(section_errors.items(), columns=["Section", "Error"])
-    # out_df.to_csv("error_metrics.csv", index=False)
-    # return section_metrics
+    # Derive various error metrics for each cross-section
+    return {s: process_section_metrics(s, rcs[s], src[s], dem[s], make_plots) for s in src}
 
 
-def get_path_dict(model_dir, plan_suffix):
-    """Get a dictionary of all the relevant paths in a model directory."""
-    root = Path(model_dir)
-    name = root.name
-    out_dict = {
-        "root": root,
-        "reach_id": name,
-        "geometry": root / f"{name}.g01",
-        "plan": root / f"{name}{plan_suffix}",
-        "terrain": root / "Terrain" / f"{name}.USGS_Seamless_DEM_13.tif",
-        "rc_db": root / f"{name}_rc_metrics.db",
-    }
-    return {k: str(v) for k, v in out_dict.items()}
+def terrain_bias(src_el: np.ndarray, dem_el: np.ndarray) -> np.ndarray:
+    """Calculate the average terrain difference between two elevation profiles."""
+    all_stations = np.sort(np.unique(np.concatenate((src_el[:, 0], dem_el[:, 0]))))
+    src_el = np.interp(all_stations, src_el[:, 0], src_el[:, 1])
+    dem_el = np.interp(all_stations, dem_el[:, 0], dem_el[:, 1])
+    return np.trapezoid(src_el - dem_el, all_stations) / (all_stations[-1] - all_stations[0])
+
+
+def series_pct_diff(s1: np.ndarray, s2: np.ndarray, wse: float) -> float:
+    """Calculate the percent difference between two curves at a water surface elevation."""
+    s1 = np.interp(wse, s1[:, 0], s1[:, 1])
+    s2 = np.interp(wse, s2[:, 0], s2[:, 1])
+    return ((s1 - s2) / s1) * 100
+
+
+def below_lidar_discharge(wsel_dict: dict, wsel: float) -> float:
+    """Calculate the discharge below a water surface elevation from a dictionary of WSELs and discharges."""
+    discharges = np.array([float(i) for i in wsel_dict.keys()])
+    wsels = np.array(list(wsel_dict.values()))
+    return np.interp(wsel, wsels, discharges)
+
+
+def pct_incorrect_inundation(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
+    """Calculate the percent of the inundated area that is correct."""
+    all_stations = np.sort(np.unique(np.concatenate((src_el[:, 0], dem_el[:, 0]))))
+    src_el = np.interp(all_stations, src_el[:, 0], src_el[:, 1])
+    dem_el = np.interp(all_stations, dem_el[:, 0], dem_el[:, 1])
+    src_wet = src_el < wse
+    dem_wet = dem_el < wse
+    matching = (src_wet != dem_wet) * 1
+    return (np.trapezoid(matching, all_stations) / (all_stations[-1] - all_stations[0])) * 100
+
+
+def terrain_diff_summary(src_el: np.ndarray, dem_el: np.ndarray) -> dict:
+    """Calculate a summary of terrain differences between two elevation profiles."""
+    dem_el = np.interp(src_el[:, 0], dem_el[:, 0], dem_el[:, 1])
+    diff = src_el[:, 1] - dem_el
+
+    out_dict = {}
+    for q in [25, 50, 75]:
+        out_dict[f"diff_{q}%"] = np.percentile(diff, q)
+    out_dict["diff_mean"] = np.mean(diff)
+    out_dict["diff_std"] = np.std(diff)
+    out_dict["diff_max"] = np.max(diff)
+    out_dict["diff_min"] = np.min(diff)
+
+    return out_dict
 
 
 if __name__ == "__main__":
