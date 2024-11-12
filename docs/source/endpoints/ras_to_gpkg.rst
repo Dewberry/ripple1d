@@ -8,3 +8,4 @@ ras_to_gpkg
 **Description:**
 
 .. autofunction:: ripple1d.ras_to_gpkg.gpkg_from_ras
+    :no-index:
