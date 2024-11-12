@@ -60,11 +60,6 @@ from ripple1d.utils.ripple_utils import (
     text_block_from_start_end_str,
 )
 
-if platform.system() == "Windows":
-    import win32com.client
-    from pythoncom import com_error
-
-
 RAS_FILE_TYPES = ["Plan", "Flow", "Geometry", "Project"]
 
 VALID_PLANS = [f".p{i:02d}" for i in range(1, 100)] + [f".P{i:02d}" for i in range(1, 100)]
@@ -106,10 +101,7 @@ def check_version_installed(version: str):
 
     def decorator(func):
         def wrapper(self, *args, **kwargs):
-            try:
-                assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER", pythoncom.CoInitialize())
-                self.version = version
-            except com_error:
+            if not os.path.exists("C:\\Program Files (x86)\\HEC\\HEC-RAS\\6.3.1\\Ras.exe"):
                 raise HECRASVersionNotInstalledError(
                     f"Could not find the specified RAS version; please ensure it is installed. Version provided: {version}."
                 )
