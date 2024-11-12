@@ -1,0 +1,7 @@
+-e .
+Sphinx
+sphinx-autodoc-typehints
+sphinx-rtd-theme
+myst-parser
+sphinx_design
+pydata-sphinx-theme
