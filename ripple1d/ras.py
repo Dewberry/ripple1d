@@ -15,12 +15,6 @@ import fiona
 import geopandas as gpd
 import h5py
 import pandas as pd
-
-try:
-    import pythoncom
-except SystemError:
-    warnings.warn("Windows OS is required to run ripple1d. Many features will not work on other OS's.")
-
 from pyproj import CRS
 
 from ripple1d.consts import (
