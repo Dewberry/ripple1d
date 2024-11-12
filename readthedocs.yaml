@@ -33,3 +33,6 @@ sphinx:
 python:
   install:
     - requirements: docs/source/requirements.txt
+
+commands:
+  - sphinx-apidoc -o docs/source/api ripple1d
