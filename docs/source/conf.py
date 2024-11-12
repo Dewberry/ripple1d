@@ -8,7 +8,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
 
-import ripple1d
+# import ripple1d
 
 sys.path.insert(0, os.path.abspath("../"))
 
@@ -51,18 +51,18 @@ html_static_path = ["_static"]
 html_theme = "pydata_sphinx_theme"
 
 html_theme_options = {
-"navbar_start": ["navbar-logo", "navbar-version"],
-"navbar_center": ["navbar-nav"],
-"navbar_end": ["navbar-icon-links"],
-"navbar_persistent": ["search-button"]
+    "navbar_start": ["navbar-logo", "navbar-version"],
+    "navbar_center": ["navbar-nav"],
+    "navbar_end": ["navbar-icon-links"],
+    "navbar_persistent": ["search-button"],
 }
 
 html_sidebars = {
-  "tech_summary": [],
-  "postman": [],
-  "change_log": [],
+    "tech_summary": [],
+    "postman": [],
+    "change_log": [],
 }
 
 
 # Substitutions
-version = ripple1d.__version__
+version = 0
