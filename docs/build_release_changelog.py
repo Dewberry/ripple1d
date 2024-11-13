@@ -1,17 +1,16 @@
 import re
 from io import TextIOWrapper
+from pathlib import Path
 
 import requests
 
-CHANGE_LOG_PATH = "docs/source/change_log.rst"
-
-ip = "8.8.8.8"
+CHANGE_LOG_PATH = str(Path(__file__).parent.resolve() / "source" / "change_log.rst")
 
 try:
-    response = requests.get("http://" + ip, timeout=5)
-    print(f"{ip} is reachable")
+    response = requests.get("https://www.google.com/", timeout=5)
+    print("Google is reachable")
 except requests.ConnectionError:
-    print(f"Failed to reach {ip}")
+    print("Failed to reach Google")
 
 
 def get_content() -> dict:
