@@ -9,9 +9,9 @@ import os
 import subprocess
 import sys
 
-import ripple1d
-
 sys.path.insert(0, os.path.abspath("../.."))
+
+import ripple1d
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
