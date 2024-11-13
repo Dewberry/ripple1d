@@ -8,3 +8,4 @@ create_fim_lib
 **Description:**
 
 .. autofunction:: ripple1d.ops.fim_lib.create_fim_lib
+    :no-index:

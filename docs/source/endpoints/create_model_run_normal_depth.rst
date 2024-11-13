@@ -8,3 +8,4 @@ create_model_run_normal_depth
 **Description:**
 
 .. autofunction:: ripple1d.ops.ras_run.create_model_run_normal_depth
+    :no-index:
