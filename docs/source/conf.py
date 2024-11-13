@@ -9,7 +9,7 @@ import os
 import subprocess
 import sys
 
-# import ripple1d
+import ripple1d
 
 sys.path.insert(0, os.path.abspath("../.."))
 
@@ -66,7 +66,7 @@ html_sidebars = {
 
 
 # Substitutions
-version = "0.0.0"
+version = str(ripple1d.__version__)
 
 
 def fetch_github_releases():
