@@ -43,7 +43,8 @@ def add_release_body(file: TextIOWrapper, body: str):
             file.write(f"{'^' * len(l[3:])}\n")
         elif l.startswith("### "):
             file.write(f"{l[4:]}")
-            file.write(f"{'"' * len(l[4:])}\n")
+            underline = '"' * len(l[4:])
+            file.write(f"{underline}\n")
         else:
             l = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"`\1 <\2>`_", l)  # fix links
             file.write(f"{l}\n")
