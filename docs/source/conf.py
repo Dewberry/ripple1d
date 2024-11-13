@@ -6,6 +6,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
 import os
+import pathlib
 import subprocess
 import sys
 
@@ -70,7 +71,9 @@ version = str(ripple1d.__version__)
 
 
 def fetch_github_releases():
-    subprocess.run([sys.executable, "docs/build_release_changelog.py"], check=True)
+    subprocess.run(
+        [sys.executable, str(pathlib.Path(__file__).parent.parent.resolve() / "build_release_changelog.py")], check=True
+    )
 
 
 def setup(app):
