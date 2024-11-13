@@ -6,6 +6,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
 import os
+import subprocess
 import sys
 
 # import ripple1d
@@ -66,3 +67,11 @@ html_sidebars = {
 
 # Substitutions
 version = "0.0.0"
+
+
+def fetch_github_releases():
+    subprocess.run([sys.executable, "docs/build_release_changelog.py"], check=True)
+
+
+def setup(app):
+    fetch_github_releases()
