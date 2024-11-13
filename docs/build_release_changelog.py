@@ -6,12 +6,6 @@ import requests
 
 CHANGE_LOG_PATH = str(Path(__file__).parent.resolve() / "source" / "change_log.rst")
 
-try:
-    response = requests.get("https://www.google.com/", timeout=5)
-    print("Google is reachable")
-except requests.ConnectionError:
-    print("Failed to reach Google")
-
 
 def get_content() -> dict:
     """Get the content of the changelog from the GitHub API."""
