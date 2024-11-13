@@ -5,6 +5,14 @@ import requests
 
 CHANGE_LOG_PATH = "docs/source/change_log.rst"
 
+ip = "8.8.8.8"
+
+try:
+    response = requests.get("http://" + ip, timeout=5)
+    print(f"{ip} is reachable")
+except requests.ConnectionError:
+    print(f"Failed to reach {ip}")
+
 
 def get_content() -> dict:
     """Get the content of the changelog from the GitHub API."""
