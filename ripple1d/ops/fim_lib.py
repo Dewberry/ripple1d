@@ -98,7 +98,11 @@ def post_process_depth_grids(
 
 
 def create_rating_curves_db(
-    submodel_directory: str, plans: list, ras_version: str = "631", table_name: str = "rating_curves"
+    submodel_directory: str,
+    plans: list,
+    ras_version: str = "631",
+    table_name: str = "rating_curves",
+    terrain_metrics: bool = False,
 ):
     """Create a new rating curve database for a NWM id.
 
@@ -168,10 +172,11 @@ def create_rating_curves_db(
             )
 
     # Quantify DEM + source model agreement
-    geom_path = rm.current_plan.plan_geom_file
-    terrain_path = rm.terrain_path.replace(".hdf", ".USGS_Seamless_DEM_13.tif")
-    metrics = terrain_quality_metrics(plan_paths, geom_path, terrain_path, make_plots=False)
-    terrain_metrics_to_sqlite(nwm_rm.fim_results_database, metrics, nwm_rm.model_name)
+    if terrain_metrics:
+        geom_path = rm.current_plan.plan_geom_file
+        terrain_path = rm.terrain_path.replace(".hdf", ".USGS_Seamless_DEM_13.tif")
+        metrics = terrain_quality_metrics(plan_paths, geom_path, terrain_path, make_plots=True)
+        terrain_metrics_to_sqlite(nwm_rm.fim_results_database, metrics, nwm_rm.model_name)
 
     logging.info(f"create_rating_curves_db complete")
     return {"rating_curve_database": nwm_rm.fim_results_database}

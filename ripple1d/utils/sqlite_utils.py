@@ -201,7 +201,7 @@ def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
     return None
 
 
-def terrain_metrics_to_sqlite(db_path: str, metrics: dict, reach_id: str) -> None:
+def terrain_metrics_to_sqlite_dev(db_path: str, metrics: dict, reach_id: str) -> None:
     """Log the error metrics to a database."""
     # TODO: update this whole .py file to be generalized.  It's currently just for rating curve db
     with sqlite3.connect(db_path) as con:
@@ -249,5 +249,46 @@ def terrain_metrics_to_sqlite(db_path: str, metrics: dict, reach_id: str) -> Non
                         metrics[section]["diff_min"],
                     ),
                 )
+        con.commit()
+    con.close()
+
+
+def terrain_metrics_to_sqlite(db_path: str, metrics: dict, reach_id: str) -> None:
+    """Log the error metrics to a database."""
+    # TODO: update this whole .py file to be generalized.  It's currently just for rating curve db
+    with sqlite3.connect(db_path) as con:
+        cur = con.cursor()
+        fields = [
+            "reach_id INTEGER",
+            "ds_wse REAL",
+            "us_flow INTEGER",
+            "terrain_error REAL",
+            "terrain_passing INTEGER",
+        ]
+        cur.execute(f"CREATE TABLE IF NOT EXISTS error_metrics ({', '.join(fields)})")
+
+        for plan in metrics:
+            if "-" in plan:
+                flow = plan.split("-")[0]
+                flow = int(flow[2:])
+                ds_wse = plan.split("-")[1]
+                ds_wse = float(ds_wse[2:].replace("_", ".'"))
+            else:
+                cur.execute(
+                    """SELECT ds_wse FROM rating_curves WHERE us_flow = ? AND boundary_condition = ?""", (plan, "nd")
+                )
+                ds_wse = cur.fetchone()[0]
+                flow = plan
+            passing = metrics[plan]["terrain_error"] < 100
+            cur.execute(
+                """INSERT INTO error_metrics VALUES (?, ?, ?, ?, ?)""",
+                (
+                    reach_id,
+                    ds_wse,
+                    flow,
+                    metrics[plan]["terrain_error"],
+                    passing,
+                ),
+            )
         con.commit()
     con.close()

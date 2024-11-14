@@ -137,25 +137,25 @@ def generate_plot(
     ax[0, 2].legend()
 
     # Plot the percent correct inundation metric
-    ax[1, 0].plot(metrics["pct_incorrectly_inundated"], metrics["wse"], c="k", marker="o", markersize=3)
+    ax[1, 0].plot(metrics["pct_incorrectly_inundated"], metrics["wse"], c="k")
     ax[1, 0].set_title("Percent Incorrectly Inundated")
     ax[1, 0].set_xlabel("Percent")
     ax[1, 0].set_ylabel("Water Surface Elevation (ft)")
-    ax[1, 0].set_xlim(-5, 105)
+    ax[1, 0].set_xlim(-200, 200)
 
     # Plot the flow area percent difference metric
-    ax[1, 1].plot(metrics["flow_area_pct_difference"], metrics["wse"], c="k", marker="o", markersize=3)
+    ax[1, 1].plot(metrics["flow_area_pct_difference"], metrics["wse"], c="k")
     ax[1, 1].set_title("Flow Area Percent Difference")
     ax[1, 1].set_xlabel("Percent")
     ax[1, 1].set_ylabel("Water Surface Elevation (ft)")
-    ax[1, 1].set_xlim(-5, 105)
+    ax[1, 1].set_xlim(-200, 200)
 
     # Plot the inundated area percent difference metric
-    ax[1, 2].plot(metrics["inundated_area_pct_difference"], metrics["wse"], c="k", marker="o", markersize=3)
+    ax[1, 2].plot(metrics["inundated_area_pct_difference"], metrics["wse"], c="k")
     ax[1, 2].set_title("Inundated Area Percent Difference")
     ax[1, 2].set_xlabel("Percent")
     ax[1, 2].set_ylabel("Water Surface Elevation (ft)")
-    ax[1, 2].set_xlim(-5, 105)
+    ax[1, 2].set_xlim(-200, 200)
 
     # merge last column into one plot
     gs = ax[0, 3].get_gridspec()
@@ -182,7 +182,7 @@ def generate_plot(
     fig.tight_layout()
     out_path = Path("plots") / section.split(" ")[0]
     out_path.mkdir(parents=True, exist_ok=True)
-    fig.savefig(str(out_path / f"{section}.png"), dpi=300)
+    fig.savefig(str(out_path / f"{section}.jpg"), dpi=200)
     plt.close(fig)
 
 
@@ -195,6 +195,7 @@ def process_section_metrics(
     dem_fa_curve = derive_stage_flow_area_curve(dem_el)
     src_ia_curve = derive_stage_inundated_area_curve(src_el)
     dem_ia_curve = derive_stage_inundated_area_curve(dem_el)
+    wsels = {k: v for k, v in sorted(wsels.items(), key=lambda item: item[1])}  # sort by WSEL
 
     # Calculate general error metrics
     metrics = defaultdict(list)
@@ -207,30 +208,42 @@ def process_section_metrics(
         metrics[k] = v
 
     # Calculate stage-specific error metrics
-    for wse in wsels:
+    out_dict = {}
+    for p in wsels:
+        wse = wsels[p]
         metrics["pct_incorrectly_inundated"].append(pct_incorrect_inundation(src_el, dem_el, wse))
         metrics["flow_area_pct_difference"].append(series_pct_diff(src_fa_curve, dem_fa_curve, wse))
-        metrics["inundated_area_pct_difference"].append(series_pct_diff(src_ia_curve, dem_ia_curve, wse))
+        ia_pct_diff = series_pct_diff(src_ia_curve, dem_ia_curve, wse)
+        metrics["inundated_area_pct_difference"].append(ia_pct_diff)
+        out_dict[p] = ia_pct_diff
 
     # Generate a plot
     if plot:
         generate_plot(xs_id, src_el, dem_el, src_fa_curve, dem_fa_curve, src_ia_curve, dem_ia_curve, metrics)
 
-    return metrics
+    return out_dict
+
+
+def aggregate_errors(metrics: dict) -> dict:
+    """Aggregate error metrics across all cross sections."""
+    out_dict = {}
+    plans = list(metrics[next(iter(metrics))].keys())
+    for plan in plans:
+        out_dict[plan] = np.nanmean([metrics[xs][plan] for xs in metrics])
+    return out_dict
 
 
 def parse_plans(paths: list) -> dict:
     """Parse the HEC-RAS plan file."""
-    all_wses = defaultdict(list)
+    all_plans = None
     for p in paths:
         plan = RasPlanText(p)
         wses, flows = plan.read_rating_curves()
-        wses = wses.to_dict(orient="index")
-        for wse in wses:
-            all_wses[wse].extend(wses[wse].values())
-    for k in all_wses:
-        all_wses[k] = np.sort(all_wses[k])
-    return all_wses
+        if all_plans is None:
+            all_plans = wses
+        else:
+            all_plans = pd.merge(all_plans, wses, how="outer", left_index=True, right_index=True)
+    return all_plans.to_dict(orient="index")
 
 
 def terrain_quality_metrics(plan_paths: list, geom_path: str, terrain_path: str, make_plots: bool = False) -> float:
@@ -241,8 +254,11 @@ def terrain_quality_metrics(plan_paths: list, geom_path: str, terrain_path: str,
     # Get the station-elevation series from the HEC-RAS geometry files
     src, dem = get_model_terrains(geom_path, terrain_path)
 
-    # Derive various error metrics for each cross-section
-    return {s: process_section_metrics(s, wsels[s], src[s], dem[s], make_plots) for s in src}
+    # Derive error metric for each cross-section
+    metrics = {s: process_section_metrics(s, wsels[s], src[s], dem[s], make_plots) for s in src}
+
+    # Aggregate error metrics
+    return aggregate_errors(metrics)
 
 
 def terrain_bias(src_el: np.ndarray, dem_el: np.ndarray) -> np.ndarray:
