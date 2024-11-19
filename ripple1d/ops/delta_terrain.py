@@ -199,7 +199,6 @@ def process_section_metrics(
 
     # Calculate general error metrics
     metrics = defaultdict(list)
-    metrics["wse"] = wsels
     metrics["below_lidar_flow_area"] = np.interp(dem_el[:, 1].min(), src_fa_curve[:, 0], src_fa_curve[:, 1])
     metrics["below_lidar_depth"] = dem_el[:, 1].min() - src_el[:, 1].min()
     # metrics["below_lidar_discharge"] = below_lidar_discharge(rc, dem_el[:, 1].min())
@@ -211,6 +210,7 @@ def process_section_metrics(
     out_dict = {}
     for p in wsels:
         wse = wsels[p]
+        metrics["wse"].append(wse)
         metrics["pct_incorrectly_inundated"].append(pct_incorrect_inundation(src_el, dem_el, wse))
         metrics["flow_area_pct_difference"].append(series_pct_diff(src_fa_curve, dem_fa_curve, wse))
         ia_pct_diff = series_pct_diff(src_ia_curve, dem_ia_curve, wse)
