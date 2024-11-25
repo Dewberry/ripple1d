@@ -3,6 +3,7 @@
 import os
 import sqlite3
 
+import numpy as np
 import pandas as pd
 
 from ripple1d.ras import RasManager
@@ -272,23 +273,93 @@ def terrain_metrics_to_sqlite(db_path: str, metrics: dict, reach_id: str) -> Non
                 flow = plan.split("-")[0]
                 flow = int(flow[2:])
                 ds_wse = plan.split("-")[1]
-                ds_wse = float(ds_wse[2:].replace("_", ".'"))
+                ds_wse = float(ds_wse[2:].replace("_", "."))
             else:
                 cur.execute(
                     """SELECT ds_wse FROM rating_curves WHERE us_flow = ? AND boundary_condition = ?""", (plan, "nd")
                 )
                 ds_wse = cur.fetchone()[0]
                 flow = plan
-            passing = metrics[plan]["terrain_error"] < 100
+            passing = abs(metrics[plan]) < 100
             cur.execute(
-                """INSERT INTO error_metrics VALUES (?, ?, ?, ?, ?)""",
+                """INSERT INTO error_metrics (reach_id, ds_wse, us_flow, terrain_error, terrain_passing) VALUES (?, ?, ?, ?, ?)""",
                 (
                     reach_id,
                     ds_wse,
                     flow,
-                    metrics[plan]["terrain_error"],
+                    metrics[plan],
                     passing,
                 ),
             )
         con.commit()
     con.close()
+
+
+def terrain_metrics_to_sqlite_2(db_path: str, metrics: dict, reach_id: str) -> None:
+    """Log the error metrics to a database."""
+    with sqlite3.connect(db_path) as con:
+        cur = con.cursor()
+        fields = [
+            ("reach_id", "INTEGER"),
+            ("xs_id", "TEXT"),
+            ("ds_wse", "REAL"),
+            ("us_flow", "INTEGER"),
+            ("wse", "REAL"),
+            ("cutline_ratio", "REAL"),
+            ("vertex_count_ratio", "REAL"),
+            ("below_lidar_flow_area", "REAL"),
+            ("below_lidar_flow_area_norm", "REAL"),
+            ("below_lidar_depth", "REAL"),
+            ("below_lidar_depth_norm", "REAL"),
+            ("terrain_bias", "REAL"),
+            ("spectral_angle", "REAL"),
+            ("spectral_correlation", "REAL"),
+            ("flow_area_pct_difference", "REAL"),
+            ("inundated_area_pct_difference", "REAL"),
+            ("pct_incorrectly_inundated", "REAL"),
+            ("diff_25", "REAL"),
+            ("diff_50", "REAL"),
+            ("diff_75", "REAL"),
+            ("diff_mean", "REAL"),
+            ("diff_std", "REAL"),
+            ("diff_max", "REAL"),
+            ("diff_min", "REAL"),
+            ("nrmse", "REAL"),
+            ("r2", "REAL"),
+        ]
+        fields_str = ", ".join([" ".join(j) for j in fields])
+        cur.execute(f"CREATE TABLE IF NOT EXISTS error_metrics ({fields_str})")
+
+    for xs in metrics:
+        metrics[xs]["reach_id"] = reach_id
+        metrics[xs]["xs_id"] = xs
+        flows, ds_wses = parse_profiles(metrics[xs]["profile"], db_path)
+        metrics[xs]["us_flow"] = flows
+        metrics[xs]["ds_wse"] = ds_wses
+        xs_df = pd.DataFrame.from_dict(metrics[xs])
+        xs_df = xs_df[[i[0] for i in fields]]
+        with sqlite3.connect(db_path) as con:
+            xs_df.to_sql("error_metrics", con, if_exists="append", index=False)
+    con.close()
+
+
+def parse_profiles(profile_names: list, db_path: str) -> list:
+    flow_list, ds_wse_list = [], []
+    with sqlite3.connect(db_path) as con:
+        cur = con.cursor()
+        for profile in profile_names:
+            if "-" in profile:
+                flow = profile.split("-")[0]
+                flow = int(flow[2:])
+                ds_wse = profile.split("-")[1]
+                ds_wse = float(ds_wse[2:].replace("_", "."))
+            else:
+                cur.execute(
+                    """SELECT ds_wse FROM rating_curves WHERE us_flow = ? AND boundary_condition = ?""",
+                    (profile, "nd"),
+                )
+                ds_wse = cur.fetchone()[0]
+                flow = profile
+            flow_list.append(flow)
+            ds_wse_list.append(ds_wse)
+    return flow_list, ds_wse_list

@@ -35,7 +35,7 @@ from ripple1d.utils.s3_utils import get_basic_object_metadata, init_s3_resources
 from ripple1d.utils.sqlite_utils import (
     create_db_and_table,
     rating_curves_to_sqlite,
-    terrain_metrics_to_sqlite,
+    terrain_metrics_to_sqlite_2,
     zero_depth_to_sqlite,
 )
 
@@ -175,8 +175,8 @@ def create_rating_curves_db(
     if terrain_metrics:
         geom_path = rm.current_plan.plan_geom_file
         terrain_path = rm.terrain_path.replace(".hdf", ".USGS_Seamless_DEM_13.tif")
-        metrics = terrain_quality_metrics(plan_paths, geom_path, terrain_path, make_plots=True)
-        terrain_metrics_to_sqlite(nwm_rm.fim_results_database, metrics, nwm_rm.model_name)
+        metrics = terrain_quality_metrics(plan_paths, geom_path, terrain_path, make_plots=False)
+        terrain_metrics_to_sqlite_2(nwm_rm.fim_results_database, metrics, nwm_rm.model_name)
 
     logging.info(f"create_rating_curves_db complete")
     return {"rating_curve_database": nwm_rm.fim_results_database}

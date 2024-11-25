@@ -29,7 +29,7 @@ def get_model_terrains(path, raster_path):
     return src_series, dem_series
 
 
-def get_dem_elevations(sections, dem_path, interval=None):
+def get_dem_elevations(sections, dem_path, interval: float):
     """Get the DEM elevations at the station points of the cross sections."""
     # load raster
     with rasterio.open(dem_path) as dem:
@@ -46,11 +46,11 @@ def get_dem_elevations(sections, dem_path, interval=None):
         tmp_planform_xy = np.array(sections[section].coords)
         line = LineString(tmp_planform_xy)
         og_stations = np.array(sections[section].station_elevation_points)[:, 0]
-        if interval is None:
-            stations = og_stations - og_stations[0]
-        else:
-            og_stations = np.arange(og_stations[0], og_stations[-1], interval)
-            stations = og_stations - og_stations[0]
+        min_station = min(og_stations)
+        max_station = min_station + line.length
+        og_stations = np.arange(min_station, max_station, interval)
+        og_stations = np.append(og_stations, max_station)
+        stations = og_stations - min_station
         interp_xy = line.interpolate(stations)
 
         # Get the DEM elevations at the interpolated points
@@ -199,10 +199,15 @@ def process_section_metrics(
 
     # Calculate general error metrics
     metrics = defaultdict(list)
+    metrics["cutline_ratio"] = max(src_el[:, 0]) / max(dem_el[:, 0])
+    metrics["vertex_count_ratio"] = len(src_el[:, 0]) / len(dem_el[:, 0])
     metrics["below_lidar_flow_area"] = np.interp(dem_el[:, 1].min(), src_fa_curve[:, 0], src_fa_curve[:, 1])
+    metrics["below_lidar_flow_area_norm"] = metrics["below_lidar_flow_area"] / src_fa_curve[:, 1].max()
     metrics["below_lidar_depth"] = dem_el[:, 1].min() - src_el[:, 1].min()
-    # metrics["below_lidar_discharge"] = below_lidar_discharge(rc, dem_el[:, 1].min())
+    metrics["below_lidar_depth_norm"] = metrics["below_lidar_depth"] / (src_el[:, 1].max() - src_el[:, 1].min())
     metrics["terrain_bias"] = terrain_bias(src_el, dem_el)
+    metrics["spectral_angle"] = spectral_angle(src_el, dem_el)
+    metrics["spectral_correlation"] = spectral_correlation(src_el, dem_el)
     for k, v in terrain_diff_summary(src_el, dem_el).items():
         metrics[k] = v
 
@@ -211,6 +216,7 @@ def process_section_metrics(
     for p in wsels:
         wse = wsels[p]
         metrics["wse"].append(wse)
+        metrics["profile"].append(p)
         metrics["pct_incorrectly_inundated"].append(pct_incorrect_inundation(src_el, dem_el, wse))
         metrics["flow_area_pct_difference"].append(series_pct_diff(src_fa_curve, dem_fa_curve, wse))
         ia_pct_diff = series_pct_diff(src_ia_curve, dem_ia_curve, wse)
@@ -221,7 +227,7 @@ def process_section_metrics(
     if plot:
         generate_plot(xs_id, src_el, dem_el, src_fa_curve, dem_fa_curve, src_ia_curve, dem_ia_curve, metrics)
 
-    return out_dict
+    return metrics
 
 
 def aggregate_errors(metrics: dict) -> dict:
@@ -258,7 +264,8 @@ def terrain_quality_metrics(plan_paths: list, geom_path: str, terrain_path: str,
     metrics = {s: process_section_metrics(s, wsels[s], src[s], dem[s], make_plots) for s in src}
 
     # Aggregate error metrics
-    return aggregate_errors(metrics)
+    # return aggregate_errors(metrics)
+    return metrics
 
 
 def terrain_bias(src_el: np.ndarray, dem_el: np.ndarray) -> np.ndarray:
@@ -267,6 +274,36 @@ def terrain_bias(src_el: np.ndarray, dem_el: np.ndarray) -> np.ndarray:
     src_el = np.interp(all_stations, src_el[:, 0], src_el[:, 1])
     dem_el = np.interp(all_stations, dem_el[:, 0], dem_el[:, 1])
     return np.trapezoid(src_el - dem_el, all_stations) / (all_stations[-1] - all_stations[0])
+
+
+def spectral_angle(src_el: np.ndarray, dem_el: np.ndarray) -> float:
+    """Calculate the spectral angle of two vectors.
+
+    Following the approach of https://github.com/BYU-Hydroinformatics/HydroErr/blob/42a84f3e006044f450edc7393ed54d59f27ef35b/HydroErr/HydroErr.py#L3541
+    """
+    all_stations = np.sort(np.unique(np.concatenate((src_el[:, 0], dem_el[:, 0]))))
+    src_el = np.interp(all_stations, src_el[:, 0], src_el[:, 1])
+    dem_el = np.interp(all_stations, dem_el[:, 0], dem_el[:, 1])
+
+    a = np.dot(src_el, dem_el)
+    b = np.linalg.norm(src_el) * np.linalg.norm(dem_el)
+    return np.arccos(a / b)
+
+
+def spectral_correlation(src_el: np.ndarray, dem_el: np.ndarray) -> float:
+    """Calculate the spectral angle of two vectors.
+
+    Following the approach of https://github.com/BYU-Hydroinformatics/HydroErr/blob/42a84f3e006044f450edc7393ed54d59f27ef35b/HydroErr/HydroErr.py#L3541
+    """
+    all_stations = np.sort(np.unique(np.concatenate((src_el[:, 0], dem_el[:, 0]))))
+    src_el = np.interp(all_stations, src_el[:, 0], src_el[:, 1])
+    dem_el = np.interp(all_stations, dem_el[:, 0], dem_el[:, 1])
+
+    a = np.dot(src_el - np.mean(src_el), dem_el - np.mean(dem_el))
+    b = np.linalg.norm(src_el - np.mean(src_el))
+    c = np.linalg.norm(dem_el - np.mean(dem_el))
+    e = b * c
+    return np.arccos(a / e)
 
 
 def series_pct_diff(s1: np.ndarray, s2: np.ndarray, wse: float) -> float:
@@ -296,18 +333,28 @@ def pct_incorrect_inundation(src_el: np.ndarray, dem_el: np.ndarray, wse: float)
 
 def terrain_diff_summary(src_el: np.ndarray, dem_el: np.ndarray) -> dict:
     """Calculate a summary of terrain differences between two elevation profiles."""
-    dem_el = np.interp(src_el[:, 0], dem_el[:, 0], dem_el[:, 1])
-    diff = src_el[:, 1] - dem_el
+    all_stations = np.sort(np.unique(np.concatenate((src_el[:, 0], dem_el[:, 0]))))
+    src_el = np.interp(all_stations, src_el[:, 0], src_el[:, 1])
+    dem_el = np.interp(all_stations, dem_el[:, 0], dem_el[:, 1])
+    diff = src_el - dem_el
 
     out_dict = {}
     for q in [25, 50, 75]:
-        out_dict[f"diff_{q}%"] = np.percentile(diff, q)
+        out_dict[f"diff_{q}"] = np.percentile(diff, q)
     out_dict["diff_mean"] = np.mean(diff)
     out_dict["diff_std"] = np.std(diff)
     out_dict["diff_max"] = np.max(diff)
     out_dict["diff_min"] = np.min(diff)
 
+    out_dict["nrmse"] = np.sqrt(np.mean(diff**2)) / (out_dict[f"diff_75"] - out_dict[f"diff_25"])
+    out_dict["r2"] = ss(src_el, dem_el) ** 2 / (ss(src_el, src_el) * ss(dem_el, dem_el))
+
     return out_dict
+
+
+def ss(x: np.ndarray, y: np.ndarray) -> float:
+    """Calculate the sum of squares."""
+    return np.sum((x - np.mean(x)) * (y - np.mean(y)))
 
 
 if __name__ == "__main__":
