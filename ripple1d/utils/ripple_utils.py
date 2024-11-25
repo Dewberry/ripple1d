@@ -336,6 +336,20 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
     return pairs
 
 
+def delimited_pairs_to_lists(lines: list[str]) -> list[list[float], list[float]]:
+    """Extract subdivisions from the manning's text block."""
+    stations = []
+    mannings = []
+    for line in lines:
+        pairs = line.split("       0")
+        for p in pairs[:-1]:
+            station = float(p[:8])
+            n = float(p[8:])
+            stations.append(station)
+            mannings.append(n)
+    return (stations, mannings)
+
+
 def handle_spaces(line: str, lines: list[str]):
     """Handle spaces in the line."""
     if line in lines:

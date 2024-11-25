@@ -8,7 +8,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import List
-
+import numpy as np
 import geopandas as gpd
 import pandas as pd
 from pyproj import CRS
@@ -22,6 +22,7 @@ from ripple1d.utils.ripple_utils import (
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
     xs_concave_hull,
+    delimited_pairs_to_lists,
 )
 from ripple1d.utils.s3_utils import init_s3_resources, read_json_from_s3
 
@@ -485,6 +486,119 @@ class XS:
             crs=self.crs,
             geometry="geometry",
         )
+
+    @property
+    def n_subdivisions(self):
+        """Get the number of subdivisions (defined by manning's n)."""
+        return int(search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[0])
+
+    @property
+    def subdivision_type(self):
+        """Get the subdivision type.
+
+        -1 seems to indicate horizontally-varied n.  0 seems to indicate subdivisions by LOB, channel, ROB.
+        """
+        return int(search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[1])
+
+    @property
+    def subdivisions(self):
+        """Get the stations corresponding to subdivision breaks, along with their roughness."""
+        try:
+            header = [l for l in self.ras_data if l.startswith("#Mann")][0]
+            lines = text_block_from_start_str_length(
+                header,
+                math.ceil(self.n_subdivisions / 3),
+                self.ras_data,
+            )
+
+            return delimited_pairs_to_lists(lines)
+        except ValueError as e:
+            return None
+
+    def wse_intersection_pts(self, wse: float) -> list[tuple[float]]:
+        """Find where the cross-section terrain intersects the water-surface elevation."""
+        section_pts = self.station_elevation_points
+        intersection_pts = []
+
+        # Iterate through all pairs of points and find any points where the line would cross the wse
+        for i in range(len(section_pts) - 1):
+            p1 = section_pts[i]
+            p2 = section_pts[i + 1]
+
+            if p1[1] > wse and p2[1] > wse:  # No intesection
+                continue
+            elif p1[1] < wse and p2[1] < wse:  # Both below wse
+                continue
+
+            # Define line
+            m = (p2[1] - p1[1]) / (p2[0] - p1[0])
+            b = p1[1] - (m * p1[0])
+
+            # Find intersection point with Cramer's rule
+            determinant = lambda a, b: (a[0] * b[1]) - (a[1] * b[0])
+            div = determinant((1, 1), (-m, 0))
+            tmp_y = determinant((b, wse), (-m, 0)) / div
+            tmp_x = determinant((1, 1), (b, wse)) / div
+
+            intersection_pts.append((tmp_x, tmp_y))
+        return intersection_pts
+
+    def get_wetted_perimeter(self, wse: float, start: float = None, stop: float = None) -> float:
+        """Get the hydraulic radius of the cross-section at a given WSE."""
+        df = pd.DataFrame(self.station_elevation_points, columns=["x", "y"])
+        df = pd.concat([df, pd.DataFrame(self.wse_intersection_pts(wse), columns=["x", "y"])])
+        if start is not None:
+            df = df[df["x"] >= start]
+        if stop is not None:
+            df = df[df["x"] <= stop]
+        df = df.sort_values("x", ascending=True)
+        df = df[df["y"] <= wse]
+        if len(df) == 0:
+            return 0
+        df["dx"] = df["x"].diff(-1)
+        df["dy"] = df["y"].diff(-1)
+        df["d"] = ((df["x"] ** 2) + (df["y"] ** 2)) ** (0.5)
+
+        return df["d"].cumsum().values[0]
+
+    def get_flow_area(self, wse: float, start: float = None, stop: float = None) -> float:
+        """Get the flow area of the cross-section at a given WSE."""
+        df = pd.DataFrame(self.station_elevation_points, columns=["x", "y"])
+        df = pd.concat([df, pd.DataFrame(self.wse_intersection_pts(wse), columns=["x", "y"])])
+        if start is not None:
+            df = df[df["x"] >= start]
+        if stop is not None:
+            df = df[df["x"] <= stop]
+        df = df.sort_values("x", ascending=True)
+        df = df[df["y"] <= wse]
+        if len(df) == 0:
+            return 0
+        df["d"] = wse - df["y"]  # depth
+        df["d2"] = df["d"].shift(-1)
+        df["x2"] = df["x"].shift(-1)
+        df["a"] = ((df["d"] + df["d2"]) / 2) * (df["x2"] - df["x"])  # area of a trapezoid
+
+        return df["a"].cumsum().values[0]
+
+    def get_mannings_discharge(self, wse: float, slope: float, units: str) -> float:
+        """Calculate the discharge of the cross-section according to manning's equation."""
+        q = 0
+        stations, mannings = self.subdivisions
+        slope = slope**0.5  # pre-process slope for efficiency
+        for i in range(self.n_subdivisions - 1):
+            start = stations[i]
+            stop = stations[i + 1]
+            n = mannings[i]
+            area = self.get_flow_area(wse, start, stop)
+            if area == 0:
+                continue
+            perimeter = self.get_wetted_perimeter(wse, start, stop)
+            rh = area / perimeter
+            tmp_q = (1 / n) * area * (rh ** (2 / 3)) * slope
+            if units == "english":
+                tmp_q *= 1.49
+            q += (1 / n) * area * (rh ** (2 / 3)) * slope
+        return q
 
 
 class Structure:
