@@ -419,6 +419,21 @@ class XS:
             return min(y)
 
     @property
+    def has_htab_error(self):
+        """Check if min htab value is less than section invert."""
+        return self.min_htab < self.thalweg
+
+    @property
+    def htab_string(self):
+        """Cross section htab string."""
+        return search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True)
+
+    @property
+    def min_htab(self):
+        """Cross section minimum htab."""
+        return float(self.htab_string.split(",")[0])
+
+    @property
     def xs_max_elevation(self):
         """Cross section maximum elevation."""
         if self.station_elevation_points:

@@ -775,6 +775,8 @@ class RasGeomText(RasTextFile):
         self.crs = CRS(crs)
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
+        self.fix_htab_errors()
+
     def __repr__(self):
         """Representation of the RasGeomText class."""
         return f"RasGeomText({self._ras_text_file_path})"
@@ -867,6 +869,26 @@ class RasGeomText(RasTextFile):
 
         if "River" not in layers:
             raise NoRiverLayerError(f"Could not find a layer called River in {self._gpkg_path}")
+
+    def fix_htab_errors(self):
+        """Update any htab values lower than the section invert to the section invert."""
+        working_string = "\n".join(self.contents.copy())
+        needs_save = False
+        for xs in self.cross_sections.values():
+            if xs.has_htab_error:
+                needs_save = True
+                logging.info(f"Fixing htab error for {xs.river_reach}")
+                old_ras_str = "\n".join(xs.ras_data)
+                old_htab = xs.htab_string
+                new_htab = xs.htab_string.replace(
+                    str(xs.min_htab), str(xs.thalweg + 0.5)
+                )  # HEC-RAS default handling of this error is to do 0.5 ft above section invert
+                new_ras_string = old_ras_str.replace(old_htab, new_htab)
+                working_string = working_string.replace(old_ras_str, new_ras_string)
+        if needs_save:
+            with open(self._ras_text_file_path, "w") as f:
+                f.write(working_string)
+            self.contents = working_string.splitlines()
 
     @property
     def title(self):
