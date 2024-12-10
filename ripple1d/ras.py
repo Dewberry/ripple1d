@@ -878,13 +878,16 @@ class RasGeomText(RasTextFile):
             if xs.has_htab_error:
                 needs_save = True
                 logging.info(f"Fixing htab error for {xs.river_reach}")
-                old_ras_str = "\n".join(xs.ras_data)
-                old_htab = xs.htab_string
-                new_htab = xs.htab_string.replace(
-                    str(xs.min_htab), str(xs.thalweg + 0.5)
-                )  # HEC-RAS default handling of this error is to do 0.5 ft above section invert
-                new_ras_string = old_ras_str.replace(old_htab, new_htab)
-                working_string = working_string.replace(old_ras_str, new_ras_string)
+                old_htab_str = xs.htab_string
+                # HEC-RAS default handling:
+                # either 0 or 0.5 ft above section invert for the start elevation
+                # increment that will yield 20 pts between start and section max elevations
+                # We want to preserve engineer-specified increments, so we don't do that
+                new_htab_str = old_htab_str.replace(str(xs.htab_starting_el), str(xs.thalweg))
+
+                old_xs_str = "\n".join(xs.ras_data)
+                new_xs_str = old_xs_str.replace(old_htab_str, new_htab_str)
+                working_string = working_string.replace(old_xs_str, new_xs_str)
         if needs_save:
             with open(self._ras_text_file_path, "w") as f:
                 f.write(working_string)
