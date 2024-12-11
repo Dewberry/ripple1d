@@ -286,29 +286,24 @@ class RippleGeopackageSubsetter:
 
     def walk_junctions(self) -> list[str]:
         """Check if junctions are present for the given river-reaches."""
-        river_reaches = []
-        if not self.source_junction.empty:
-            c = 0
-            while True:
-                c += 1
-                if c > 100:
-                    logging.warning(
-                        f"Could not find junction for: {self.nwm_id}. The reach may contain cross sections from multiple RAS reaches that are not connected via junctions."
-                    )
-                    return None
+        # make a tree dictionary
+        tree_dict = {}
+        for r in self.source_junction.iterrows():
+            trib_rivers = r[1]["us_rivers"].split(",")
+            trib_reaches = r[1]["us_reaches"].split(",")
+            outlet = f'{r[1]["ds_rivers"]}-{r[1]["ds_reaches"]}'
+            for riv, rch in zip(trib_rivers, trib_reaches):
+                tree_dict[f"{riv}-{rch}"] = outlet
 
-                for _, row in self.source_junction.iterrows():
-
-                    us_rivers = row.us_rivers.split(",")
-                    us_reaches = row.us_reaches.split(",")
-
-                    for river, reach in zip(us_rivers, us_reaches):
-                        if row.ds_rivers == self.ds_river and row.ds_reaches == self.ds_reach:
-                            return river_reaches
-                        if river == self.us_river and reach == self.us_reach:
-                            river_reaches.append(f"{row.ds_rivers.ljust(16)},{row.ds_reaches.ljust(16)}")
-                            us_river = row.ds_rivers
-                            us_reach = row.ds_reaches
+        # walk network to id intermediate reaches
+        intermediate_reaches = []
+        cur_reach = f"{self.us_river}-{self.us_reach}"
+        ds_reach = f"{self.ds_river}-{self.ds_reach}"
+        while cur_reach != ds_reach:
+            cur_reach = tree_dict[cur_reach]
+            intermediate_reaches.append(cur_reach)
+        intermediate_reaches = intermediate_reaches[:-1]  # remove d/s reach
+        return intermediate_reaches
 
     def clean_river_stations(self, ras_data: str) -> str:
         """Clean up river station data."""
