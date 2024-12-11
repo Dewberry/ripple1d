@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import warnings
+from functools import lru_cache
 
 import fiona
 import geopandas as gpd
@@ -193,41 +194,42 @@ class RippleGeopackageSubsetter:
         return self.subset_gdfs["Structure"]
 
     @property
+    @lru_cache
     def subset_gdfs(self) -> dict:
         """Subset the cross sections, structues, and river geometry for a given NWM reach."""
-        if self._subset_gdf is None:
-            # subset data
-            if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
-                ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
-            else:
-                ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
+        # subset data
+        if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
+            ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
+        else:
+            ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
 
-            # check if only 1 cross section for nwm_reach
-            if len(ripple_xs) <= 1:
-                logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
-                return None
+        # check if only 1 cross section for nwm_reach
+        if len(ripple_xs) <= 1:
+            logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
+            return None
 
-            # update fields
-            ripple_xs = self.update_fields(ripple_xs)
-            ripple_river = self.update_fields(ripple_river)
-            ripple_structure = self.update_fields(ripple_structure)
+        # update fields
+        ripple_river = self.rename_river_reach(ripple_river)
+        ripple_structure = self.rename_river_reach(ripple_structure)
+        ripple_xs = self.rename_river_reach(ripple_xs)
+        ripple_xs = self.autoincrement_stations(ripple_xs)
 
-            # clip river to cross sections
-            ripple_river["geometry"] = clip_ras_centerline(
-                ripple_river.iloc[0].geometry, fix_reversed_xs(ripple_xs, ripple_river), 2
-            )
+        # clip river to cross sections
+        ripple_river["geometry"] = clip_ras_centerline(
+            ripple_river.iloc[0].geometry, fix_reversed_xs(ripple_xs, ripple_river), 2
+        )
 
-            if ripple_structure is not None and len(ripple_structure) > 0:
-                self._subset_gdf = {
-                    "XS": ripple_xs,
-                    "River": ripple_river,
-                    "Structure": ripple_structure,
-                }
-            else:
-                self._subset_gdf = {
-                    "XS": ripple_xs,
-                    "River": ripple_river,
-                }
+        if ripple_structure is not None and len(ripple_structure) > 0:
+            self._subset_gdf = {
+                "XS": ripple_xs,
+                "River": ripple_river,
+                "Structure": ripple_structure,
+            }
+        else:
+            self._subset_gdf = {
+                "XS": ripple_xs,
+                "River": ripple_river,
+            }
 
         return self._subset_gdf
 
@@ -517,19 +519,20 @@ class RippleGeopackageSubsetter:
             crs=self.crs,
         )
 
-    def update_fields(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-        """Update fields for the new NWM reach."""
-        if gdf is not None:
-            gdf = self.rename_river_reach(gdf)
-
-            # clean river stations
-            if "river_station" in gdf.columns:
-                if (gdf["river_station"].astype(str).str.len() > 8).any():
-                    gdf["ras_data"] = gdf["ras_data"].apply(lambda ras_data: self.round_river_stations(ras_data))
-                    gdf["river_station"] = gdf["river_station"].round().astype(float)
-                else:
-                    gdf["ras_data"] = gdf["ras_data"].apply(lambda ras_data: self.clean_river_stations(ras_data))
-                    gdf["river_station"] = gdf["river_station"].astype(float)
+    def autoincrement_stations(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Update river_stations and ras data to be autoincrementing instead of distances."""
+        gdf["river_station"] = range(1, len(gdf) + 1)  # autoincrementing field
+        for row in gdf.iterrows():  # for each XS
+            # update station name in RAS data
+            ras_data = row[1]["ras_data"]
+            lines = ras_data.splitlines()
+            data = lines[0].split(",")
+            if "*" in data[1]:
+                data[1] = str(row[1]["river_station"] + "*").ljust(8)
+            else:
+                data[1] = str(row[1]["river_station"]).ljust(8)
+            lines[0] = ",".join(data)
+            gdf.loc[row[0], "ras_data"] = "\n".join(lines) + "\n"
         return gdf
 
     def update_ripple1d_parameters(self, rsd: RippleSourceDirectory):
