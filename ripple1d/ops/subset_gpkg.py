@@ -6,11 +6,13 @@ import os
 import time
 import warnings
 from functools import lru_cache
+from re import sub
 
 import fiona
 import geopandas as gpd
 import pandas as pd
 from shapely import LineString
+from shapely.geometry import MultiLineString
 from shapely.ops import split
 
 import ripple1d
@@ -179,6 +181,128 @@ class RippleGeopackageSubsetter:
             return self._source_junction
 
     @property
+    def juntion_tree_dict(self) -> dict:
+        """Create a dictionary mapping trib->outflow for all junctions."""
+        return self.junctions_to_dicts()[0]
+
+    @property
+    def juntion_dist_dict(self) -> dict:
+        """Create a dictionary mapping trib->outflow for all junctions."""
+        return self.junctions_to_dicts()[1]
+
+    @property
+    @lru_cache
+    def subset_xs(self) -> gpd.GeoDataFrame:
+        """Trim source XS to u/s and d/s limits and add all intermediate reaches."""
+        subset_xs = pd.DataFrame(data=None, columns=self.source_xs.columns)  # empty copy to put subset into
+        subset_xs["source_river_station"] = []
+        cur_reach = (self.us_river, self.us_reach)
+        ds_reach = (self.ds_river, self.ds_reach)
+        _iter = 0
+        while True:  # Walk network until d/s reach
+            reach_xs = self.source_xs.query(f'river == "{cur_reach[0]}" & reach == "{cur_reach[1]}"')
+            reach_xs = self.trim_reach(reach_xs)
+            reach_xs["source_river_station"] = reach_xs["river_station"]
+            subset_xs["river_station"] += reach_xs["river_station"].max()
+            subset_xs = pd.concat([subset_xs, reach_xs]).copy()
+
+            if cur_reach == ds_reach:
+                break
+            elif _iter > 100 or cur_reach not in self.juntion_tree_dict:
+                err_string = "Could not traverse reaches such that u/s river reach led to d/s river reach."
+                err_string += "\n"
+                err_string += f"Broke on {cur_reach} at {_iter} iterations"
+                raise RuntimeError(err_string)
+            else:
+                _iter += 1
+                subset_xs["river_station"] += self.juntion_dist_dict[cur_reach]  # add junction d/s length
+                cur_reach = self.juntion_tree_dict[cur_reach]  # move to next d/s reach
+
+        return gpd.GeoDataFrame(subset_xs)
+
+    @property
+    @lru_cache
+    def subset_river(self):
+        """Trim source centerline to u/s and d/s limits and add all intermediate reaches."""
+        coords = []
+        subset_rivers = []
+        for rr in self.subset_xs["river_reach"].unique():
+            tmp_river = self.source_river[self.source_river["river_reach"] == rr]
+            subset_rivers.append(tmp_river)
+            coords.extend(tmp_river.iloc[0]["geometry"].coords)
+
+        subset_rivers = gpd.GeoDataFrame(pd.concat(subset_rivers))
+        tmp_line = LineString(coords)
+        tmp_xs = fix_reversed_xs(self.subset_xs, subset_rivers)
+        tmp_line = clip_ras_centerline(tmp_line, tmp_xs, 2)
+        return gpd.GeoDataFrame(
+            {"geometry": [tmp_line], "river": [self.nwm_id], "reach": [self.nwm_id]},
+            geometry="geometry",
+            crs=self.crs,
+        )
+
+    @property
+    @lru_cache
+    def subset_structures(self):
+        """Extract structures between u/s and d/s limits."""
+        if self.source_structure is None:
+            return None
+
+        subset_structures = pd.DataFrame(
+            data=None, columns=self.source_structure.columns
+        )  # empty copy to put subset into
+        subset_structures["source_river_station"] = []
+        for river_reach in self.subset_xs["river_reach"].unique():
+            us_limit = self.subset_xs["source_river_station"].max()  # TODO: can a structure be placed d/s of junction?
+            ds_limit = self.subset_xs["source_river_station"].min()  # TODO: can a structure be placed u/s of junction?
+            tmp_structures = self.source_structure.loc[
+                (self.source_structure["river_reach"] == river_reach)
+                & (self.source_structure["river_station"] >= float(ds_limit))
+                & (self.source_structure["river_station"] <= float(us_limit))
+            ]
+            tmp_structures["source_river_station"] = tmp_structures["river_station"]
+            new_ds_limit = self.subset_xs["river_station"].min()
+            tmp_structures["river_station"] = (tmp_structures["river_station"] - ds_limit) + new_ds_limit
+            subset_structures = pd.concat([subset_structures, tmp_structures])
+
+        if len(subset_structures) == 0:
+            return None
+        else:
+            return gpd.GeoDataFrame(subset_structures)
+
+    def trim_reach(self, reach_xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Trim a reach-specific XS gdf to the u/s and d/s limits."""
+        # Trim
+        river = reach_xs["river"].iloc[0]
+        reach = reach_xs["reach"].iloc[0]
+        if river == self.us_river and reach == self.us_reach:
+            reach_xs = reach_xs[reach_xs["river_station"] <= float(self.us_rs)]
+        if river == self.ds_river and reach == self.ds_reach:
+            reach_xs = reach_xs[reach_xs["river_station"] >= float(self.ds_rs)]
+
+        return reach_xs
+
+    @lru_cache
+    def junctions_to_dicts(self):
+        """Make dicts that map trib->outflow and trib->d/s distance for all junctions."""
+        juntion_tree_dict = {}
+        juntion_dist_dict = {}
+
+        if self.source_junction is None:
+            return (juntion_tree_dict, juntion_dist_dict)
+
+        for r in self.source_junction.iterrows():
+            trib_rivers = r[1]["us_rivers"].split(",")
+            trib_reaches = r[1]["us_reaches"].split(",")
+            trib_dists = r[1]["junction_lengths"].split(",")
+            outlet = (r[1]["ds_rivers"], r[1]["ds_reaches"])
+            for riv, rch, dist in zip(trib_rivers, trib_reaches, trib_dists):
+                juntion_tree_dict[(riv, rch)] = outlet
+                juntion_dist_dict[(riv, rch)] = float(dist)
+
+        return (juntion_tree_dict, juntion_dist_dict)
+
+    @property
     def ripple_xs(self) -> gpd.GeoDataFrame:
         """Subset cross sections based on NWM reach."""
         return self.subset_gdfs["XS"]
@@ -197,41 +321,22 @@ class RippleGeopackageSubsetter:
     @lru_cache
     def subset_gdfs(self) -> dict:
         """Subset the cross sections, structues, and river geometry for a given NWM reach."""
-        # subset data
-        if self.us_river == self.ds_river and self.us_reach == self.ds_reach:
-            ripple_xs, ripple_structure, ripple_river = self.process_as_one_ras_reach()
-        else:
-            ripple_xs, ripple_structure, ripple_river = self.process_as_multiple_ras_reach()
-
-        # check if only 1 cross section for nwm_reach
-        if len(ripple_xs) <= 1:
+        # subset geometry data
+        subset_gdfs = {}
+        subset_gdfs["XS"] = self.subset_xs
+        if len(subset_gdfs["XS"]) <= 1:  # check if only 1 cross section for nwm_reach
             logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
             return None
+        subset_gdfs["River"] = self.subset_river
+        if self.subset_structures is not None:
+            subset_gdfs["Structure"] = self.subset_structures
 
-        # update fields
-        ripple_river = self.rename_river_reach(ripple_river)
-        ripple_structure = self.rename_river_reach(ripple_structure)
-        ripple_xs = self.rename_river_reach(ripple_xs)
-        ripple_xs = self.autoincrement_stations(ripple_xs)
+        # Update fields
+        for k in subset_gdfs:
+            subset_gdfs[k] = self.rename_river_reach(subset_gdfs[k])
+        subset_gdfs = self.update_river_station(subset_gdfs)
 
-        # clip river to cross sections
-        ripple_river["geometry"] = clip_ras_centerline(
-            ripple_river.iloc[0].geometry, fix_reversed_xs(ripple_xs, ripple_river), 2
-        )
-
-        if ripple_structure is not None and len(ripple_structure) > 0:
-            self._subset_gdf = {
-                "XS": ripple_xs,
-                "River": ripple_river,
-                "Structure": ripple_structure,
-            }
-        else:
-            self._subset_gdf = {
-                "XS": ripple_xs,
-                "River": ripple_river,
-            }
-
-        return self._subset_gdf
+        return subset_gdfs
 
     @property
     def ripple_gpkg_file(self) -> str:
@@ -285,7 +390,10 @@ class RippleGeopackageSubsetter:
         return self.source_xs.crs
 
     def walk_junctions(self) -> list[str]:
-        """Check if junctions are present for the given river-reaches."""
+        """Walk the junctions to find reaches between u/s and d/s reach."""
+        if self.source_junction is None:
+            return
+
         # make a tree dictionary
         tree_dict = {}
         for r in self.source_junction.iterrows():
@@ -329,15 +437,38 @@ class RippleGeopackageSubsetter:
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
-    def update_river_station(self, ras_data: str, river_station: str) -> str:
-        """Update river station data."""
+    def update_river_station(self, subset_gdfs: dict[gpd.GeoDataFrame]) -> dict:
+        """Convert river stations to autoincrementing names."""
+        xs = subset_gdfs["XS"]
+        xs_names = [*range(1, len(xs) + 1)][::-1]
+
+        if "Structure" in subset_gdfs:
+            structures = subset_gdfs["Structure"]
+            str_names = [xs_names[xs["river_station"] < i][0] + 0.5 for i in structures["river_station"]]
+            subset_gdfs["Structure"]["river_station"] = str_names
+            subset_gdfs["Structure"]["ras_data"] = subset_gdfs["Structure"][["ras_data", "river_station"]].apply(
+                self.correct_ras_data, axis=1
+            )
+
+        subset_gdfs["XS"]["river_station"] = xs_names
+        subset_gdfs["XS"]["ras_data"] = subset_gdfs["XS"][["ras_data", "river_station"]].apply(
+            self.correct_ras_data, axis=1
+        )
+
+        return subset_gdfs
+
+    def correct_ras_data(self, row):
+        """Make ras_data names consistent with river_station."""
+        ras_data = row["ras_data"]
+        rs = row["river_station"]
+
         lines = ras_data.splitlines()
         data = lines[0].split(",")
         if "*" in data[1]:
-            data[1] = str(float(data[1].rstrip("*")) + river_station) + "*"
+            data[1] = str(float(data[1].rstrip("*")) + rs) + "*"
             data[1] = data[1].ljust(8)
         else:
-            data[1] = str(float(data[1]) + river_station).ljust(8)
+            data[1] = str(float(data[1]) + rs).ljust(8)
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
@@ -455,13 +586,8 @@ class RippleGeopackageSubsetter:
 
     def process_as_multiple_ras_reach(self) -> tuple:
         """Process as multiple ras-river-reach."""
-        if "Junction" in fiona.listlayers(self.src_gpkg_path):
-            junction_gdf = gpd.read_file(self.src_gpkg_path, layer="Junction")
-            intermediate_river_reaches = self.walk_junctions()
-        else:
-            intermediate_river_reaches = None
-
         # add intermediate river reaches to the upstream reach
+        intermediate_river_reaches = self.walk_junctions()
         if intermediate_river_reaches:
             xs_us_reach = self.add_intermediate_river_reaches(intermediate_river_reaches)
         else:
