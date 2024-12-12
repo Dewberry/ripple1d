@@ -204,7 +204,7 @@ class RippleGeopackageSubsetter:
 
     @property
     @lru_cache
-    def subset_river(self):
+    def subset_river(self) -> gpd.GeoDataFrame:
         """Trim source centerline to u/s and d/s limits and add all intermediate reaches."""
         coords = []
         subset_rivers = []
@@ -225,7 +225,7 @@ class RippleGeopackageSubsetter:
 
     @property
     @lru_cache
-    def subset_structures(self):
+    def subset_structures(self) -> gpd.GeoDataFrame | None:
         """Extract structures between u/s and d/s limits."""
         if self.source_structure is None:
             return None
@@ -334,7 +334,7 @@ class RippleGeopackageSubsetter:
         return reach_xs
 
     @lru_cache
-    def junctions_to_dicts(self):
+    def junctions_to_dicts(self) -> tuple[dict, dict]:
         """Make dicts that map trib->outflow and trib->d/s distance for all junctions."""
         juntion_tree_dict = {}
         juntion_dist_dict = {}
@@ -463,8 +463,6 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     FileNotFoundError
         Raised when no .conflation.json is found in the source model directory
     """
-    # time.sleep(10)
-
     if not os.path.exists(source_model_directory):
         raise FileNotFoundError(
             f"cannot find directory for source model {source_model_directory}, please ensure dir exists"
@@ -472,7 +470,6 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     rsd = RippleSourceDirectory(source_model_directory)
 
     logging.info(f"extract_submodel starting for nwm_id {nwm_id}")
-    # print(f"preparing to extract NWM ID {nwm_id} from {os.path.basename(rsd.ras_project_file)}")
 
     if not rsd.file_exists(rsd.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find file ras-geometry file {rsd.ras_gpkg_file}, please ensure file exists")
