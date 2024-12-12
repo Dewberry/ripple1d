@@ -237,8 +237,8 @@ class RippleGeopackageSubsetter:
                 & (self.source_structure["river_station"] <= float(us_limit))
             ]
             tmp_structures["source_river_station"] = tmp_structures["river_station"]
-            new_ds_limit = self.subset_xs["river_station"].min()
-            tmp_structures["river_station"] = (tmp_structures["river_station"] - ds_limit) + new_ds_limit
+            offset = tmp_xs["source_river_station"].iloc[0] - tmp_xs["river_station"].iloc[0]
+            tmp_structures["river_station"] = tmp_structures["river_station"] - offset
             subset_structures = pd.concat([subset_structures, tmp_structures])
 
         if len(subset_structures) == 0:
@@ -393,10 +393,10 @@ class RippleGeopackageSubsetter:
         lines = ras_data.splitlines()
         data = lines[0].split(",")
         if "*" in data[1]:
-            data[1] = str(float(data[1].rstrip("*")) + rs) + "*"
+            data[1] = str(float(rs)) + "*"
             data[1] = data[1].ljust(8)
         else:
-            data[1] = str(float(data[1]) + rs).ljust(8)
+            data[1] = str(float(rs)).ljust(8)
         lines[0] = ",".join(data)
         return "\n".join(lines) + "\n"
 
