@@ -145,16 +145,15 @@ class RippleGeopackageSubsetter:
         return hulls
 
     @property
+    @lru_cache
     def ripple_xs_concave_hull(self):
         """Get the concave hull of the cross sections."""
-        if self._ripple_xs_concave_hull is None:
-            try:
-                hulls = self.split_source_hull
-                self._ripple_xs_concave_hull = gpd.GeoDataFrame({"geometry": hulls}, geometry="geometry", crs=self.crs)
-            except Exception as e:
-                self._ripple_xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ripple_xs, self.ripple_river))
-
-        return self._ripple_xs_concave_hull
+        try:
+            hulls = self.split_source_hull
+            ripple_xs_concave_hull = gpd.GeoDataFrame({"geometry": hulls}, geometry="geometry", crs=self.crs)
+        except Exception as e:
+            ripple_xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ripple_xs, self.ripple_river))
+        return ripple_xs_concave_hull
 
     @property
     def juntion_tree_dict(self) -> dict:
@@ -229,8 +228,9 @@ class RippleGeopackageSubsetter:
         )  # empty copy to put subset into
         subset_structures["source_river_station"] = []
         for river_reach in self.subset_xs["river_reach"].unique():
-            us_limit = self.subset_xs["source_river_station"].max()  # TODO: can a structure be placed d/s of junction?
-            ds_limit = self.subset_xs["source_river_station"].min()  # TODO: can a structure be placed u/s of junction?
+            tmp_xs = self.subset_xs[self.subset_xs["river_reach"] == river_reach]
+            us_limit = tmp_xs["source_river_station"].max()  # TODO: can a structure be placed d/s of junction?
+            ds_limit = tmp_xs["source_river_station"].min()  # TODO: can a structure be placed u/s of junction?
             tmp_structures = self.source_structure.loc[
                 (self.source_structure["river_reach"] == river_reach)
                 & (self.source_structure["river_station"] >= float(ds_limit))
@@ -372,7 +372,7 @@ class RippleGeopackageSubsetter:
 
         if "Structure" in subset_gdfs:
             structures = subset_gdfs["Structure"]
-            str_names = [xs_names[xs["river_station"] < i][0] + 0.5 for i in structures["river_station"]]
+            str_names = [xs_names[(xs["river_station"] > i).argmin()] + 0.5 for i in structures["river_station"]]
             subset_gdfs["Structure"]["river_station"] = str_names
             subset_gdfs["Structure"]["ras_data"] = subset_gdfs["Structure"][["ras_data", "river_station"]].apply(
                 self.correct_ras_data, axis=1
