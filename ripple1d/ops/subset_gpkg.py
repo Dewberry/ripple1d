@@ -33,12 +33,6 @@ class RippleGeopackageSubsetter:
         self.dst_project_dir = dst_project_dir
         self.nwm_id = nwm_id
 
-    def set_nwm_id(self, nwm_id: str):
-        """Set the network ID."""
-        self.nwm_id = nwm_id
-        self._subset_gdf = None
-        self._ripple_xs_concave_hull = None
-
     @property
     @lru_cache
     def conflation_parameters(self) -> dict:
