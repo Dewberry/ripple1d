@@ -228,6 +228,7 @@ def xs_agreement_metrics(xs: XS) -> dict:
     metrics["spectral_angle"] = spectral_angle(src_xs_el, dem_xs_el)
     metrics["spectral_correlation"] = spectral_correlation(src_xs_el, dem_xs_el)
     metrics["correlation"] = correlation(src_xs_el, dem_xs_el)
+    metrics["max_cross_correlation"] = cross_correlation(src_xs_el, dem_xs_el)
     metrics["thalweg_elevation_difference"] = thalweg_elevation_difference(src_xs_el, dem_xs_el)
     metrics["variable_metrics"] = variable_metrics(xs["src_xs"], xs["dem_xs"])
 
@@ -246,7 +247,7 @@ def residual_metrics(a1: np.ndarray, a2: np.ndarray) -> dict:
     metrics["p_50"] = np.percentile(residuals, 50)
     metrics["p_75"] = np.percentile(residuals, 75)
     metrics["rmse"] = np.sqrt((residuals * residuals).mean())
-    metrics["normalized_rmse"] = metrics["rmse"] / a1.mean()
+    metrics["normalized_rmse"] = metrics["rmse"] / (metrics["p_75"] - metrics["p_25"])
     return metrics
 
 
@@ -287,6 +288,18 @@ def correlation(a1: np.ndarray, a2: np.ndarray) -> float:
     num = np.sum((a1 - a1.mean()) * (a2 - a2.mean()))
     denom = np.sqrt(np.sum(np.square(a1 - a1.mean())) * np.sum(np.square(a1 - a1.mean())))
     return num / denom
+
+
+def cross_correlation(a1: np.ndarray, a2: np.ndarray) -> float:
+    """Calculate the maximum cross-correlation between two time series."""
+    # Use FFT approach
+    a1 -= a1.mean()  # detrend
+    a2 -= a2.mean()
+    fft1 = np.fft.fft(a1)
+    fft2 = np.fft.fft(a2)
+    cross_corr = np.fft.ifft(fft1 * np.conj(fft2)).real
+    cross_corr /= np.sqrt(np.sum(a1**2) * np.sum(a2**2))  # Normalize to -1 to 1
+    return max(cross_corr)
 
 
 def thalweg_elevation_difference(a1: np.ndarray, a2: np.ndarray) -> float:
