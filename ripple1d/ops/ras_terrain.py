@@ -107,6 +107,7 @@ def create_ras_terrain(
     compute_terrain_agreement_metrics(
         submodel_directory, terrain_agreement_resolution
     )  # JUST HERE FOR DEBUGGING.  MOVE TO EOF WHEN DONE
+    return
 
     if resolution and not resolution_units:
         raise ValueError(
@@ -182,7 +183,7 @@ def compute_terrain_agreement_metrics(submodel_directory: str, max_sample_distan
 
     # Save results and summary
     with open(nwm_rm.terrain_agreement_file, "w") as f:
-        json.dump(metrics, f)
+        json.dump(metrics, f, indent=4)
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
 
 
@@ -302,15 +303,14 @@ def variable_metrics(src_xs: np.ndarray, dem_xs: np.ndarray) -> dict:
     for wse in wses:
         tmp_src_xs = add_intersection_pts(src_xs, wse)
         tmp_dem_xs = add_intersection_pts(dem_xs, wse)
-        tmp_src_xs = align_stations(tmp_src_xs, tmp_dem_xs)
-        tmp_dem_xs = align_stations(tmp_dem_xs, tmp_src_xs)
         metrics = {}
-        metrics["wse"] = wse
-        metrics["inundation_agreement"] = inundation_agreement(tmp_src_xs, tmp_dem_xs, wse)
+        metrics["inundation_agreement"] = inundation_agreement(src_xs, dem_xs, wse)
         metrics["top_width_agreement"] = top_width_agreement(tmp_src_xs, tmp_dem_xs, wse)
         metrics["flow_area_agreement"] = flow_area_agreement(tmp_src_xs, tmp_dem_xs, wse)
         metrics["hydraulic_radius_agreement"] = hydraulic_radius_agreement(tmp_src_xs, tmp_dem_xs, wse)
-        metrics["median_residual"] = median_residual(tmp_src_xs, tmp_dem_xs, wse)
+        metrics["median_residual"] = median_residual(src_xs, dem_xs, wse)
+        all_metrics[wse] = metrics
+    return all_metrics
 
 
 def add_intersection_pts(section_pts: np.ndarray, wse: float) -> np.ndarray:
@@ -320,17 +320,6 @@ def add_intersection_pts(section_pts: np.ndarray, wse: float) -> np.ndarray:
         return section_pts
     inds = np.searchsorted(section_pts[:, 0], intersection[:, 0])
     return np.insert(section_pts, inds, intersection, axis=0)
-
-
-def align_stations(a1: np.ndarray, a2: np.ndarray) -> np.ndarray:
-    """Make sure both arrays share the same stations."""
-    a1_add = list(set(a1[:, 0]).difference(a2[:, 0]))
-    if len(a1_add) == 0:
-        return a1
-    a1_new_y = np.interp(a1_add, a1[:, 0], a1[:, 1])
-    add_pts = np.column_stack([a1_add, a1_new_y])
-    inds = np.searchsorted(a1[:, 0], a1_add)
-    return np.insert(a1, inds, add_pts, axis=0)
 
 
 def wse_intersection_pts(section_pts: np.ndarray, wse: float) -> list[tuple[float]]:
@@ -377,13 +366,11 @@ def smape_single(a1: float, a2: float) -> float:
 
 def inundation_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
     """Calculate the percent of the cross-section with agreeing wet/dry."""
-    all_stations = np.sort(np.unique(np.concatenate((src_el[:, 0], dem_el[:, 0]))))
-    src_el = np.interp(all_stations, src_el[:, 0], src_el[:, 1])
-    dem_el = np.interp(all_stations, dem_el[:, 0], dem_el[:, 1])
-    src_wet = src_el < wse
-    dem_wet = dem_el < wse
+    stations = src_el[:, 0]
+    src_wet = src_el[:, 1] < wse
+    dem_wet = dem_el[:, 1] < wse
     matching = (src_wet != dem_wet) * 1
-    return (np.trapezoid(matching, all_stations) / (all_stations[-1] - all_stations[0])) * 100
+    return (np.trapezoid(matching, stations) / (stations[-1] - stations[0])) * 100
 
 
 def top_width_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
