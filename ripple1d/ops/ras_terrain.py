@@ -214,6 +214,11 @@ def geom_agreement_metrics(xs_data: dict) -> dict:
         metrics["xs_specific"][section] = xs_agreement_metrics(xs_data[section])
 
     # aggregate
+    for metric in ["r_squared", "spectral_angle", "spectral_correlation", "correlation", "max_cross_correlation"]:
+        tmp_ms = np.array([metrics["xs_specific"][i][metric] for i in metrics["xs_specific"]])
+        metrics["summary"][metric] = {"mean": tmp_ms.mean(), "std": tmp_ms.std()}
+    tmp_ms = np.array([metrics["xs_specific"][i]["residuals"]["normalized_rmse"] for i in metrics["xs_specific"]])
+    metrics["summary"]["normalized_rmse"] = {"mean": tmp_ms.mean(), "std": tmp_ms.std()}
 
     return metrics
 
