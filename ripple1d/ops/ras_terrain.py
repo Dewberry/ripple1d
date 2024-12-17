@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from math import pi
 from pathlib import Path
 
 import geopandas as gpd
@@ -266,17 +267,20 @@ def r_squared(a1: np.ndarray, a2: np.ndarray) -> float:
     return ss(a1, a2) ** 2 / (ss(a1, a1) * ss(a2, a2))
 
 
-def spectral_angle(a1: np.ndarray, a2: np.ndarray) -> float:
+def spectral_angle(a1: np.ndarray, a2: np.ndarray, norm: bool = True) -> float:
     """Calculate the spectral angle of two vectors.
 
     Following the approach of https://github.com/BYU-Hydroinformatics/HydroErr/blob/42a84f3e006044f450edc7393ed54d59f27ef35b/HydroErr/HydroErr.py#L3541
     """
     a = np.dot(a1, a2)
     b = np.linalg.norm(a1) * np.linalg.norm(a2)
-    return np.arccos(a / b)
+    sa = np.arccos(a / b)
+    if norm:
+        sa = 1 - (abs(sa) / (pi / 2))
+    return sa
 
 
-def spectral_correlation(a1: np.ndarray, a2: np.ndarray) -> float:
+def spectral_correlation(a1: np.ndarray, a2: np.ndarray, norm: bool = True) -> float:
     """Calculate the spectral angle of two vectors.
 
     Following the approach of https://github.com/BYU-Hydroinformatics/HydroErr/blob/42a84f3e006044f450edc7393ed54d59f27ef35b/HydroErr/HydroErr.py#L3541
@@ -285,26 +289,30 @@ def spectral_correlation(a1: np.ndarray, a2: np.ndarray) -> float:
     b = np.linalg.norm(a1 - np.mean(a1))
     c = np.linalg.norm(a2 - np.mean(a2))
     e = b * c
-    return np.arccos(a / e)
+    if abs(a / e) > 1:
+        sc = 0
+    else:
+        sc = np.arccos(a / e)
+    if norm:
+        sc = 1 - (abs(sc) / (pi / 2))
+    return sc
 
 
 def correlation(a1: np.ndarray, a2: np.ndarray) -> float:
     """Calculate Pearson's correlation of two series."""
     num = np.sum((a1 - a1.mean()) * (a2 - a2.mean()))
-    denom = np.sqrt(np.sum(np.square(a1 - a1.mean())) * np.sum(np.square(a1 - a1.mean())))
+    denom = np.sqrt(np.sum(np.square(a1 - a1.mean())) * np.sum(np.square(a2 - a2.mean())))
     return num / denom
 
 
 def cross_correlation(a1: np.ndarray, a2: np.ndarray) -> float:
     """Calculate the maximum cross-correlation between two time series."""
-    # Use FFT approach
-    a1 -= a1.mean()  # detrend
-    a2 -= a2.mean()
-    fft1 = np.fft.fft(a1)
-    fft2 = np.fft.fft(a2)
-    cross_corr = np.fft.ifft(fft1 * np.conj(fft2)).real
-    cross_corr /= np.sqrt(np.sum(a1**2) * np.sum(a2**2))  # Normalize to -1 to 1
-    return max(cross_corr)
+    a1_detrend = a1 - a1.mean()
+    a2_detrend = a2 - a2.mean()
+    cross_corr = np.correlate(a1_detrend, a2_detrend, mode="full")
+    norm_factor = np.sqrt(np.sum(a1_detrend**2) * np.sum(a2_detrend**2))
+    cross_corr /= norm_factor
+    return cross_corr.max()
 
 
 def thalweg_elevation_difference(a1: np.ndarray, a2: np.ndarray) -> float:
