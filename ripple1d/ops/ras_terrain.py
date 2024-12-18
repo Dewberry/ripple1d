@@ -482,21 +482,21 @@ def top_width_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> f
     """Calculate the agreement of the wetted top widths."""
     src_tw = get_wetted_top_width(src_el, wse)
     dem_tw = get_wetted_top_width(dem_el, wse)
-    return smape_single(src_tw, dem_tw)
+    return 1 - smape_single(src_tw, dem_tw)
 
 
 def flow_area_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
     """Calculate the agreement of the wetted top widths."""
     src_area = get_flow_area(src_el, wse)
     dem_area = get_flow_area(dem_el, wse)
-    return smape_single(src_area, dem_area)
+    return 1 - smape_single(src_area, dem_area)
 
 
 def hydraulic_radius_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
     """Calculate the agreement of the hydraulic radii."""
     src_radius = get_hydraulic_radius(src_el, wse)
     dem_radius = get_hydraulic_radius(dem_el, wse)
-    return smape_single(src_radius, dem_radius)
+    return 1 - smape_single(src_radius, dem_radius)
 
 
 def get_wetted_top_width(station_elevation_series: np.ndarray, wse: float) -> float:
