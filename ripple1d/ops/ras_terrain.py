@@ -108,10 +108,6 @@ def create_ras_terrain(
     will be resampled to that resolution.
     """
     logging.info(f"create_ras_terrain starting")
-    compute_terrain_agreement_metrics(
-        submodel_directory, terrain_agreement_resolution
-    )  # JUST HERE FOR DEBUGGING.  MOVE TO EOF WHEN DONE
-    return
 
     if resolution and not resolution_units:
         raise ValueError(
@@ -166,6 +162,9 @@ def create_ras_terrain(
     os.remove(src_dem_reprojected_localfile)
     nwm_rm.update_write_ripple1d_parameters({"source_terrain": terrain_source_url})
     logging.info(f"create_ras_terrain complete")
+
+    # Calculate terrain agreement metrics
+    compute_terrain_agreement_metrics(submodel_directory, terrain_agreement_resolution)
     return result
 
 
