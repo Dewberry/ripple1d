@@ -11,6 +11,8 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import rasterio
+import rioxarray
+import xarray as xr
 from pyproj import CRS
 from shapely import LineString
 
@@ -189,18 +191,31 @@ def compute_terrain_agreement_metrics(submodel_directory: str, max_sample_distan
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
 
 
+def interpolater(coords: np.ndarray, stations: np.ndarray) -> np.ndarray:
+    """Interpolate faster than shapely linestring."""
+    x = coords[:, 0]
+    y = coords[:, 1]
+    dists = np.cumsum(np.sqrt((np.diff(x, 1) ** 2) + (np.diff(y, 1) ** 2)))
+    dists = np.insert(dists, 0, 0)
+    newx = np.interp(stations, dists, x)
+    newy = np.interp(stations, dists, y)
+    return newx, newy
+
+
 def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3):
     """Add DEM station_elevations to cross-sections."""
     section_data = {}
-    with rasterio.open(dem_path) as dem:
+    with rioxarray.open_rasterio(dem_path) as dem:
         for section in geom.cross_sections:
-            line = LineString(np.array(geom.cross_sections[section].coords))
             station_elevation_points = np.array(geom.cross_sections[section].station_elevation_points)
             stations = station_elevation_points[:, 0]
             stations = resample_vertices(stations, max_interval)
             rel_stations = stations - stations.min()
-            interp_xy = [(pt.x, pt.y) for pt in line.interpolate(rel_stations)]
-            el = np.array([e for e in dem.sample(interp_xy)])
+
+            xs, ys = interpolater(np.array(geom.cross_sections[section].coords), rel_stations)
+            tgt_x = xr.DataArray(xs, dims="points")
+            tgt_y = xr.DataArray(ys, dims="points")
+            el = dem.sel(band=1, x=tgt_x, y=tgt_y, method="nearest").values
             dem_xs = np.column_stack((stations, el))
             src_resampled = np.interp(stations, station_elevation_points[:, 0], station_elevation_points[:, 1])
             src_xs = np.column_stack((stations, src_resampled))
