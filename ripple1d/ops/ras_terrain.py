@@ -422,8 +422,10 @@ def hydraulic_radius_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: floa
 
 def get_wetted_top_width(station_elevation_series: np.ndarray, wse: float) -> float:
     """Derive wetted-top-width for a given stage."""
+    dx = np.diff(station_elevation_series[:, 0], 1)
     wet = station_elevation_series[:, 1] < wse
-    return np.trapezoid(wet, station_elevation_series[:, 0])
+    wet = wet[1:] | wet[:-1]
+    return np.sum(dx * wet)
 
 
 def get_flow_area(station_elevation_series: np.ndarray, wse: float) -> float:
