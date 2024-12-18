@@ -276,14 +276,13 @@ def compute_conflation_metrics(source_model_directory: str, source_network: dict
     src_gpkg_path = os.path.join(source_model_directory, f"{model_name}.gpkg")
     conflation_json = os.path.join(source_model_directory, f"{model_name}.conflation.json")
     conflation_parameters = json.load(open(conflation_json))
-    rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "")
 
     for network_id in conflation_parameters["reaches"].keys():
         try:
             if conflation_parameters["reaches"][network_id]["eclipsed"] == True:
                 continue
 
-            rgs.set_nwm_id(network_id)
+            rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, network_id)
             layers = {}
             for layer, gdf in rgs.subset_gdfs.items():
                 layers[layer] = gdf.to_crs(HYDROFABRIC_CRS)
