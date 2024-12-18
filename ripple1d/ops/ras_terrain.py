@@ -265,6 +265,8 @@ def round_values(in_dict: dict) -> dict:
             in_dict[k] = round(v, TERRAIN_AGREEMENT_PRECISION[k])
         elif isinstance(v, dict):
             in_dict[k] = round_values(v)
+        else:
+            in_dict[k] = None  # at the moment, we have no other value types
     return in_dict
 
 
