@@ -9,6 +9,7 @@ from pathlib import Path
 
 import boto3
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from shapely import (
@@ -406,3 +407,19 @@ def assert_no_store_all_maps_error_message(compute_message_file: str):
             raise RASStoreAllMapsError(
                 f"{repr(line)} found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
             )
+
+
+def resample_vertices(stations: np.ndarray, max_interval: float) -> np.ndarray:
+    """Resample a set of stations so that no gaps are larger than max_interval."""
+    i = 0
+    max_iter = 1e10
+    while i < (len(stations) - 1) and i < max_iter:
+        gap = stations[i + 1] - stations[i]
+        if gap <= max_interval:
+            i += 1
+            continue
+        modulo = gap % max_interval
+        new_pts = np.arange(stations[i] + (modulo / 2), stations[i + 1], max_interval)
+        stations = np.insert(stations, i + 1, new_pts)
+        i += len(new_pts) + 1
+    return stations
