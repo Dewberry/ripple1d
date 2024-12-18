@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from math import pi
+from math import ceil, comb, pi
 from pathlib import Path
 
 import geopandas as gpd
@@ -19,6 +19,7 @@ from ripple1d.consts import (
     MAP_DEM_UNCLIPPED_SRC_URL,
     MAP_DEM_VERT_UNITS,
     METERS_PER_FOOT,
+    TERRAIN_AGREEMENT_PRECISION,
 )
 from ripple1d.data_model import XS, NwmReachModel
 from ripple1d.ras import RasGeomText, create_terrain
@@ -209,42 +210,65 @@ def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3):
 
 def geom_agreement_metrics(xs_data: dict) -> dict:
     """Compute a suite of agreement metrics between source model XS data and a sampled DEM."""
-    metrics = {"xs_specific": {}, "summary": {}}
+    metrics = {"xs": {}, "summary": {}}
     for section in xs_data:
         print(section)
-        metrics["xs_specific"][section] = xs_agreement_metrics(xs_data[section])
+        metrics["xs"][section] = xs_agreement_metrics(xs_data[section])
 
     # aggregate
-    for metric in ["r_squared", "spectral_angle", "spectral_correlation", "correlation", "max_cross_correlation"]:
-        tmp_ms = np.array([metrics["xs_specific"][i][metric] for i in metrics["xs_specific"]])
-        metrics["summary"][metric] = {"mean": tmp_ms.mean(), "std": tmp_ms.std()}
-    tmp_ms = np.array([metrics["xs_specific"][i]["residuals"]["normalized_rmse"] for i in metrics["xs_specific"]])
-    metrics["summary"]["normalized_rmse"] = {"mean": tmp_ms.mean(), "std": tmp_ms.std()}
+    metrics["summary"] = summarize_dict({i: metrics["xs"][i]["summary"] for i in metrics["xs"]})  # Summarize summaries
+    del metrics["summary"]["residuals"]  # Averages are not applicable here
 
-    return metrics
+    return round_values(metrics)
 
 
 def xs_agreement_metrics(xs: XS) -> dict:
     """Compute a suite of agreement metrics between source model XS data and mapping DEM."""
     metrics = {}
+
+    # Elevation-specific metrics and their summaries
+    metrics["elevation"] = variable_metrics(xs["src_xs"], xs["dem_xs"])
+    metrics["summary"] = summarize_dict(metrics["elevation"])
+
+    # Whole XS metrics
     src_xs_el = xs["src_xs"][:, 1]
     dem_xs_el = xs["dem_xs"][:, 1]
-    metrics["residuals"] = residual_metrics(src_xs_el, dem_xs_el)
-    metrics["r_squared"] = r_squared(src_xs_el, dem_xs_el)
-    metrics["spectral_angle"] = spectral_angle(src_xs_el, dem_xs_el)
-    metrics["spectral_correlation"] = spectral_correlation(src_xs_el, dem_xs_el)
-    metrics["correlation"] = correlation(src_xs_el, dem_xs_el)
-    metrics["max_cross_correlation"] = cross_correlation(src_xs_el, dem_xs_el)
-    metrics["thalweg_elevation_difference"] = thalweg_elevation_difference(src_xs_el, dem_xs_el)
-    metrics["variable_metrics"] = variable_metrics(xs["src_xs"], xs["dem_xs"])
+    metrics["summary"]["r_squared"] = r_squared(src_xs_el, dem_xs_el)
+    metrics["summary"]["spectral_angle"] = spectral_angle(src_xs_el, dem_xs_el)
+    metrics["summary"]["spectral_correlation"] = spectral_correlation(src_xs_el, dem_xs_el)
+    metrics["summary"]["correlation"] = correlation(src_xs_el, dem_xs_el)
+    metrics["summary"]["max_cross_correlation"] = cross_correlation(src_xs_el, dem_xs_el)
+    metrics["summary"]["thalweg_elevation_difference"] = thalweg_elevation_difference(src_xs_el, dem_xs_el)
 
     return metrics
 
 
-def residual_metrics(a1: np.ndarray, a2: np.ndarray) -> dict:
+def round_values(in_dict: dict) -> dict:
+    """Round values to keep precision consistent (recursive)."""
+    for k, v in in_dict.items():
+        if isinstance(v, float):
+            in_dict[k] = round(v, TERRAIN_AGREEMENT_PRECISION[k])
+        elif isinstance(v, dict):
+            in_dict[k] = round_values(v)
+    return in_dict
+
+
+def summarize_dict(in_dict: dict) -> dict:
+    """Aggregate metrics from a dictionary."""
+    summary = {}
+    keys = list(in_dict.keys())
+    submetrics = list(in_dict[keys[0]].keys())
+    for m in submetrics:
+        if isinstance(in_dict[keys[0]][m], float):  # average floats
+            summary[m] = sum([in_dict[k][m] for k in keys]) / len(keys)
+        elif isinstance(in_dict[keys[0]][m], dict):  # Provide last entry for dicts
+            summary[m] = in_dict[keys[-1]][m]
+    return summary
+
+
+def residual_metrics(residuals: np.ndarray) -> dict:
     """Summary statistics on residuals between two arrays."""
     metrics = {}
-    residuals = a1 - a2
     metrics["mean"] = residuals.mean()
     metrics["std"] = residuals.std()
     metrics["max"] = residuals.max()
@@ -322,21 +346,41 @@ def thalweg_elevation_difference(a1: np.ndarray, a2: np.ndarray) -> float:
 
 def variable_metrics(src_xs: np.ndarray, dem_xs: np.ndarray) -> dict:
     """Calculate metrics for WSE values every half foot."""
-    start_el = src_xs[:, 1].min()
-    end_el = min((src_xs[0, 1], src_xs[-1, 1]))
-    wses = np.arange(start_el, end_el, 0.5)[1:]
     all_metrics = {}
-    for wse in wses:
+    residuals = src_xs - dem_xs  # Calculate here to save compute
+    for wse in get_wses(src_xs):
         tmp_src_xs = add_intersection_pts(src_xs, wse)
         tmp_dem_xs = add_intersection_pts(dem_xs, wse)
         metrics = {}
-        metrics["inundation_agreement"] = inundation_agreement(src_xs, dem_xs, wse)
+        metrics["inundation_overlap"] = inundation_agreement(src_xs, dem_xs, wse)
+        metrics["flow_area_overlap"] = flow_area_overlap(src_xs, dem_xs, wse)
         metrics["top_width_agreement"] = top_width_agreement(tmp_src_xs, tmp_dem_xs, wse)
         metrics["flow_area_agreement"] = flow_area_agreement(tmp_src_xs, tmp_dem_xs, wse)
         metrics["hydraulic_radius_agreement"] = hydraulic_radius_agreement(tmp_src_xs, tmp_dem_xs, wse)
-        metrics["median_residual"] = median_residual(src_xs, dem_xs, wse)
+        resid_mask = (src_xs[:, 1] < wse) | (dem_xs[:, 1] < wse)
+        metrics["residuals"] = residual_metrics(residuals[resid_mask])
         all_metrics[wse] = metrics
     return all_metrics
+
+
+def get_wses(xs: np.ndarray, ramp_rate: int = 2, repeats: int = 5) -> list[float]:
+    """Derive grid of water surface elevations from minimum el to lowest cross-section endpoint."""
+    start_el = xs[:, 1].min()
+    start_el = ceil(start_el * 2) / 2  # Round to nearest half foot
+    end_el = min((xs[0, 1], xs[-1, 1]))
+    end_el = ceil(end_el * 2) / 2  # Round to nearest half foot
+
+    increments = np.arange(0, 10, 1)
+    increments = (ramp_rate**increments) * 0.5
+    increments = np.repeat(increments, repeats)
+    increments = np.cumsum(increments)
+
+    series = increments + start_el
+    if series[-1] < end_el:
+        np.append(series, end_el)
+    else:
+        series = series[series <= end_el]
+    return np.round(series, 1)
 
 
 def add_intersection_pts(section_pts: np.ndarray, wse: float) -> np.ndarray:
@@ -382,21 +426,41 @@ def smape_series(a1: np.ndarray, a2: np.ndarray) -> float:
     """Return the symmetric mean absolute percentage errror of two series."""
     num = np.abs(a1 - a2)
     denom = np.abs(a1) + np.abs(a2)
-    return (100 / len(a1))(np.sum(num / denom))
+    return (np.sum(num / denom)) / len(a1)
 
 
 def smape_single(a1: float, a2: float) -> float:
     """Return the symmetric mean absolute percentage errror of two values."""
-    return (abs(a1 - a2) / (abs(a1) + abs(a2))) * 100
+    return abs(a1 - a2) / (abs(a1) + abs(a2))
 
 
 def inundation_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
     """Calculate the percent of the cross-section with agreeing wet/dry."""
-    stations = src_el[:, 0]
+    dx = np.diff(src_el[:, 0], 1)
+
     src_wet = src_el[:, 1] < wse
+    src_wet = src_wet[1:] | src_wet[:-1]
     dem_wet = dem_el[:, 1] < wse
-    matching = (src_wet != dem_wet) * 1
-    return (np.trapezoid(matching, stations) / (stations[-1] - stations[0])) * 100
+    dem_wet = dem_wet[1:] | dem_wet[:-1]
+    agree = src_wet & dem_wet
+    total = src_wet | dem_wet
+    return np.sum(agree * dx) / np.sum(total * dx)
+
+
+def flow_area_overlap(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
+    """Calculate the percent of unioned flow area that agree."""
+    dx = np.diff(src_el[:, 0], 1)
+
+    src_depths = np.clip(wse - src_el[:, 1], 0, None)
+    src_areas = ((src_depths[1:] + src_depths[:-1]) / 2) * dx
+
+    dem_depths = np.clip(wse - dem_el[:, 1], 0, None)
+    dem_areas = ((dem_depths[1:] + dem_depths[:-1]) / 2) * dx
+
+    combo = np.column_stack([src_areas, dem_areas])
+    agree = np.min(combo, axis=1)
+    max_area = np.max(combo, axis=1)
+    return np.sum(agree) / np.sum(max_area)
 
 
 def top_width_agreement(src_el: np.ndarray, dem_el: np.ndarray, wse: float) -> float:
@@ -443,13 +507,8 @@ def get_wetted_perimeter(station_elevation_series: np.ndarray, wse: float) -> fl
 
 def get_hydraulic_radius(station_elevation_series: np.ndarray, wse: float) -> float:
     """Derive wetted-perimeter for a given stage."""
-    a = get_flow_area(station_elevation_series, wse)
     wp = get_wetted_perimeter(station_elevation_series, wse)
+    if wp == 0:
+        return 0
+    a = get_flow_area(station_elevation_series, wse)
     return a / wp
-
-
-def median_residual(a1: np.ndarray, a2: np.ndarray, wse: float) -> float:
-    """Calculate the median terrain difference for vertices below WSE."""
-    valid_mask = (a1 < wse) | (a2 < wse)
-    residuals = a1[valid_mask] - a1[valid_mask]
-    return np.percentile(residuals, 50)

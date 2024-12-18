@@ -51,3 +51,26 @@ LAYER_COLORS = OrderedDict(
 SHOW_RAS = False
 
 HYDROFABRIC_CRS = 5070
+
+TERRAIN_AGREEMENT_PRECISION = {
+    "inundation_overlap": 3,
+    "flow_area_overlap": 3,
+    "top_width_agreement": 3,
+    "flow_area_agreement": 3,
+    "hydraulic_radius_agreement": 3,
+    "mean": 2,
+    "std": 2,
+    "max": 2,
+    "min": 2,
+    "p_25": 2,
+    "p_50": 2,
+    "p_75": 2,
+    "rmse": 2,
+    "normalized_rmse": 3,
+    "r_squared": 3,
+    "spectral_angle": 3,
+    "spectral_correlation": 3,
+    "correlation": 3,
+    "max_cross_correlation": 3,
+    "thalweg_elevation_difference": 2,
+}
