@@ -418,7 +418,8 @@ def resample_vertices(stations: np.ndarray, max_interval: float) -> np.ndarray:
         if gap <= max_interval:
             i += 1
             continue
-        modulo = gap % max_interval
+        subdivisions = (gap // max_interval) - 1
+        modulo = gap - (subdivisions * max_interval)
         new_pts = np.arange(stations[i] + (modulo / 2), stations[i + 1], max_interval)
         stations = np.insert(stations, i + 1, new_pts)
         i += len(new_pts) + 1
