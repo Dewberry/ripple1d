@@ -164,7 +164,8 @@ def create_ras_terrain(
     logging.info(f"create_ras_terrain complete")
 
     # Calculate terrain agreement metrics
-    compute_terrain_agreement_metrics(submodel_directory, terrain_agreement_resolution)
+    agreement_path = compute_terrain_agreement_metrics(submodel_directory, terrain_agreement_resolution)
+    result["terrain_agreement"] = agreement_path
     return result
 
 
@@ -188,6 +189,7 @@ def compute_terrain_agreement_metrics(submodel_directory: str, max_sample_distan
     with open(nwm_rm.terrain_agreement_file, "w") as f:
         json.dump(metrics, f, indent=4)
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
+    return nwm_rm.terrain_agreement_file
 
 
 def interpolater(coords: np.ndarray, stations: np.ndarray) -> np.ndarray:
