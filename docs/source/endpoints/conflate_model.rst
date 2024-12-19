@@ -8,3 +8,4 @@ conflate_model
 **Description:**
 
 .. autofunction:: ripple1d.ops.ras_conflate.conflate_model
+    :no-index:

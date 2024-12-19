@@ -8,3 +8,4 @@ compute_conflation_metrics
 **Description:**
 
 .. autofunction:: ripple1d.ops.metrics.compute_conflation_metrics
+    :no-index:
