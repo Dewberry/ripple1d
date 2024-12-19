@@ -47,7 +47,7 @@ class RippleManager:
         if sys.platform != "win32":
             raise SystemError("API can only be run from a windows system")
 
-        huey_consumer_path = shutil.which("huey_consumer.py")
+        huey_consumer_path = os.path.join(os.path.dirname(sys.executable), "huey_consumer.py")
 
         if not huey_consumer_path:
             print("Error: huey consumer script was not discoverable.")
