@@ -41,7 +41,7 @@ def insert_data(
 
     for row in data.itertuples():
         if boundary_condition == "kwse":
-            if f"f_{int(row.us_flow)}-z_{str(row.ds_wse).replace('.','_')}" in missing_grids:
+            if f'f_{int(row.us_flow)}-z_{str(row.ds_wse).replace(".","_")}' in missing_grids:
                 map_exist = 0
             else:
                 map_exist = 1
