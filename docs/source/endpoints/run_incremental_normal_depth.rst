@@ -8,3 +8,4 @@ run_incremental_normal_depth
 **Description:**
 
 .. autofunction:: ripple1d.ops.ras_run.run_incremental_normal_depth
+    :no-index:

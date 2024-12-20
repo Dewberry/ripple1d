@@ -15,12 +15,6 @@ import fiona
 import geopandas as gpd
 import h5py
 import pandas as pd
-
-try:
-    import pythoncom
-except SystemError:
-    warnings.warn("Windows OS is required to run ripple1d. Many features will not work on other OS's.")
-
 from pyproj import CRS
 
 from ripple1d.consts import (
@@ -59,11 +53,6 @@ from ripple1d.utils.ripple_utils import (
     search_contents,
     text_block_from_start_end_str,
 )
-
-if platform.system() == "Windows":
-    import win32com.client
-    from pythoncom import com_error
-
 
 RAS_FILE_TYPES = ["Plan", "Flow", "Geometry", "Project"]
 
@@ -106,10 +95,7 @@ def check_version_installed(version: str):
 
     def decorator(func):
         def wrapper(self, *args, **kwargs):
-            try:
-                assert win32com.client.Dispatch(f"RAS{version}.HECRASCONTROLLER", pythoncom.CoInitialize())
-                self.version = version
-            except com_error:
+            if not os.path.exists("C:\\Program Files (x86)\\HEC\\HEC-RAS\\6.3.1\\Ras.exe"):
                 raise HECRASVersionNotInstalledError(
                     f"Could not find the specified RAS version; please ensure it is installed. Version provided: {version}."
                 )

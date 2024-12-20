@@ -6,9 +6,13 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
 import os
+import pathlib
+import subprocess
 import sys
 
-sys.path.insert(0, os.path.abspath("../"))
+sys.path.insert(0, os.path.abspath("../.."))
+
+import ripple1d
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -60,3 +64,17 @@ html_sidebars = {
     "postman": [],
     "change_log": [],
 }
+
+
+# Substitutions
+version = str(ripple1d.__version__)
+
+
+def fetch_github_releases():
+    subprocess.run(
+        [sys.executable, str(pathlib.Path(__file__).parent.parent.resolve() / "build_release_changelog.py")], check=True
+    )
+
+
+def setup(app):
+    fetch_github_releases()
