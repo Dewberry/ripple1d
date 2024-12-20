@@ -36,6 +36,20 @@ from ripple1d.utils.s3_utils import list_keys
 load_dotenv(find_dotenv())
 
 
+def determine_crs_units(crs: CRS):
+    """Determine the units of the crs."""
+    if type(crs) not in [str, int, CRS]:
+        raise TypeError(f"expected either pyproj.CRS, wkt(st), or epsg code(int); recieved {type(crs)} ")
+
+    unit_name = CRS(crs).axis_info[0].unit_name
+    if crs.axis_info[0].unit_name not in ["degree", "US survey foot", "foot", "metre"]:
+        raise ValueError(
+            f"Expected the crs units to be one of degree, US survey foot, foot, or metre; recieved {unit_name}"
+        )
+
+    return unit_name
+
+
 def clip_ras_centerline(centerline: LineString, xs: gpd.GeoDataFrame, buffer_distance: float = 0):
     """Clip RAS centeline to the most upstream and downstream cross sections."""
     us_xs, ds_xs = us_ds_xs(xs)
