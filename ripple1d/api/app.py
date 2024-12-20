@@ -131,8 +131,7 @@ def test():
 @app.route("/jobs", methods=["GET"])
 def jobs():
     """Retrieve OGC status and result for all jobs."""
-    # try:
-    format_option = request.args.get("f")
+    format_option = request.args.get("f", default="json")
     task2metadata = tasks.task_status(only_task_id=None)
     jobs = [get_job_status(task_id, huey_metadata) for task_id, huey_metadata in task2metadata.items()]
     response = {"jobs": jobs}
@@ -273,7 +272,9 @@ def parse_request_param__bool(param_name: str, default: bool) -> tuple[bool, tup
         )
 
 
-def get_job_status(task_id: str, huey_metadata: dict, return_result: bool = False, include_traceback: bool = False) -> dict:
+def get_job_status(
+    task_id: str, huey_metadata: dict, return_result: bool = False, include_traceback: bool = False
+) -> dict:
     """Convert huey-style task status metadata into a OGC-style job summary dictionary."""
     out_dict = {
         "jobID": task_id,
@@ -282,9 +283,9 @@ def get_job_status(task_id: str, huey_metadata: dict, return_result: bool = Fals
         "processID": huey_metadata["func_name"],
     }
     if return_result:
-        if not include_traceback and huey_metadata['result'] is not None:
-            del huey_metadata['result']['tb']
-        out_dict["result"] = huey_metadata['result']
+        if not include_traceback and huey_metadata["result"] is not None:
+            del huey_metadata["result"]["tb"]
+        out_dict["result"] = huey_metadata["result"]
     return out_dict
 
 
