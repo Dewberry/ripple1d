@@ -3,7 +3,7 @@ Postman collection
 
 For reference and documentation of the API, please open the postman collection for the version of ripple1d
 
-`v0.8.0: <https://github.com/Dewberry/ripple1d/blob/2c5789df819a5febe48f5a910bc6679362e0bc26/ripple1d/api/postman_collection.json>`_ This beta version contains new args for the create_ras_terrain endpoint:
+`v0.8.0: <https://github.com/Dewberry/ripple1d/blob/df26dd611d26577b81d10d972abd2e770ce7e8f8/ripple1d/api/postman_collection.json>`_ This beta version contains new args for the create_ras_terrain endpoint:
  - `terrain_agreement_resolution` (float)  added to  `create_ras_terrain`.  This is the maximum distance allowed between the vertices used to calculate terrain agreement metrics.  It is in the units of the HEC-RAS model.
  - `f` (json or html) added to jobs.  Default value is json.  Determines the response format of the endpoint.
 
