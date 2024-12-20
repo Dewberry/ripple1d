@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from math import ceil, comb, pi
 from pathlib import Path
 
@@ -179,7 +180,7 @@ def compute_terrain_agreement_metrics(submodel_directory: str, max_sample_distan
     dem_path = nwm_rm.terrain_file
 
     # Add DEM data to geom object
-    geom = RasGeomText(nwm_rm.derive_path(".g01"), "EPSG:4269")  # Dummy CRS because the real one will be loaded later
+    geom = RasGeomText.from_gpkg(nwm_rm.derive_path(".gpkg"), "", "")
     section_data = sample_terrain(geom, dem_path, max_interval=max_sample_distance)
 
     # Compute agreement metrics
@@ -228,7 +229,6 @@ def geom_agreement_metrics(xs_data: dict) -> dict:
     """Compute a suite of agreement metrics between source model XS data and a sampled DEM."""
     metrics = {"xs": {}, "summary": {}}
     for section in xs_data:
-        print(section)
         metrics["xs"][section] = xs_agreement_metrics(xs_data[section])
 
     # aggregate
@@ -449,6 +449,8 @@ def smape_series(a1: np.ndarray, a2: np.ndarray) -> float:
 
 def smape_single(a1: float, a2: float) -> float:
     """Return the symmetric mean absolute percentage errror of two values."""
+    if a1 == a2:
+        return 0  # handles zero denominator
     return abs(a1 - a2) / (abs(a1) + abs(a2))
 
 
