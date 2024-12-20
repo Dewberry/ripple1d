@@ -384,6 +384,7 @@ class XS:
         self.computed_channel_reach_length = None
         self.computed_channel_reach_length_ratio = None
         self.units = units
+        self.has_lateral_structures = False
 
     def split_xs_header(self, position: int):
         """
@@ -506,26 +507,45 @@ class XS:
     @property
     def banks_encompass_channel(self):
         """A boolean; True if the channel centerlien intersects the cross section between the bank stations."""
-        if (
-            self.centerline_intersection_station < self.right_bank_station
-            and self.centerline_intersection_station > self.left_bank_station
-        ):
-            return True
-        else:
-            return False
+        if self.cross_section_intersects_reach:
+            if (
+                self.centerline_intersection_station < self.right_bank_station
+                and self.centerline_intersection_station > self.left_bank_station
+            ):
+                return True
+            else:
+                return False
 
     @property
     def centerline_intersection_station(self):
         """Station along the cross section where the centerline intersects it."""
-        return self.geom.project(self.centerline_intersection_point) * self.unit_conversion
+        if self.cross_section_intersects_reach:
+            return self.geom.project(self.centerline_intersection_point) * self.unit_conversion
+
+    @property
+    def intersects_reach_once(self):
+        """A boolean indicating if the cross section intersects the reach only once."""
+        if isinstance(self.centerline_intersection_point, LineString):
+            return False
+        elif self.centerline_intersection_point is None:
+            return False
+        elif isinstance(self.centerline_intersection_point, Point):
+            return True
+        else:
+            raise TypeError(
+                f"Unexpected type resulting from intersecting cross section and reach; expected Point or LineString; recieved: {type(self.centerline_intersection_point)}. {self.river_reach_rs}"
+            )
+
+    @property
+    def cross_section_intersects_reach(self):
+        """Detemine if the cross section intersects the reach, if not return False, otherwise return True."""
+        return self.reach_geom.intersects(self.geom)
 
     @property
     def centerline_intersection_point(self):
         """A point located where the cross section and reach centerline intersect."""
-        if self.reach_geom.intersects(self.geom):
+        if self.cross_section_intersects_reach:
             return self.reach_geom.intersection(self.geom)
-        else:
-            raise IndexError(f"The cross section does not intersect the reach: {self.river_reach_rs}")
 
     @property
     def left_reach_length_ratio(self):
@@ -711,17 +731,23 @@ class XS:
     @property
     def htab_min_elevation(self):
         """The starting elevation for the cross section's htab."""
-        return search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True).split(",")[0]
+        result = search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=False)
+        if len(result) == 1:
+            return result[0].split(",")[0]
 
     @property
     def htab_min_increment(self):
         """The increment for the cross section's htab."""
-        return search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True).split(",")[1]
+        result = search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=False)
+        if len(result) == 1:
+            return result[0].split(",")[1]
 
     @property
     def htab_points(self):
         """The number of points on the cross section's htab."""
-        search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True).split(",")[2]
+        result = search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=False)
+        if len(result) == 1:
+            return result[0].split(",")[2]
 
     def set_thalweg_drop(self, ds_thalweg):
         """Set the drop in thalweg elevation between this cross section and the downstream cross section."""
@@ -746,27 +772,30 @@ class XS:
     @lru_cache
     def correct_cross_section_direction(self):
         """A boolean indicating if the cross section is drawn from right to left looking downstream."""
-        offset = self.geom.offset_curve(-1)
-        if self.reach_geom.intersects(offset):  # if the offset line intersects then use this logic
-            point = self.reach_geom.intersection(offset)
-            point = validate_point(point)
+        if self.cross_section_intersects_reach:
+            offset = self.geom.offset_curve(-1)
+            if self.reach_geom.intersects(offset):  # if the offset line intersects then use this logic
+                point = self.reach_geom.intersection(offset)
+                point = validate_point(point)
 
-            offset_rs = self.reach_geom.project(point)
-            if self.computed_river_station > offset_rs:
-                return True
-            else:
-                return False
-        else:  # if the original offset line did not intersect then try offsetting the other direction and applying
-            # the opposite stationing logic; the orginal line may have gone beyound the other line.
-            offset = self.geom.offset_curve(1)
-            point = self.reach_geom.intersection(offset)
-            point = validate_point(point)
+                offset_rs = self.reach_geom.project(point)
+                if self.computed_river_station > offset_rs:
+                    return True
+                else:
+                    return False
+            else:  # if the original offset line did not intersect then try offsetting the other direction and applying
+                # the opposite stationing logic; the orginal line may have gone beyound the other line.
+                offset = self.geom.offset_curve(1)
+                point = self.reach_geom.intersection(offset)
+                point = validate_point(point)
 
-            offset_rs = self.reach_geom.project(point)
-            if self.computed_river_station < offset_rs:
-                return True
-            else:
-                return False
+                offset_rs = self.reach_geom.project(point)
+                if self.computed_river_station < offset_rs:
+                    return True
+                else:
+                    return False
+        else:
+            return False
 
     @property
     @lru_cache
@@ -834,7 +863,7 @@ class XS:
                 "skew": [self.skew],
                 "max_n": [self.max_n],
                 "min_n": [self.min_n],
-                # "has_lateral_structure": [self.has_lateral_structures],
+                "has_lateral_structure": [self.has_lateral_structures],
                 "has_ineffective": [self.has_ineffectives],
                 "has_levees": [self.has_levees],
                 "has_blocks": [self.has_blocks],
@@ -855,6 +884,8 @@ class XS:
                 "contraction_coefficient": [self.contraction_coefficient],
                 "centerline_intersection_station": [self.centerline_intersection_station],
                 "bridge_xs": [self.bridge_xs],
+                "cross_section_intersects_reach": [self.cross_section_intersects_reach],
+                "intersects_reach_once": [self.intersects_reach_once],
             },
             crs=self.crs,
             geometry="geometry",
@@ -884,9 +915,59 @@ class Structure:
         return header.split(",")[position]
 
     @property
+    def number_of_station_elevation_points(self):
+        """The number of station elevation points."""
+        return int(search_contents(self.ras_data, "Lateral Weir SE", expect_one=True))
+
+    @property
+    def station_elevation_points(self):
+        """Station elevation points."""
+        try:
+            lines = text_block_from_start_str_length(
+                f"Lateral Weir SE= {self.number_of_station_elevation_points} ",
+                math.ceil(self.number_of_station_elevation_points / 5),
+                self.ras_data,
+            )
+            return data_pairs_from_text_block(lines, 16)
+        except ValueError as e:
+            return None
+
+    @property
+    def weir_length(self):
+        """The length weir."""
+        if self.type == 6:
+            return float(list(zip(*self.station_elevation_points))[0][-1])
+
+    @property
+    def dowstream_river_station(self):
+        """The dowstream river station based on the up stream river station and the length of the weir."""
+        if self.type == 6:
+            return self.river_station + self.weir_length
+
+    @property
     def river_station(self):
         """Structure river station."""
         return float(self.split_structure_header(1))
+
+    @property
+    def tail_water_river(self):
+        """The tail water reache's river name."""
+        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[0]
+
+    @property
+    def tail_water_reach(self):
+        """The tail water reache's reach name."""
+        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[1]
+
+    @property
+    def tail_water_river_us_station(self):
+        """The tail water reache's river stationing."""
+        return float(search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[2])
+
+    @property
+    def tail_water_river_ds_station(self):
+        """The tail water reache's river stationing."""
+        return self.tail_water_river_us_station + self.weir_length
 
     @property
     def type(self):

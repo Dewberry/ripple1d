@@ -8,6 +8,7 @@ import re
 import subprocess
 import time
 import warnings
+from functools import lru_cache
 from pathlib import Path
 from typing import List
 
@@ -929,13 +930,44 @@ class RasGeomText(RasTextFile):
 
         return structures
 
+    def determine_lateral_structure_xs(self, xs_gdf):
+        """
+        Determine if the cross sections are connected to lateral structure.
+
+        Determine if the cross sections are connected to lateral structures,
+        if they are update 'has_lateral_structures' to True.
+        """
+        for structure in self.structures.values():
+            if int(structure.type) == 6:
+                try:
+                    xs_gdf.loc[
+                        (xs_gdf["river"] == structure.river)
+                        & (xs_gdf["reach"] == structure.reach)
+                        & (xs_gdf["river_station"] > structure.dowstream_river_station)
+                        & (xs_gdf["river_station"] < structure.river_station),
+                        "has_lateral_structures",
+                    ] = True
+
+                    xs_gdf.loc[
+                        (xs_gdf["river"] == structure.tail_water_river)
+                        & (xs_gdf["reach"] == structure.tail_water_reach)
+                        & (xs_gdf["river_station"] > structure.tail_water_river_us_station)
+                        & (xs_gdf["river_station"] < structure.tail_water_river_ds_station),
+                        "has_lateral_structures",
+                    ] = True
+                except IndexError as e:
+                    pass
+        return xs_gdf
+
     @property
+    @lru_cache
     @check_crs
     def reach_gdf(self):
         """A GeodataFrame of the reaches contained in the HEC-RAS geometry file."""
         return pd.concat([reach.gdf for reach in self.reaches.values()], ignore_index=True)
 
     @property
+    @lru_cache
     @check_crs
     def junction_gdf(self):
         """A GeodataFrame of the junctions contained in the HEC-RAS geometry file."""
@@ -946,12 +978,15 @@ class RasGeomText(RasTextFile):
             )
 
     @property
+    @lru_cache
     @check_crs
     def xs_gdf(self):
         """Geodataframe of all cross sections in the geometry text file."""
-        return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
+        gdf = pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
+        return self.determine_lateral_structure_xs(gdf)
 
     @property
+    @lru_cache
     @check_crs
     def structures_gdf(self):
         """Geodataframe of all structures in the geometry text file."""
