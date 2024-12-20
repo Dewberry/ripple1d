@@ -51,6 +51,7 @@ from ripple1d.utils.ripple_utils import (
     assert_no_store_all_maps_error_message,
     decode,
     replace_line_in_contents,
+    resample_vertices,
     search_contents,
     text_block_from_start_end_str,
 )
