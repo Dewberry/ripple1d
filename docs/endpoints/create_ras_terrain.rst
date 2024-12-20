@@ -15,6 +15,7 @@ create_ras_terrain
 Terrain agreement metrics are written to a json file with suffix ".terrain_agreement.json" in the model directory.  The json will have the following schema:
 
 .. code-block::
+
         {
         "type": "object",
         "properties": {

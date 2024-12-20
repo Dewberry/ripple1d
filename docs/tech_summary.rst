@@ -157,48 +157,56 @@ As part of terrain generation, a suite of metrics are generated to quantify the 
 **Example Cross-Sections and Their Metrics**
 
 **Perfectly Aligned**
+
 .. image:: images/terrain_agreement/1.png
   :width: 400
   :alt: Perfectly aligned data
   :align: center
 
 **Noisy**
+
 .. image:: images/terrain_agreement/2.png
   :width: 400
   :alt: Noisy data
   :align: center
 
 **Vertically Offset**
+
 .. image:: images/terrain_agreement/3.png
   :width: 400
   :alt: Vertically offset data
   :align: center
 
 **Horizontally Offset**
+
 .. image:: images/terrain_agreement/4.png
   :width: 400
   :alt: Horizontally offset data
   :align: center
 
 **Squeezed**
+
 .. image:: images/terrain_agreement/5.png
   :width: 400
   :alt: Squeezed data
   :align: center
 
 **Truncated**
+
 .. image:: images/terrain_agreement/6.png
   :width: 400
   :alt: Truncated data
   :align: center
 
 **Low Fidelity**
+
 .. image:: images/terrain_agreement/7.png
   :width: 400
   :alt: Low-fidelity data
   :align: center
 
 **Complete Misalignment**
+
 .. image:: images/terrain_agreement/8.png
   :width: 400
   :alt: Completely misaligned data
