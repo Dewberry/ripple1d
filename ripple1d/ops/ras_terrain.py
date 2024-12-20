@@ -78,7 +78,7 @@ def create_ras_terrain(
         None
     resolution_units : str, optional
         unit for resolution parameter, by default None
-        terrain_agreement_resolution : float, optional
+    terrain_agreement_resolution : float, optional
         maximum distance allowed between the vertices used to calculate terrain
         agreement metrics (in units of the HEC-RAS model), by default 3
     task_id : str, optional
