@@ -6,21 +6,27 @@ import math
 import os
 import sqlite3
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import List
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from pyproj import CRS
+from shapely import reverse
 from shapely.geometry import LineString, Point
 
 from ripple1d.utils.ripple_utils import (
     data_pairs_from_text_block,
+    data_triplets_from_text_block,
+    determine_crs_units,
     fix_reversed_xs,
     search_contents,
     text_block_from_start_end_str,
     text_block_from_start_str_length,
     text_block_from_start_str_to_empty_line,
+    validate_point,
     xs_concave_hull,
 )
 from ripple1d.utils.s3_utils import init_s3_resources, read_json_from_s3
@@ -364,13 +370,20 @@ class FlowChangeLocation:
 class XS:
     """HEC-RAS Cross Section."""
 
-    def __init__(self, ras_data: list, river_reach: str, river: str, reach: str, crs: str):
+    def __init__(
+        self, ras_data: list, river_reach: str, river: str, reach: str, crs: str, reach_geom: LineString, units
+    ):
         self.ras_data = ras_data
         self.crs = crs
         self.river = river
         self.reach = reach
         self.river_reach = river_reach
         self.river_reach_rs = f"{river} {reach} {self.river_station}"
+        self.thalweg_drop = None
+        self.reach_geom = reach_geom
+        self.computed_channel_reach_length = None
+        self.computed_channel_reach_length_ratio = None
+        self.units = units
 
     def split_xs_header(self, position: int):
         """
@@ -460,11 +473,336 @@ class XS:
         return search_contents(self.ras_data, "Bank Sta", expect_one=True).split(",")
 
     @property
+    def left_bank_station(self):
+        """The cross sections left bank station."""
+        return float(self.bank_stations[0])
+
+    @property
+    def right_bank_station(self):
+        """The cross sections right bank station."""
+        return float(self.bank_stations[1])
+
+    @property
+    def station_length(self):
+        """Length of cross section based on station-elevation data."""
+        return float(self.station_elevation_points[-1][0])
+
+    @property
+    def cutline_length(self):
+        """Length of the cross section bassed on the geometry (x-y coordinates)."""
+        return self.geom.length * self.unit_conversion
+
+    @property
+    def xs_length_ratio(self):
+        """Ratio of the station length to the cutline length."""
+        return self.station_length / self.cutline_length
+
+    @property
+    @lru_cache
+    def geom(self):
+        """Geometry of the cross section according to its coords."""
+        return LineString(self.coords)
+
+    @property
+    def banks_encompass_channel(self):
+        """A boolean; True if the channel centerlien intersects the cross section between the bank stations."""
+        if (
+            self.centerline_intersection_station < self.right_bank_station
+            and self.centerline_intersection_station > self.left_bank_station
+        ):
+            return True
+        else:
+            return False
+
+    @property
+    def centerline_intersection_station(self):
+        """Station along the cross section where the centerline intersects it."""
+        return self.geom.project(self.centerline_intersection_point) * self.unit_conversion
+
+    @property
+    def centerline_intersection_point(self):
+        """A point located where the cross section and reach centerline intersect."""
+        if self.reach_geom.intersects(self.geom):
+            return self.reach_geom.intersection(self.geom)
+        else:
+            raise IndexError(f"The cross section does not intersect the reach: {self.river_reach_rs}")
+
+    @property
+    def left_reach_length_ratio(self):
+        """The ratio of the left reach length to the channel reach length."""
+        if self.reach_lengths_populated:
+            return self.left_reach_length / self.channel_reach_length
+
+    @property
+    def right_reach_length_ratio(self):
+        """The ratio of the right reach length to the channel reach length."""
+        if self.reach_lengths_populated:
+            return self.right_reach_length / self.channel_reach_length
+
+    @property
+    def reach_lengths(self):
+        """The reach lengths of the cross section."""
+        return [self.right_reach_length, self.left_reach_length, self.channel_reach_length]
+
+    @property
+    def reach_lengths_populated(self):
+        """A boolean indicating if all the reach lengths are poputed."""
+        if np.isnan(self.reach_lengths).any():
+            return False
+        elif len([i for i in self.reach_lengths if i == 0]) > 0:
+            return False
+        else:
+            return True
+
+    @property
+    def skew(self):
+        """The skew applied to the cross section."""
+        skew = search_contents(self.ras_data, "Skew Angle", expect_one=False)
+        if len(skew) == 1:
+            return skew[0]
+        elif len(skew) > 1:
+            raise ValueError(
+                f"Expected only one skew value for the cross section recieved: {len(skew)}. XS: {self.river_reach_rs}"
+            )
+
+    @property
+    def number_of_mannings_points(self):
+        """The number of mannings points in the cross section."""
+        return int(search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[0])
+
+    @property
+    def mannings_code(self):
+        """
+        A code indicating what type of manning's values are used.
+
+        0, -1 correspond to 3 value manning's; horizontally varying manning's values, respectively.
+        """
+        return search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[1]
+
+    @property
+    def horizontal_varying_mannings(self):
+        """A boolean indicating if horizontally varied mannings values are applied."""
+        if self.mannings_code == -1:
+            return True
+        else:
+            return False
+
+    @property
+    def expansion_coefficient(self):
+        """The expansion coefficient for the cross section."""
+        return search_contents(self.ras_data, "Exp/Cntr", expect_one=True).split(",")[0]
+
+    @property
+    def contraction_coefficient(self):
+        """The expansion coefficient for the cross section."""
+        return search_contents(self.ras_data, "Exp/Cntr", expect_one=True).split(",")[1]
+
+    @property
+    @lru_cache
+    def mannings(self):
+        """The manning's values of the cross section."""
+        try:
+            lines = text_block_from_start_str_length(
+                "#Mann=" + search_contents(self.ras_data, "#Mann", expect_one=True),
+                math.ceil(self.number_of_mannings_points / 4),
+                self.ras_data,
+            )
+            return data_triplets_from_text_block(lines, 24)
+        except ValueError as e:
+            print(e)
+            return None
+
+    @property
+    @lru_cache
+    def max_n(self):
+        """The highest manning's n value used in the cross section."""
+        return max(list(zip(*self.mannings))[1])
+
+    @property
+    @lru_cache
+    def min_n(self):
+        """The lowest manning's n value used in the cross section."""
+        return min(list(zip(*self.mannings))[1])
+
+    @property
+    def has_levees(self):
+        """A boolean indicating if the cross section contains levees."""
+        levees = search_contents(self.ras_data, "Levee", expect_one=False)
+        if len(levees) > 0:
+            return True
+        else:
+            return False
+
+    @property
+    def has_ineffectives(self):
+        """A boolean indicating if the cross section contains ineffective flow areas."""
+        ineff = search_contents(self.ras_data, "#XS Ineff", expect_one=False)
+        if len(ineff) > 0:
+            return True
+        else:
+            return False
+
+    @property
+    def has_blocks(self):
+        """A boolean indicating if the cross section contains blocked obstructions."""
+        blocks = search_contents(self.ras_data, "#Block Obstruct", expect_one=False)
+        if len(blocks) > 0:
+            return True
+        else:
+            return False
+
+    @property
+    def channel_obstruction(self):
+        """
+        A boolean indicating if the channel is being blocked.
+
+        A boolean indicating if ineffective flow area, blocked obstructions, or levees are contained
+        in the channel (between bank stations).
+        """
+
+    @property
+    @lru_cache
+    def station_elevation_df(self):
+        """A pandas DataFrame containing the station-elevation data of the cross section."""
+        return pd.DataFrame(self.station_elevation_points, columns=["Station", "Elevation"])
+
+    @property
+    def left_max_elevation(self):
+        """Max Elevation on the left side of the channel."""
+        return self.station_elevation_df.loc[
+            self.station_elevation_df["Station"] <= self.left_bank_station, "Elevation"
+        ].max()
+
+    @property
+    def right_max_elevation(self):
+        """Max Elevation on the right side of the channel."""
+        df = pd.DataFrame(self.station_elevation_points, columns=["Station", "Elevation"])
+        return df.loc[df["Station"] >= self.right_bank_station, "Elevation"].max()
+
+    @property
+    def station_elevation_point_density(self):
+        """The average spacing of the station-elevation points."""
+        return self.cutline_length / self.number_of_station_elevation_points
+
+    @property
+    def channel_width(self):
+        """The width of the cross section between bank points."""
+        return self.right_bank_station - self.left_bank_station
+
+    @property
+    def left_bank_elevation(self):
+        """Elevation of the left bank station."""
+        return self.station_elevation_df.loc[
+            self.station_elevation_df["Station"] == self.left_bank_station, "Elevation"
+        ].iloc[0]
+
+    @property
+    def right_bank_elevation(self):
+        """Elevation of the right bank station."""
+        return self.station_elevation_df.loc[
+            self.station_elevation_df["Station"] == self.right_bank_station, "Elevation"
+        ].iloc[0]
+
+    @property
+    def channel_depth(self):
+        """The depth of the channel; i.e., the depth at which the first bank station is overtoppped."""
+        return min([self.left_bank_elevation, self.right_bank_elevation]) - self.thalweg
+
+    @property
+    def htab_min_elevation(self):
+        """The starting elevation for the cross section's htab."""
+        return search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True).split(",")[0]
+
+    @property
+    def htab_min_increment(self):
+        """The increment for the cross section's htab."""
+        return search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True).split(",")[1]
+
+    @property
+    def htab_points(self):
+        """The number of points on the cross section's htab."""
+        search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True).split(",")[2]
+
+    def set_thalweg_drop(self, ds_thalweg):
+        """Set the drop in thalweg elevation between this cross section and the downstream cross section."""
+        self.thalweg_drop = self.thalweg - ds_thalweg
+
+    def set_computed_reach_length(self, computed_river_station: float):
+        """Set the channel reach length computed from the reach/xs/ds_xs geometry."""
+        # if self.reach_lengths_populated and computed_river_station
+        self.computed_channel_reach_length = self.computed_river_station - computed_river_station
+
+    def set_computed_reach_length_ratio(self):
+        """Set the ratio of the computed channel reach length to the model channel reach length."""
+        self.computed_channel_reach_length_ratio = self.computed_channel_reach_length / self.channel_reach_length
+
+    @property
+    @lru_cache
+    def computed_river_station(self):
+        """The computed river stationing according to the reach geometry."""
+        return reverse(self.reach_geom).project(self.centerline_intersection_point) * self.unit_conversion
+
+    @property
+    @lru_cache
+    def correct_cross_section_direction(self):
+        """A boolean indicating if the cross section is drawn from right to left looking downstream."""
+        offset = self.geom.offset_curve(-1)
+        if self.reach_geom.intersects(offset):  # if the offset line intersects then use this logic
+            point = self.reach_geom.intersection(offset)
+            point = validate_point(point)
+
+            offset_rs = self.reach_geom.project(point)
+            if self.computed_river_station > offset_rs:
+                return True
+            else:
+                return False
+        else:  # if the original offset line did not intersect then try offsetting the other direction and applying
+            # the opposite stationing logic; the orginal line may have gone beyound the other line.
+            offset = self.geom.offset_curve(1)
+            point = self.reach_geom.intersection(offset)
+            point = validate_point(point)
+
+            offset_rs = self.reach_geom.project(point)
+            if self.computed_river_station < offset_rs:
+                return True
+            else:
+                return False
+
+    @property
+    @lru_cache
+    def unit_conversion(self):
+        """Conversion factor for units based on the model units and crs units."""
+        if self.crs_units in ["US survey foot", "foot"] and self.units == "English":
+            return 1
+        elif self.crs_units == "metre" and self.units == "Metric":
+            return 1
+        elif self.crs_units == "metre" and self.units == "English":
+            return 1 / 3.281
+        elif self.crs_units in ["US survey foot", "foot"] and self.units == "Metric":
+            return 3.281
+
+    @property
+    @lru_cache
+    def crs_units(self):
+        """The units of the crs."""
+        return determine_crs_units(self.crs)
+
+    def set_bridge_xs(self, br: int):
+        """
+        Set the bridge cross section attribute.
+
+        A value of 0 is added for non-bridge cross sections and 4, 3, 2, 1 are
+        set for each of the bridge cross sections from downstream to upstream order.
+        """
+        self.bridge_xs = br
+
+    @property
+    @lru_cache
     def gdf(self):
         """Cross section geodataframe."""
         return gpd.GeoDataFrame(
             {
-                "geometry": [LineString(self.coords)],
+                "geometry": [self.geom],
                 "river": [self.river],
                 "reach": [self.reach],
                 "river_reach": [self.river_reach],
@@ -475,12 +813,48 @@ class XS:
                 "left_reach_length": [self.left_reach_length],
                 "right_reach_length": [self.right_reach_length],
                 "channel_reach_length": [self.channel_reach_length],
+                "computed_channel_reach_length": [self.computed_channel_reach_length],
+                "computed_channel_reach_length_ratio": [self.computed_channel_reach_length_ratio],
+                "left_reach_length_ratio": [self.left_reach_length_ratio],
+                "right_reach_length_ratio": [self.right_reach_length_ratio],
+                "reach_lengths_populated": [self.reach_lengths_populated],
                 "ras_data": ["\n".join(self.ras_data)],
                 "station_elevation_points": [self.station_elevation_points],
                 "bank_stations": [self.bank_stations],
+                "left_bank_station": [self.left_bank_station],
+                "right_bank_station": [self.right_bank_station],
+                "left_bank_elevation": [self.left_bank_elevation],
+                "right_bank_elevation": [self.right_bank_elevation],
                 "number_of_station_elevation_points": [self.number_of_station_elevation_points],
                 "number_of_coords": [self.number_of_coords],
-                # "coords": [self.coords],
+                "station_length": [self.station_length],
+                "cutline_length": [self.cutline_length],
+                "xs_length_ratio": [self.xs_length_ratio],
+                "banks_encompass_channel": [self.banks_encompass_channel],
+                "skew": [self.skew],
+                "max_n": [self.max_n],
+                "min_n": [self.min_n],
+                # "has_lateral_structure": [self.has_lateral_structures],
+                "has_ineffective": [self.has_ineffectives],
+                "has_levees": [self.has_levees],
+                "has_blocks": [self.has_blocks],
+                "channel_obstruction": [self.channel_obstruction],
+                "thalweg_drop": [self.thalweg_drop],
+                "left_max_elevation": [self.left_max_elevation],
+                "right_max_elevation": [self.right_max_elevation],
+                "channel_width": [self.channel_width],
+                "channel_depth": [self.channel_depth],
+                "station_elevation_point_density": [self.station_elevation_point_density],
+                "htab_min_elevation": [self.htab_min_elevation],
+                "htab_min_increment": [self.htab_min_increment],
+                "htab points": [self.htab_points],
+                "correct_cross_section_direction": [self.correct_cross_section_direction],
+                "horizontal_varying_mannings": [self.horizontal_varying_mannings],
+                "number_of_mannings_points": [self.number_of_mannings_points],
+                "expansion_coefficient": [self.expansion_coefficient],
+                "contraction_coefficient": [self.contraction_coefficient],
+                "centerline_intersection_station": [self.centerline_intersection_station],
+                "bridge_xs": [self.bridge_xs],
             },
             crs=self.crs,
             geometry="geometry",
@@ -546,6 +920,7 @@ class Structure:
         return float(self.structure_data(1))
 
     @property
+    @lru_cache
     def gdf(self):
         """Structure geodataframe."""
         return gpd.GeoDataFrame(
@@ -569,13 +944,14 @@ class Structure:
 class Reach:
     """HEC-RAS River Reach."""
 
-    def __init__(self, ras_data: list, river_reach: str, crs: str):
+    def __init__(self, ras_data: list, river_reach: str, crs: str, units: str):
         reach_lines = text_block_from_start_end_str(f"River Reach={river_reach}", ["River Reach"], ras_data, -1)
         self.ras_data = reach_lines
         self.crs = crs
         self.river_reach = river_reach
         self.river = river_reach.split(",")[0].rstrip()
         self.reach = river_reach.split(",")[1].rstrip()
+        self.units = units
 
         us_connection: str = None
         ds_connection: str = None
@@ -626,22 +1002,58 @@ class Reach:
         return search_contents(self.ras_data, "Type RM Length L Ch R ", expect_one=False)
 
     @property
+    @lru_cache
     def cross_sections(self):
         """Cross sections."""
-        cross_sections = {}
+        cross_sections, bridge_xs = [], []
         for header in self.reach_nodes:
             type, _, _, _, _ = header.split(",")[:5]
+
+            if int(type) in [2, 3, 4]:
+                bridge_xs = bridge_xs[::-2] + [4, 3]
             if int(type) != 1:
                 continue
+            if len(bridge_xs) == 0:
+                bridge_xs = [0]
+            else:
+                bridge_xs.append(max([0, bridge_xs[-1] - 1]))
             xs_lines = text_block_from_start_end_str(
                 f"Type RM Length L Ch R ={header}",
                 ["Type RM Length L Ch R", "River Reach"],
                 self.ras_data,
             )
-            cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
-            cross_sections[cross_section.river_reach_rs] = cross_section
+            cross_sections.append(
+                XS(xs_lines, self.river_reach, self.river, self.reach, self.crs, self.geom, self.units)
+            )
+
+        cross_sections = self.add_bridge_xs(cross_sections, bridge_xs)
+        cross_sections = self.compute_multi_xs_variables(cross_sections)
 
         return cross_sections
+
+    def add_bridge_xs(self, cross_sections, bridge_xs):
+        """Add bridge cross sections attribute to the cross sections."""
+        updated_xs = []
+        for xs, br_xs in zip(cross_sections, bridge_xs):
+            xs.set_bridge_xs(br_xs)
+            updated_xs.append(xs)
+        return updated_xs
+
+    def compute_multi_xs_variables(self, cross_sections: list) -> dict:
+        """Compute variables that depend on multiple cross sections.
+
+        Set the thalweg drop, computed channel reach length and computed channel reach length
+        ratio between a cross section and the cross section downstream.
+        """
+        ds_thalweg = cross_sections[-1].thalweg
+        updated_xs = [cross_sections[-1]]
+        for xs in cross_sections[::-1][1:]:
+            xs.set_thalweg_drop(ds_thalweg)
+            xs.set_computed_reach_length(updated_xs[-1].computed_river_station)
+            xs.set_computed_reach_length_ratio()
+            updated_xs.append(xs)
+            ds_thalweg = xs.thalweg
+        return {xs.river_reach_rs: xs for xs in updated_xs[::-1]}
 
     @property
     def structures(self):
@@ -655,7 +1067,7 @@ class Reach:
                     ["Type RM Length L Ch R", "River Reach"],
                     self.ras_data,
                 )
-                cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs)
+                cross_section = XS(xs_lines, self.river_reach, self.river, self.reach, self.crs, self.geom, self.units)
                 continue
             elif int(type) in [2, 3, 4, 5, 6]:  # culvert or bridge or multiple openeing
                 structure_lines = text_block_from_start_end_str(
@@ -674,11 +1086,17 @@ class Reach:
         return structures
 
     @property
+    def geom(self):
+        """Geometry of the reach."""
+        return LineString(self.coords)
+
+    @property
+    @lru_cache
     def gdf(self):
         """Reach geodataframe."""
         return gpd.GeoDataFrame(
             {
-                "geometry": [LineString(self.coords)],
+                "geometry": [self.geom],
                 "river": [self.river],
                 "reach": [self.reach],
                 "river_reach": [self.river_reach],
@@ -691,11 +1109,13 @@ class Reach:
         )
 
     @property
+    @lru_cache
     def xs_gdf(self):
         """Cross section geodataframe."""
         return pd.concat([xs.gdf for xs in self.cross_sections.values()])
 
     @property
+    @lru_cache
     def structures_gdf(self):
         """Structures geodataframe."""
         return pd.concat([structure.gdf for structure in self.structures.values()])
@@ -778,6 +1198,7 @@ class Junction:
         return ",".join(self.split_lines(search_contents(self.ras_data, "Junc L&A", expect_one=False), ",", 0))
 
     @property
+    @lru_cache
     def gdf(self):
         """Junction geodataframe."""
         return gpd.GeoDataFrame(
