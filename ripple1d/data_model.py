@@ -421,12 +421,19 @@ class XS:
     @property
     def has_htab_error(self):
         """Check if min htab value is less than section invert."""
-        return self.htab_starting_el < self.thalweg
+        if self.htab_string is None:
+            return None
+        else:
+            return self.htab_starting_el < self.thalweg
 
     @property
     def htab_string(self):
         """Cross section htab string."""
-        return search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True)
+        try:
+            htabstr = search_contents(self.ras_data, "XS HTab Starting El and Incr", expect_one=True)
+        except:
+            htabstr = None
+        return htabstr
 
     @property
     def htab_starting_el(self):
