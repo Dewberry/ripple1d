@@ -422,7 +422,7 @@ class XS:
     def has_htab_error(self):
         """Check if min htab value is less than section invert."""
         if self.htab_string is None:
-            return None
+            return False
         else:
             return self.htab_starting_el < self.thalweg
 
