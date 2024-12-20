@@ -763,6 +763,8 @@ class RasGeomText(RasTextFile):
         self.units = units
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
+        self.fix_htab_errors()
+
     def __repr__(self):
         """Representation of the RasGeomText class."""
         return f"RasGeomText({self._ras_text_file_path})"
@@ -855,6 +857,29 @@ class RasGeomText(RasTextFile):
 
         if "River" not in layers:
             raise NoRiverLayerError(f"Could not find a layer called River in {self._gpkg_path}")
+
+    def fix_htab_errors(self):
+        """Update any htab values lower than the section invert to the section invert."""
+        working_string = "\n".join(self.contents.copy())
+        needs_save = False
+        for xs in self.cross_sections.values():
+            if xs.has_htab_error:
+                needs_save = True
+                logging.info(f"Fixing htab error for {xs.river_reach}")
+                old_htab_str = xs.htab_string
+                # HEC-RAS default handling:
+                # either 0 or 0.5 ft above section invert for the start elevation
+                # increment that will yield 20 pts between start and section max elevations
+                # We want to preserve engineer-specified increments, so we don't do that
+                new_htab_str = old_htab_str.replace(str(xs.htab_starting_el), str(xs.thalweg))
+
+                old_xs_str = "\n".join(xs.ras_data)
+                new_xs_str = old_xs_str.replace(old_htab_str, new_htab_str)
+                working_string = working_string.replace(old_xs_str, new_xs_str)
+        if needs_save:
+            with open(self._ras_text_file_path, "w") as f:
+                f.write(working_string)
+            self.contents = working_string.splitlines()
 
     @property
     def title(self):
