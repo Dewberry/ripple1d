@@ -450,7 +450,7 @@ def smape_series(a1: np.ndarray, a2: np.ndarray) -> float:
 def smape_single(a1: float, a2: float) -> float:
     """Return the symmetric mean absolute percentage errror of two values."""
     if a1 == a2:
-        return 0  # handles zero denominator
+        return 0.0  # handles zero denominator
     return abs(a1 - a2) / (abs(a1) + abs(a2))
 
 
