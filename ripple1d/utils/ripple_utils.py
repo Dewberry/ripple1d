@@ -12,6 +12,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
+from pyproj import CRS
 from shapely import (
     LineString,
     MultiPoint,
@@ -35,6 +36,20 @@ from ripple1d.errors import (
 from ripple1d.utils.s3_utils import list_keys
 
 load_dotenv(find_dotenv())
+
+
+def determine_crs_units(crs: CRS):
+    """Determine the units of the crs."""
+    if type(crs) not in [str, int, CRS]:
+        raise TypeError(f"expected either pyproj.CRS, wkt(st), or epsg code(int); recieved {type(crs)} ")
+
+    unit_name = CRS(crs).axis_info[0].unit_name
+    if crs.axis_info[0].unit_name not in ["degree", "US survey foot", "foot", "metre"]:
+        raise ValueError(
+            f"Expected the crs units to be one of degree, US survey foot, foot, or metre; recieved {unit_name}"
+        )
+
+    return unit_name
 
 
 def clip_ras_centerline(centerline: LineString, xs: gpd.GeoDataFrame, buffer_distance: float = 0):
@@ -333,6 +348,19 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
             x = line[i : int(i + width / 2)]
             y = line[int(i + width / 2) : int(i + width)]
             pairs.append((float(x), float(y)))
+
+    return pairs
+
+
+def data_triplets_from_text_block(lines: list[str], width: int) -> list[tuple[float]]:
+    """Split lines at given width to get paired data string. Split the string in half and convert to tuple of floats."""
+    pairs = []
+    for line in lines:
+        for i in range(0, len(line), width):
+            x = line[i : int(i + width / 3)]
+            y = line[int(i + width / 3) : int(i + (width * 2 / 3))]
+            z = line[int(i + (width * 2 / 3)) : int(i + (width))]
+            pairs.append((float(x), float(y), float(z)))
 
     return pairs
 

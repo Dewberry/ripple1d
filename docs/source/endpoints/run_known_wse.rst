@@ -8,3 +8,4 @@ run_known_wse
 **Description:**
 
 .. autofunction:: ripple1d.ops.ras_run.run_known_wse
+    :no-index:
