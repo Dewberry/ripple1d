@@ -8,6 +8,7 @@ import re
 import subprocess
 import time
 import warnings
+from functools import lru_cache
 from pathlib import Path
 from typing import List
 
@@ -185,7 +186,7 @@ class RasManager:
         plans = {}
         for plan_file in self.ras_project.plans:
             try:
-                plan = RasPlanText(plan_file, self.crs)
+                plan = RasPlanText(plan_file, self.crs, units=self.ras_project.units)
                 plans[plan.title] = plan
             except FileNotFoundError:
                 logging.info(f"Could not find plan file: {plan_file}")
@@ -197,7 +198,7 @@ class RasManager:
         geoms = {}
         for geom_file in self.ras_project.geoms:
             try:
-                geom = RasGeomText(geom_file, self.crs)
+                geom = RasGeomText(geom_file, self.crs, units=self.ras_project.units)
                 geoms[geom.title] = geom
             except FileNotFoundError:
                 logging.warning(f"Could not find geom file: {geom_file}")
@@ -366,7 +367,7 @@ class RasManager:
         plan_text_file = self.ras_project._ras_root_path + f".p{new_extension_number}"
 
         # create plan
-        rpt = RasPlanText(plan_text_file, self.crs, new_file=True)
+        rpt = RasPlanText(plan_text_file, self.crs, new_file=True, units=self.ras_project.units)
 
         # populate new plan info
         rpt.new_plan_contents(
@@ -565,7 +566,7 @@ class RasProject(RasTextFile):
 class RasPlanText(RasTextFile):
     """Represents a HEC-RAS plan file."""
 
-    def __init__(self, ras_text_file_path: str, crs: str = None, new_file: bool = False):
+    def __init__(self, ras_text_file_path: str, crs: str = None, new_file: bool = False, units: str = "English"):
         super().__init__(ras_text_file_path, new_file)
         if self.file_extension not in VALID_PLANS:
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
@@ -640,7 +641,7 @@ class RasPlanText(RasTextFile):
     @check_crs
     def geom(self):
         """Represents the HEC-RAS geometry file associated with this plan."""
-        return RasGeomText(self.plan_geom_file, self.crs)
+        return RasGeomText(self.plan_geom_file, self.crs, units=self.units)
 
     @property
     def flow(self):
@@ -753,12 +754,13 @@ class RasPlanText(RasTextFile):
 class RasGeomText(RasTextFile):
     """Represents a HEC-RAS geometry text file."""
 
-    def __init__(self, ras_text_file_path: str, crs: str = None, new_file=False):
+    def __init__(self, ras_text_file_path: str, crs: str = None, new_file=False, units: str = "English"):
         super().__init__(ras_text_file_path, new_file)
         if not new_file and self.file_extension not in VALID_GEOMS:
             raise TypeError(f"Geometry extenstion must be one of .g01-.g99, not {self.file_extension}")
 
         self.crs = CRS(crs)
+        self.units = units
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
     def __repr__(self):
@@ -871,7 +873,7 @@ class RasGeomText(RasTextFile):
         river_reaches = search_contents(self.contents, "River Reach", expect_one=False)
         reaches = {}
         for river_reach in river_reaches:
-            reaches[river_reach] = Reach(self.contents, river_reach, self.crs)
+            reaches[river_reach] = Reach(self.contents, river_reach, self.crs, self.units)
         return reaches
 
     @property
@@ -914,13 +916,44 @@ class RasGeomText(RasTextFile):
 
         return structures
 
+    def determine_lateral_structure_xs(self, xs_gdf):
+        """
+        Determine if the cross sections are connected to lateral structure.
+
+        Determine if the cross sections are connected to lateral structures,
+        if they are update 'has_lateral_structures' to True.
+        """
+        for structure in self.structures.values():
+            if int(structure.type) == 6:
+                try:
+                    xs_gdf.loc[
+                        (xs_gdf["river"] == structure.river)
+                        & (xs_gdf["reach"] == structure.reach)
+                        & (xs_gdf["river_station"] > structure.dowstream_river_station)
+                        & (xs_gdf["river_station"] < structure.river_station),
+                        "has_lateral_structures",
+                    ] = True
+
+                    xs_gdf.loc[
+                        (xs_gdf["river"] == structure.tail_water_river)
+                        & (xs_gdf["reach"] == structure.tail_water_reach)
+                        & (xs_gdf["river_station"] > structure.tail_water_river_us_station)
+                        & (xs_gdf["river_station"] < structure.tail_water_river_ds_station),
+                        "has_lateral_structures",
+                    ] = True
+                except IndexError as e:
+                    pass
+        return xs_gdf
+
     @property
+    @lru_cache
     @check_crs
     def reach_gdf(self):
         """A GeodataFrame of the reaches contained in the HEC-RAS geometry file."""
         return pd.concat([reach.gdf for reach in self.reaches.values()], ignore_index=True)
 
     @property
+    @lru_cache
     @check_crs
     def junction_gdf(self):
         """A GeodataFrame of the junctions contained in the HEC-RAS geometry file."""
@@ -931,12 +964,15 @@ class RasGeomText(RasTextFile):
             )
 
     @property
+    @lru_cache
     @check_crs
     def xs_gdf(self):
         """Geodataframe of all cross sections in the geometry text file."""
-        return pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
+        gdf = pd.concat([xs.gdf for xs in self.cross_sections.values()], ignore_index=True)
+        return self.determine_lateral_structure_xs(gdf)
 
     @property
+    @lru_cache
     @check_crs
     def structures_gdf(self):
         """Geodataframe of all structures in the geometry text file."""
