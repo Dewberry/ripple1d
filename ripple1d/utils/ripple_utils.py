@@ -11,6 +11,7 @@ import boto3
 import geopandas as gpd
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
+from pyproj import CRS
 from shapely import (
     LineString,
     MultiPoint,
@@ -346,6 +347,19 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
             x = line[i : int(i + width / 2)]
             y = line[int(i + width / 2) : int(i + width)]
             pairs.append((float(x), float(y)))
+
+    return pairs
+
+
+def data_triplets_from_text_block(lines: list[str], width: int) -> list[tuple[float]]:
+    """Split lines at given width to get paired data string. Split the string in half and convert to tuple of floats."""
+    pairs = []
+    for line in lines:
+        for i in range(0, len(line), width):
+            x = line[i : int(i + width / 3)]
+            y = line[int(i + width / 3) : int(i + (width * 2 / 3))]
+            z = line[int(i + (width * 2 / 3)) : int(i + (width))]
+            pairs.append((float(x), float(y), float(z)))
 
     return pairs
 
