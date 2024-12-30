@@ -558,8 +558,11 @@ class XS:
 
     @property
     def xs_length_ratio(self):
-        """Ratio of the station length to the cutline length."""
-        return self.station_length / self.cutline_length
+        """Ratio of the cutline length to the station length."""
+        if self.skew:
+            return self.cutline_length / (self.station_length / math.cos(math.radians(self.skew)))
+        else:
+            return self.cutline_length / self.station_length
 
     @property
     @lru_cache
