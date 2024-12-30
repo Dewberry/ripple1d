@@ -440,11 +440,28 @@ class XS:
             # raise NotGeoreferencedError(f"No coordinates found for cross section: {self.river_reach_rs} ")
 
     @property
-    def thalweg(self):
-        """Cross section thalweg elevation."""
+    def min_elevation(self):
+        """The min elevaiton in the cross section."""
         if self.station_elevation_points:
             _, y = list(zip(*self.station_elevation_points))
             return min(y)
+
+    @property
+    def min_elevation_in_channel(self):
+        """A boolean indicating if the minimum elevation is in the channel."""
+        if self.min_elevation == self.thalweg:
+            return True
+        else:
+            return False
+
+    @property
+    def thalweg(self):
+        """The min elevation of the channel (between bank points)."""
+        return self.station_elevation_df.loc[
+            (self.station_elevation_df["Station"] <= self.right_bank_station)
+            & (self.station_elevation_df["Station"] >= self.left_bank_station),
+            "Elevation",
+        ].min()
 
     @property
     def has_htab_error(self):
