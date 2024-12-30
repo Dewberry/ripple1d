@@ -549,6 +549,16 @@ class XS:
     @property
     def station_length(self):
         """Length of cross section based on station-elevation data."""
+        return self.last_station - self.first_station
+
+    @property
+    def first_station(self):
+        """First station of the cross section."""
+        return float(self.station_elevation_points[0][0])
+
+    @property
+    def last_station(self):
+        """Last station of the cross section."""
         return float(self.station_elevation_points[-1][0])
 
     @property
@@ -574,10 +584,9 @@ class XS:
     def banks_encompass_channel(self):
         """A boolean; True if the channel centerlien intersects the cross section between the bank stations."""
         if self.cross_section_intersects_reach:
-            if (
-                self.centerline_intersection_station < self.right_bank_station
-                and self.centerline_intersection_station > self.left_bank_station
-            ):
+            if (self.centerline_intersection_station + self.first_station) < self.right_bank_station and (
+                self.centerline_intersection_station + self.first_station
+            ) > self.left_bank_station:
                 return True
             else:
                 return False
