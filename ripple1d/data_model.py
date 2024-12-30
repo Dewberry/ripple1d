@@ -17,6 +17,7 @@ from pyproj import CRS
 from shapely import reverse
 from shapely.geometry import LineString, Point
 
+from ripple1d.errors import InvalidStructureDataError
 from ripple1d.utils.ripple_utils import (
     data_pairs_from_text_block,
     data_triplets_from_text_block,
@@ -654,7 +655,7 @@ class XS:
         """The skew applied to the cross section."""
         skew = search_contents(self.ras_data, "Skew Angle", expect_one=False)
         if len(skew) == 1:
-            return skew[0]
+            return float(skew[0])
         elif len(skew) > 1:
             raise ValueError(
                 f"Expected only one skew value for the cross section recieved: {len(skew)}. XS: {self.river_reach_rs}"
@@ -946,6 +947,7 @@ class XS:
                 "thalweg_drop": [self.thalweg_drop],
                 "left_max_elevation": [self.left_max_elevation],
                 "right_max_elevation": [self.right_max_elevation],
+                "min_elevation": [self.min_elevation],
                 "channel_width": [self.channel_width],
                 "channel_depth": [self.channel_depth],
                 "station_elevation_point_density": [self.station_elevation_point_density],
@@ -961,6 +963,7 @@ class XS:
                 "bridge_xs": [self.bridge_xs],
                 "cross_section_intersects_reach": [self.cross_section_intersects_reach],
                 "intersects_reach_once": [self.intersects_reach_once],
+                "min_elevation_in_channel": [self.min_elevation_in_channel],
             },
             crs=self.crs,
             geometry="geometry",
@@ -990,11 +993,13 @@ class Structure:
         return header.split(",")[position]
 
     @property
+    @lru_cache
     def number_of_station_elevation_points(self):
         """The number of station elevation points."""
         return int(search_contents(self.ras_data, "Lateral Weir SE", expect_one=True))
 
     @property
+    @lru_cache
     def station_elevation_points(self):
         """Station elevation points."""
         try:
@@ -1008,41 +1013,81 @@ class Structure:
             return None
 
     @property
+    @lru_cache
     def weir_length(self):
         """The length weir."""
         if self.type == 6:
-            return float(list(zip(*self.station_elevation_points))[0][-1])
+            try:
+                return float(list(zip(*self.station_elevation_points))[0][-1])
+            except IndexError as e:
+                raise InvalidStructureDataError(
+                    f"No station elevation data for: {self.river}, {self.reach}, {self.river_station}"
+                )
 
     @property
-    def dowstream_river_station(self):
-        """The dowstream river station based on the up stream river station and the length of the weir."""
-        if self.type == 6:
-            return self.river_station + self.weir_length
-
-    @property
+    @lru_cache
     def river_station(self):
         """Structure river station."""
         return float(self.split_structure_header(1))
 
     @property
+    @lru_cache
+    def downstream_river_station(self):
+        """The downstream head water river station of the lateral weir."""
+
+    @property
+    @lru_cache
+    def distance_to_us_xs(self):
+        """The distance from the upstream cross section to the start of the lateral structure."""
+        try:
+            return float(search_contents(self.ras_data, "Lateral Weir Distance", expect_one=True))
+        except ValueError as e:
+            raise InvalidStructureDataError(
+                f"The weir distance for the lateral structure is not populated for: {self.river},{self.reach},{self.river_station}"
+            )
+
+    @property
+    @lru_cache
     def tail_water_river(self):
         """The tail water reache's river name."""
-        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[0]
+        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[0].rstrip()
 
     @property
+    @lru_cache
     def tail_water_reach(self):
         """The tail water reache's reach name."""
-        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[1]
+        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[1].rstrip()
 
     @property
-    def tail_water_river_us_station(self):
+    @lru_cache
+    def tail_water_river_station(self):
         """The tail water reache's river stationing."""
         return float(search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[2])
 
     @property
+    @lru_cache
+    def multiple_xs(self):
+        """A boolean indicating if the tailwater is connected to multiple cross sections."""
+        if search_contents(self.ras_data, "Lateral Weir TW Multiple XS", expect_one=True) == "-1":
+            print(-1)
+            return True
+        else:
+            print(0)
+            return False
+
+    @property
+    @lru_cache
+    def tw_distance(self):
+        """The distance between the tail water upstream cross section and the lateral weir."""
+        return float(
+            search_contents(self.ras_data, "Lateral Weir Connection Pos and Dist", expect_one=True).split(",")[1]
+        )
+
+    @property
+    @lru_cache
     def tail_water_river_ds_station(self):
         """The tail water reache's river stationing."""
-        return self.tail_water_river_us_station + self.weir_length
+        return self.tail_water_river_us_station - self.weir_length - self.tw_distance
 
     @property
     def type(self):
@@ -1166,7 +1211,7 @@ class Reach:
             type, _, _, _, _ = header.split(",")[:5]
 
             if int(type) in [2, 3, 4]:
-                bridge_xs = bridge_xs[::-2] + [4, 3]
+                bridge_xs = bridge_xs[:-2] + [4, 3]
             if int(type) != 1:
                 continue
             if len(bridge_xs) == 0:
