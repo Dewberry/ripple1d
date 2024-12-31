@@ -33,13 +33,13 @@ from ripple1d.data_model import FlowChangeLocation, Junction, Reach
 from ripple1d.errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
+    InvalidStructureDataError,
     NoCrossSectionLayerError,
     NoFlowFileSpecifiedError,
     NoGeometryFileSpecifiedError,
     NoRiverLayerError,
     PlanTitleAlreadyExistsError,
     RASComputeTimeoutError,
-    InvalidStructureDataError,
 )
 
 # ToManyPlansError,
@@ -574,6 +574,7 @@ class RasPlanText(RasTextFile):
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
         self.crs = crs
         self.hdf_file = self._ras_text_file_path + ".hdf"
+        self.units = units
 
     def __repr__(self):
         """Representation of the RasPlanText class."""
@@ -1102,12 +1103,12 @@ class RasGeomText(RasTextFile):
     @check_crs
     def to_gpkg(self, gpkg_path: str):
         """Write the HEC-RAS Geometry file to geopackage."""
-        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS", ignore_index=True)
-        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River", ignore_index=True)
+        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
+        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
-            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction", ignore_index=True)
+            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
         if self.structures:
-            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure", ignore_index=True)
+            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
 
 
 class RasFlowText(RasTextFile):
