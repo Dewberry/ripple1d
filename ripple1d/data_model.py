@@ -263,15 +263,6 @@ class NwmReachModel(RasModelStructure):
         return str(Path(self.terrain_directory) / f"{self.model_name}.hdf")
 
     @property
-    def terrain_file(self) -> str | None:
-        """Terrain file path."""
-        terrain_name = self.ripple1d_parameters.get("source_terrain")
-        if terrain_name is None:
-            return
-        suffix = terrain_name.split("/")[-1].replace(".vrt", ".tif")
-        return str(Path(self.terrain_directory) / f"{self.model_name}.{suffix}")
-
-    @property
     def fim_results_directory(self):
         """FIM results directory."""
         return str(Path(self.library_directory) / self.model_name)
