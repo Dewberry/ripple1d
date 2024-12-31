@@ -168,7 +168,8 @@ def create_ras_terrain(
     logging.info(f"create_ras_terrain complete")
 
     # Calculate terrain agreement metrics
-    agreement_path = compute_terrain_agreement_metrics(submodel_directory, terrain_agreement_resolution)
+    terrain_path = result["RAS Terrain"] + "." + map_dem_clipped_basename.replace(".vrt", ".tif")
+    agreement_path = compute_terrain_agreement_metrics(submodel_directory, terrain_path, terrain_agreement_resolution)
     result["terrain_agreement"] = agreement_path
     return result
 
@@ -176,11 +177,10 @@ def create_ras_terrain(
 ### Terrain Agreement Metrics ###
 
 
-def compute_terrain_agreement_metrics(submodel_directory: str, max_sample_distance: float = 3):
+def compute_terrain_agreement_metrics(submodel_directory: str, dem_path: str, max_sample_distance: float = 3):
     """Compute a suite of agreement metrics between source model XS data and mapping DEM."""
     # Load model information
     nwm_rm = NwmReachModel(submodel_directory)
-    dem_path = nwm_rm.terrain_file
 
     # Add DEM data to geom object
     geom = RasGeomText.from_gpkg(nwm_rm.derive_path(".gpkg"), "", "")
