@@ -466,18 +466,20 @@ def variable_metrics(
 def get_wses(xs: np.ndarray, repeats: int = 5, ramp_rate: float = 2.0, init_inc: float = 0.5) -> list[float]:
     """Derive grid of water surface elevations from minimum el to lowest cross-section endpoint."""
     start_el = xs[:, 1].min()
-    start_el = ceil(start_el * 2) / 2  # Round to nearest half foot
+    print(start_el)
+    start_el = ceil(start_el / init_inc) * init_inc  # Round to nearest init_inc
     end_el = min((xs[0, 1], xs[-1, 1]))
-    end_el = ceil(end_el * 2) / 2  # Round to nearest half foot
+    print(end_el)
+    end_el = ceil(end_el / init_inc) * init_inc  # Round to nearest init_inc
 
     increments = np.arange(0, 10, 1)
     increments = (ramp_rate**increments) * init_inc
     increments = np.repeat(increments, repeats)
-    increments = np.cumsum(increments)
+    increments = np.cumsum(increments) - init_inc
 
     series = increments + start_el
     if series[-1] < end_el:
-        np.append(series, end_el)
+        series = np.append(series, end_el)
     else:
         series = series[series <= end_el]
     return np.round(series, 1)
