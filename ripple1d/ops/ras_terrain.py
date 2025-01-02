@@ -84,7 +84,7 @@ def create_ras_terrain(
         unit for resolution parameter, by default None
     terrain_agreement_resolution : float, optional
         maximum distance allowed between the vertices used to calculate terrain
-        agreement metrics (in units of the HEC-RAS model), by default 3
+        agreement metrics (in units of resolution_units), by default 3
     terrain_agreement_format : str, optional
         whether to save the terrain agreement report as a json or a sqlite
         database, by default "db"
@@ -192,6 +192,7 @@ def create_ras_terrain(
         submodel_directory,
         terrain_path,
         terrain_agreement_resolution,
+        resolution_units,
         terrain_agreement_format,
         terrain_agreement_el_repeats,
         terrain_agreement_el_ramp_rate,
@@ -207,6 +208,7 @@ def compute_terrain_agreement_metrics(
     submodel_directory: str,
     dem_path: str,
     max_sample_distance: float = 3,
+    horizontal_units: str = None,
     f: str = "db",
     el_repeats: int = 5,
     el_ramp_rate: float = 2.0,
@@ -217,7 +219,7 @@ def compute_terrain_agreement_metrics(
 
     # Add DEM data to geom object
     geom = RasGeomText.from_gpkg(nwm_rm.derive_path(".gpkg"), "", "")
-    section_data = sample_terrain(geom, dem_path, max_interval=max_sample_distance)
+    section_data = sample_terrain(geom, dem_path, max_sample_distance, horizontal_units)
 
     # Compute agreement metrics
     metrics = geom_agreement_metrics(section_data, el_repeats, el_ramp_rate)
@@ -239,8 +241,26 @@ def interpolater(coords: np.ndarray, stations: np.ndarray) -> np.ndarray:
     return newx, newy
 
 
-def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3):
+def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3, horizontal_units: str = None):
     """Add DEM station_elevations to cross-sections."""
+    # Align section units and user units
+    xs_units = geom.cross_sections[next(iter(geom.cross_sections))].crs_units
+    if horizontal_units is None:
+        pass
+    elif xs_units in ["US survey foot", "foot"] and horizontal_units == "Feet":
+        pass
+    elif xs_units == "metre" and horizontal_units == "Meters":
+        pass
+    elif xs_units == "metre" and horizontal_units == "Feet":
+        max_interval /= 3.281
+    elif xs_units in ["US survey foot", "foot"] and horizontal_units == "Meters":
+        max_interval *= 3.281
+    else:
+        raise ValueError(
+            f"Error aligning XS units to user-supplied units.  xs.crs_units={xs_units} and user supplied {horizontal_units}"
+        )
+
+    # Sample terrain
     section_data = {}
     with rioxarray.open_rasterio(dem_path) as dem:
         for section in geom.cross_sections:
