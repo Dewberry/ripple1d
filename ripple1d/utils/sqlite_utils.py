@@ -239,24 +239,24 @@ def export_terrain_agreement_metrics_to_db(out_path: str, metrics: dict):
         with sqlite3.connect(out_path) as con:
             # Add model summary
             cur = con.cursor()
-            tmp_dict = metrics["summary"]
+            tmp_dict = metrics["reach_metrics"]
             stm = f"INSERT INTO model_metrics ({', '.join(tmp_dict.keys())}) values ({', '.join([':' + k for k in tmp_dict.keys()])})"
             cur.execute(stm, tmp_dict)
 
             # Add cross-section summaries
             tmp_dict = {}
-            for k in metrics["xs"]:
-                tmp_dict[k] = metrics["xs"][k]["summary"]
+            for k in metrics["xs_metrics"]:
+                tmp_dict[k] = metrics["xs_metrics"][k]["summary"]
                 tmp_dict[k]["xs_id"] = k
             stm, insertable = agreement_dict_sql_prep(tmp_dict, "xs_metrics")
             cur.executemany(stm, insertable)
 
             # Add elevation metrics
             tmp_dict = {}
-            for k in metrics["xs"]:
-                for k2 in metrics["xs"][k]["elevation"]:
+            for k in metrics["xs_metrics"]:
+                for k2 in metrics["xs_metrics"][k]["xs_elevation_metrics"]:
                     combo_k = f"{k}-{k2}"
-                    tmp_dict[combo_k] = metrics["xs"][k]["elevation"][k2]
+                    tmp_dict[combo_k] = metrics["xs_metrics"][k]["xs_elevation_metrics"][k2]
                     tmp_dict[combo_k]["xs_id"] = k
                     tmp_dict[combo_k]["elevation"] = k2
             stm, insertable = agreement_dict_sql_prep(tmp_dict, "xs_elevation_metrics")

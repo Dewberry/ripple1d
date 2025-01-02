@@ -238,13 +238,15 @@ def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3):
 
 def geom_agreement_metrics(xs_data: dict) -> dict:
     """Compute a suite of agreement metrics between source model XS data and a sampled DEM."""
-    metrics = {"xs": {}, "summary": {}}
+    metrics = {"xs_metrics": {}, "summary": {}}
     for section in xs_data:
-        metrics["xs"][section] = xs_agreement_metrics(xs_data[section])
+        metrics["xs_metrics"][section] = xs_agreement_metrics(xs_data[section])
 
     # aggregate
-    metrics["summary"] = summarize_dict({i: metrics["xs"][i]["summary"] for i in metrics["xs"]})  # Summarize summaries
-    del metrics["summary"]["max_el_residuals"]  # Averages are not applicable here
+    metrics["reach_metrics"] = summarize_dict(
+        {i: metrics["xs_metrics"][i]["summary"] for i in metrics["xs_metrics"]}
+    )  # Summarize summaries
+    del metrics["reach_metrics"]["max_el_residuals"]  # Averages are not applicable here
 
     return round_values(metrics)
 
@@ -270,8 +272,8 @@ def xs_agreement_metrics(xs: XS) -> dict:
     metrics = {}
 
     # Elevation-specific metrics and their summaries
-    metrics["elevation"] = variable_metrics(xs["src_xs"], xs["dem_xs"])
-    metrics["summary"] = summarize_dict(metrics["elevation"])
+    metrics["xs_elevation_metrics"] = variable_metrics(xs["src_xs"], xs["dem_xs"])
+    metrics["summary"] = summarize_dict(metrics["xs_elevation_metrics"])
 
     # Whole XS metrics
     src_xs_el = xs["src_xs"][:, 1]
