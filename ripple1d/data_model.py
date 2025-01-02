@@ -857,7 +857,7 @@ class XS:
                 point = validate_point(point)
 
                 offset_rs = reverse(self.reach_geom).project(point)
-                if self.computed_river_station > offset_rs:
+                if self.computed_river_station < offset_rs:
                     return True
                 else:
                     return False
@@ -868,7 +868,7 @@ class XS:
                 point = validate_point(point)
 
                 offset_rs = reverse(self.reach_geom).project(point)
-                if self.computed_river_station < offset_rs:
+                if self.computed_river_station > offset_rs:
                     return True
                 else:
                     return False
