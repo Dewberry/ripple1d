@@ -180,7 +180,6 @@ def create_ras_terrain(
         [src_dem_reprojected_localfile],
         projection_file,
         f"{nwm_rm.terrain_directory}\\{nwm_rm.model_name}",
-        vertical_units=MAP_DEM_VERT_UNITS,
     )
     os.remove(src_dem_reprojected_localfile)
     nwm_rm.update_write_ripple1d_parameters({"source_terrain": terrain_source_url})
