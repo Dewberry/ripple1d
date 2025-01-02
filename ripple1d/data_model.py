@@ -356,10 +356,9 @@ class NwmReachModel(RasModelStructure):
         """STAC JSON file."""
         return self.derive_path(".model.stac.json")
 
-    @property
-    def terrain_agreement_file(self):
+    def terrain_agreement_file(self, f: str):
         """Terrain agreement JSON file."""
-        return self.derive_path(".terrain_agreement.json")
+        return self.derive_path(f".terrain_agreement.{f}")
 
 
 @dataclass

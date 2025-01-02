@@ -28,6 +28,7 @@ from ripple1d.data_model import XS, NwmReachModel
 from ripple1d.ras import RasGeomText, create_terrain
 from ripple1d.utils.dg_utils import clip_raster, reproject_raster
 from ripple1d.utils.ripple_utils import fix_reversed_xs, resample_vertices, xs_concave_hull
+from ripple1d.utils.sqlite_utils import export_terrain_agreement_metrics_to_db
 
 
 def get_geometry_mask(gdf_xs_conc_hull: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
@@ -60,6 +61,7 @@ def create_ras_terrain(
     resolution: float = None,
     resolution_units: str = None,
     terrain_agreement_resolution: float = 3,
+    terrain_agreement_format: str = "db",
 ):
     """Create a RAS terrain file.
 
@@ -81,6 +83,9 @@ def create_ras_terrain(
     terrain_agreement_resolution : float, optional
         maximum distance allowed between the vertices used to calculate terrain
         agreement metrics (in units of the HEC-RAS model), by default 3
+    terrain_agreement_format : str, optional
+        whether to save the terrain agreement report as a json or a sqlite
+        database, by default "db"
     task_id : str, optional
         Task ID to use for logging, by default ""
 
@@ -169,7 +174,9 @@ def create_ras_terrain(
 
     # Calculate terrain agreement metrics
     terrain_path = result["RAS Terrain"] + "." + map_dem_clipped_basename.replace(".vrt", ".tif")
-    agreement_path = compute_terrain_agreement_metrics(submodel_directory, terrain_path, terrain_agreement_resolution)
+    agreement_path = compute_terrain_agreement_metrics(
+        submodel_directory, terrain_path, terrain_agreement_resolution, terrain_agreement_format
+    )
     result["terrain_agreement"] = agreement_path
     return result
 
@@ -177,7 +184,9 @@ def create_ras_terrain(
 ### Terrain Agreement Metrics ###
 
 
-def compute_terrain_agreement_metrics(submodel_directory: str, dem_path: str, max_sample_distance: float = 3):
+def compute_terrain_agreement_metrics(
+    submodel_directory: str, dem_path: str, max_sample_distance: float = 3, f: str = "db"
+):
     """Compute a suite of agreement metrics between source model XS data and mapping DEM."""
     # Load model information
     nwm_rm = NwmReachModel(submodel_directory)
@@ -190,8 +199,7 @@ def compute_terrain_agreement_metrics(submodel_directory: str, dem_path: str, ma
     metrics = geom_agreement_metrics(section_data)
 
     # Save results and summary
-    with open(nwm_rm.terrain_agreement_file, "w") as f:
-        json.dump(metrics, f, indent=4)
+    export_agreement_metrics(nwm_rm.terrain_agreement_file(f), metrics, f)
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
     return nwm_rm.terrain_agreement_file
 
@@ -236,9 +244,25 @@ def geom_agreement_metrics(xs_data: dict) -> dict:
 
     # aggregate
     metrics["summary"] = summarize_dict({i: metrics["xs"][i]["summary"] for i in metrics["xs"]})  # Summarize summaries
-    del metrics["summary"]["residuals"]  # Averages are not applicable here
+    del metrics["summary"]["max_el_residuals"]  # Averages are not applicable here
 
     return round_values(metrics)
+
+
+def export_agreement_metrics(out_path: str, metrics: dict, f: str = "db"):
+    """Save the terrain agreement metrics to a json or db."""
+    if os.path.exists(out_path):
+        os.remove(out_path)
+
+    if f == "json":
+        with open(out_path, "w") as f:
+            json.dump(metrics, f, indent=4)
+    elif f == "db":
+        export_terrain_agreement_metrics_to_db(out_path, metrics)
+    else:
+        raise ValueError(
+            f"Tried exporting terrain agreement metrics to format={f}, but only db (sqlite) and json are supported"
+        )
 
 
 def xs_agreement_metrics(xs: XS) -> dict:
@@ -281,9 +305,11 @@ def summarize_dict(in_dict: dict) -> dict:
     submetrics = list(in_dict[keys[0]].keys())
     for m in submetrics:
         if isinstance(in_dict[keys[0]][m], float):  # average floats
-            summary[m] = sum([in_dict[k][m] for k in keys]) / len(keys)
+            out_key = m if m.startswith("avg_") else f"avg_{m}"
+            summary[out_key] = sum([in_dict[k][m] for k in keys]) / len(keys)
         elif isinstance(in_dict[keys[0]][m], dict):  # Provide last entry for dicts
-            summary[m] = in_dict[keys[-1]][m]
+            out_key = m if m.startswith("max_el_") else f"max_el_{m}"
+            summary[out_key] = in_dict[keys[-1]][m]
     return summary
 
 
