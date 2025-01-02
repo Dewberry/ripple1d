@@ -386,7 +386,14 @@ class XS:
     """HEC-RAS Cross Section."""
 
     def __init__(
-        self, ras_data: list, river_reach: str, river: str, reach: str, crs: str, reach_geom: LineString, units
+        self,
+        ras_data: list,
+        river_reach: str,
+        river: str,
+        reach: str,
+        crs: str,
+        reach_geom: LineString = None,
+        units: str = "English",
     ):
         self.ras_data = ras_data
         self.crs = crs
