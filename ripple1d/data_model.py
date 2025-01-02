@@ -673,13 +673,15 @@ class XS:
 
         0, -1 correspond to 3 value manning's; horizontally varying manning's values, respectively.
         """
-        return search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[1]
+        return int(search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[1])
 
     @property
     def horizontal_varying_mannings(self):
         """A boolean indicating if horizontally varied mannings values are applied."""
         if self.mannings_code == -1:
             return True
+        elif self.mannings_code == 0:
+            return False
         else:
             return False
 
