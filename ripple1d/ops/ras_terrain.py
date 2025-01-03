@@ -211,12 +211,12 @@ def create_ras_terrain(
 def compute_terrain_agreement_metrics(
     submodel_directory: str,
     dem_path: str,
-    max_sample_distance: float = 3,
+    terrain_agreement_resolution: float = 3,
     horizontal_units: str = None,
-    f: str = "db",
-    el_repeats: int = 5,
-    el_ramp_rate: float = 2.0,
-    el_init: float = 0.5,
+    terrain_agreement_format: str = "db",
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
 ):
     """Compute a suite of agreement metrics between source model XS data and mapping DEM."""
     # Load model information
@@ -224,13 +224,15 @@ def compute_terrain_agreement_metrics(
 
     # Add DEM data to geom object
     geom = RasGeomText.from_gpkg(nwm_rm.derive_path(".gpkg"), "", "")
-    section_data = sample_terrain(geom, dem_path, max_sample_distance, horizontal_units)
+    section_data = sample_terrain(geom, dem_path, terrain_agreement_resolution, horizontal_units)
 
     # Compute agreement metrics
-    metrics = geom_agreement_metrics(section_data, el_repeats, el_ramp_rate, el_init)
+    metrics = geom_agreement_metrics(
+        section_data, terrain_agreement_el_repeats, terrain_agreement_el_ramp_rate, terrain_agreement_el_init
+    )
 
     # Save results and summary
-    export_agreement_metrics(nwm_rm.terrain_agreement_file(f), metrics, f)
+    export_agreement_metrics(nwm_rm.terrain_agreement_file(terrain_agreement_format), metrics, terrain_agreement_format)
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
     return nwm_rm.terrain_agreement_file
 
@@ -285,11 +287,18 @@ def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3, ho
     return section_data
 
 
-def geom_agreement_metrics(xs_data: dict, el_repeats: int = 5, el_ramp_rate: float = 2.0, el_init: float = 0.5) -> dict:
+def geom_agreement_metrics(
+    xs_data: dict,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+) -> dict:
     """Compute a suite of agreement metrics between source model XS data and a sampled DEM."""
     metrics = {"xs_metrics": {}, "summary": {}}
     for section in xs_data:
-        metrics["xs_metrics"][section] = xs_agreement_metrics(xs_data[section], el_repeats, el_ramp_rate, el_init)
+        metrics["xs_metrics"][section] = xs_agreement_metrics(
+            xs_data[section], terrain_agreement_el_repeats, terrain_agreement_el_ramp_rate, terrain_agreement_el_init
+        )
 
     # aggregate
     metrics["reach_metrics"] = summarize_dict(
@@ -316,12 +325,23 @@ def export_agreement_metrics(out_path: str, metrics: dict, f: str = "db"):
         )
 
 
-def xs_agreement_metrics(xs: XS, el_repeats: int = 5, el_ramp_rate: float = 2.0, el_init: float = 0.5) -> dict:
+def xs_agreement_metrics(
+    xs: XS,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+) -> dict:
     """Compute a suite of agreement metrics between source model XS data and mapping DEM."""
     metrics = {}
 
     # Elevation-specific metrics and their summaries
-    metrics["xs_elevation_metrics"] = variable_metrics(xs["src_xs"], xs["dem_xs"], el_repeats, el_ramp_rate, el_init)
+    metrics["xs_elevation_metrics"] = variable_metrics(
+        xs["src_xs"],
+        xs["dem_xs"],
+        terrain_agreement_el_repeats,
+        terrain_agreement_el_ramp_rate,
+        terrain_agreement_el_init,
+    )
     metrics["summary"] = summarize_dict(metrics["xs_elevation_metrics"])
 
     # Whole XS metrics
@@ -443,12 +463,18 @@ def thalweg_elevation_difference(a1: np.ndarray, a2: np.ndarray) -> float:
 
 
 def variable_metrics(
-    src_xs: np.ndarray, dem_xs: np.ndarray, el_repeats: int = 5, el_ramp_rate: float = 2.0, el_init: float = 0.5
+    src_xs: np.ndarray,
+    dem_xs: np.ndarray,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
 ) -> dict:
     """Calculate metrics for WSE values every half foot."""
     all_metrics = {}
     residuals = src_xs - dem_xs  # Calculate here to save compute
-    for wse in get_wses(src_xs, el_repeats, el_ramp_rate, el_init):
+    for wse in get_wses(
+        src_xs, terrain_agreement_el_repeats, terrain_agreement_el_ramp_rate, terrain_agreement_el_init
+    ):
         tmp_src_xs = add_intersection_pts(src_xs, wse)
         tmp_dem_xs = add_intersection_pts(dem_xs, wse)
         metrics = {}
@@ -463,19 +489,22 @@ def variable_metrics(
     return all_metrics
 
 
-def get_wses(xs: np.ndarray, repeats: int = 5, ramp_rate: float = 2.0, init_inc: float = 0.5) -> list[float]:
+def get_wses(
+    xs: np.ndarray,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+) -> list[float]:
     """Derive grid of water surface elevations from minimum el to lowest cross-section endpoint."""
     start_el = xs[:, 1].min()
-    print(start_el)
-    start_el = ceil(start_el / init_inc) * init_inc  # Round to nearest init_inc
+    start_el = ceil(start_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
     end_el = min((xs[0, 1], xs[-1, 1]))
-    print(end_el)
-    end_el = ceil(end_el / init_inc) * init_inc  # Round to nearest init_inc
+    end_el = ceil(end_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
 
     increments = np.arange(0, 10, 1)
-    increments = (ramp_rate**increments) * init_inc
-    increments = np.repeat(increments, repeats)
-    increments = np.cumsum(increments) - init_inc
+    increments = (terrain_agreement_el_ramp_rate**increments) * terrain_agreement_el_init
+    increments = np.repeat(increments, terrain_agreement_el_repeats)
+    increments = np.cumsum(increments) - terrain_agreement_el_init
 
     series = increments + start_el
     if series[-1] < end_el:
