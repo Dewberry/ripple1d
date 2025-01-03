@@ -234,7 +234,7 @@ def compute_terrain_agreement_metrics(
     # Save results and summary
     export_agreement_metrics(nwm_rm.terrain_agreement_file(terrain_agreement_format), metrics, terrain_agreement_format)
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
-    return nwm_rm.terrain_agreement_file
+    return nwm_rm.terrain_agreement_file()
 
 
 def interpolater(coords: np.ndarray, stations: np.ndarray) -> np.ndarray:
