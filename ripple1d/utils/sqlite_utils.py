@@ -199,3 +199,70 @@ def create_non_spatial_table(gpkg_path: str, metadata: dict) -> None:
         curs.execute("COMMIT;")
         curs.close()
     return None
+
+
+def create_terrain_agreement_db(out_path: str):
+    """Initialize agreement database."""
+    with sqlite3.connect(out_path) as con:
+        cur = con.cursor()
+        cur.execute(
+            "CREATE TABLE model_metrics (avg_inundation_overlap REAL, avg_flow_area_overlap REAL, avg_top_width_agreement REAL, avg_flow_area_agreement REAL, avg_hydraulic_radius_agreement REAL, avg_r_squared REAL, avg_spectral_angle REAL, avg_spectral_correlation REAL, avg_correlation REAL, avg_max_cross_correlation REAL, avg_thalweg_elevation_difference REAL)"
+        )
+        cur.execute(
+            "CREATE TABLE xs_metrics (xs_id TEXT PRIMARY KEY, avg_inundation_overlap REAL, avg_flow_area_overlap REAL, avg_top_width_agreement REAL, avg_flow_area_agreement REAL, avg_hydraulic_radius_agreement REAL, r_squared REAL, spectral_angle REAL, spectral_correlation REAL, correlation REAL, max_cross_correlation REAL, thalweg_elevation_difference REAL, max_el_residuals_mean REAL, max_el_residuals_std REAL, max_el_residuals_max REAL, max_el_residuals_min REAL, max_el_residuals_p_25 REAL, max_el_residuals_p_50 REAL, max_el_residuals_p_75 REAL, max_el_residuals_rmse REAL, max_el_residuals_normalized_rmse REAL)"
+        )
+        cur.execute(
+            "CREATE TABLE xs_elevation_metrics (elevation REAL, xs_id TEXT, inundation_overlap REAL, flow_area_overlap REAL, top_width_agreement REAL, flow_area_agreement REAL, hydraulic_radius_agreement REAL, residuals_mean REAL, residuals_std REAL, residuals_max REAL, residuals_min REAL, residuals_p_25 REAL, residuals_p_50 REAL, residuals_p_75 REAL, residuals_rmse REAL, residuals_normalized_rmse REAL, PRIMARY KEY (xs_id, elevation), FOREIGN KEY (xs_id) REFERENCES xs_metrics (xs_id))"
+        )
+    con.close()
+
+
+def agreement_dict_sql_prep(d: dict, table: str):
+    """Preprocess a dict to be easily instered with insertmany()."""
+    for k in d:
+        subdicts = [k2 for k2 in d[k] if isinstance(d[k][k2], dict)]
+        for sd in subdicts:
+            for r in d[k][sd]:
+                d[k][f"{sd}_{r}"] = d[k][sd][r]
+            del d[k][sd]
+    tmp_keys = d[k].keys()
+    insertable = list(d.values())
+    stm = f"INSERT INTO {table} ({', '.join(tmp_keys)}) values ({', '.join([':' + k for k in tmp_keys])})"
+    return stm, insertable
+
+
+def export_terrain_agreement_metrics_to_db(out_path: str, metrics: dict):
+    """Export terrain agreement dict to a sqlite database."""
+    create_terrain_agreement_db(out_path)
+
+    try:
+        with sqlite3.connect(out_path) as con:
+            # Add model summary
+            cur = con.cursor()
+            tmp_dict = metrics["model_metrics"]
+            stm = f"INSERT INTO model_metrics ({', '.join(tmp_dict.keys())}) values ({', '.join([':' + k for k in tmp_dict.keys()])})"
+            cur.execute(stm, tmp_dict)
+
+            # Add cross-section summaries
+            tmp_dict = {}
+            for k in metrics["xs_metrics"]:
+                tmp_dict[k] = metrics["xs_metrics"][k]["summary"]
+                tmp_dict[k]["xs_id"] = k
+            stm, insertable = agreement_dict_sql_prep(tmp_dict, "xs_metrics")
+            cur.executemany(stm, insertable)
+
+            # Add elevation metrics
+            tmp_dict = {}
+            for k in metrics["xs_metrics"]:
+                for k2 in metrics["xs_metrics"][k]["xs_elevation_metrics"]:
+                    combo_k = f"{k}-{k2}"
+                    tmp_dict[combo_k] = metrics["xs_metrics"][k]["xs_elevation_metrics"][k2]
+                    tmp_dict[combo_k]["xs_id"] = k
+                    tmp_dict[combo_k]["elevation"] = k2
+            stm, insertable = agreement_dict_sql_prep(tmp_dict, "xs_elevation_metrics")
+            cur.executemany(stm, insertable)
+        con.close()
+    except Exception as e:
+        con.rollback()
+        con.close()
+        raise e

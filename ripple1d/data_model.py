@@ -17,6 +17,7 @@ from pyproj import CRS
 from shapely import reverse
 from shapely.geometry import LineString, Point
 
+from ripple1d.errors import InvalidStructureDataError
 from ripple1d.utils.ripple_utils import (
     data_pairs_from_text_block,
     data_triplets_from_text_block,
@@ -355,10 +356,9 @@ class NwmReachModel(RasModelStructure):
         """STAC JSON file."""
         return self.derive_path(".model.stac.json")
 
-    @property
-    def terrain_agreement_file(self):
+    def terrain_agreement_file(self, f: str):
         """Terrain agreement JSON file."""
-        return self.derive_path(".terrain_agreement.json")
+        return self.derive_path(f".terrain_agreement.{f}")
 
 
 @dataclass
@@ -376,7 +376,14 @@ class XS:
     """HEC-RAS Cross Section."""
 
     def __init__(
-        self, ras_data: list, river_reach: str, river: str, reach: str, crs: str, reach_geom: LineString, units
+        self,
+        ras_data: list,
+        river_reach: str,
+        river: str,
+        reach: str,
+        crs: str,
+        reach_geom: LineString = None,
+        units: str = "English",
     ):
         self.ras_data = ras_data
         self.crs = crs
@@ -431,11 +438,28 @@ class XS:
             # raise NotGeoreferencedError(f"No coordinates found for cross section: {self.river_reach_rs} ")
 
     @property
-    def thalweg(self):
-        """Cross section thalweg elevation."""
+    def min_elevation(self):
+        """The min elevaiton in the cross section."""
         if self.station_elevation_points:
             _, y = list(zip(*self.station_elevation_points))
             return min(y)
+
+    @property
+    def min_elevation_in_channel(self):
+        """A boolean indicating if the minimum elevation is in the channel."""
+        if self.min_elevation == self.thalweg:
+            return True
+        else:
+            return False
+
+    @property
+    def thalweg(self):
+        """The min elevation of the channel (between bank points)."""
+        return self.station_elevation_df.loc[
+            (self.station_elevation_df["Station"] <= self.right_bank_station)
+            & (self.station_elevation_df["Station"] >= self.left_bank_station),
+            "Elevation",
+        ].min()
 
     @property
     def has_htab_error(self):
@@ -523,6 +547,16 @@ class XS:
     @property
     def station_length(self):
         """Length of cross section based on station-elevation data."""
+        return self.last_station - self.first_station
+
+    @property
+    def first_station(self):
+        """First station of the cross section."""
+        return float(self.station_elevation_points[0][0])
+
+    @property
+    def last_station(self):
+        """Last station of the cross section."""
         return float(self.station_elevation_points[-1][0])
 
     @property
@@ -532,8 +566,11 @@ class XS:
 
     @property
     def xs_length_ratio(self):
-        """Ratio of the station length to the cutline length."""
-        return self.station_length / self.cutline_length
+        """Ratio of the cutline length to the station length."""
+        if self.skew:
+            return self.cutline_length / (self.station_length / math.cos(math.radians(self.skew)))
+        else:
+            return self.cutline_length / self.station_length
 
     @property
     @lru_cache
@@ -545,10 +582,9 @@ class XS:
     def banks_encompass_channel(self):
         """A boolean; True if the channel centerlien intersects the cross section between the bank stations."""
         if self.cross_section_intersects_reach:
-            if (
-                self.centerline_intersection_station < self.right_bank_station
-                and self.centerline_intersection_station > self.left_bank_station
-            ):
+            if (self.centerline_intersection_station + self.first_station) < self.right_bank_station and (
+                self.centerline_intersection_station + self.first_station
+            ) > self.left_bank_station:
                 return True
             else:
                 return False
@@ -616,7 +652,7 @@ class XS:
         """The skew applied to the cross section."""
         skew = search_contents(self.ras_data, "Skew Angle", expect_one=False)
         if len(skew) == 1:
-            return skew[0]
+            return float(skew[0])
         elif len(skew) > 1:
             raise ValueError(
                 f"Expected only one skew value for the cross section recieved: {len(skew)}. XS: {self.river_reach_rs}"
@@ -634,13 +670,15 @@ class XS:
 
         0, -1 correspond to 3 value manning's; horizontally varying manning's values, respectively.
         """
-        return search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[1]
+        return int(search_contents(self.ras_data, "#Mann", expect_one=True).split(",")[1])
 
     @property
     def horizontal_varying_mannings(self):
         """A boolean indicating if horizontally varied mannings values are applied."""
         if self.mannings_code == -1:
             return True
+        elif self.mannings_code == 0:
+            return False
         else:
             return False
 
@@ -815,8 +853,8 @@ class XS:
                 point = self.reach_geom.intersection(offset)
                 point = validate_point(point)
 
-                offset_rs = self.reach_geom.project(point)
-                if self.computed_river_station > offset_rs:
+                offset_rs = reverse(self.reach_geom).project(point)
+                if self.computed_river_station < offset_rs:
                     return True
                 else:
                     return False
@@ -826,8 +864,8 @@ class XS:
                 point = self.reach_geom.intersection(offset)
                 point = validate_point(point)
 
-                offset_rs = self.reach_geom.project(point)
-                if self.computed_river_station < offset_rs:
+                offset_rs = reverse(self.reach_geom).project(point)
+                if self.computed_river_station > offset_rs:
                     return True
                 else:
                     return False
@@ -908,6 +946,7 @@ class XS:
                 "thalweg_drop": [self.thalweg_drop],
                 "left_max_elevation": [self.left_max_elevation],
                 "right_max_elevation": [self.right_max_elevation],
+                "min_elevation": [self.min_elevation],
                 "channel_width": [self.channel_width],
                 "channel_depth": [self.channel_depth],
                 "station_elevation_point_density": [self.station_elevation_point_density],
@@ -923,6 +962,7 @@ class XS:
                 "bridge_xs": [self.bridge_xs],
                 "cross_section_intersects_reach": [self.cross_section_intersects_reach],
                 "intersects_reach_once": [self.intersects_reach_once],
+                "min_elevation_in_channel": [self.min_elevation_in_channel],
             },
             crs=self.crs,
             geometry="geometry",
@@ -952,11 +992,13 @@ class Structure:
         return header.split(",")[position]
 
     @property
+    @lru_cache
     def number_of_station_elevation_points(self):
         """The number of station elevation points."""
         return int(search_contents(self.ras_data, "Lateral Weir SE", expect_one=True))
 
     @property
+    @lru_cache
     def station_elevation_points(self):
         """Station elevation points."""
         try:
@@ -970,41 +1012,81 @@ class Structure:
             return None
 
     @property
+    @lru_cache
     def weir_length(self):
         """The length weir."""
         if self.type == 6:
-            return float(list(zip(*self.station_elevation_points))[0][-1])
+            try:
+                return float(list(zip(*self.station_elevation_points))[0][-1])
+            except IndexError as e:
+                raise InvalidStructureDataError(
+                    f"No station elevation data for: {self.river}, {self.reach}, {self.river_station}"
+                )
 
     @property
-    def dowstream_river_station(self):
-        """The dowstream river station based on the up stream river station and the length of the weir."""
-        if self.type == 6:
-            return self.river_station + self.weir_length
-
-    @property
+    @lru_cache
     def river_station(self):
         """Structure river station."""
         return float(self.split_structure_header(1))
 
     @property
+    @lru_cache
+    def downstream_river_station(self):
+        """The downstream head water river station of the lateral weir."""
+
+    @property
+    @lru_cache
+    def distance_to_us_xs(self):
+        """The distance from the upstream cross section to the start of the lateral structure."""
+        try:
+            return float(search_contents(self.ras_data, "Lateral Weir Distance", expect_one=True))
+        except ValueError as e:
+            raise InvalidStructureDataError(
+                f"The weir distance for the lateral structure is not populated for: {self.river},{self.reach},{self.river_station}"
+            )
+
+    @property
+    @lru_cache
     def tail_water_river(self):
         """The tail water reache's river name."""
-        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[0]
+        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[0].rstrip()
 
     @property
+    @lru_cache
     def tail_water_reach(self):
         """The tail water reache's reach name."""
-        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[1]
+        return search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[1].rstrip()
 
     @property
-    def tail_water_river_us_station(self):
+    @lru_cache
+    def tail_water_river_station(self):
         """The tail water reache's river stationing."""
         return float(search_contents(self.ras_data, "Lateral Weir End", expect_one=True).split(",")[2])
 
     @property
+    @lru_cache
+    def multiple_xs(self):
+        """A boolean indicating if the tailwater is connected to multiple cross sections."""
+        if search_contents(self.ras_data, "Lateral Weir TW Multiple XS", expect_one=True) == "-1":
+            print(-1)
+            return True
+        else:
+            print(0)
+            return False
+
+    @property
+    @lru_cache
+    def tw_distance(self):
+        """The distance between the tail water upstream cross section and the lateral weir."""
+        return float(
+            search_contents(self.ras_data, "Lateral Weir Connection Pos and Dist", expect_one=True).split(",")[1]
+        )
+
+    @property
+    @lru_cache
     def tail_water_river_ds_station(self):
         """The tail water reache's river stationing."""
-        return self.tail_water_river_us_station + self.weir_length
+        return self.tail_water_river_us_station - self.weir_length - self.tw_distance
 
     @property
     def type(self):
@@ -1128,7 +1210,7 @@ class Reach:
             type, _, _, _, _ = header.split(",")[:5]
 
             if int(type) in [2, 3, 4]:
-                bridge_xs = bridge_xs[::-2] + [4, 3]
+                bridge_xs = bridge_xs[:-2] + [4, 3]
             if int(type) != 1:
                 continue
             if len(bridge_xs) == 0:

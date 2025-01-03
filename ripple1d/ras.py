@@ -33,6 +33,7 @@ from ripple1d.data_model import FlowChangeLocation, Junction, Reach
 from ripple1d.errors import (
     FlowTitleAlreadyExistsError,
     HECRASVersionNotInstalledError,
+    InvalidStructureDataError,
     NoCrossSectionLayerError,
     NoFlowFileSpecifiedError,
     NoGeometryFileSpecifiedError,
@@ -573,6 +574,7 @@ class RasPlanText(RasTextFile):
             raise TypeError(f"Plan extenstion must be one of .p01-.p99, not {self.file_extension}")
         self.crs = crs
         self.hdf_file = self._ras_text_file_path + ".hdf"
+        self.units = units
 
     def __repr__(self):
         """Representation of the RasPlanText class."""
@@ -952,23 +954,87 @@ class RasGeomText(RasTextFile):
         for structure in self.structures.values():
             if int(structure.type) == 6:
                 try:
+                    us_rs = xs_gdf.loc[
+                        (xs_gdf["river"] == structure.river)
+                        & (xs_gdf["reach"] == structure.reach)
+                        & (xs_gdf["river_station"] > structure.river_station),
+                        "river_station",
+                    ].min()
+
+                    ds_xs = xs_gdf.loc[
+                        (xs_gdf["river"] == structure.river)
+                        & (xs_gdf["reach"] == structure.reach)
+                        & (xs_gdf["river_station"] <= us_rs)
+                    ]
+
+                    reach_len = 0
+                    river_stations = []
+                    for _, row in ds_xs.iterrows():
+                        reach_len += row["channel_reach_length"]
+                        river_stations.append(row.river_station)
+                        if reach_len > structure.distance_to_us_xs + structure.weir_length:
+                            break
+
                     xs_gdf.loc[
                         (xs_gdf["river"] == structure.river)
                         & (xs_gdf["reach"] == structure.reach)
-                        & (xs_gdf["river_station"] > structure.dowstream_river_station)
-                        & (xs_gdf["river_station"] < structure.river_station),
-                        "has_lateral_structures",
+                        & (xs_gdf["river_station"] <= max(river_stations))
+                        & (xs_gdf["river_station"] >= min(river_stations)),
+                        "has_lateral_structure",
                     ] = True
 
-                    xs_gdf.loc[
-                        (xs_gdf["river"] == structure.tail_water_river)
-                        & (xs_gdf["reach"] == structure.tail_water_reach)
-                        & (xs_gdf["river_station"] > structure.tail_water_river_us_station)
-                        & (xs_gdf["river_station"] < structure.tail_water_river_ds_station),
-                        "has_lateral_structures",
-                    ] = True
-                except IndexError as e:
+                    if structure.tail_water_river in xs_gdf.river:
+
+                        if structure.multiple_xs:
+
+                            ds_xs = xs_gdf.loc[
+                                (xs_gdf["river"] == structure.tail_water_river)
+                                & (xs_gdf["reach"] == structure.tail_water_reach)
+                                & (xs_gdf["river_station"] <= structure.tail_water_river_station)
+                            ]
+
+                            reach_len = 0
+                            river_stations = []
+                            for _, row in ds_xs.iterrows():
+                                reach_len += row["channel_reach_length"]
+                                river_stations.append(row.river_station)
+                                if reach_len > structure.tw_distance + structure.weir_length:
+                                    break
+
+                            xs_gdf.loc[
+                                (xs_gdf["river"] == structure.tail_water_river)
+                                & (xs_gdf["reach"] == structure.tail_water_reach)
+                                & (xs_gdf["river_station"] <= max(river_stations))
+                                & (xs_gdf["river_station"] >= min(river_stations)),
+                                "has_lateral_structure",
+                            ] = True
+                        else:
+
+                            ds_xs = xs_gdf.loc[
+                                (xs_gdf["river"] == structure.tail_water_river)
+                                & (xs_gdf["reach"] == structure.tail_water_reach)
+                                & (xs_gdf["river_station"] <= structure.tail_water_river_station)
+                            ]
+
+                            reach_len = 0
+                            river_stations = []
+                            for _, row in ds_xs.iterrows():
+                                reach_len += row["channel_reach_length"]
+                                river_stations.append(row.river_station)
+                                if len(river_stations) > 1:
+                                    break
+
+                            xs_gdf.loc[
+                                (xs_gdf["river"] == structure.tail_water_river)
+                                & (xs_gdf["reach"] == structure.tail_water_reach)
+                                & (xs_gdf["river_station"] <= max(river_stations))
+                                & (xs_gdf["river_station"] >= min(river_stations)),
+                                "has_lateral_structure",
+                            ] = True
+
+                except InvalidStructureDataError as e:
                     pass
+
         return xs_gdf
 
     @property
@@ -1037,12 +1103,12 @@ class RasGeomText(RasTextFile):
     @check_crs
     def to_gpkg(self, gpkg_path: str):
         """Write the HEC-RAS Geometry file to geopackage."""
-        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS", ignore_index=True)
-        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River", ignore_index=True)
+        self.xs_gdf.to_file(gpkg_path, driver="GPKG", layer="XS")
+        self.reach_gdf.to_file(gpkg_path, driver="GPKG", layer="River")
         if self.junctions:
-            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction", ignore_index=True)
+            self.junction_gdf.to_file(gpkg_path, driver="GPKG", layer="Junction")
         if self.structures:
-            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure", ignore_index=True)
+            self.structures_gdf.to_file(gpkg_path, driver="GPKG", layer="Structure")
 
 
 class RasFlowText(RasTextFile):

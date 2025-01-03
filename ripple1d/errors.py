@@ -22,6 +22,10 @@ class NoFlowFileSpecifiedError(Exception):
     """TODO."""
 
 
+class InvalidStructureDataError(Exception):
+    """TODO."""
+
+
 class NoGeometryFileSpecifiedError(Exception):
     """TODO."""
 

@@ -66,7 +66,6 @@ def setup_data(request):
         rgs.ripple_xs_concave_hull,
         network_reach,
         network_reach_plus_ds_reach,
-        "",
         NETWORK_REACH_ID,
     )
     request.cls.rgs = rgs

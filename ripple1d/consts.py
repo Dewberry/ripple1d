@@ -74,3 +74,7 @@ TERRAIN_AGREEMENT_PRECISION = {
     "max_cross_correlation": 3,
     "thalweg_elevation_difference": 2,
 }
+keys = list(TERRAIN_AGREEMENT_PRECISION.keys())
+for k in keys:
+    TERRAIN_AGREEMENT_PRECISION[f"avg_{k}"] = TERRAIN_AGREEMENT_PRECISION[k]
+    TERRAIN_AGREEMENT_PRECISION[f"max_el_residuals_{k}"] = TERRAIN_AGREEMENT_PRECISION[k]
