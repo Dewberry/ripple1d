@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ripple1d"
-version = "0.7.0"
+version = "0.8.0"
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
@@ -46,7 +46,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pre-commit", "ruff", "pytest", "pytest-cov"]
+dev = ["pre-commit", "ruff", "pytest", "pytest-cov", "pytest-json-report"]
 docs = ["sphinx", "numpydoc", "sphinx_rtd_theme", "sphinx_design", "pydata-sphinx-theme", "sphinx-autodoc-typehints", "myst-parser"]
 
 [project.urls]
