@@ -239,7 +239,7 @@ def export_terrain_agreement_metrics_to_db(out_path: str, metrics: dict):
         with sqlite3.connect(out_path) as con:
             # Add model summary
             cur = con.cursor()
-            tmp_dict = metrics["reach_metrics"]
+            tmp_dict = metrics["model_metrics"]
             stm = f"INSERT INTO model_metrics ({', '.join(tmp_dict.keys())}) values ({', '.join([':' + k for k in tmp_dict.keys()])})"
             cur.execute(stm, tmp_dict)
 

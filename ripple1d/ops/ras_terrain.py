@@ -303,10 +303,10 @@ def geom_agreement_metrics(
         )
 
     # aggregate
-    metrics["reach_metrics"] = summarize_dict(
+    metrics["model_metrics"] = summarize_dict(
         {i: metrics["xs_metrics"][i]["summary"] for i in metrics["xs_metrics"]}
     )  # Summarize summaries
-    del metrics["reach_metrics"]["max_el_residuals"]  # Averages are not applicable here
+    del metrics["model_metrics"]["max_el_residuals"]  # Averages are not applicable here
 
     return round_values(metrics)
 
