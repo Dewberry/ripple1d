@@ -232,9 +232,11 @@ def compute_terrain_agreement_metrics(
     )
 
     # Save results and summary
-    export_agreement_metrics(nwm_rm.terrain_agreement_file(terrain_agreement_format), metrics, terrain_agreement_format)
+    metric_path = export_agreement_metrics(
+        nwm_rm.terrain_agreement_file(terrain_agreement_format), metrics, terrain_agreement_format
+    )
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
-    return nwm_rm.terrain_agreement_file()
+    return metric_path
 
 
 def interpolater(coords: np.ndarray, stations: np.ndarray) -> np.ndarray:
@@ -323,6 +325,7 @@ def export_agreement_metrics(out_path: str, metrics: dict, f: str = "db"):
         raise ValueError(
             f"Tried exporting terrain agreement metrics to format={f}, but only db (sqlite) and json are supported"
         )
+    return out_path
 
 
 def xs_agreement_metrics(
@@ -498,6 +501,8 @@ def get_wses(
     """Derive grid of water surface elevations from minimum el to lowest cross-section endpoint."""
     start_el = xs[:, 1].min()
     start_el = ceil(start_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
+    if start_el == xs[:, 1].min():  # Sometimes rounding error will set this equal.
+        start_el += terrain_agreement_el_init
     end_el = min((xs[0, 1], xs[-1, 1]))
     end_el = ceil(end_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
 
