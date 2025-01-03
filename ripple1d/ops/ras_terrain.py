@@ -28,6 +28,7 @@ from ripple1d.data_model import XS, NwmReachModel
 from ripple1d.ras import RasGeomText, create_terrain
 from ripple1d.utils.dg_utils import clip_raster, reproject_raster
 from ripple1d.utils.ripple_utils import fix_reversed_xs, resample_vertices, xs_concave_hull
+from ripple1d.utils.sqlite_utils import export_terrain_agreement_metrics_to_db
 
 
 def get_geometry_mask(gdf_xs_conc_hull: str, MAP_DEM_UNCLIPPED_SRC_URL: str) -> gpd.GeoDataFrame:
@@ -60,6 +61,10 @@ def create_ras_terrain(
     resolution: float = None,
     resolution_units: str = None,
     terrain_agreement_resolution: float = 3,
+    terrain_agreement_format: str = "db",
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
 ):
     """Create a RAS terrain file.
 
@@ -80,7 +85,25 @@ def create_ras_terrain(
         unit for resolution parameter, by default None
     terrain_agreement_resolution : float, optional
         maximum distance allowed between the vertices used to calculate terrain
-        agreement metrics (in units of the HEC-RAS model), by default 3
+        agreement metrics (in units of resolution_units), by default 3
+    terrain_agreement_format : str, optional
+        whether to save the terrain agreement report as a json or a sqlite
+        database, by default "db"
+    terrain_agreement_el_repeats : int, optional
+        how many times to repeat an elevation increment before ramping to the
+        next elevation increment, by default 5
+    terrain_agreement_el_ramp_rate : float, optional
+        adjusts rate at which elevation increments increase after the designated
+        number of repeats, by default 2.  The series of increments to be
+        repeated is defined as inc_i = (ramp_rate^i)*initial_value.  A ramp rate
+        of 2 will yield increments of 0.5, 1, 2, 4, 8, etc.  With a repeate
+        value of 5, the series of increments will be 0.5, 0.5, 0.5, 0.5, 0.5,
+        1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 4.0, etc.  That
+        increment series will calculate agreement metrics at depths of 0.5, 1.0,
+        1.5, 2.0, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 9.5, 11.5, 13.5, 15.5, 17.5,
+        21.5, etc.
+    terrain_agreement_el_init : float, optional
+        initial value for terrain agreement elevation increments, by default 0.5
     task_id : str, optional
         Task ID to use for logging, by default ""
 
@@ -161,14 +184,23 @@ def create_ras_terrain(
         [src_dem_reprojected_localfile],
         projection_file,
         f"{nwm_rm.terrain_directory}\\{nwm_rm.model_name}",
-        vertical_units=MAP_DEM_VERT_UNITS,
     )
     os.remove(src_dem_reprojected_localfile)
     nwm_rm.update_write_ripple1d_parameters({"source_terrain": terrain_source_url})
     logging.info(f"create_ras_terrain complete")
 
     # Calculate terrain agreement metrics
-    agreement_path = compute_terrain_agreement_metrics(submodel_directory, terrain_agreement_resolution)
+    terrain_path = result["RAS Terrain"] + "." + map_dem_clipped_basename.replace(".vrt", ".tif")
+    agreement_path = compute_terrain_agreement_metrics(
+        submodel_directory,
+        terrain_path,
+        terrain_agreement_resolution,
+        resolution_units,
+        terrain_agreement_format,
+        terrain_agreement_el_repeats,
+        terrain_agreement_el_ramp_rate,
+        terrain_agreement_el_init,
+    )
     result["terrain_agreement"] = agreement_path
     return result
 
@@ -176,24 +208,35 @@ def create_ras_terrain(
 ### Terrain Agreement Metrics ###
 
 
-def compute_terrain_agreement_metrics(submodel_directory: str, max_sample_distance: float = 3):
+def compute_terrain_agreement_metrics(
+    submodel_directory: str,
+    dem_path: str,
+    terrain_agreement_resolution: float = 3,
+    horizontal_units: str = None,
+    terrain_agreement_format: str = "db",
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+):
     """Compute a suite of agreement metrics between source model XS data and mapping DEM."""
     # Load model information
     nwm_rm = NwmReachModel(submodel_directory)
-    dem_path = nwm_rm.terrain_file
 
     # Add DEM data to geom object
     geom = RasGeomText.from_gpkg(nwm_rm.derive_path(".gpkg"), "", "")
-    section_data = sample_terrain(geom, dem_path, max_interval=max_sample_distance)
+    section_data = sample_terrain(geom, dem_path, terrain_agreement_resolution, horizontal_units)
 
     # Compute agreement metrics
-    metrics = geom_agreement_metrics(section_data)
+    metrics = geom_agreement_metrics(
+        section_data, terrain_agreement_el_repeats, terrain_agreement_el_ramp_rate, terrain_agreement_el_init
+    )
 
     # Save results and summary
-    with open(nwm_rm.terrain_agreement_file, "w") as f:
-        json.dump(metrics, f, indent=4)
+    metric_path = export_agreement_metrics(
+        nwm_rm.terrain_agreement_file(terrain_agreement_format), metrics, terrain_agreement_format
+    )
     nwm_rm.update_write_ripple1d_parameters({"terrain_agreement_summary": metrics["summary"]})
-    return nwm_rm.terrain_agreement_file
+    return metric_path
 
 
 def interpolater(coords: np.ndarray, stations: np.ndarray) -> np.ndarray:
@@ -207,8 +250,26 @@ def interpolater(coords: np.ndarray, stations: np.ndarray) -> np.ndarray:
     return newx, newy
 
 
-def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3):
+def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3, horizontal_units: str = None):
     """Add DEM station_elevations to cross-sections."""
+    # Align section units and user units
+    xs_units = geom.cross_sections[next(iter(geom.cross_sections))].crs_units
+    if horizontal_units is None:
+        pass
+    elif xs_units in ["US survey foot", "foot"] and horizontal_units == "Feet":
+        pass
+    elif xs_units == "metre" and horizontal_units == "Meters":
+        pass
+    elif xs_units == "metre" and horizontal_units == "Feet":
+        max_interval /= 3.281
+    elif xs_units in ["US survey foot", "foot"] and horizontal_units == "Meters":
+        max_interval *= 3.281
+    else:
+        raise ValueError(
+            f"Error aligning XS units to user-supplied units.  xs.crs_units={xs_units} and user supplied {horizontal_units}"
+        )
+
+    # Sample terrain
     section_data = {}
     with rioxarray.open_rasterio(dem_path) as dem:
         for section in geom.cross_sections:
@@ -228,26 +289,63 @@ def sample_terrain(geom: RasGeomText, dem_path: str, max_interval: float = 3):
     return section_data
 
 
-def geom_agreement_metrics(xs_data: dict) -> dict:
+def geom_agreement_metrics(
+    xs_data: dict,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+) -> dict:
     """Compute a suite of agreement metrics between source model XS data and a sampled DEM."""
-    metrics = {"xs": {}, "summary": {}}
+    metrics = {"xs_metrics": {}, "summary": {}}
     for section in xs_data:
-        metrics["xs"][section] = xs_agreement_metrics(xs_data[section])
+        metrics["xs_metrics"][section] = xs_agreement_metrics(
+            xs_data[section], terrain_agreement_el_repeats, terrain_agreement_el_ramp_rate, terrain_agreement_el_init
+        )
 
     # aggregate
-    metrics["summary"] = summarize_dict({i: metrics["xs"][i]["summary"] for i in metrics["xs"]})  # Summarize summaries
-    del metrics["summary"]["residuals"]  # Averages are not applicable here
+    metrics["model_metrics"] = summarize_dict(
+        {i: metrics["xs_metrics"][i]["summary"] for i in metrics["xs_metrics"]}
+    )  # Summarize summaries
+    del metrics["model_metrics"]["max_el_residuals"]  # Averages are not applicable here
 
     return round_values(metrics)
 
 
-def xs_agreement_metrics(xs: XS) -> dict:
+def export_agreement_metrics(out_path: str, metrics: dict, f: str = "db"):
+    """Save the terrain agreement metrics to a json or db."""
+    if os.path.exists(out_path):
+        os.remove(out_path)
+
+    if f == "json":
+        with open(out_path, "w") as f:
+            json.dump(metrics, f, indent=4)
+    elif f == "db":
+        export_terrain_agreement_metrics_to_db(out_path, metrics)
+    else:
+        raise ValueError(
+            f"Tried exporting terrain agreement metrics to format={f}, but only db (sqlite) and json are supported"
+        )
+    return out_path
+
+
+def xs_agreement_metrics(
+    xs: XS,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+) -> dict:
     """Compute a suite of agreement metrics between source model XS data and mapping DEM."""
     metrics = {}
 
     # Elevation-specific metrics and their summaries
-    metrics["elevation"] = variable_metrics(xs["src_xs"], xs["dem_xs"])
-    metrics["summary"] = summarize_dict(metrics["elevation"])
+    metrics["xs_elevation_metrics"] = variable_metrics(
+        xs["src_xs"],
+        xs["dem_xs"],
+        terrain_agreement_el_repeats,
+        terrain_agreement_el_ramp_rate,
+        terrain_agreement_el_init,
+    )
+    metrics["summary"] = summarize_dict(metrics["xs_elevation_metrics"])
 
     # Whole XS metrics
     src_xs_el = xs["src_xs"][:, 1]
@@ -281,9 +379,11 @@ def summarize_dict(in_dict: dict) -> dict:
     submetrics = list(in_dict[keys[0]].keys())
     for m in submetrics:
         if isinstance(in_dict[keys[0]][m], float):  # average floats
-            summary[m] = sum([in_dict[k][m] for k in keys]) / len(keys)
+            out_key = m if m.startswith("avg_") else f"avg_{m}"
+            summary[out_key] = sum([in_dict[k][m] for k in keys]) / len(keys)
         elif isinstance(in_dict[keys[0]][m], dict):  # Provide last entry for dicts
-            summary[m] = in_dict[keys[-1]][m]
+            out_key = m if m.startswith("max_el_") else f"max_el_{m}"
+            summary[out_key] = in_dict[keys[-1]][m]
     return summary
 
 
@@ -365,11 +465,19 @@ def thalweg_elevation_difference(a1: np.ndarray, a2: np.ndarray) -> float:
     return a1.min() - a2.min()
 
 
-def variable_metrics(src_xs: np.ndarray, dem_xs: np.ndarray) -> dict:
+def variable_metrics(
+    src_xs: np.ndarray,
+    dem_xs: np.ndarray,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+) -> dict:
     """Calculate metrics for WSE values every half foot."""
     all_metrics = {}
     residuals = src_xs - dem_xs  # Calculate here to save compute
-    for wse in get_wses(src_xs):
+    for wse in get_wses(
+        src_xs, terrain_agreement_el_repeats, terrain_agreement_el_ramp_rate, terrain_agreement_el_init
+    ):
         tmp_src_xs = add_intersection_pts(src_xs, wse)
         tmp_dem_xs = add_intersection_pts(dem_xs, wse)
         metrics = {}
@@ -384,21 +492,28 @@ def variable_metrics(src_xs: np.ndarray, dem_xs: np.ndarray) -> dict:
     return all_metrics
 
 
-def get_wses(xs: np.ndarray, ramp_rate: int = 2, repeats: int = 5) -> list[float]:
+def get_wses(
+    xs: np.ndarray,
+    terrain_agreement_el_repeats: int = 5,
+    terrain_agreement_el_ramp_rate: float = 2.0,
+    terrain_agreement_el_init: float = 0.5,
+) -> list[float]:
     """Derive grid of water surface elevations from minimum el to lowest cross-section endpoint."""
     start_el = xs[:, 1].min()
-    start_el = ceil(start_el * 2) / 2  # Round to nearest half foot
+    start_el = ceil(start_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
+    if abs(start_el - xs[:, 1].min()) < terrain_agreement_el_init:  # Sometimes rounding error will set these equal.
+        start_el += terrain_agreement_el_init
     end_el = min((xs[0, 1], xs[-1, 1]))
-    end_el = ceil(end_el * 2) / 2  # Round to nearest half foot
+    end_el = ceil(end_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
 
     increments = np.arange(0, 10, 1)
-    increments = (ramp_rate**increments) * 0.5
-    increments = np.repeat(increments, repeats)
-    increments = np.cumsum(increments)
+    increments = (terrain_agreement_el_ramp_rate**increments) * terrain_agreement_el_init
+    increments = np.repeat(increments, terrain_agreement_el_repeats)
+    increments = np.cumsum(increments) - terrain_agreement_el_init
 
     series = increments + start_el
     if series[-1] < end_el:
-        np.append(series, end_el)
+        series = np.append(series, end_el)
     else:
         series = series[series <= end_el]
     return np.round(series, 1)
