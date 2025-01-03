@@ -501,7 +501,7 @@ def get_wses(
     """Derive grid of water surface elevations from minimum el to lowest cross-section endpoint."""
     start_el = xs[:, 1].min()
     start_el = ceil(start_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
-    if start_el == xs[:, 1].min():  # Sometimes rounding error will set this equal.
+    if abs(start_el - xs[:, 1].min()) < terrain_agreement_el_init:  # Sometimes rounding error will set these equal.
         start_el += terrain_agreement_el_init
     end_el = min((xs[0, 1], xs[-1, 1]))
     end_el = ceil(end_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
