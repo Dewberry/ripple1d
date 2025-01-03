@@ -8,3 +8,4 @@ extract_submodel
 **Description:**
 
 .. autofunction:: ripple1d.ops.subset_gpkg.extract_submodel
+    :no-index:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ripple1d"
-version = "0.7.0"
+version = "0.8.0"
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
@@ -41,12 +41,13 @@ dependencies = [
     "rasterio==1.3.10",
     "requests==2.32.3",
     "shapely==2.0.5",
-    "pywin32==306"
+    "xarray==2024.11.0",
+    "rioxarray==0.18.1"
 ]
 
 [project.optional-dependencies]
-dev = ["pre-commit", "ruff", "pytest", "pytest-cov"]
-docs = ["sphinx", "numpydoc", "sphinx_rtd_theme", "sphinx_design", "pydata-sphinx-theme"]
+dev = ["pre-commit", "ruff", "pytest", "pytest-cov", "pytest-json-report"]
+docs = ["sphinx", "numpydoc", "sphinx_rtd_theme", "sphinx_design", "pydata-sphinx-theme", "sphinx-autodoc-typehints", "myst-parser"]
 
 [project.urls]
 repository = "https://github.com/dewberry/ripple1d"

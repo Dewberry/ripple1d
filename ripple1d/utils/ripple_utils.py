@@ -9,8 +9,10 @@ from pathlib import Path
 
 import boto3
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
+from pyproj import CRS
 from shapely import (
     LineString,
     MultiPoint,
@@ -34,6 +36,20 @@ from ripple1d.errors import (
 from ripple1d.utils.s3_utils import list_keys
 
 load_dotenv(find_dotenv())
+
+
+def determine_crs_units(crs: CRS):
+    """Determine the units of the crs."""
+    if type(crs) not in [str, int, CRS]:
+        raise TypeError(f"expected either pyproj.CRS, wkt(st), or epsg code(int); recieved {type(crs)} ")
+
+    unit_name = CRS(crs).axis_info[0].unit_name
+    if crs.axis_info[0].unit_name not in ["degree", "US survey foot", "foot", "metre"]:
+        raise ValueError(
+            f"Expected the crs units to be one of degree, US survey foot, foot, or metre; recieved {unit_name}"
+        )
+
+    return unit_name
 
 
 def clip_ras_centerline(centerline: LineString, xs: gpd.GeoDataFrame, buffer_distance: float = 0):
@@ -336,6 +352,19 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
     return pairs
 
 
+def data_triplets_from_text_block(lines: list[str], width: int) -> list[tuple[float]]:
+    """Split lines at given width to get paired data string. Split the string in half and convert to tuple of floats."""
+    pairs = []
+    for line in lines:
+        for i in range(0, len(line), width):
+            x = line[i : int(i + width / 3)]
+            y = line[int(i + width / 3) : int(i + (width * 2 / 3))]
+            z = line[int(i + (width * 2 / 3)) : int(i + (width))]
+            pairs.append((float(x), float(y), float(z)))
+
+    return pairs
+
+
 def handle_spaces(line: str, lines: list[str]):
     """Handle spaces in the line."""
     if line in lines:
@@ -406,3 +435,20 @@ def assert_no_store_all_maps_error_message(compute_message_file: str):
             raise RASStoreAllMapsError(
                 f"{repr(line)} found in {compute_message_file}. Full file content:\n{content}\n^^^ERROR^^^"
             )
+
+
+def resample_vertices(stations: np.ndarray, max_interval: float) -> np.ndarray:
+    """Resample a set of stations so that no gaps are larger than max_interval."""
+    i = 0
+    max_iter = 1e10
+    while i < (len(stations) - 1) and i < max_iter:
+        gap = stations[i + 1] - stations[i]
+        if gap <= max_interval:
+            i += 1
+            continue
+        subdivisions = (gap // max_interval) - 1
+        modulo = gap - (subdivisions * max_interval)
+        new_pts = np.arange(stations[i] + (modulo / 2), stations[i + 1], max_interval)
+        stations = np.insert(stations, i + 1, new_pts)
+        i += len(new_pts) + 1
+    return stations

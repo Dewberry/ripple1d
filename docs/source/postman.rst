@@ -1,22 +1,26 @@
 Postman collection
 ==================
 
-For reference and documentation of the API, please open the postman collection for the version of ripple1d 
+For reference and documentation of the API, please open the postman collection for the version of ripple1d
 
-`v0.7.0: <https://github.com/Dewberry/ripple1d/blob/ac8596f4c7d4a42f189ba4591803dfd6f94887ca/ripple1d/api/postman_collection.json>`_ This beta version contains: 
+`v0.8.0: <https://github.com/Dewberry/ripple1d/blob/39089e932b1052e1b708a84eefff47f1973759c5/ripple1d/api/postman_collection.json>`_ This beta version contains new args for the create_ras_terrain endpoint:
+ - `terrain_agreement_resolution` (float)  added to  `create_ras_terrain`.  This is the maximum distance allowed between the vertices used to calculate terrain agreement metrics.  It is in the units of the HEC-RAS model.
+ - `f` (json or html) added to jobs.  Default value is json.  Determines the response format of the endpoint.
+
+`v0.7.0: <https://github.com/Dewberry/ripple1d/blob/ac8596f4c7d4a42f189ba4591803dfd6f94887ca/ripple1d/api/postman_collection.json>`_ This beta version contains:
  new endpoints:
    - `create_rating_curves_db`: creates rating curve using results from `run_known_wse` and `run_incremental_normal_depth` results
    - `jobs`: added endpoints to view job `results`, `metadata`, and `logs`
 
- new args: 
+ new args:
   - `write_depth_grids` (bool)  added to  `run_known_wse` and `run_incremental_normal_depth` endpoints
 
-`v0.6.0-v0.6.3: <https://github.com/Dewberry/ripple1d/blob/4fe2488f9d73aec08121a5c3034bf2445d0258e6/ripple1d/api/postman_collection.json>`_ This beta version contains new args for the create_fim_lib endpoint: 
+`v0.6.0-v0.6.3: <https://github.com/Dewberry/ripple1d/blob/4fe2488f9d73aec08121a5c3034bf2445d0258e6/ripple1d/api/postman_collection.json>`_ This beta version contains new args for the create_fim_lib endpoint:
  - `library_directory`: Specifies the output directory for the FIM grids and database.
  - `cleanup`: Boolean indicating if the ras HEC-RAS output grids should be deleted or not.
 
 
-`v0.5.0: <https://github.com/Dewberry/ripple1d/blob/3c90acc3fa212fde9c9b361dc3b907beaca17919/ripple1d/api/postman_collection.json>`_ This beta version contains new endpoints: 
+`v0.5.0: <https://github.com/Dewberry/ripple1d/blob/3c90acc3fa212fde9c9b361dc3b907beaca17919/ripple1d/api/postman_collection.json>`_ This beta version contains new endpoints:
   - `geom_to_gpkg`: Extract the data from a model source dirctory to a gepoackage.
   - `conflate`: Conflate all reaches from the NWM network corresponding to the source model.
   - `conflation_metrics`: Apply conflation metrics for a conflated source model.
