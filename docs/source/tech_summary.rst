@@ -152,7 +152,16 @@ from any virtual raster source, but by default, ripple1d will download a `1/3
 arcsecond DEM from USGS
 <https://data.usgs.gov/datacatalog/data/USGS:3a81321b-c153-416f-98b7-cc8e5f0e17c3>`_
 
-As part of terrain generation, a suite of metrics are generated to quantify the agreement of the newly generated DEM terrain and the source model cross-section geometry.  Metrics are first generated for each cross-section at a set of water surface elevations ranging from the section invert to the lower of the two source model section endpoints.  All metrics (except for residual summary statistics) are aggregated to the cross-section level by averaging across all measured stages.  Another set of shape metrics as well as residual summary statistics are computed for the whole cross-section.  All cross-section metrics (except for residual summary statistics) are aggregated to the model level by averaging across all cross-sections.
+As part of terrain generation, a suite of metrics are generated to quantify the
+agreement of the newly generated DEM terrain and the source model cross-section
+geometry.  Metrics are first generated for each cross-section at a set of water
+surface elevations ranging from the section invert to the lower of the two
+source model section endpoints.  All metrics (except for residual summary
+statistics) are aggregated to the cross-section level by averaging across all
+measured stages.  Another set of shape metrics as well as residual summary
+statistics are computed for the whole cross-section.  All cross-section metrics
+(except for residual summary statistics) are aggregated to the model level by
+averaging across all cross-sections.
 
 **Example Cross-Sections and Their Metrics**
 
