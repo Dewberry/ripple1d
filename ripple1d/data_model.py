@@ -416,17 +416,29 @@ class XS:
     @property
     def left_reach_length(self):
         """Cross section left reach length."""
-        return float(self.split_xs_header(2))
+        dist = self.split_xs_header(2)
+        if not dist:
+            return 0.0
+        else:
+            return float(dist)
 
     @property
     def channel_reach_length(self):
         """Cross section channel reach length."""
-        return float(self.split_xs_header(3))
+        dist = self.split_xs_header(3)
+        if not dist:
+            return 0.0
+        else:
+            return float(dist)
 
     @property
     def right_reach_length(self):
         """Cross section right reach length."""
-        return float(self.split_xs_header(4))
+        dist = self.split_xs_header(4)
+        if not dist:
+            return 0.0
+        else:
+            return float(dist)
 
     @property
     def number_of_coords(self):
