@@ -100,3 +100,7 @@ class PlanNameNotFoundError(Exception):
 
 class UnknownVerticalUnits(Exception):
     """Raised when unknown vertical units are specified."""
+
+
+class RasTerrainFailure(Exception):
+    """Raised when the HEC-RAS CreateTerrain executable fails to generate terrain."""

@@ -25,6 +25,7 @@ from ripple1d.consts import (
     TERRAIN_AGREEMENT_PRECISION,
 )
 from ripple1d.data_model import XS, NwmReachModel
+from ripple1d.errors import RasTerrainFailure
 from ripple1d.ras import RasGeomText, create_terrain
 from ripple1d.utils.dg_utils import clip_raster, reproject_raster
 from ripple1d.utils.ripple_utils import fix_reversed_xs, resample_vertices, xs_concave_hull
@@ -185,12 +186,15 @@ def create_ras_terrain(
         projection_file,
         f"{nwm_rm.terrain_directory}\\{nwm_rm.model_name}",
     )
-    os.remove(src_dem_reprojected_localfile)
+    terrain_path = result["RAS Terrain"] + "." + map_dem_clipped_basename.replace(".vrt", ".tif")
+    if os.path.exists(terrain_path):
+        os.remove(src_dem_reprojected_localfile)
+    else:
+        raise RasTerrainFailure(f"Tried to create terrain at {terrain_path}, but CreateTerrain exe failed.")
     nwm_rm.update_write_ripple1d_parameters({"source_terrain": terrain_source_url})
     logging.info(f"create_ras_terrain complete")
 
     # Calculate terrain agreement metrics
-    terrain_path = result["RAS Terrain"] + "." + map_dem_clipped_basename.replace(".vrt", ".tif")
     agreement_path = compute_terrain_agreement_metrics(
         submodel_directory,
         terrain_path,
