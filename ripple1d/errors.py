@@ -100,3 +100,7 @@ class PlanNameNotFoundError(Exception):
 
 class UnknownVerticalUnits(Exception):
     """Raised when unknown vertical units are specified."""
+
+
+class NullTerrainError(Exception):
+    """Raised when the downloaded terrain for an error is all nodata values."""

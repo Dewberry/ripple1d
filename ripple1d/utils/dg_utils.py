@@ -21,7 +21,7 @@ from rasterio.warp import Resampling, calculate_default_transform, reproject
 from shapely import Polygon
 
 from ripple1d.consts import METERS_PER_FOOT
-from ripple1d.errors import UnknownVerticalUnits
+from ripple1d.errors import NullTerrainError, UnknownVerticalUnits
 
 from .s3_utils import *
 
@@ -176,6 +176,10 @@ def clip_raster(src_path: str, dst_path: str, mask_polygon: Polygon, vertical_un
     with rasterio.open(src_path) as src:
         out_meta = src.meta
         out_image, out_transform = mask.mask(src, [mask_polygon], all_touched=True, crop=True)
+        nd = src.nodata
+
+    if np.all(out_image == nd):
+        raise NullTerrainError(f"Terrain downloaded from {src_path} was all nodata values.")
 
     out_meta.update(
         {
