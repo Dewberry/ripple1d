@@ -381,8 +381,8 @@ def create_flow_depth_combinations(
     """
     depths, flows, wses = [], [], []
     for wse, depth in zip(ds_wses, ds_depths):
-        for flow in input_flows:
-            if depth >= min_depths.loc[str(int(flow))]:
+        for profile, flow in input_flows.items():
+            if depth >= min_depths.loc[profile]:
                 depths.append(round(depth, 1))
                 flows.append(int(max([flow, MIN_FLOW])))
                 wses.append(round(wse, 1))
