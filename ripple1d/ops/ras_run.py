@@ -326,7 +326,7 @@ def get_flow_depth_arrays(
 
     wse = wses.loc[river_reach_rs, :]
     flow = flows.loc[river_reach_rs, :]
-    df = pd.DataFrame({"wse": wse.round(2), "flow": flow.round(2)}).drop_duplicates()
+    df = pd.DataFrame({"wse": wse.round(1), "flow": flow.astype(int)}).drop_duplicates()
 
     # convert wse to depth
     depth = df["wse"] - thalweg
