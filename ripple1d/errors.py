@@ -104,3 +104,7 @@ class UnknownVerticalUnits(Exception):
 
 class BadConflation(Exception):
     """Raised when conflation yields a d/s cross-section with higher station than the u/s cross-section."""
+
+
+class SingleXSModel(Exception):
+    """Raised when geopackage creation would yield a single cross-section model."""
