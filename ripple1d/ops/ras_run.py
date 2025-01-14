@@ -88,7 +88,7 @@ def create_model_run_normal_depth(
         fcl = FlowChangeLocation(
             nwm_rm.model_name,
             nwm_rm.model_name,
-            rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
+            rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station_str,
             initial_flows.tolist(),
         )
 
@@ -185,7 +185,7 @@ def run_incremental_normal_depth(
     fcl = FlowChangeLocation(
         nwm_rm.model_name,
         nwm_rm.model_name,
-        rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
+        rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station_str,
         flows.tolist(),
     )
     # write and compute flow/plans for normal_depth run
@@ -273,7 +273,7 @@ def run_known_wse(
         rm,
         nwm_rm.model_name,
         nwm_rm.model_name,
-        rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].ds_xs.river_station,
+        rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].ds_xs.river_station_str,
         rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].ds_xs.thalweg,
     )
 
@@ -305,7 +305,7 @@ def run_known_wse(
             flows,
             nwm_rm.model_name,
             nwm_rm.model_name,
-            rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station,
+            rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station_str,
             write_depth_grids=write_depth_grids,
             show_ras=show_ras,
             run_ras=True,
@@ -347,7 +347,7 @@ def determine_flow_increments(
     for plan_name in plan_names:
         rm.plan = rm.plans[plan_name]
 
-        river_station = rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station
+        river_station = rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.river_station_str
         thalweg = rm.geoms[nwm_id].rivers[nwm_id][nwm_id].us_xs.thalweg
 
         # get new flow/depth for current branch

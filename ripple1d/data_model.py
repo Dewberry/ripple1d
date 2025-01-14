@@ -411,7 +411,12 @@ class XS:
     @property
     def river_station(self):
         """Cross section river station."""
-        return float(self.split_xs_header(1).replace("*", ""))
+        return float(self.river_station_str.replace("*", ""))
+
+    @property
+    def river_station_str(self) -> str:
+        """Return the river station with * for interpolated sections."""
+        return self.split_xs_header(1).rstrip()
 
     @property
     def left_reach_length(self):
