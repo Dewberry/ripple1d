@@ -107,8 +107,8 @@ def zero_depth_to_sqlite(
     wses, flows = rm.plan.read_rating_curves()
 
     # get river-reach-rs
-    us_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs
-    ds_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.river_reach_rs
+    us_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs_str
+    ds_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.river_reach_rs_str
 
     wses_t = wses.T
     wses_t["us_flow"] = wses_t.index
@@ -156,7 +156,7 @@ def rating_curves_to_sqlite(
     wses = parse_stage_flow(wses)
 
     # get river-reach-rs id
-    river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs
+    river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs_str
 
     # get subset of results for this cross section
     df = wses[["us_flow", "ds_wse", river_reach_rs]].copy()

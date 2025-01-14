@@ -391,6 +391,7 @@ class XS:
         self.reach = reach
         self.river_reach = river_reach
         self.river_reach_rs = f"{river} {reach} {self.river_station}"
+        self.river_reach_rs_str = f"{river} {reach} {self.river_station_str}"
         self.thalweg_drop = None
         self.reach_geom = reach_geom
         self.computed_channel_reach_length = None
