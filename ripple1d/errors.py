@@ -100,3 +100,7 @@ class PlanNameNotFoundError(Exception):
 
 class UnknownVerticalUnits(Exception):
     """Raised when unknown vertical units are specified."""
+
+
+class BadConflation(Exception):
+    """Raised when conflation yields a d/s cross-section with higher station than the u/s cross-section."""
