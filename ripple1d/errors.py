@@ -102,6 +102,10 @@ class UnknownVerticalUnits(Exception):
     """Raised when unknown vertical units are specified."""
 
 
+class RasTerrainFailure(Exception):
+    """Raised when the HEC-RAS CreateTerrain executable fails to generate terrain."""
+
+
 class NullTerrainError(Exception):
     """Raised when the downloaded terrain for an error is all nodata values."""
 
@@ -112,4 +116,5 @@ class BadConflation(Exception):
 
 class SingleXSModel(Exception):
     """Raised when geopackage creation would yield a single cross-section model."""
+
 
