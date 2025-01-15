@@ -379,6 +379,13 @@ class RippleGeopackageSubsetter:
             )
 
         subset_gdfs["XS"]["river_station"] = xs_names
+        subset_gdfs["XS"]["river_reach_rs"] = (
+            subset_gdfs["XS"]["river"]
+            + " "
+            + subset_gdfs["XS"]["reach"]
+            + " "
+            + subset_gdfs["XS"]["river_station"].astype(str)
+        )
         subset_gdfs["XS"]["ras_data"] = subset_gdfs["XS"][["ras_data", "river_station"]].apply(
             self.correct_ras_data, axis=1
         )
