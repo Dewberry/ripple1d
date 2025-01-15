@@ -255,7 +255,7 @@ class RippleGeopackageSubsetter:
         subset_gdfs = {}
         subset_gdfs["XS"] = self.subset_xs
         if len(subset_gdfs["XS"]) <= 1:  # check if only 1 cross section for nwm_reach
-            err_string = f"Sub model for {self.nwm_id} would have {len(subset_gdfs["XS"])} cross-sections but is not tagged as eclipsed. Skipping."
+            err_string = f"Sub model for {self.nwm_id} would have {len(subset_gdfs['XS'])} cross-sections but is not tagged as eclipsed. Skipping."
             logging.warning(err_string)
             raise SingleXSModel(err_string)
         subset_gdfs["River"] = self.subset_river
