@@ -704,7 +704,7 @@ def validate_reach_conflation(reach_xs_data: dict, reach_id: str):
     us = reach_xs_data["us_xs"]
     ds = reach_xs_data["ds_xs"]
     if (us["river"] == ds["river"]) & (us["reach"] == ds["reach"]) & (us["xs_id"] < ds["xs_id"]):
-        err_str = f"Reach {reach_id} has u/s xs station ({us["xs_id"]}) lower than d/s xs station ({ds["xs_id"]})"
+        err_str = f"Reach {reach_id} has u/s xs station ({us['xs_id']}) lower than d/s xs station ({ds['xs_id']})"
         raise BadConflation(err_str)
 
 
