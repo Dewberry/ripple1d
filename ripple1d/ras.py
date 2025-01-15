@@ -1260,7 +1260,7 @@ class RasFlowText(RasTextFile):
                             FlowChangeLocation(
                                 river,
                                 reach.rstrip(" "),
-                                rs.rstrip(),
+                                float(rs.replace("*", "")),
                                 flows,
                                 self.profile_names,
                             )
