@@ -326,7 +326,7 @@ def get_flow_depth_arrays(
 
     wse = wses.loc[river_reach_rs, :]
     flow = flows.loc[river_reach_rs, :]
-    df = pd.DataFrame({"wse": wse.round(2), "flow": flow.round(2)}).drop_duplicates()
+    df = pd.DataFrame({"wse": wse.round(1), "flow": flow.astype(int)}).drop_duplicates()
 
     # convert wse to depth
     depth = df["wse"] - thalweg
@@ -381,8 +381,8 @@ def create_flow_depth_combinations(
     """
     depths, flows, wses = [], [], []
     for wse, depth in zip(ds_wses, ds_depths):
-        for flow in input_flows:
-            if depth >= min_depths.loc[str(int(flow))]:
+        for profile, flow in input_flows.items():
+            if depth >= min_depths.loc[profile]:
                 depths.append(round(depth, 1))
                 flows.append(int(max([flow, MIN_FLOW])))
                 wses.append(round(wse, 1))
