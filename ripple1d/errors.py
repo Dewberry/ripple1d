@@ -102,9 +102,14 @@ class UnknownVerticalUnits(Exception):
     """Raised when unknown vertical units are specified."""
 
 
+class NullTerrainError(Exception):
+    """Raised when the downloaded terrain for an error is all nodata values."""
+
+
 class BadConflation(Exception):
     """Raised when conflation yields a d/s cross-section with higher station than the u/s cross-section."""
 
 
 class SingleXSModel(Exception):
     """Raised when geopackage creation would yield a single cross-section model."""
+
