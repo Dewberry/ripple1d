@@ -14,6 +14,7 @@ from shapely.ops import split
 
 import ripple1d
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory
+from ripple1d.errors import SingleXSModel
 from ripple1d.utils.ripple_utils import (
     clip_ras_centerline,
     fix_reversed_xs,
@@ -254,8 +255,9 @@ class RippleGeopackageSubsetter:
         subset_gdfs = {}
         subset_gdfs["XS"] = self.subset_xs
         if len(subset_gdfs["XS"]) <= 1:  # check if only 1 cross section for nwm_reach
-            logging.warning(f"Only 1 cross section conflated to NWM reach {self.nwm_id}. Skipping this reach.")
-            return None
+            err_string = f"Sub model for {self.nwm_id} would have {len(subset_gdfs['XS'])} cross-sections but is not tagged as eclipsed. Skipping."
+            logging.warning(err_string)
+            raise SingleXSModel(err_string)
         subset_gdfs["River"] = self.subset_river
         if self.subset_structures is not None:
             subset_gdfs["Structure"] = self.subset_structures
@@ -476,6 +478,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         ripple1d_parameters["messages"] = f"skipping {nwm_id}; no cross sections conflated."
         logging.warning(ripple1d_parameters["messages"])
         gpkg_path = None
+        conflation_file = None
 
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
@@ -483,6 +486,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
         gpkg_path = rgs.ripple_gpkg_file
+        conflation_file = rsd.conflation_file
 
     logging.info(f"extract_submodel complete for nwm_id {nwm_id}")
-    return {"ripple1d_parameters": rsd.conflation_file, "ripple_gpkg_file": gpkg_path}
+    return {"ripple1d_parameters": conflation_file, "ripple_gpkg_file": gpkg_path}

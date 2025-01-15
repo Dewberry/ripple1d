@@ -282,7 +282,7 @@ def compute_conflation_metrics(source_model_directory: str, source_network: dict
             if conflation_parameters["reaches"][network_id]["eclipsed"] == True:
                 continue
 
-            rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, network_id)
+            rgs = RippleGeopackageSubsetter(src_gpkg_path, conflation_json, "", network_id)
             layers = {}
             for layer, gdf in rgs.subset_gdfs.items():
                 layers[layer] = gdf.to_crs(HYDROFABRIC_CRS)
