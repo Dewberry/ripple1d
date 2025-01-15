@@ -18,6 +18,7 @@ from shapely import LineString, MultiLineString, MultiPoint, Point, Polygon, box
 from shapely.ops import linemerge, nearest_points, split, transform
 
 from ripple1d.consts import METERS_PER_FOOT
+from ripple1d.errors import BadConflation
 from ripple1d.utils.ripple_utils import (
     check_xs_direction,
     clip_ras_centerline,
@@ -694,6 +695,19 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 
 
+def validate_reach_conflation(reach_xs_data: dict, reach_id: str):
+    """Raise error for invalid conflation.
+
+    The trim_reach method in subset_gpkg.py will return an empty geodataframe when u/s xs_id is lower than d/s xs_id.
+    This likely indicates poor CRS inference.
+    """
+    us = reach_xs_data["us_xs"]
+    ds = reach_xs_data["ds_xs"]
+    if (us["river"] == ds["river"]) & (us["reach"] == ds["reach"]) & (us["xs_id"] < ds["xs_id"]):
+        err_str = f"Reach {reach_id} has u/s xs station ({us['xs_id']}) lower than d/s xs station ({ds['xs_id']})"
+        raise BadConflation(err_str)
+
+
 def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame, river_reach_name: str):
     """Return the metadata for the RAS reaches."""
     reach_metadata = OrderedDict()
@@ -702,6 +716,7 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
         try:
             # get the xs data for the reach
             ras_xs_data = map_reach_xs(rfc, reach)
+            validate_reach_conflation(ras_xs_data, str(reach.ID))
             reach_metadata[reach.ID] = ras_xs_data
         except Exception as e:
             logging.error(f"river-reach: {river_reach_name} | network id: {reach.ID} | Error: {e}")
