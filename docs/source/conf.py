@@ -19,7 +19,7 @@ import ripple1d
 
 project = "ripple1d"
 copyright = "2024, Dewberry"
-author = "Seth Lawler, Matt Deshotel, Max Kipp, Abdul Siddiqui"
+author = "Seth Lawler, Matt Deshotel, Scott Lawson, Abdul Siddiqui"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

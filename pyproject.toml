@@ -10,7 +10,7 @@ readme = "README.md"
 maintainers = [
     { name = "Seth Lawler", email = "slawler@dewberry.com" },
     { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" },
-    { name = "Max Kipp", email = "jkipp@dewberry.com" },
+    { name = "Scott Lawson", email = "klawson@dewberry.com" },
     { name = "Abdul Siddiqui", email = "abdul.siddiqui@ertcorp.com" }
 ]
 classifiers = [
