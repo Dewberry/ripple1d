@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
     paths:
       - 'ripple1d/**'
-  
+
   workflow_dispatch:
 
 permissions:
@@ -30,14 +30,12 @@ jobs:
       - name: Install release dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install build twine toml
-      - name: Verify toml installation
-        run: python -c "import toml; print('toml module is installed')"
-      - name: Extract version from pyproject.toml
+          python -m pip install build twine
+      - name: Extract version from ripple1d version
         id: get_version
         shell: pwsh
         run: |
-          $version = python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])"
+          $version = python -c "import ripple1d; print(ripple1d.__version__);"
           echo "::set-output name=VERSION::$version"
       - name: Build wheel and source distribution
         run: python -m build
