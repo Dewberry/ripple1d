@@ -14,7 +14,7 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
     current_dir = os.path.dirname(__file__)
 
     if not test_model:
-        test_models = ["Baxter", "MissFldwy", "PatuxentRiver"]
+        test_models = ["Baxter", "MissFldwy", "PatuxentRiver", "winooski"]
     else:
         test_models = [test_model]
 
@@ -34,6 +34,9 @@ def main(test_model: str = None, reach_id: str = None, clean_up: bool = True):
             "2820002",
             "2930557",
             "11906190",
+            "4576958",
+            "4578832",
+            "4576956",
         ]
     else:
         reach_ids = [reach_id]

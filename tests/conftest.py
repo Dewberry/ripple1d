@@ -20,7 +20,7 @@ def setup_data(request):
     RAS_MODEL = request.config.getoption("--model")
     REACH_ID = request.config.getoption("--reach_id")
     MIN_ELEVATION = float(request.config.getoption("--min_elevation"))
-    CRS = {"Baxter": 2227, "PatuxentRiver": 6488, "MissFldwy": 32165}
+    CRS = {"Baxter": 2227, "PatuxentRiver": 6488, "MissFldwy": 32165, "winooski": 5646}
 
     SOURCE_NETWORK = os.path.join(TEST_DIR, f"nwm-data\\flows.parquet")
     SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, f"ras-data\\{RAS_MODEL}")

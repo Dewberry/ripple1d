@@ -1,0 +1,89 @@
+{
+    "reaches": {
+        "4576956": {
+            "us_xs": {
+                "river": "Mainstem",
+                "reach": "Reach 1",
+                "min_elevation": 100.79,
+                "max_elevation": 226.81,
+                "xs_id": 19359.3
+            },
+            "ds_xs": {
+                "river": "Mainstem",
+                "reach": "Reach 1",
+                "min_elevation": 97.52,
+                "max_elevation": 255.88,
+                "xs_id": 845.0
+            },
+            "eclipsed": false,
+            "low_flow": 0,
+            "high_flow": 42831,
+            "network_to_id": "4576960",
+            "metrics": {}
+        },
+        "4578832": {
+            "us_xs": {
+                "river": "Mainstem",
+                "reach": "Reach 1",
+                "min_elevation": 98.72,
+                "max_elevation": 298.86,
+                "xs_id": 30186.0
+            },
+            "ds_xs": {
+                "river": "Mainstem",
+                "reach": "Reach 1",
+                "min_elevation": 99.06,
+                "max_elevation": 230.46,
+                "xs_id": 23252.8
+            },
+            "eclipsed": false,
+            "low_flow": 0,
+            "high_flow": 43789,
+            "network_to_id": "4576958",
+            "gage": "04290560",
+            "gage_url": "https://waterdata.usgs.gov/nwis/uv?site_no=04290560&legacy=1",
+            "metrics": {}
+        },
+        "4576958": {
+            "us_xs": {
+                "river": "Mainstem",
+                "reach": "Reach 1",
+                "min_elevation": 99.06,
+                "max_elevation": 230.46,
+                "xs_id": 23252.8
+            },
+            "ds_xs": {
+                "river": "Mainstem",
+                "reach": "Reach 1",
+                "min_elevation": 100.79,
+                "max_elevation": 226.81,
+                "xs_id": 19359.3
+            },
+            "eclipsed": false,
+            "low_flow": 0,
+            "high_flow": 43773,
+            "network_to_id": "4576956",
+            "metrics": {}
+        }
+    },
+    "metadata": {
+        "source_network": {
+            "file_name": "flows.parquet",
+            "version": "2.1",
+            "type": "nwm_hydrofabric"
+        },
+        "conflation_ripple1d_version": "0.8.1",
+        "metrics_ripple1d_version": "0.8.1",
+        "source_ras_model": {
+            "stac_api": "https://stac2.dewberryanalytics.com",
+            "stac_collection_id": "ebfe-12090301_LowerColoradoCummins",
+            "stac_item_id": "137a9667-e5cf-4cea-b6ec-2e882a42fdc8",
+            "source_ras_files": {
+                "geometry": "winooski.g01",
+                "forcing": "winooski.f01",
+                "project-file": "winooski.prj",
+                "plan": "winooski.p01"
+            }
+        }
+    }
+}
