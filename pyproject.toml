@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ripple1d"
-version = "0.8.1"
+dynamic = ["version"]
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
@@ -77,6 +77,10 @@ exclude = ["production"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ripple1d*"]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "ripple1d.__version__"}
 
 
 [tool.sphinx]
