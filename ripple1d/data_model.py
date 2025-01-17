@@ -391,6 +391,7 @@ class XS:
         self.reach = reach
         self.river_reach = river_reach
         self.river_reach_rs = f"{river} {reach} {self.river_station}"
+        self.river_reach_rs_str = f"{river} {reach} {self.river_station_str}"
         self.thalweg_drop = None
         self.reach_geom = reach_geom
         self.computed_channel_reach_length = None
@@ -411,22 +412,39 @@ class XS:
     @property
     def river_station(self):
         """Cross section river station."""
-        return float(self.split_xs_header(1).replace("*", ""))
+        return float(self.river_station_str.replace("*", ""))
+
+    @property
+    def river_station_str(self) -> str:
+        """Return the river station with * for interpolated sections."""
+        return self.split_xs_header(1).rstrip()
 
     @property
     def left_reach_length(self):
         """Cross section left reach length."""
-        return float(self.split_xs_header(2))
+        dist = self.split_xs_header(2)
+        if not dist:
+            return 0.0
+        else:
+            return float(dist)
 
     @property
     def channel_reach_length(self):
         """Cross section channel reach length."""
-        return float(self.split_xs_header(3))
+        dist = self.split_xs_header(3)
+        if not dist:
+            return 0.0
+        else:
+            return float(dist)
 
     @property
     def right_reach_length(self):
         """Cross section right reach length."""
-        return float(self.split_xs_header(4))
+        dist = self.split_xs_header(4)
+        if not dist:
+            return 0.0
+        else:
+            return float(dist)
 
     @property
     def number_of_coords(self):

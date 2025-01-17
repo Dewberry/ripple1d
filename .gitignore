@@ -172,6 +172,7 @@ tests/ras-data/Baxter/nwm_models
 tests/ras-data/Baxter/Terrain
 tests/ras-data/MissFldwy/submodels
 tests/ras-data/PatuxentRiver/submodels
+tests/ras-data/winooski/submodels
 
 /ripple1d/models/
 .vscode/settings.json

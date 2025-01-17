@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ripple1d"
-version = "0.8.1"
+dynamic = ["version"]
 description = "HEC-RAS model automation"
 readme = "README.md"
 maintainers = [
     { name = "Seth Lawler", email = "slawler@dewberry.com" },
     { name = "Matt Deshotel", email = "mdeshotel@dewberry.com" },
-    { name = "Max Kipp", email = "jkipp@dewberry.com" },
+    { name = "Scott Lawson", email = "klawson@dewberry.com" },
     { name = "Abdul Siddiqui", email = "abdul.siddiqui@ertcorp.com" }
 ]
 classifiers = [
@@ -77,6 +77,10 @@ exclude = ["production"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ripple1d*"]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "ripple1d.__version__"}
 
 
 [tool.sphinx]
