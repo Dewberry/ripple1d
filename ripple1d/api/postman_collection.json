@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "f66543a1-8adc-4939-8fd0-5d6057627f7a",
+		"_postman_id": "977032b0-6c0b-4437-9347-7061b817bdae",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "11115435"
+		"_exporter_id": "29128857"
 	},
 	"item": [
 		{
@@ -75,7 +75,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n                        \"version\":\"2.1\",  // optional\r\n                        \"type\":\"nwm_hydrofabric\"}\r\n    \r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"model_name\":\"{{source_model_name}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\flows.parquet\",\r\n                        \"version\":\"2.1\",  // optional\r\n                        \"type\":\"nwm_hydrofabric\"}\r\n    \r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -546,8 +546,7 @@
 					"variable": [
 						{
 							"key": "jobID",
-							"value": "",
-							"type": "string"
+							"value": ""
 						}
 					]
 				},
@@ -592,8 +591,7 @@
 					"variable": [
 						{
 							"key": "jobID",
-							"value": "",
-							"type": "string"
+							"value": ""
 						}
 					]
 				},
@@ -638,8 +636,7 @@
 					"variable": [
 						{
 							"key": "jobID",
-							"value": "",
-							"type": "string"
+							"value": ""
 						}
 					]
 				},
@@ -736,6 +733,11 @@
 		{
 			"key": "nwm_data_directory",
 			"value": "~\\\\repos\\\\ripple1d\\\\tests\\\\nwm-data",
+			"type": "string"
+		},
+		{
+			"key": "source_model_name",
+			"value": "Baxter",
 			"type": "string"
 		}
 	]
