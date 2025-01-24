@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import sqlite3
 import warnings
 from functools import lru_cache
 
@@ -20,6 +21,7 @@ from ripple1d.utils.ripple_utils import (
     fix_reversed_xs,
     xs_concave_hull,
 )
+from ripple1d.utils.sqlite_utils import create_non_spatial_table
 
 warnings.filterwarnings("ignore")
 
@@ -33,6 +35,15 @@ class RippleGeopackageSubsetter:
         self.conflation_json = conflation_json
         self.dst_project_dir = dst_project_dir
         self.nwm_id = nwm_id
+
+    def copy_metadata_to_ripple1d_gpkg(self):
+        """Copy metadata table from source geopackage to ripple1d geopackage."""
+        with sqlite3.connect(self.src_gpkg_path) as conn:
+            cur = conn.cursor()
+            res = cur.execute(f"SELECT key,value from metadata")
+            metadata = dict(res.fetchall())
+            cur.close()
+        create_non_spatial_table(self.ripple_gpkg_file, metadata)
 
     @property
     @lru_cache
@@ -490,6 +501,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
         rgs.write_ripple_gpkg()
+        rgs.copy_metadata_to_ripple1d_gpkg()
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
         gpkg_path = rgs.ripple_gpkg_file
