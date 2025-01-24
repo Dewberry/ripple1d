@@ -84,7 +84,9 @@ def find_a_valid_file(
             return path
 
 
-def gather_metdata(metadata: dict, ras_project: RasProject, rp: RasPlanText, rf: RasFlowText, rg: RasGeomText) -> dict:
+def gather_metadata(
+    metadata: dict, ras_project: RasProject, rp: RasPlanText, rg: RasGeomText, rf: RasFlowText = None
+) -> dict:
     """Gather metadata from the ras project and its components."""
     metadata["plans_files"] = "\n".join(
         [get_path(i).replace(f"{ras_project._ras_dir}\\", "") for i in ras_project.plans if get_path(i)]
@@ -123,8 +125,11 @@ def gather_metdata(metadata: dict, ras_project: RasProject, rp: RasPlanText, rf:
     else:
         metadata["ras_version"] = None
     metadata["ripple1d_version"] = ripple1d.__version__
-    fcls = pd.DataFrame(rf.flow_change_locations)
-    metadata["profile_names"] = "\n".join(fcls["profile_names"].iloc[0])
+    if "f" in Path(metadata["primary_flow_file"]).suffix:
+        fcls = pd.DataFrame(rf.flow_change_locations)
+        metadata["profile_names"] = "\n".join(fcls["profile_names"].iloc[0])
+    else:
+        metadata["profile_names"] = None
     metadata["units"] = ras_project.units
     return metadata
 
@@ -141,7 +146,6 @@ def geom_flow_to_gdfs(
         except NoFlowFileSpecifiedError as e:
             logging.warning(e)
             plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS, client, bucket)
-
         # get geometry file
         try:
             plan_geom_file = get_path(rp.plan_geom_file, client, bucket)
@@ -154,16 +158,13 @@ def geom_flow_to_gdfs(
 
         string = str_from_s3(plan_geom_file, client, bucket)
         rg = RasGeomText.from_str(string, crs, " .g01")
-
     else:
         rp = detemine_primary_plan(ras_project, crs, ras_project._ras_text_file_path)
-
         try:
             plan_steady_file = get_path(rp.plan_steady_file)
         except NoFlowFileSpecifiedError as e:
             logging.warning(e)
             plan_steady_file = find_a_valid_file(ras_project._ras_dir, VALID_STEADY_FLOWS)
-
         try:
             plan_geom_file = get_path(rp.plan_geom_file)
         except NoFlowFileSpecifiedError as e:
@@ -189,17 +190,14 @@ def geom_flow_to_gdfs(
         xs_gdf["units"] = ras_project.units
         xs_gdf["project_title"] = ras_project.title
         layers["XS"] = xs_gdf
-
     if rg.reaches:
         layers["River"] = rg.reach_gdf
-
     if rg.junctions:
         layers["Junction"] = rg.junction_gdf
-
     if rg.structures:
         layers["Structure"] = rg.structures_gdf
 
-    return layers, gather_metdata(metadata, ras_project, rp, rf, rg)
+    return layers, gather_metadata(metadata, ras_project, rp, rg, rf)
 
 
 def geom_flow_xs_gdf(rg: RasGeomText, rf: RasFlowText, xs_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
