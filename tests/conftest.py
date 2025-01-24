@@ -32,6 +32,7 @@ def setup_data(request):
     request.cls.REACH_ID = REACH_ID
     request.cls.SOURCE_NETWORK = SOURCE_NETWORK
     request.cls.SOURCE_RAS_MODEL_DIRECTORY = SOURCE_RAS_MODEL_DIRECTORY
+    request.cls.MODEL_NAME = RAS_MODEL
     request.cls.SUBMODELS_BASE_DIRECTORY = SUBMODELS_BASE_DIRECTORY
     request.cls.SUBMODELS_DIRECTORY = SUBMODELS_DIRECTORY
     request.cls.GPKG_FILE = os.path.join(SUBMODELS_DIRECTORY, f"{REACH_ID}.gpkg")
