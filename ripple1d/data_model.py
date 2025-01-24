@@ -71,6 +71,14 @@ class RasModelStructure:
         return self.derive_path(".gpkg")
 
     @property
+    def units(self):
+        """Units specified in the metadata of the geopackage."""
+        conn = sqlite3.connect(self.ras_gpkg_file)
+        cur = conn.cursor()
+        res = cur.execute(f"SELECT value from metadata where key='units'")
+        return res.fetchone()[0]
+
+    @property
     def ras_xs(self):
         """RAS XS Geodataframe."""
         if self._ras_xs is None:
