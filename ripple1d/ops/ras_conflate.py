@@ -222,6 +222,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         "stac_api": rfc.stac_api,
         "stac_collection_id": rfc.stac_collection_id,
         "stac_item_id": rfc.stac_item_id,
+        "units": rfc.units,
     }
     metadata["metadata"]["source_ras_model"]["source_ras_files"] = {
         "geometry": rfc.primary_geom_file,
