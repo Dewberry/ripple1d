@@ -152,7 +152,7 @@ def check_overtopping(rm: RasManager, wses: pd.DataFrame):
         raise ValueError(
             f"Cannot safely check overtopping of cross sections. The river_reach_rs of the geometry xs_gdf does not match the river_reach_rs from the plan hdf. The order of the cross sections may have changed."
         )
-    return wses.gt(gdf["overtop_elevation"], axis=0).any().astype(int)
+    return wses.gt(gdf["overtop_elevation"].values, axis=0).any().astype(int)
 
 
 def rating_curves_to_sqlite(
