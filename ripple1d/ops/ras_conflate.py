@@ -58,7 +58,7 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         raise ValueError(f"nwm_reach_id {nwm_reach_id} not conflating to the ras model geometry.")
 
 
-def conflate_model(source_model_directory: str, source_network: dict):
+def conflate_model(source_model_directory: str, model_name: str, source_network: dict):
     """Conflate a HEC-RAS model with NWM reaches.
 
     Parameters
@@ -66,6 +66,8 @@ def conflate_model(source_model_directory: str, source_network: dict):
     source_model_directory : str
         The path to the directory containing HEC-RAS project, plan, geometry,
         and flow files.
+    model_name : str
+        The name of the HEC-RAS model.
     source_network : dict
         Information on the network to conflate
 
@@ -137,7 +139,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
 
     version = source_network.get("version", "")
 
-    rfc = RasFimConflater(nwm_pq_path, source_model_directory)
+    rfc = RasFimConflater(nwm_pq_path, source_model_directory, model_name)
     metadata = {"reaches": {}}
     buffer = 1000
     for river_reach_name in rfc.ras_river_reach_names:
@@ -235,7 +237,7 @@ def conflate_model(source_model_directory: str, source_network: dict):
         f.write(json.dumps(metadata, indent=4))
 
     try:
-        compute_conflation_metrics(source_model_directory, source_network)
+        compute_conflation_metrics(source_model_directory, model_name, source_network)
     except Exception as e:
         logging.error(f"| Error: {e}")
         logging.error(f"| Traceback: {traceback.format_exc()}")

@@ -65,9 +65,10 @@ class RasFimConflater:
     Conflate NWM and RAS data for a single river reach.
 
     Args:
-        nwm_parquet (str): Path to the NWM Parquet file converted to parquet from:
+        nwm_pq (str): Path to the NWM Parquet file converted to parquet from:
             s3://noaa-nws-owp-fim/rasfim/inputs/X-National_Datasets/nwm_flows.gpkg
-        ras_gpkg (str): Path to the RAS GeoPackage
+        source_model_directory (str): Path to the Source HEC-RAS model directory.
+        ras_model_name (str): Name of the HEC-RAS model.
         load_data (bool, optional): Load the data on initialization. Defaults to True.
 
     Raises
@@ -77,11 +78,16 @@ class RasFimConflater:
     """
 
     def __init__(
-        self, nwm_pq: str, source_model_directory: str, load_data: bool = True, output_concave_hull_path: str = None
+        self,
+        nwm_pq: str,
+        source_model_directory: str,
+        ras_model_name: str,
+        load_data: bool = True,
+        output_concave_hull_path: str = None,
     ):
         self.nwm_pq = nwm_pq
         self.source_model_directory = source_model_directory
-        self.ras_model_name = os.path.basename(source_model_directory)
+        self.ras_model_name = ras_model_name
         self.ras_gpkg = os.path.join(source_model_directory, f"{self.ras_model_name}.gpkg")
 
         self.output_concave_hull_path = output_concave_hull_path
