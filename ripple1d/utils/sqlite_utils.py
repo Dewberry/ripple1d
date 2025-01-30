@@ -92,6 +92,13 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     return wses_t
 
 
+def rs_float(river_reach_rs: str, token: str = " ") -> str:
+    """Convert river station to float for a given river_reach_rs."""
+    parts = river_reach_rs.split(token)
+    parts[-1] = str(float(parts[-1]))
+    return " ".join(parts)
+
+
 def zero_depth_to_sqlite(
     rm: RasManager,
     plan_name: str,
@@ -140,6 +147,11 @@ def zero_depth_to_sqlite(
 def check_overtopping(rm: RasManager, wses: pd.DataFrame):
     """Check if the crossection was overopped."""
     gdf = rm.current_plan.geom.xs_gdf
+    gdf["river_reach_rs"] = gdf.apply(lambda x: rs_float(x.river_reach_rs), axis=1)
+    if not (gdf.river_reach_rs.values == wses.index.values).any():
+        raise ValueError(
+            f"Cannot safely check overtopping of cross sections. The river_reach_rs of the geometry xs_gdf does not match the river_reach_rs from the plan hdf. The order of the cross sections may have changed."
+        )
     return wses.gt(gdf["overtop_elevation"], axis=0).any().astype(int)
 
 
