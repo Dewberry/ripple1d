@@ -236,7 +236,7 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
         f.write(json.dumps(metadata, indent=4))
 
     try:
-        compute_conflation_metrics(source_model_directory, source_network)
+        compute_conflation_metrics(source_model_directory, model_name, source_network)
     except Exception as e:
         logging.error(f"| Error: {e}")
         logging.error(f"| Traceback: {traceback.format_exc()}")

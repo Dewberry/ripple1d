@@ -207,7 +207,7 @@ class ConflationMetrics:
             logging.error(f"network id: {self.network_id} | Traceback: {traceback.format_exc()}")
 
 
-def compute_conflation_metrics(source_model_directory: str, source_network: dict):
+def compute_conflation_metrics(source_model_directory: str, model_name: str, source_network: dict):
     """Compute metrics for a network reach.
 
     Parameters
@@ -215,6 +215,8 @@ def compute_conflation_metrics(source_model_directory: str, source_network: dict
     source_model_directory : str
         The path to the directory containing HEC-RAS project, plan, geometry,
         and flow files.
+    model_name: str
+        The name of the source HEC-RAS model.
     source_network : dict
         Information on the network to conflate
 
@@ -272,7 +274,6 @@ def compute_conflation_metrics(source_model_directory: str, source_network: dict
     """
     logging.info(f"compute_conflation_metrics starting")
     network_pq_path = source_network["file_name"]
-    model_name = os.path.basename(source_model_directory)
     src_gpkg_path = os.path.join(source_model_directory, f"{model_name}.gpkg")
     conflation_json = os.path.join(source_model_directory, f"{model_name}.conflation.json")
     conflation_parameters = json.load(open(conflation_json))

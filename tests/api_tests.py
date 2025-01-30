@@ -85,6 +85,7 @@ class TestPreprocessAPI(unittest.TestCase):
     def test_c_compute_conflation_metrics(self):
         payload = {
             "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
+            "source_model_name": self.MODEL_NAME,
             "source_network": {"file_name": self.SOURCE_NETWORK, "version": "2.1", "type": "nwm_hydrofabric"},
         }
         process = "compute_conflation_metrics"
