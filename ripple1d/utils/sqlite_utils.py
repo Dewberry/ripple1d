@@ -140,7 +140,6 @@ def zero_depth_to_sqlite(
 def check_overtopping(rm: RasManager, wses: pd.DataFrame):
     """Check if the crossection was overopped."""
     gdf = rm.current_plan.geom.xs_gdf
-    gdf["overtop_elevation"] = gdf[["left_max_elevation", "right_max_elevation"]].min(axis=1)
     return wses.gt(gdf["overtop_elevation"], axis=0).any().astype(int)
 
 

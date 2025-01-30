@@ -793,6 +793,11 @@ class XS:
         return df.loc[df["Station"] >= self.right_bank_station, "Elevation"].max()
 
     @property
+    def overtop_elevation(self):
+        """The elevation to at which the cross secition will be overtopped."""
+        return min(self.right_max_elevation, self.left_max_elevation)
+
+    @property
     def station_elevation_point_density(self):
         """The average spacing of the station-elevation points."""
         return self.cutline_length / self.number_of_station_elevation_points
@@ -964,6 +969,7 @@ class XS:
                 "thalweg_drop": [self.thalweg_drop],
                 "left_max_elevation": [self.left_max_elevation],
                 "right_max_elevation": [self.right_max_elevation],
+                "overtop_elevation": [self.overtop_elevation],
                 "min_elevation": [self.min_elevation],
                 "channel_width": [self.channel_width],
                 "channel_depth": [self.channel_depth],
