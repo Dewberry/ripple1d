@@ -3,8 +3,10 @@
 import json
 import logging
 import os
+import sqlite3
 import warnings
 from functools import lru_cache
+from pathlib import Path
 
 import fiona
 import geopandas as gpd
@@ -20,6 +22,7 @@ from ripple1d.utils.ripple_utils import (
     fix_reversed_xs,
     xs_concave_hull,
 )
+from ripple1d.utils.sqlite_utils import create_non_spatial_table
 
 warnings.filterwarnings("ignore")
 
@@ -33,6 +36,31 @@ class RippleGeopackageSubsetter:
         self.conflation_json = conflation_json
         self.dst_project_dir = dst_project_dir
         self.nwm_id = nwm_id
+
+    @property
+    @lru_cache
+    def source_model_metadata(self):
+        """Metadata from the source model."""
+        with sqlite3.connect(self.src_gpkg_path) as conn:
+            cur = conn.cursor()
+            res = cur.execute(f"SELECT key,value from metadata")
+            return dict(res.fetchall())
+
+    def copy_metadata_to_ripple1d_gpkg(self):
+        """Copy metadata table from source geopackage to ripple1d geopackage."""
+        flow_file_extension = Path(self.source_model_metadata["primary_flow_file"]).suffix
+        if "f" in flow_file_extension:
+            create_non_spatial_table(
+                self.ripple_gpkg_file, {"units": self.source_model_metadata["units"], "steady": "True"}
+            )
+        elif "u" in flow_file_extension or "q" in flow_file_extension:
+            create_non_spatial_table(
+                self.ripple_gpkg_file, {"units": self.source_model_metadata["units"], "steady": "False"}
+            )
+        else:
+            raise ValueError(
+                f"Expected forcing extension to be .fxx, .uxx, or .qxx. Recieved {flow_file_extension} for submodel: {self.nwm_id}"
+            )
 
     @property
     @lru_cache
@@ -422,6 +450,7 @@ class RippleGeopackageSubsetter:
         """Update ripple1d_parameters with results of subsetting."""
         ripple1d_parameters = self.ripple1d_parameters
         ripple1d_parameters["source_model"] = rsd.ras_project_file
+        ripple1d_parameters["source_model_metadata"] = rsd.source_model_metadata
         ripple1d_parameters["crs"] = self.crs.to_wkt()
         ripple1d_parameters["version"] = ripple1d.__version__
         ripple1d_parameters["high_flow"] = max([ripple1d_parameters["high_flow"], self.max_flow])
@@ -490,6 +519,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     else:
         rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
         rgs.write_ripple_gpkg()
+        rgs.copy_metadata_to_ripple1d_gpkg()
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
         gpkg_path = rgs.ripple_gpkg_file

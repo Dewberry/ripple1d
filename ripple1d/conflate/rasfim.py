@@ -109,45 +109,51 @@ class RasFimConflater:
         """The stac_api for the HEC-RAS Model."""
         if self.ras_metadata:
             if "stac_api" in self.ras_metadata.keys():
-                return self.ras_metadata["stac_api"]
+                return self.ras_metadata.get("stac_api")
 
     @property
     def stac_collection_id(self):
         """The stac_collection_id for the HEC-RAS Model."""
         if self.ras_metadata:
             if "stac_collection_id" in self.ras_metadata.keys():
-                return self.ras_metadata["stac_collection_id"]
+                return self.ras_metadata.get("stac_collection_id")
 
     @property
     def stac_item_id(self):
         """The stac_item_id for the HEC-RAS Model."""
         if self.ras_metadata:
             if "stac_item_id" in self.ras_metadata.keys():
-                return self.ras_metadata["stac_item_id"]
+                return self.ras_metadata.get("stac_item_id")
 
     @property
     def primary_geom_file(self):
         """The primary geometry file for the HEC-RAS Model."""
         if self.ras_metadata:
-            return self.ras_metadata["primary_geom_file"]
+            return self.ras_metadata.get("primary_geom_file")
 
     @property
     def primary_flow_file(self):
         """The primary flow file for the HEC-RAS Model."""
         if self.ras_metadata:
-            return self.ras_metadata["primary_flow_file"]
+            return self.ras_metadata.get("primary_flow_file")
 
     @property
     def primary_plan_file(self):
         """The primary plan file for the HEC-RAS Model."""
         if self.ras_metadata:
-            return self.ras_metadata["primary_plan_file"]
+            return self.ras_metadata.get("primary_plan_file")
 
     @property
     def ras_project_file(self):
         """The source HEC-RAS project file."""
         if self.ras_metadata:
-            return self.ras_metadata["ras_project_file"]
+            return self.ras_metadata.get("ras_project_file")
+
+    @property
+    def units(self):
+        """Units of the source HEC-RAS model."""
+        if self.ras_metadata is not None:
+            return self.ras_metadata.get("units")
 
     # @property
     # def xs_length_units(self):

@@ -245,6 +245,13 @@ class RippleSourceDirectory:
             conflation_parameters = json.loads(f.read())
         return conflation_parameters["reaches"][nwm_id]
 
+    @property
+    def source_model_metadata(self):
+        """Metadata for the source model."""
+        with open(self.conflation_file, "r") as f:
+            conflation_parameters = json.loads(f.read())
+        return conflation_parameters["metadata"]
+
 
 class NwmReachModel(RasModelStructure):
     """National Water Model reach-based HEC-RAS Model files and directory structure."""
@@ -338,6 +345,11 @@ class NwmReachModel(RasModelStructure):
         with open(self.conflation_file, "r") as f:
             ripple1d_parameters = json.loads(f.read())
         return ripple1d_parameters
+
+    @property
+    def units(self):
+        """Units specified in the metadata of the geopackage."""
+        return self.ripple1d_parameters["source_model_metadata"]["source_ras_model"]["units"]
 
     def update_write_ripple1d_parameters(self, new_parameters: dict):
         """Write Ripple parameters."""

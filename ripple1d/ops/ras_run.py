@@ -12,6 +12,7 @@ import pandas as pd
 
 from ripple1d.consts import DEFAULT_EPSG, MIN_FLOW
 from ripple1d.data_model import FlowChangeLocation, NwmReachModel
+from ripple1d.errors import UnitsError
 from ripple1d.ras import RasManager
 
 
@@ -68,6 +69,9 @@ def create_model_run_normal_depth(
 
     if not nwm_rm.file_exists(nwm_rm.ras_gpkg_file):
         raise FileNotFoundError(f"cannot find ras_gpkg_file file {nwm_rm.ras_gpkg_file}, please ensure file exists")
+
+    if nwm_rm.units != "English":
+        raise UnitsError(f"Can only process 'English' units at this time. '{nwm_rm.units}' was provided")
 
     if nwm_rm.ripple1d_parameters["eclipsed"] == True:
         logging.warning(f"skipping {nwm_rm.model_name}; no cross sections conflated.")
