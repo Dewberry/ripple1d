@@ -22,6 +22,7 @@ def create_db_and_table(db_name: str, table_name: str):
             boundary_condition TEXT, -- [kwse, nd]
             plan_suffix TEXT,
             map_exist BOOL CHECK(map_exist IN (0, 1)),
+            xs_overtopped BOOL CHECK(xs_overtopped IN (0, 1)),
             UNIQUE(reach_id, us_flow, ds_wse, boundary_condition, plan_suffix)
         )
     """
@@ -57,8 +58,8 @@ def insert_data(
 
         c.execute(
             f"""
-            INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, boundary_condition,  plan_suffix, map_exist)
-            VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO {table_name} (reach_id, ds_depth, ds_wse, us_flow, us_depth, us_wse, boundary_condition,  plan_suffix, map_exist,xs_overtopped)
+            VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
         """,
             (
                 int(row.reach_id),
@@ -70,6 +71,7 @@ def insert_data(
                 str(boundary_condition),
                 str(plan_suffix),
                 str(map_exist),
+                str(row.xs_overtopped),
             ),
         )
 
@@ -88,6 +90,13 @@ def parse_stage_flow(wses: pd.DataFrame) -> pd.DataFrame:
     wses_t["ds_wse"] = wses_t["ds_wse"].str.replace("_", ".").astype(float)
 
     return wses_t
+
+
+def rs_float(river_reach_rs: str, token: str = " ") -> str:
+    """Convert river station to float for a given river_reach_rs."""
+    parts = river_reach_rs.split(token)
+    parts[-1] = str(float(parts[-1]))
+    return " ".join(parts)
 
 
 def zero_depth_to_sqlite(
@@ -116,11 +125,11 @@ def zero_depth_to_sqlite(
     df = wses_t.loc[:, [us_river_reach_rs, "us_flow", "ds_depth"]]
     df.rename(columns={us_river_reach_rs: "us_wse"}, inplace=True)
 
-    # convert elvation to stage for upstream cross section
+    # convert elevation to stage for upstream cross section
     us_thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.thalweg
     df["us_depth"] = df["us_wse"] - us_thalweg
 
-    # convert elvation to stage for downstream cross section
+    # convert elevation to stage for downstream cross section
     ds_df = wses_t.loc[:, [ds_river_reach_rs, "us_flow", "ds_depth"]]
     ds_df.rename(columns={ds_river_reach_rs: "us_wse"}, inplace=True)
     ds_thalweg = rm.plan.geom.rivers[nwm_id][nwm_id].ds_xs.thalweg
@@ -131,7 +140,19 @@ def zero_depth_to_sqlite(
     # add control id
     df["reach_id"] = [nwm_id] * len(df)
 
+    df["xs_overtopped"] = check_overtopping(rm, wses)
     insert_data(database_path, table_name, df, plan_suffix, missing_grids, boundary_condition="nd")
+
+
+def check_overtopping(rm: RasManager, wses: pd.DataFrame):
+    """Check if the crossection was overopped."""
+    gdf = rm.current_plan.geom.xs_gdf
+    gdf["river_reach_rs"] = gdf.apply(lambda x: rs_float(x.river_reach_rs), axis=1)
+    if not (gdf.river_reach_rs.values == wses.index.values).any():
+        raise ValueError(
+            f"Cannot safely check overtopping of cross sections. The river_reach_rs of the geometry xs_gdf does not match the river_reach_rs from the plan hdf. The order of the cross sections may have changed."
+        )
+    return wses.gt(gdf["overtop_elevation"].values, axis=0).any().astype(int)
 
 
 def rating_curves_to_sqlite(
@@ -151,15 +172,17 @@ def rating_curves_to_sqlite(
 
     # read in flow/wse
     wses, flows = rm.plan.read_rating_curves()
+    wses_t = wses.T
+    wses_t["xs_overtopped"] = check_overtopping(rm, wses)
 
     # parse applied stage and flow from profile names
-    wses = parse_stage_flow(wses)
+    wses_ = parse_stage_flow(wses_t.T)
 
     # get river-reach-rs id
     river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs_str
 
     # get subset of results for this cross section
-    df = wses[["us_flow", "ds_wse", river_reach_rs]].copy()
+    df = wses_[["us_flow", "ds_wse", "xs_overtopped", river_reach_rs]].copy()
 
     # rename columns
     df.rename(columns={river_reach_rs: "us_wse"}, inplace=True)
