@@ -351,6 +351,16 @@ class NwmReachModel(RasModelStructure):
         """Units specified in the metadata of the geopackage."""
         return self.ripple1d_parameters["source_model_metadata"]["source_ras_model"]["units"]
 
+    @property
+    def flow_file(self):
+        """Flow file of the source model."""
+        return self.ripple1d_parameters["source_model_metadata"]["source_ras_model"]["source_ras_files"]["forcing"]
+
+    @property
+    def flow_extension(self):
+        """Extension of the source model flow file."""
+        return Path(self.flow_file).suffix
+
     def update_write_ripple1d_parameters(self, new_parameters: dict):
         """Write Ripple parameters."""
         parameters = self.ripple1d_parameters
