@@ -118,3 +118,5 @@ class SingleXSModel(Exception):
     """Raised when geopackage creation would yield a single cross-section model."""
 
 
+class UnitsError(Exception):
+    """Raised when units are not English."""

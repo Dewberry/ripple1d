@@ -45,7 +45,7 @@ RAS_GEOMETRY_GPKG = "Baxter.gpkg"
 def setup_data(request):
     nwm_pq_path = os.path.join(TEST_DIR, "nwm-data", NWM_REACHES_DATA)
     source_model_directory = os.path.join(TEST_DIR, "ras-data", RAS_DIR)
-    conflater = RasFimConflater(nwm_pq_path, source_model_directory)
+    conflater = RasFimConflater(nwm_pq_path, source_model_directory, RAS_DIR)
     request.cls.conflater = conflater
 
 

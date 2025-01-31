@@ -628,17 +628,32 @@ class RasPlanText(RasTextFile):
     @property
     def plan_unsteady_extension(self):
         """Unsteady flow extension associated with this plan."""
-        return f".{search_contents(self.contents, 'Unsteady File')}"
+        """Steady flow extension associated with this plan."""
+        try:
+            extension = f".{search_contents(self.contents, 'Flow File')}"
+        except ValueError:
+            raise NoFlowFileSpecifiedError(
+                f"Could not find a specified flow file for plan: {self.title} | {self._ras_text_file_path}"
+            )
+
+        if "u" in extension:
+            return f".{search_contents(self.contents, 'Flow File')}"
+        else:
+            raise ValueError(f"Expected an unsteady flow extension (.uxx). Recieved: {extension}")
 
     @property
     def plan_steady_extension(self):
         """Steady flow extension associated with this plan."""
         try:
-            return f".{search_contents(self.contents, 'Flow File')}"
+            extension = f".{search_contents(self.contents, 'Flow File')}"
         except ValueError:
             raise NoFlowFileSpecifiedError(
                 f"Could not find a specified flow file for plan: {self.title} | {self._ras_text_file_path}"
             )
+        if "f" in extension:
+            return f".{search_contents(self.contents, 'Flow File')}"
+        else:
+            raise ValueError(f"Expected an steady flow extension (.fxx). Recieved: {extension}")
 
     @property
     @check_crs
@@ -1268,6 +1283,39 @@ class RasFlowText(RasTextFile):
 
                     if len(flow_change_locations) == self.n_flow_change_locations:
                         return flow_change_locations
+
+
+class RasUnsteadyText(RasTextFile):
+    """Represents a HEC-RAS unsteady flow text file."""
+
+    def __init__(self, ras_text_file_path: str, new_file: bool = False):
+        super().__init__(ras_text_file_path, new_file)
+        if self.file_extension in VALID_STEADY_FLOWS or self.file_extension in VALID_QUASISTEADY_FLOWS:
+            raise NotImplementedError("only steady flow (.u**) supported")
+
+        if self.file_extension not in VALID_UNSTEADY_FLOWS:
+            raise TypeError(f"Flow extenstion must be one of .u01-.u99, not {self.file_extension}")
+
+    def __repr__(self):
+        """Representation of the RasUnsteadyText class."""
+        return f"RasFlowText({self._ras_text_file_path})"
+
+    @classmethod
+    def from_str(cls, text_string: str, ras_text_file_path: str = ""):
+        """Read flow file from string."""
+        inst = cls(ras_text_file_path, new_file=True)
+        inst.contents = text_string.splitlines()
+        return inst
+
+    @property
+    def title(self):
+        """Title of the flow File."""
+        return search_contents(self.contents, "Flow Title")
+
+    @property
+    def version(self):
+        """Program Version."""
+        return search_contents(self.contents, "Program Version")
 
 
 class RasMap:
