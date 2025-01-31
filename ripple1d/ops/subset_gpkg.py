@@ -409,18 +409,22 @@ class RippleGeopackageSubsetter:
             )
 
         subset_gdfs["XS"]["river_station"] = xs_names
-        subset_gdfs["XS"]["river_reach_rs"] = (
-            subset_gdfs["XS"]["river"]
-            + " "
-            + subset_gdfs["XS"]["reach"]
-            + " "
-            + subset_gdfs["XS"]["river_station"].astype(str)
-        )
+        subset_gdfs["XS"]["river_reach_rs"] = subset_gdfs["XS"].apply(self.correct_river_reach_rs, axis=1)
+
         subset_gdfs["XS"]["ras_data"] = subset_gdfs["XS"][["ras_data", "river_station"]].apply(
             self.correct_ras_data, axis=1
         )
 
         return subset_gdfs
+
+    def correct_river_reach_rs(self, row):
+        """Make river_reach_rs consistent with ras_data."""
+        lines = row["ras_data"].splitlines()
+        data = lines[0].split(",")
+        if "*" in data[1]:
+            return row["river"] + " " + row["reach"] + " " + str(float(row["river_station"])) + "*"
+        else:
+            return row["river"] + " " + row["reach"] + " " + str(float(row["river_station"]))
 
     def correct_ras_data(self, row):
         """Make ras_data names consistent with river_station."""

@@ -947,6 +947,7 @@ class XS:
                 "river_reach": [self.river_reach],
                 "river_station": [self.river_station],
                 "river_reach_rs": [self.river_reach_rs],
+                "river_reach_rs_str": [self.river_reach_rs_str],
                 "thalweg": [self.thalweg],
                 "xs_max_elevation": [self.xs_max_elevation],
                 "left_reach_length": [self.left_reach_length],
