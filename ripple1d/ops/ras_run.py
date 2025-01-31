@@ -73,7 +73,7 @@ def create_model_run_normal_depth(
     if nwm_rm.units != "English":
         raise UnitsError(f"Can only process 'English' units at this time. '{nwm_rm.units}' was provided")
 
-    if "u" in nwm_rm.flow_extension or "q" in nwm.flow_extension:
+    if "u" in nwm_rm.flow_extension or "q" in nwm_rm.flow_extension:
         raise ValueError(
             f"Only steady state source models are supported at this time. The provided flow file for the source model is {nwm_rm.flow_file} which is not supported"
         )
