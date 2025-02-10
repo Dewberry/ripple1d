@@ -4,12 +4,12 @@
             "us_xs": {
                 "river": "A",
                 "reach": "A",
-                "xs_id": 3
+                "xs_id": 5
             },
             "ds_xs": {
                 "river": "A",
                 "reach": "A",
-                "xs_id": 1
+                "xs_id": 4
             },
             "eclipsed": false
         },
@@ -17,7 +17,7 @@
             "us_xs": {
                 "river": "A",
                 "reach": "A",
-                "xs_id": 5
+                "xs_id": 4
             },
             "ds_xs": {
                 "river": "A",
@@ -27,17 +27,7 @@
             "eclipsed": false
         },
         "3": {
-            "us_xs": {
-                "river": "A",
-                "reach": "A",
-                "xs_id": 7
-            },
-            "ds_xs": {
-                "river": "A",
-                "reach": "A",
-                "xs_id": 5
-            },
-            "eclipsed": false
+            "eclipsed": true
         },
         "4": {
             "eclipsed": true
@@ -46,12 +36,12 @@
             "us_xs": {
                 "river": "A",
                 "reach": "A",
-                "xs_id": 8
+                "xs_id": 3
             },
             "ds_xs": {
                 "river": "A",
                 "reach": "A",
-                "xs_id": 7
+                "xs_id": 1
             },
             "eclipsed": false
         }

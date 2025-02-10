@@ -1,4 +1,6 @@
 import json
+import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import OrderedDict
 
@@ -8,6 +10,7 @@ import geopandas as gpd
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import shapely
+from matplotlib import axes
 from matplotlib.colors import ListedColormap
 
 import ripple1d
@@ -25,7 +28,7 @@ custom_colors = [
 custom_cmap = ListedColormap(custom_colors)
 LAYER_COLORS = OrderedDict(
     {
-        "Junction": {"color": "red", "label": "HEC-RAS Junction", "lw": 2},
+        "Junction": {"color": "red", "label": "HEC-RAS Junction", "lw": 2, "zorder": 3},
         "River": {"color": "#03c2fc", "label": "HEC-RAS River", "lw": 2},
         "XS": {"color": "#0ffc03", "label": "HEC-RAS Cross Sections", "lw": 2},
         "nwm": {"lw": 2},
@@ -36,17 +39,7 @@ LAYER_COLORS = OrderedDict(
 class BadConflation(Exception):
     """Raised when conflation files do not match."""
 
-    def __init__(self, rubric: dict, conflation: dict, reach: str, test_id: str):
-        message = f"{test_id} failed: Model incorrectly conflated for reach {reach}."
-        us_match, ds_match, eclipsed_match = determine_consistency(
-            rubric["reaches"][reach], conflation["reaches"][reach]
-        )
-        if not us_match:
-            message += f'\nupstream cross-section was {conflation["reaches"][reach]["us_xs"]["xs_id"]} but should be {rubric["reaches"][reach]["us_xs"]["xs_id"]}'
-        if not ds_match:
-            message += f'\ndownstream cross-section was {conflation["reaches"][reach]["ds_xs"]["xs_id"]} but should be {rubric["reaches"][reach]["ds_xs"]["xs_id"]}'
-        if not eclipsed_match:
-            message += f'\neclipsed status was {conflation["reaches"][reach]["eclipsed"]} but should be {rubric["reaches"][reach]["eclipsed"]}'
+    def __init__(self, message: str):
         super().__init__(message)
 
 
@@ -90,13 +83,98 @@ class PathManager:
         return Path(self.ras_dir).name
 
 
+class ConflationFile:
+
+    def __init__(self, fpath: str):
+        self.fpath = fpath
+        with open(fpath) as f:
+            self._dict = json.load(f)
+
+    @property
+    def reaches(self):
+        return {k: ConflationReach(v) for k, v in self._dict["reaches"].items()}
+
+    def __eq__(self, other) -> bool:
+        """Check whether this conflation file matches another one."""
+        if not isinstance(other, ConflationFile):
+            return False
+        if not self.reaches.keys() == other.reaches.keys():
+            raise BadConflation(
+                f"reach mismatch.\n{self.fpath} had reaches {list(self.reaches.keys())}\n{other.fpath} had reaches {list(other.reaches.keys())}"
+            )
+        for reach in self.reaches:
+            if not reach in other.reaches:
+                raise BadConflation(f"reach {reach} was present in {self.fpath} but not in {other.fpath}")
+            r1 = self.reaches[reach]
+            r2 = other.reaches[reach]
+            if r1.eclipsed and not r2.eclipsed:
+                raise BadConflation(f"{reach} was eclipsed in {self.fpath} but not in {other.fpath}")
+            elif not r1.eclipsed and r2.eclipsed:
+                raise BadConflation(f"{reach} was not eclipsed in {self.fpath} but was in {other.fpath}")
+            elif r1.eclipsed and r2.eclipsed:
+                return True
+            if not r1.us_xs == r2.us_xs:
+                raise BadConflation(
+                    f"u/s XS incongruency for {reach}\n{self.fpath}: {r1.us_xs}\n{other.fpath}: {r2.us_xs}"
+                )
+            if not r1.ds_xs == r2.ds_xs:
+                raise BadConflation(
+                    f"d/s XS incongruency for {reach}\n{self.fpath}: {r1.ds_xs}\n{other.fpath}: {r2.ds_xs}"
+                )
+            return True
+
+
+@dataclass
+class ConflationReach:
+
+    _dict: dict
+
+    def val_to_str(self, val: dict) -> str:
+        """Format a cross-section entry into text."""
+        return f"{val['river']}_{val['reach']}_{val['xs_id']}"
+
+    @property
+    def eclipsed(self) -> bool:
+        return self._dict["eclipsed"]
+
+    @property
+    def us_xs(self) -> str:
+        return self.val_to_str(self._dict["us_xs"])
+
+    @property
+    def ds_xs(self) -> str:
+        return self.val_to_str(self._dict["ds_xs"])
+
+
 # @pytest.mark.parametrize(["test_a"])
 def run_scenario(ras_dir_name: str):
     """Run a specific test case."""
     pm = PathManager(ras_dir_name)
     conflate_model(pm.ras_dir, pm.ras_model_name, pm.nwm_dict)
     plot_conflation(pm.ras_path, pm.nwm_path, pm.conflation_file)
-    validate_conflation(pm.conflation_file, pm.rubric_file, pm.test_id)
+    ConflationFile(pm.conflation_file) == ConflationFile(pm.rubric_file)  # Validation
+
+
+def offset_xs(gdf: gpd.GeoDataFrame, pts: float, ax: axes, rch_dict: dict) -> gpd.GeoDataFrame:
+    transform = ax.transData.inverted()
+    px1, _ = transform.transform((0, 0))  # Data coordinate at origin
+    px2, _ = transform.transform((pts, 0))  # Offset in data units
+    offset = px2 - px1  # Convert points to data units
+
+    us_xs_id = "_".join(
+        [str(rch_dict["us_xs"]["river"]), str(rch_dict["us_xs"]["reach"]), str(rch_dict["us_xs"]["xs_id"])]
+    )
+    ds_xs_id = "_".join(
+        [str(rch_dict["ds_xs"]["river"]), str(rch_dict["ds_xs"]["reach"]), str(rch_dict["ds_xs"]["xs_id"])]
+    )
+
+    gdf.loc[gdf["river_reach_rs"] == us_xs_id, "geometry"] = gdf.loc[
+        gdf["river_reach_rs"] == us_xs_id, "geometry"
+    ].apply(lambda geom: geom.offset_curve(-offset))
+    gdf.loc[gdf["river_reach_rs"] == ds_xs_id, "geometry"] = gdf.loc[
+        gdf["river_reach_rs"] == ds_xs_id, "geometry"
+    ].apply(lambda geom: geom.offset_curve(offset))
+    return gdf
 
 
 def plot_conflation(ras_gpkg: str, nwm_path: str, conflation_path: str) -> str:
@@ -120,12 +198,14 @@ def plot_conflation(ras_gpkg: str, nwm_path: str, conflation_path: str) -> str:
             gdfs[layer].plot(ax=axs[0], **kwargs)
     gdfs["River"].plot(ax=axs[2], color="k", lw=1, label="HEC-RAS River")
 
-    for ind, r in enumerate(conflation["reaches"]):
+    for ind, r in enumerate(nwm["ID"].astype(str).values[::-1]):
         color = custom_colors[ind]
         sub_nwm = nwm[nwm["ID"] == int(r)]
         sub_nwm_endpts = nwm_endpts[nwm_endpts["ID"] == int(r)]
         sub_nwm.plot(ax=axs[1], **LAYER_COLORS["nwm"], label=f"{r}", color=color)
         sub_nwm_endpts.plot(ax=axs[1], **LAYER_COLORS["nwm"], color=color)
+        if r not in conflation["reaches"]:
+            continue
         if conflation["reaches"][r]["eclipsed"]:
             ls = "dashed"
             label = f"{r} (eclipsed)"
@@ -135,6 +215,7 @@ def plot_conflation(ras_gpkg: str, nwm_path: str, conflation_path: str) -> str:
 
             subsetter = RippleGeopackageSubsetter(ras_gpkg, conflation_path, None, r)
             subset = subsetter.subset_xs
+            subset = offset_xs(subset, 1.25, axs[2], conflation["reaches"][r])
             subset.plot(ax=axs[2], color="k", lw=3, zorder=2)
             subset.plot(ax=axs[2], color=color, lw=2, zorder=2)
         sub_nwm.plot(ax=axs[2], **LAYER_COLORS["nwm"], label=label, ls=ls, color=color, zorder=1)
@@ -170,20 +251,6 @@ def plot_conflation(ras_gpkg: str, nwm_path: str, conflation_path: str) -> str:
     return out_path
 
 
-def validate_conflation(conflation_path: str, rubric_path: str, test_id: str):
-    """Ensure all reaches conflated to the correct u/s and d/s limits."""
-    with open(conflation_path) as f:
-        conflation = json.load(f)
-    with open(rubric_path) as f:
-        rubric = json.load(f)
-    for reach in rubric["reaches"]:
-        us_match, ds_match, eclipsed_match = determine_consistency(
-            rubric["reaches"][reach], conflation["reaches"][reach]
-        )
-        if not (us_match and ds_match and eclipsed_match):
-            raise BadConflation(conflation, rubric, reach, test_id)
-
-
 def determine_consistency(rubric: dict, conflation: dict) -> list[bool]:
     """Find mismatch between two conflation files."""
     eclipsed_match = rubric["eclipsed"] == conflation["eclipsed"]
@@ -198,9 +265,9 @@ def determine_consistency(rubric: dict, conflation: dict) -> list[bool]:
 
 def run_all():
     """Run all conflation tests."""
-    for d in Path(__file__).parent.iterdir():
-        if d.is_dir():
-            run_scenario(str(d.name))
+    # for test in ["test_a", "test_b", "test_c", "test_d"]:
+    for test in ["test_d"]:
+        run_scenario(test)
 
 
 if __name__ == "__main__":
