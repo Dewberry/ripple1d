@@ -170,10 +170,10 @@ def offset_xs(gdf: gpd.GeoDataFrame, pts: float, ax: axes, rch_dict: dict) -> gp
 
     gdf.loc[gdf["river_reach_rs"] == us_xs_id, "geometry"] = gdf.loc[
         gdf["river_reach_rs"] == us_xs_id, "geometry"
-    ].apply(lambda geom: geom.offset_curve(-offset))
+    ].apply(lambda geom: geom.offset_curve(offset))
     gdf.loc[gdf["river_reach_rs"] == ds_xs_id, "geometry"] = gdf.loc[
         gdf["river_reach_rs"] == ds_xs_id, "geometry"
-    ].apply(lambda geom: geom.offset_curve(offset))
+    ].apply(lambda geom: geom.offset_curve(-offset))
     return gdf
 
 
@@ -230,19 +230,23 @@ def plot_conflation(ras_gpkg: str, nwm_path: str, conflation_path: str) -> str:
     txt.set_path_effects([path_effects.withStroke(linewidth=3, foreground="white")])
 
     # Format
+    y1 = axs[0].get_ylim()[0]
+    y2 = axs[0].get_ylim()[1]
+    x1 = axs[0].get_ylim()[0]
+    x2 = axs[0].get_ylim()[1]
+    width = x2 - x1
+    axs[0].set_ylim(y1 - (1 * (width / w)), y2)
     for ax in axs:
         # Add an extra 10% for the legend
-        y1 = ax.get_ylim()[0]
-        y2 = ax.get_ylim()[1]
-        dy = y2 - y1
-        ax.set_ylim(y1 - (0.1 * dy), y2)
-        ax.legend(fontsize="x-small", loc="lower right", ncols=len(conflation["reaches"]))
+        ax.legend(fontsize="x-small", loc="lower right", ncols=len(conflation["reaches"]) + 1)
         ax.set_axis_off()
         ctx.add_basemap(ax, crs=crs, source=ctx.providers.USGS.USImagery, attribution=False)
 
+    height = abs(axs[0].get_ylim()[0] - axs[0].get_ylim()[1])
+    width = abs(axs[0].get_xlim()[0] - axs[0].get_xlim()[1])
+    ar = (height) / width
+    fig.set_size_inches(w, 3 * ar * w, forward=True)
     fig.tight_layout()
-    ar = (axs[0].get_window_extent().height * 4) / axs[0].get_window_extent().width
-    fig.set_size_inches(w, ar * w, forward=True)
 
     # Save
     out_path = conflation_path.replace(".json", ".png")
@@ -265,8 +269,8 @@ def determine_consistency(rubric: dict, conflation: dict) -> list[bool]:
 
 def run_all():
     """Run all conflation tests."""
-    # for test in ["test_a", "test_b", "test_c", "test_d"]:
-    for test in ["test_d"]:
+    for test in ["test_a", "test_b", "test_c", "test_d"]:
+        # for test in ["test_a", "test_e"]:
         run_scenario(test)
 
 
