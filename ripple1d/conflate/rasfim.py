@@ -713,6 +713,8 @@ def validate_reach_conflation(reach_xs_data: dict, reach_id: str):
     The trim_reach method in subset_gpkg.py will return an empty geodataframe when u/s xs_id is lower than d/s xs_id.
     This likely indicates poor CRS inference.
     """
+    if reach_xs_data["eclipsed"]:
+        return  # eclipsed reaches always pass
     us = reach_xs_data["us_xs"]
     ds = reach_xs_data["ds_xs"]
     if (us["river"] == ds["river"]) & (us["reach"] == ds["reach"]) & (us["xs_id"] < ds["xs_id"]):
