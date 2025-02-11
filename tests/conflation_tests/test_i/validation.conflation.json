@@ -1,0 +1,30 @@
+{
+    "reaches": {
+        "1": {
+            "us_xs": {
+                "river": "B",
+                "reach": "A",
+                "xs_id": 5
+            },
+            "ds_xs": {
+                "river": "A",
+                "reach": "B",
+                "xs_id": 1
+            },
+            "eclipsed": false
+        },
+        "2": {
+            "us_xs": {
+                "river": "A",
+                "reach": "A",
+                "xs_id": 2
+            },
+            "ds_xs": {
+                "river": "A",
+                "reach": "B",
+                "xs_id": 6
+            },
+            "eclipsed": false
+        }
+    }
+}
