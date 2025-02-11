@@ -90,18 +90,6 @@ def add_default_nwm_data(nwm, nwm_endpts, axs):
         sub_nwm_endpts.plot(ax=axs[1], **LAYER_COLORS["nwm"], color=color)
 
 
-def get_overlaps(conflation: dict) -> dict:
-    overlaps = defaultdict(list)
-    for r in conflation["reaches"]:
-        if conflation["reaches"][r]["eclipsed"]:
-            continue
-        for xs in ["us_xs", "ds_xs"]:
-            xs_tuple = tuple([str(conflation["reaches"][r][xs][i]) for i in ["river", "reach", "xs_id"]])
-            overlaps[xs_tuple].append(r)
-    overlaps = {k: tuple(v) for k, v in overlaps.items() if len(v) > 1}
-    return overlaps
-
-
 def divide_section(line, splits):
     subs = []
     dists = np.linspace(0, line.length, splits + 1, endpoint=True)[1:]
@@ -142,18 +130,40 @@ def divide_section(line, splits):
 
 def clip_xs(subset, overlaps, r):
     for xs_id in subset["river_reach_rs"].values:
-        refactor_id = tuple(xs_id.split("_"))
-        if refactor_id in list(overlaps.keys()):
-            splits = len(overlaps[refactor_id])
-            position = overlaps[refactor_id].index(r)
+        if xs_id in list(overlaps.keys()):
+            splits = len(overlaps[xs_id])
+            position = overlaps[xs_id].index(r)
             geom = subset.loc[subset["river_reach_rs"] == xs_id, "geometry"].values[0]
             subset.loc[subset["river_reach_rs"] == xs_id, "geometry"] = divide_section(geom, splits)[position]
     return subset
 
 
+def generate_subset_gdfs(conflation, ras_gpkg, conflation_path) -> dict:
+    # Create combo gdf
+    subset_gdfs = {}
+    overlaps = defaultdict(list)
+    for r in conflation["reaches"]:
+        subsetter = RippleGeopackageSubsetter(ras_gpkg, conflation_path, None, r)
+        subset = subsetter.subset_xs
+        subset_gdfs[r] = subset
+
+        # log xs for duplicate detection
+        for xs_id in subset["river_reach_rs"]:
+            overlaps[xs_id].append(r)
+
+    # split duplicated section geometry
+    overlaps = {k: v for k, v in overlaps.items() if len(v) > 1}
+    for r in subset_gdfs:
+        subset_gdfs[r] = clip_xs(subset_gdfs[r], overlaps, r)
+
+    return subset_gdfs
+
+
 def add_conflated_data(conflation, ras_gpkg, conflation_path, axs, nwm, nwm_endpts):
-    overlaps = get_overlaps(conflation)
-    for ind, r in enumerate(conflation["reaches"]):
+    subset_gdfs = generate_subset_gdfs(conflation, ras_gpkg, conflation_path)
+    for ind, r in enumerate(nwm["ID"].astype(str).values[::-1]):
+        if r not in conflation["reaches"]:
+            continue
         color = custom_colors[ind]
         if conflation["reaches"][r]["eclipsed"]:
             ls = "dashed"
@@ -162,9 +172,7 @@ def add_conflated_data(conflation, ras_gpkg, conflation_path, axs, nwm, nwm_endp
             ls = "solid"
             label = f"{r}"
 
-            subsetter = RippleGeopackageSubsetter(ras_gpkg, conflation_path, None, r)
-            subset = subsetter.subset_xs
-            subset = clip_xs(subset, overlaps, r)
+            subset = subset_gdfs[r]
             subset.plot(ax=axs[2], color="k", lw=3, zorder=2)
             subset.plot(ax=axs[2], color=color, lw=2, zorder=2)
 
