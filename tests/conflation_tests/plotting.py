@@ -139,6 +139,8 @@ class Plotter:
         subset_gdfs = {}
         overlaps = defaultdict(list)
         for r in self.conflation["reaches"]:
+            if self.conflation["reaches"][r]["eclipsed"]:
+                continue
             subsetter = RippleGeopackageSubsetter(self.ras_path, self.conflation_path, None, r)
             subset = subsetter.subset_xs
             subset_gdfs[r] = subset
