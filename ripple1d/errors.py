@@ -120,3 +120,13 @@ class SingleXSModel(Exception):
 
 class UnitsError(Exception):
     """Raised when units are not English."""
+
+
+class InvalidNetworkPath(Exception):
+    """Raised when no valid path exists between two network reaches."""
+
+    def __init__(self, us_id: str, ds_id: str, cur_id: str, _iter: int):
+        err_string = f"Could not traverse network such that {us_id} led to {ds_id}."
+        err_string += "\n"
+        err_string += f"Broke on {cur_id} at {_iter} iterations"
+        super().__init__(err_string)

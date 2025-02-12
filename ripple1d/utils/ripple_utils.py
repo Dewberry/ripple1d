@@ -5,9 +5,12 @@ from __future__ import annotations
 import glob
 import logging
 import os
+from copy import copy
+from functools import lru_cache
 from pathlib import Path
 
 import boto3
+import fiona
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -28,6 +31,7 @@ from shapely import (
 from shapely.ops import split, substring
 
 from ripple1d.errors import (
+    InvalidNetworkPath,
     RASComputeError,
     RASComputeMeshError,
     RASGeometryError,
@@ -452,3 +456,99 @@ def resample_vertices(stations: np.ndarray, max_interval: float) -> np.ndarray:
         stations = np.insert(stations, i + 1, new_pts)
         i += len(new_pts) + 1
     return stations
+
+
+class NetworkWalker:
+    """Walks networks from upstream to downstream (Parent class)."""
+
+    def __init__(self, network_path: str, max_iter: int = 100):
+        self.network_path: str = network_path
+        self.max_iter: int = max_iter
+
+    def walk(self, us_id: str, ds_id: str) -> list[str]:
+        """Attempt to find a path from us_id to ds_id."""
+        cur_id = copy(us_id)
+        path = []
+        _iter = 0
+        while True:
+            path.append(cur_id)
+            if cur_id == ds_id:
+                break
+            elif _iter > self.max_iter or cur_id not in self.tree_dict:
+                raise InvalidNetworkPath(us_id, ds_id, cur_id, _iter)
+            else:
+                _iter += 1
+                cur_id = self.tree_dict[cur_id]  # move to next d/s reach
+        return path
+
+
+class NWMWalker(NetworkWalker):
+    """Subclass to walk the National Water Model network."""
+
+    ID_COL: str = "ID"
+    TO_ID_COL: str = "to_id"
+
+    @property
+    @lru_cache
+    def df(self) -> gpd.GeoDataFrame:
+        """Load the network from a file."""
+        return pd.read_parquet(self.network_path, columns=[self.ID_COL, self.TO_ID_COL]).astype(str)
+
+    @property
+    @lru_cache
+    def tree_dict(self) -> dict:
+        """Dictionary mapping tributary to downstream reach."""
+        return dict(zip(self.df[self.ID_COL], self.df[self.TO_ID_COL]))
+
+
+class RASWalker(NetworkWalker):
+    """Subclass to walk a HEC-RAS model."""
+
+    JUNCTION_LAYER_ID: str = "Junction"
+
+    @property
+    @lru_cache
+    def gdf(self) -> gpd.GeoDataFrame:
+        """Load the network from a file."""
+        if "Junction" in fiona.listlayers(self.network_path):
+            source_junction = gpd.read_file(self.network_path, layer=self.JUNCTION_LAYER_ID)
+            return source_junction
+        else:
+            return gpd.GeoDataFrame()
+
+    @property
+    @lru_cache
+    def tree_dict(self) -> dict:
+        """Dictionary mapping tributary to downstream reach."""
+        return self.parse_junction_table(output="reach")
+
+    @property
+    @lru_cache
+    def dist_dict(self) -> dict:
+        """Dictionary mapping tributary to downstream reach."""
+        return self.parse_junction_table(output="distance")
+
+    def parse_junction_table(self, output: str = "reach") -> dict:
+        """Parse the junction table for either downstream reaches or downstream distances."""
+        tree_dict = {}
+        for ind, r in self.gdf.iterrows():
+            trib_rivers = r["us_rivers"].split(",")
+            trib_reaches = r["us_reaches"].split(",")
+            if output == "reach":
+                target = ["_".join([r["ds_rivers"], r["ds_reaches"]])] * 2
+            elif output == "distance":
+                target = [float(i) for i in r["junction_lengths"].split(",")]
+            for riv, rch, t in zip(trib_rivers, trib_reaches, target):
+                tree_dict[f"{riv}_{rch}"] = t
+        return tree_dict
+
+    @lru_cache
+    def reach_distance_modifiers(self, path: list[str]) -> dict:
+        """Make a dictionary mapping river_reach to cumulative station increase across the path due to junctions."""
+        offset = 0
+        path = path[:-1]  # remove first reach because any junction length there is irrelevant
+        distance_dict = {i: 0 for i in path}  # intialize zeros
+        for river_reach in path[::-1]:  # walk d/s to u/s
+            offset += self.dist_dict[river_reach]
+            distance_dict[river_reach] = offset
+        return distance_dict
