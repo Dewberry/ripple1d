@@ -7,7 +7,7 @@ from tests.conflation_tests.plotting import plot_conflation
 tests = ["test_a", "test_b", "test_c", "test_d", "test_e", "test_f", "test_g", "test_h", "test_i", "test_j", "test_k"]
 
 
-@pytest.mark.parametrize(tests)
+@pytest.mark.parametrize("ras_dir_name", tests)
 def test_conflation(ras_dir_name: str, generate_plots: bool = False):
     """Run a specific test case."""
     pm = PathManager(ras_dir_name)
