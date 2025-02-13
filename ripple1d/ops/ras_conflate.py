@@ -12,7 +12,6 @@ import pandas as pd
 import pystac
 
 import ripple1d
-from ripple1d.conflate.plotter import plot_conflation_results
 from ripple1d.conflate.rasfim import (
     RasFimConflater,
     nearest_line_to_point,
@@ -129,22 +128,39 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
     100 year flow from the NWM network.
     """
     logging.info(f"conflate_model starting")
-    try:
-        nwm_pq_path = source_network["file_name"]
-    except KeyError:
+    if not "file_name" in source_network:
         raise KeyError(f"source_network must contain 'file_name', invalid parameters: {source_network}")
 
     if not source_network["type"] == "nwm_hydrofabric":
         raise ValueError(f"source_network type must be 'nwm_hydrofabric', invalid parameters: {source_network}")
 
-    version = source_network.get("version", "")
+    conflation = _conflate_model(source_model_directory, model_name, source_network)
+    logging.debug(f"Conflation results: {conflation}")
 
-    rfc = RasFimConflater(nwm_pq_path, source_model_directory, model_name)
-    metadata = {"reaches": {}}
-    buffer = 1000
+    # if not conflated(metadata):
+    #     return f"no reaches conflated"
+
+    conflation_file = os.path.join(source_model_directory, f"{model_name}.conflation.json")
+    with open(conflation_file, "w") as f:
+        f.write(json.dumps(conflation, indent=4))
+
+    try:
+        compute_conflation_metrics(source_model_directory, model_name, source_network)
+    except Exception as e:
+        logging.error(f"| Error: {e}")
+        logging.error(f"| Traceback: {traceback.format_exc()}")
+
+    logging.info(f"conflate_model complete")
+    return {"conflation_file": conflation_file}
+
+
+def _conflate_model(source_model_directory: str, model_name: str, source_network: dict) -> dict:
+    """Create dictionary mapping NWM reach to RAS u/s and d/s XS limits."""
+    rfc = RasFimConflater(source_network["file_name"], source_model_directory, model_name)
+    conflation = {"reaches": {}}
     for river_reach_name in rfc.ras_river_reach_names:
         try:
-            local_nwm_reaches = rfc.local_nwm_reaches(river_reach_name, buffer=buffer)
+            local_nwm_reaches = rfc.local_nwm_reaches(river_reach_name, buffer=1000)
 
             # get the start and end points of the river reach
             ras_start_point, ras_stop_point = rfc.ras_start_end_points(
@@ -187,63 +203,40 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
 
             # walk network to get the potential reach ids
             potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id, river_reach_name)
-            potential_reach_path = list(set(potential_reach_path) - set(metadata.keys()))
+            potential_reach_path = list(set(potential_reach_path) - set(conflation.keys()))
 
             # get gdf of the candidate reaches
             candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
 
-            metadata["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches, river_reach_name))
+            conflation["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches, river_reach_name))
         except Exception as e:
             logging.error(f"river-reach: {river_reach_name} | Error: {e}")
             logging.error(f"river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
 
-    # if not conflated(metadata):
-    #     return f"no reaches conflated"
+    conflation["metadata"] = generate_metadata(source_network, rfc)
+    return conflation
 
-    ids = list(metadata["reaches"].keys())
-    fim_stream = rfc.local_nwm_reaches()[rfc.local_nwm_reaches()["ID"].isin(ids)]
-    # conflation_png = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.png')}"
 
-    # plot_conflation_results(
-    #     rfc,
-    #     fim_stream,
-    #     conflation_png,
-    #     limit_plot_to_nearby_reaches=True,
-    # )
-
-    logging.debug(f"Conflation results: {metadata}")
-    conflation_file = f"{rfc.ras_gpkg.replace('.gpkg','.conflation.json')}"
-
-    metadata["metadata"] = {}
-    metadata["metadata"]["source_network"] = source_network.copy()
-    metadata["metadata"]["source_network"]["file_name"] = os.path.basename(nwm_pq_path)
-    # metadata["metadata"]["conflation_png"] = os.path.basename(conflation_png)
-    metadata["metadata"]["conflation_ripple1d_version"] = ripple1d.__version__
-    metadata["metadata"]["metrics_ripple1d_version"] = ripple1d.__version__
-    metadata["metadata"]["source_ras_model"] = {
+def generate_metadata(source_network: dict, rfc: RasFimConflater) -> dict:
+    """Log metadata about how conflation was generated."""
+    metadata = {}
+    metadata["source_network"] = source_network.copy()
+    metadata["source_network"]["file_name"] = os.path.basename(rfc.nwm_pq)
+    metadata["conflation_ripple1d_version"] = ripple1d.__version__
+    metadata["metrics_ripple1d_version"] = ripple1d.__version__
+    metadata["source_ras_model"] = {
         "stac_api": rfc.stac_api,
         "stac_collection_id": rfc.stac_collection_id,
         "stac_item_id": rfc.stac_item_id,
         "units": rfc.units,
     }
-    metadata["metadata"]["source_ras_model"]["source_ras_files"] = {
+    metadata["source_ras_model"]["source_ras_files"] = {
         "geometry": rfc.primary_geom_file,
         "forcing": rfc.primary_flow_file,
         "project-file": rfc.ras_project_file,
         "plan": rfc.primary_plan_file,
     }
-
-    with open(conflation_file, "w") as f:
-        f.write(json.dumps(metadata, indent=4))
-
-    try:
-        compute_conflation_metrics(source_model_directory, model_name, source_network)
-    except Exception as e:
-        logging.error(f"| Error: {e}")
-        logging.error(f"| Traceback: {traceback.format_exc()}")
-
-    logging.info(f"conflate_model complete")
-    return {"conflation_file": conflation_file}
+    return metadata
 
 
 def conflated(metadata: dict) -> bool:
