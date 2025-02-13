@@ -242,8 +242,8 @@ class RippleGeopackageSubsetter:
         """Trim source centerline to u/s and d/s limits and add all intermediate reaches."""
         # Make a new joined centerline
         coords = []
-        for reach in self.subset_reaches:
-            tmp_river = self.source_river[self.source_river["river_reach"] == rr]
+        for river_reach in self.subset_reaches:
+            tmp_river = self.source_river[self.source_river["river_reach"] == river_reach]
             coords.extend(tmp_river.iloc[0]["geometry"].coords)
         tmp_line = LineString(coords)
 

@@ -465,7 +465,7 @@ class NetworkWalker:
         self.network_path: str = network_path
         self.max_iter: int = max_iter
 
-    def walk(self, us_id: str, ds_id: str) -> list[str]:
+    def walk(self, us_id: str, ds_id: str) -> tuple[str]:
         """Attempt to find a path from us_id to ds_id."""
         cur_id = copy(us_id)
         path = []
@@ -479,7 +479,7 @@ class NetworkWalker:
             else:
                 _iter += 1
                 cur_id = self.tree_dict[cur_id]  # move to next d/s reach
-        return path
+        return tuple(path)
 
 
 class NWMWalker(NetworkWalker):
@@ -543,7 +543,7 @@ class RASWalker(NetworkWalker):
         return tree_dict
 
     @lru_cache
-    def reach_distance_modifiers(self, path: list[str]) -> dict:
+    def reach_distance_modifiers(self, path: tuple[str]) -> dict:
         """Make a dictionary mapping river_reach to cumulative station increase across the path due to junctions."""
         offset = 0
         path = path[:-1]  # remove first reach because any junction length there is irrelevant
