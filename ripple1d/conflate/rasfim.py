@@ -20,6 +20,7 @@ from shapely.ops import linemerge, nearest_points, split, transform
 from ripple1d.consts import METERS_PER_FOOT
 from ripple1d.errors import BadConflation
 from ripple1d.utils.ripple_utils import (
+    NWMWalker,
     check_xs_direction,
     clip_ras_centerline,
     fix_reversed_xs,
@@ -401,6 +402,12 @@ class RasFimConflater:
         """NWM reaches."""
         return self._nwm_reaches
 
+    @property
+    @ensure_data_loaded
+    def walker(self) -> NWMWalker:
+        """Class to walk the NWM network."""
+        return NWMWalker(None, network_df=self.nwm_reaches)
+
     def local_nwm_reaches(self, river_reach_name: str = None, buffer=0) -> gpd.GeoDataFrame:
         """NWM reaches that intersect the RAS cross sections."""
         if river_reach_name:
@@ -722,10 +729,10 @@ def validate_reach_conflation(reach_xs_data: dict, reach_id: str):
         raise BadConflation(err_str)
 
 
-def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame, river_reach_name: str):
+def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFrame):
     """Return the metadata for the RAS reaches."""
     reach_metadata = OrderedDict()
-    hulls = []
+    candidate_reaches = rfc.nwm_reaches[rfc.nwm_reaches["ID"].isin(candidate_reaches)]
     for reach in candidate_reaches.itertuples():
         try:
             # get the xs data for the reach
@@ -733,10 +740,8 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
             validate_reach_conflation(ras_xs_data, str(reach.ID))
             reach_metadata[reach.ID] = ras_xs_data
         except Exception as e:
-            logging.error(f"river-reach: {river_reach_name} | network id: {reach.ID} | Error: {e}")
-            logging.error(
-                f"river-reach: {river_reach_name} | network id: {reach.ID} | Traceback: {traceback.format_exc()}"
-            )
+            logging.error(f"network id: {reach.ID} | Error: {e}")
+            logging.error(f"network id: {reach.ID} | Traceback: {traceback.format_exc()}")
 
     for k in reach_metadata.keys():
         flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]

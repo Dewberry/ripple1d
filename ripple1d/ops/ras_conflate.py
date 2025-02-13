@@ -5,6 +5,7 @@ import logging
 import os
 import traceback
 from datetime import datetime
+from itertools import chain
 from urllib.parse import quote
 
 import boto3
@@ -19,7 +20,7 @@ from ripple1d.conflate.rasfim import (
     walk_network,
 )
 from ripple1d.ops.metrics import compute_conflation_metrics
-from ripple1d.utils.ripple_utils import clip_ras_centerline
+from ripple1d.utils.ripple_utils import NWMWalker, clip_ras_centerline
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
@@ -157,64 +158,61 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
 def _conflate_model(source_model_directory: str, model_name: str, source_network: dict) -> dict:
     """Create dictionary mapping NWM reach to RAS u/s and d/s XS limits."""
     rfc = RasFimConflater(source_network["file_name"], source_model_directory, model_name)
-    conflation = {"reaches": {}}
-    for river_reach_name in rfc.ras_river_reach_names:
-        try:
-            local_nwm_reaches = rfc.local_nwm_reaches(river_reach_name, buffer=1000)
-
-            # get the start and end points of the river reach
-            ras_start_point, ras_stop_point = rfc.ras_start_end_points(
-                river_reach_name=river_reach_name, clip_to_xs=True
-            )
-
-            # if this is the only river reach, raise error
-            river = rfc.ras_centerline_by_river_reach_name(river_reach_name)
-            river = clip_ras_centerline(river, rfc.xs_by_river_reach_name(river_reach_name))
-            truncate_distance = 0
-            us_most_reach_id, ds_most_reach_id = None, None
-            while True:
-                try:
-                    us_most_reach_id = nearest_line_to_point(
-                        local_nwm_reaches, ras_start_point, start_reach_distance=100
-                    )
-                    break
-                except ValueError as e:
-                    if truncate_distance > 10000:
-                        logging.info(f"Could not identifiy a network reach near the upstream end of {river_reach_name}")
-                        break
-                    truncate_distance += 100
-                    ras_start_point = river.interpolate(truncate_distance)
-
-                    logging.debug(
-                        f"truncate_distance: {truncate_distance} | length {ras_start_point} |  river reach: {river_reach_name}"
-                    )
-            if us_most_reach_id is None:
-                continue
-
-            try:
-                ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
-            except:
-                logging.info(f"Could not identifiy a network reach near the downstream end of {river_reach_name}")
-                continue
-
-            logging.info(
-                f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
-            )
-
-            # walk network to get the potential reach ids
-            potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id, river_reach_name)
-            potential_reach_path = list(set(potential_reach_path) - set(conflation.keys()))
-
-            # get gdf of the candidate reaches
-            candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
-
-            conflation["reaches"].update(ras_reaches_metadata(rfc, candidate_reaches, river_reach_name))
-        except Exception as e:
-            logging.error(f"river-reach: {river_reach_name} | Error: {e}")
-            logging.error(f"river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
-
-    conflation["metadata"] = generate_metadata(source_network, rfc)
+    local_nwm_reaches = list(chain.from_iterable([get_nwm_reaches(rr, rfc) for rr in rfc.ras_river_reach_names]))
+    conflation = {
+        "reaches": ras_reaches_metadata(rfc, local_nwm_reaches),
+        "metadata": generate_metadata(source_network, rfc),
+    }
     return conflation
+
+
+def get_nwm_reaches(river_reach_name: str, rfc: RasFimConflater) -> list[str]:
+    """Find a valid path of nwm reaches across a HEC-RAS river_reach_name (if one exists)."""
+    try:
+        local_nwm_reaches = rfc.local_nwm_reaches(river_reach_name, buffer=1000)
+
+        # get the start and end points of the river reach
+        ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name, clip_to_xs=True)
+
+        # if this is the only river reach, raise error
+        river = rfc.ras_centerline_by_river_reach_name(river_reach_name)
+        river = clip_ras_centerline(river, rfc.xs_by_river_reach_name(river_reach_name))
+        truncate_distance = 0
+        us_most_reach_id, ds_most_reach_id = None, None
+        while True:
+            try:
+                us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point, start_reach_distance=100)
+                break
+            except ValueError as e:
+                if truncate_distance > 10000:
+                    logging.info(f"Could not identifiy a network reach near the upstream end of {river_reach_name}")
+                    break
+                truncate_distance += 100
+                ras_start_point = river.interpolate(truncate_distance)
+
+                logging.debug(
+                    f"truncate_distance: {truncate_distance} | length {ras_start_point} |  river reach: {river_reach_name}"
+                )
+        if us_most_reach_id is None:
+            raise RuntimeError(f"Could not identifiy a network reach near the upstream end of {river_reach_name}")
+
+        try:
+            ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
+        except:
+            raise RuntimeError(f"Could not identifiy a network reach near the downstream end of {river_reach_name}")
+
+        logging.info(
+            f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
+        )
+
+        # walk network to get the potential reach ids
+        potential_reach_path = rfc.walker.walk(us_most_reach_id, ds_most_reach_id)
+    except Exception as e:
+        logging.error(f"river-reach: {river_reach_name} | Error: {e}")
+        logging.error(f"river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
+        return []
+    else:
+        return potential_reach_path
 
 
 def generate_metadata(source_network: dict, rfc: RasFimConflater) -> dict:

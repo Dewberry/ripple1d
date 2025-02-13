@@ -8,6 +8,7 @@ import os
 from copy import copy
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 import boto3
 import fiona
@@ -488,11 +489,14 @@ class NWMWalker(NetworkWalker):
     ID_COL: str = "ID"
     TO_ID_COL: str = "to_id"
 
-    @property
-    @lru_cache
-    def df(self) -> gpd.GeoDataFrame:
-        """Load the network from a file."""
-        return pd.read_parquet(self.network_path, columns=[self.ID_COL, self.TO_ID_COL]).astype(str)
+    def __init__(
+        self, network_path: str, max_iter: int = 100, network_df: Optional[pd.DataFrame | gpd.GeoDataFrame] = None
+    ):
+        self.max_iter: int = max_iter
+        if network_df is not None:
+            self.df: pd.DataFrame = network_df[[self.ID_COL, self.TO_ID_COL]]
+        else:
+            self.df: pd.DataFrame = pd.read_parquet(network_path, columns=[self.ID_COL, self.TO_ID_COL])
 
     @property
     @lru_cache
