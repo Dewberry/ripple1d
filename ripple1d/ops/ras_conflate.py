@@ -158,7 +158,7 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
 def _conflate_model(source_model_directory: str, model_name: str, source_network: dict) -> dict:
     """Create dictionary mapping NWM reach to RAS u/s and d/s XS limits."""
     rfc = RasFimConflater(source_network["file_name"], source_model_directory, model_name)
-    local_nwm_reaches = list(chain.from_iterable([get_nwm_reaches(rr, rfc) for rr in rfc.ras_river_reach_names]))
+    local_nwm_reaches = list(set(chain.from_iterable([get_nwm_reaches(rr, rfc) for rr in rfc.ras_river_reach_names])))
     conflation = {
         "reaches": ras_reaches_metadata(rfc, local_nwm_reaches),
         "metadata": generate_metadata(source_network, rfc),
@@ -206,7 +206,7 @@ def get_nwm_reaches(river_reach_name: str, rfc: RasFimConflater) -> list[str]:
         )
 
         # walk network to get the potential reach ids
-        potential_reach_path = rfc.walker.walk(us_most_reach_id, ds_most_reach_id)
+        potential_reach_path = rfc.nwm_walker.walk(us_most_reach_id, ds_most_reach_id)
     except Exception as e:
         logging.error(f"river-reach: {river_reach_name} | Error: {e}")
         logging.error(f"river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")

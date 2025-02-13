@@ -466,7 +466,7 @@ class NetworkWalker:
         self.network_path: str = network_path
         self.max_iter: int = max_iter
 
-    def walk(self, us_id: str, ds_id: str) -> tuple[str]:
+    def walk(self, us_id, ds_id) -> tuple[str]:
         """Attempt to find a path from us_id to ds_id."""
         cur_id = copy(us_id)
         path = []
@@ -481,6 +481,15 @@ class NetworkWalker:
                 _iter += 1
                 cur_id = self.tree_dict[cur_id]  # move to next d/s reach
         return tuple(path)
+
+    def are_connected(self, us_id, ds_id) -> bool:
+        """Check if two reaches are hydrologically connected."""
+        try:
+            self.walk(us_id, ds_id)
+        except InvalidNetworkPath:
+            return False
+        else:
+            return True
 
 
 class NWMWalker(NetworkWalker):

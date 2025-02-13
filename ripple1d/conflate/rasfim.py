@@ -18,9 +18,10 @@ from shapely import LineString, MultiLineString, MultiPoint, Point, Polygon, box
 from shapely.ops import linemerge, nearest_points, split, transform
 
 from ripple1d.consts import METERS_PER_FOOT
-from ripple1d.errors import BadConflation
+from ripple1d.errors import BadConflation, InvalidNetworkPath
 from ripple1d.utils.ripple_utils import (
     NWMWalker,
+    RASWalker,
     check_xs_direction,
     clip_ras_centerline,
     fix_reversed_xs,
@@ -83,7 +84,6 @@ class RasFimConflater:
         nwm_pq: str,
         source_model_directory: str,
         ras_model_name: str,
-        load_data: bool = True,
         output_concave_hull_path: str = None,
     ):
         self.nwm_pq = nwm_pq
@@ -92,7 +92,7 @@ class RasFimConflater:
         self.ras_gpkg = os.path.join(source_model_directory, f"{self.ras_model_name}.gpkg")
 
         self.output_concave_hull_path = output_concave_hull_path
-        self._nwm_reaches = None
+        self.nwm_reaches = None
 
         self._ras_centerlines = None
         self._ras_xs = None
@@ -101,11 +101,10 @@ class RasFimConflater:
         self._ras_metadata = None
         self._common_crs = None
         self._xs_hulls = None
-        self.__data_loaded = False
-        if load_data:
-            self._common_crs = NWM_CRS
-            self.load_data()
-            self.__data_loaded = True
+        self._common_crs = NWM_CRS
+        self.load_data()
+        self.nwm_walker = NWMWalker(None, network_df=self.nwm_reaches)
+        self.ras_walker = RASWalker(self.ras_gpkg)
 
     def __repr__(self):
         """Return the string representation of the object."""
@@ -285,7 +284,7 @@ class RasFimConflater:
         try:
             nwm_reaches = gpd.read_parquet(nwm_pq, bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
-            self._nwm_reaches = nwm_reaches.set_geometry("geometry")
+            self.nwm_reaches = nwm_reaches.set_geometry("geometry")
         except Exception as e:
             if type(e) == DriverError:
                 raise DriverError(f"Unable to read {nwm_pq}")
@@ -297,41 +296,27 @@ class RasFimConflater:
         self.load_gpkg(self.ras_gpkg)
         self.load_pq(self.nwm_pq)
 
-    def ensure_data_loaded(func):
-        """Ensure that the data is loaded before accessing the properties Decorator."""
-
-        def wrapper(self, *args, **kwargs):
-            if not self.__data_loaded:
-                raise Exception("Data not loaded")
-            return func(self, *args, **kwargs)
-
-        return wrapper
-
     @property
     def common_crs(self):
         """Return the common CRS for the NWM and RAS data."""
         return self._common_crs
 
     @property
-    @ensure_data_loaded
     def ras_centerlines(self) -> gpd.GeoDataFrame:
         """RAS centerlines."""
         return self._ras_centerlines.to_crs(self.common_crs)
 
     @property
-    @ensure_data_loaded
     def ras_river_reach_names(self) -> List[str]:
         """Return the unique river reach names in the RAS data."""
         return self.ras_centerlines["river_reach"].unique().tolist()
 
     @property
-    @ensure_data_loaded
     def ras_xs(self) -> gpd.GeoDataFrame:
         """RAS cross sections."""
         return self._ras_xs.to_crs(self.common_crs)
 
     @property
-    @ensure_data_loaded
     def ras_structures(self) -> gpd.GeoDataFrame:
         """RAS structures."""
         # logging.info("RAS structures")
@@ -341,7 +326,6 @@ class RasFimConflater:
             return None
 
     @property
-    @ensure_data_loaded
     def ras_junctions(self) -> gpd.GeoDataFrame:
         """RAS junctions."""
         try:
@@ -396,18 +380,6 @@ class RasFimConflater:
         project = pyproj.Transformer.from_crs(gdf.crs, NWM_CRS, always_xy=True).transform
         return transform(project, box(*tuple(gdf.total_bounds)))
 
-    @property
-    @ensure_data_loaded
-    def nwm_reaches(self) -> gpd.GeoDataFrame:
-        """NWM reaches."""
-        return self._nwm_reaches
-
-    @property
-    @ensure_data_loaded
-    def walker(self) -> NWMWalker:
-        """Class to walk the NWM network."""
-        return NWMWalker(None, network_df=self.nwm_reaches)
-
     def local_nwm_reaches(self, river_reach_name: str = None, buffer=0) -> gpd.GeoDataFrame:
         """NWM reaches that intersect the RAS cross sections."""
         if river_reach_name:
@@ -444,7 +416,6 @@ class RasFimConflater:
         """
 
         def wrapper(self, *args, **kwargs):
-            assert self.__data_loaded, "Data not loaded"
 
             river_reach_name = kwargs.get("river_reach_name", None)
 
@@ -661,19 +632,20 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
         axis=1,
     )
 
-    has_junctions = rfc.ras_junctions is not None
-
     # get start and end points of the nwm reach
     start, end = endpoints_from_multiline(reach.geometry)
 
     # Begin with us_xs data
     us_xs = nearest_line_to_point(intersected_xs, start, column_id="river_reach_rs")
 
-    # Initialize us_xs data with min /max elevation, then build the dict with added info
-    us_data = ras_xs_geometry_data(rfc, us_xs)
-
     # Add downstream xs data
     ds_xs = nearest_line_to_point(intersected_xs, end, column_id="river_reach_rs")
+
+    # Check that us and ds are hydrologically connected. Select reach with most overlap if not
+    us_xs, ds_xs = correct_connectivity(rfc, intersected_xs, us_xs, ds_xs)
+
+    # Initialize us_xs data with min /max elevation, then build the dict with added info
+    us_data = ras_xs_geometry_data(rfc, us_xs)
 
     # get infor for the current ds_xs
     ras_river = rfc.ras_xs.loc[rfc.ras_xs["river_reach_rs"] == ds_xs, "river"].iloc[0]
@@ -712,6 +684,27 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
         return {"eclipsed": True}
 
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
+
+
+def correct_connectivity(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, us_xs: int, ds_xs: int) -> (int, int):
+    """Check that us and ds are hydrologically connected. Select reach with most overlap if not."""
+    us_reach = "_".join(us_xs.split("_")[:2])
+    ds_reach = "_".join(ds_xs.split("_")[:2])
+    if rfc.ras_walker.are_connected(us_reach, ds_reach):
+        return us_xs, ds_xs
+
+    most_overlapping = intersected_xs["river_reach"].mode().iloc[0]
+    subset = intersected_xs[intersected_xs["river_reach"] == most_overlapping]
+    if rfc.ras_walker.are_connected(us_reach, most_overlapping):
+        new_ds = subset.iloc[subset["river_station"].argmin()]["river_reach_rs"]
+        return us_xs, new_ds
+    elif rfc.ras_walker.are_connected(most_overlapping, ds_reach):
+        new_us = subset.iloc[subset["river_station"].argmax()]["river_reach_rs"]
+        return new_us, ds_xs
+    else:
+        new_us = subset.iloc[subset["river_station"].argmax()]["river_reach_rs"]
+        new_ds = subset.iloc[subset["river_station"].argmin()]["river_reach_rs"]
+        return new_us, new_ds
 
 
 def validate_reach_conflation(reach_xs_data: dict, reach_id: str):
