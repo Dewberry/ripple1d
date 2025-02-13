@@ -333,11 +333,11 @@ class RippleGeopackageSubsetter:
         """Trim a XS gdf to the u/s and d/s limits."""
         # Clip upper end
         us_filter = (sections["river_reach"] == self.us_river_reach) & (sections["river_station"] > self.us_rs)
-        sections = sections[not us_filter]
+        sections = sections[~us_filter]
 
         # Clip lower end
         ds_filter = (sections["river_reach"] == self.ds_river_reach) & (sections["river_station"] < self.ds_rs)
-        sections = sections[not ds_filter]
+        sections = sections[~ds_filter]
 
         return sections
 
