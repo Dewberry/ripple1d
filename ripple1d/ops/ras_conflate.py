@@ -169,6 +169,7 @@ def _conflate_model(source_model_directory: str, model_name: str, source_network
 
 
 def find_eclipsed_reaches(rfc: RasFimConflater, conflation: dict) -> dict:
+    """Update the conflation dictionary to add NWM reaches between HEC-RAS sections."""
     linked_reaches = get_linked_reaches(conflation["reaches"])
     for us_xs, ds_xs in linked_reaches:
         eclipsed = rfc.nwm_walker.walk(us_xs, ds_xs)
