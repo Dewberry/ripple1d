@@ -5,6 +5,7 @@ from __future__ import annotations
 import glob
 import logging
 import os
+from collections import defaultdict
 from copy import copy
 from functools import lru_cache
 from pathlib import Path
@@ -466,8 +467,8 @@ class NetworkWalker:
         self.network_path: str = network_path
         self.max_iter: int = max_iter
 
-    def walk(self, us_id, ds_id) -> tuple[str]:
-        """Attempt to find a path from us_id to ds_id."""
+    def walk(self, us_id: str | int, ds_id: Optional[str | int] = None) -> tuple[str]:
+        """Attempt to find a path from us_id to ds_id.  If ds_id is none, walk till self.max_iter."""
         cur_id = copy(us_id)
         path = []
         _iter = 0
@@ -476,7 +477,10 @@ class NetworkWalker:
             if cur_id == ds_id:
                 break
             elif _iter > self.max_iter or cur_id not in self.tree_dict:
-                raise InvalidNetworkPath(us_id, ds_id, cur_id, _iter)
+                if ds_id is None:
+                    return path
+                else:
+                    raise InvalidNetworkPath(us_id, ds_id, cur_id, _iter)
             else:
                 _iter += 1
                 cur_id = self.tree_dict[cur_id]  # move to next d/s reach
@@ -490,6 +494,30 @@ class NetworkWalker:
             return False
         else:
             return True
+
+    @property
+    @lru_cache
+    def tree_dict(self) -> dict:
+        """Placeholder for children."""
+        return {}
+
+    @property
+    @lru_cache
+    def tree_dict_us(self) -> dict:
+        """Dictionary mapping downstream reach to parents (list)."""
+        tree_dict_us = defaultdict(list)
+        for k, v in self.tree_dict.items():
+            tree_dict_us[v].append(k)
+        return tree_dict_us
+
+    def get_confluence(self, a: int | str, b: int | str) -> int | str:
+        """Find the first reach where paths meet.  Otherwise return None."""
+        path_a = self.walk(a)
+        path_b = self.walk(b)
+        common = set(path_a).intersection(path_b)
+        for i in path_a:
+            if i in common:
+                return i
 
 
 class NWMWalker(NetworkWalker):

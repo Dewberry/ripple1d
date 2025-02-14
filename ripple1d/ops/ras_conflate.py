@@ -18,6 +18,7 @@ from ripple1d.conflate.rasfim import (
     RasFimConflater,
     nearest_line_to_point,
     ras_reaches_metadata,
+    ras_xs_geometry_data,
     walk_network,
 )
 from ripple1d.ops.metrics import compute_conflation_metrics
@@ -165,6 +166,7 @@ def _conflate_model(source_model_directory: str, model_name: str, source_network
         "metadata": generate_metadata(source_network, rfc),
     }
     conflation = find_eclipsed_reaches(rfc, conflation)
+    conflation = fix_junctions(rfc, conflation)
     return conflation
 
 
@@ -179,11 +181,50 @@ def find_eclipsed_reaches(rfc: RasFimConflater, conflation: dict) -> dict:
     return conflation
 
 
+def fix_junctions(rfc: RasFimConflater, conflation: dict) -> dict:
+    """Update conflation such that confluences match between NWM and HEC-RAS."""
+    for reach in conflation["reaches"]:
+        if conflation["reaches"][reach]["eclipsed"]:
+            continue
+
+        children = rfc.nwm_walker.tree_dict_us[reach]
+        # Check if both tribs are in conflation file.
+        if all([child in conflation["reaches"] for child in children]) and len(children) == 2:
+            # walk tribs for eclipsed reaches
+            _children = []
+            for trib in children:
+                while conflation["reaches"][trib]["eclipsed"]:
+                    children = [i for i in rfc.nwm_walker.tree_dict_us[trib] if i in conflation["reaches"]]
+                    assert len(children) == 1, f"Failed finding a non-eclipsed child for {trib}.  Got {children}"
+                    trib = children[0]
+                _children.append(trib)
+            children = _children
+
+            # Find confluence
+            rr_serializer = lambda xs: f"{xs["river"]}_{xs["reach"]}"
+            us_limits = [rr_serializer(conflation["reaches"][r]["us_xs"]) for r in children]
+            confluence = rfc.ras_walker.get_confluence(us_limits[0], us_limits[1])
+            if confluence is None:
+                continue  # hydrologically disconnected
+
+            # Correct Parent
+            new_us_limit = rfc.ras_xs[rfc.ras_xs["river_reach"] == confluence]["river_station"].max()
+            new_us_limit = f"{confluence}_{new_us_limit}"
+            common_section = ras_xs_geometry_data(rfc, new_us_limit)
+            conflation["reaches"][reach]["us_xs"] = common_section
+
+            # Correct Children
+            for trib in children:
+                conflation["reaches"][trib]["ds_xs"] = common_section
+    return conflation
+
+
 def get_linked_reaches(reaches: dict) -> list:
     """Return list of NWM IDs that share cross-sections (u/s, d/s)."""
     # serialize ids to reduce errors
-    serialized = copy.deepcopy(reaches)
+    serialized = {}
     for r in reaches:
+        serialized[r] = {}
         for xs in ["us_xs", "ds_xs"]:
             serialized[r][xs] = f"{reaches[r][xs]['river']}_{reaches[r][xs]['reach']}_{reaches[r][xs]['xs_id']}"
     # Find matches
