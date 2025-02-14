@@ -4,7 +4,21 @@ from ripple1d.ops.ras_conflate import conflate_model
 from tests.conflation_tests.classes import ConflationFile, PathManager
 from tests.conflation_tests.plotting import plot_conflation
 
-tests = ["test_a", "test_b", "test_c", "test_d", "test_e", "test_f", "test_g", "test_h", "test_i", "test_j", "test_k"]
+tests = [
+    "test_a",
+    "test_b",
+    "test_c",
+    "test_d",
+    "test_e",
+    "test_f",
+    "test_g",
+    "test_h",
+    "test_i",
+    "test_j",
+    "test_k",
+    "test_l",
+    "test_m",
+]
 
 
 @pytest.mark.parametrize("ras_dir_name", tests)
@@ -19,7 +33,7 @@ def test_conflation(ras_dir_name: str, generate_plots: bool = False):
 
 def run_all():
     """Run all conflation tests."""
-    for test in tests:
+    for test in ["test_k"]:
         test_conflation(test, generate_plots=True)
 
 

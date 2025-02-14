@@ -1,11 +1,12 @@
 """Conflate HEC-RAS Model."""
 
+import copy
 import json
 import logging
 import os
 import traceback
 from datetime import datetime
-from itertools import chain
+from itertools import chain, permutations
 from urllib.parse import quote
 
 import boto3
@@ -163,7 +164,29 @@ def _conflate_model(source_model_directory: str, model_name: str, source_network
         "reaches": ras_reaches_metadata(rfc, local_nwm_reaches),
         "metadata": generate_metadata(source_network, rfc),
     }
+    conflation = find_eclipsed_reaches(rfc, conflation)
     return conflation
+
+
+def find_eclipsed_reaches(rfc: RasFimConflater, conflation: dict) -> dict:
+    linked_reaches = get_linked_reaches(conflation["reaches"])
+    for us_xs, ds_xs in linked_reaches:
+        eclipsed = rfc.nwm_walker.walk(us_xs, ds_xs)
+        for r in eclipsed:
+            if not r in [us_xs, ds_xs]:
+                conflation["reaches"][r] = {"eclipsed": True} | rfc.get_nwm_reach_metadata(r)
+    return conflation
+
+
+def get_linked_reaches(reaches: dict) -> list:
+    """Return list of NWM IDs that share cross-sections (u/s, d/s)."""
+    # serialize ids to reduce errors
+    serialized = copy.deepcopy(reaches)
+    for r in reaches:
+        for xs in ["us_xs", "ds_xs"]:
+            serialized[r][xs] = f"{reaches[r][xs]['river']}_{reaches[r][xs]['reach']}_{reaches[r][xs]['xs_id']}"
+    # Find matches
+    return [p for p in permutations(reaches.keys(), 2) if serialized[p[0]]["ds_xs"] == serialized[p[1]]["us_xs"]]
 
 
 def get_nwm_reaches(river_reach_name: str, rfc: RasFimConflater) -> list[str]:

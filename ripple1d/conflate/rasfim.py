@@ -459,6 +459,35 @@ class RasFimConflater:
         """Return the cross sections for the specified river reach."""
         return self.ras_xs[self.ras_xs["river_reach"] == river_reach_name]
 
+    def get_nwm_reach_metadata(self, reach_id) -> dict:
+        """Make a dictionary with relevant NWM information."""
+        metadata = {}
+        flow_data = self.nwm_reaches[self.nwm_reaches["ID"] == reach_id].iloc[0]
+        if isinstance(flow_data["high_flow_threshold"], float):
+            metadata["low_flow"] = int(round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR)
+        else:
+            metadata["low_flow"] = -9999
+            logging.warning(f"No low flow data for {reach_id}")
+
+        try:
+            high_flow = float(flow_data["f100year"])
+            metadata["high_flow"] = int(round(high_flow, 2))
+        except:
+            logging.warning(f"No high flow data for {reach_id}")
+            metadata["high_flow"] = -9999
+        try:
+            metadata["network_to_id"] = str(flow_data["to_id"])
+        except:
+            logging.warning(f"No to_id data for {reach_id}")
+            metadata["network_to_id"] = "-9999"
+
+        if reach_id in self.local_gages.keys():
+            gage_id = self.local_gages[reach_id].replace(" ", "")
+            metadata["gage"] = gage_id
+            metadata["gage_url"] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
+
+        return metadata
+
 
 # general geospatial functions
 def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
@@ -622,7 +651,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     # get the xs that intersect the nwm reach
     intersected_xs = rfc.ras_xs[rfc.ras_xs.intersects(reach.geometry)]
     if intersected_xs.empty:
-        return {"eclipsed": True}
+        return
 
     not_reversed_xs = check_xs_direction(intersected_xs, reach.geometry)
     intersected_xs["geometry"] = intersected_xs.apply(
@@ -730,35 +759,11 @@ def ras_reaches_metadata(rfc: RasFimConflater, candidate_reaches: gpd.GeoDataFra
         try:
             # get the xs data for the reach
             ras_xs_data = map_reach_xs(rfc, reach)
-            validate_reach_conflation(ras_xs_data, str(reach.ID))
-            reach_metadata[reach.ID] = ras_xs_data
+            if ras_xs_data is not None:
+                validate_reach_conflation(ras_xs_data, str(reach.ID))
+                reach_metadata[reach.ID] = ras_xs_data | rfc.get_nwm_reach_metadata(reach.ID)
         except Exception as e:
             logging.error(f"network id: {reach.ID} | Error: {e}")
             logging.error(f"network id: {reach.ID} | Traceback: {traceback.format_exc()}")
-
-    for k in reach_metadata.keys():
-        flow_data = rfc.nwm_reaches[rfc.nwm_reaches["ID"] == k].iloc[0]
-        if isinstance(flow_data["high_flow_threshold"], float):
-            reach_metadata[k]["low_flow"] = int(round(flow_data["high_flow_threshold"], 2) * HIGH_FLOW_FACTOR)
-        else:
-            reach_metadata[k]["low_flow"] = -9999
-            logging.warning(f"No low flow data for {k}")
-
-        try:
-            high_flow = float(flow_data["f100year"])
-            reach_metadata[k]["high_flow"] = int(round(high_flow, 2))
-        except:
-            logging.warning(f"No high flow data for {k}")
-            reach_metadata[k]["high_flow"] = -9999
-        try:
-            reach_metadata[k]["network_to_id"] = str(flow_data["to_id"])
-        except:
-            logging.warning(f"No to_id data for {k}")
-            reach_metadata[k]["network_to_id"] = "-9999"
-
-        if k in rfc.local_gages.keys():
-            gage_id = rfc.local_gages[k].replace(" ", "")
-            reach_metadata[k]["gage"] = gage_id
-            reach_metadata[k]["gage_url"] = f"https://waterdata.usgs.gov/nwis/uv?site_no={gage_id}&legacy=1"
 
     return reach_metadata
