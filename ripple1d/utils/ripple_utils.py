@@ -550,8 +550,8 @@ class RASWalker(NetworkWalker):
     def reach_distance_modifiers(self, path: tuple[str]) -> dict:
         """Make a dictionary mapping river_reach to cumulative station increase across the path due to junctions."""
         offset = 0
-        path = path[:-1]  # remove first reach because any junction length there is irrelevant
         distance_dict = {i: 0 for i in path}  # intialize zeros
+        path = path[:-1]  # remove first reach because any junction length there is irrelevant
         for river_reach in path[::-1]:  # walk d/s to u/s
             offset += self.dist_dict[river_reach]
             distance_dict[river_reach] = offset
