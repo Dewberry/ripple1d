@@ -1,3 +1,18 @@
+TESTS = [
+    "test_a",
+    "test_b",
+    "test_c",
+    "test_d",
+    "test_e",
+    "test_f",
+    "test_g",
+    "test_h",
+    "test_i",
+    "test_j",
+    "test_k",
+    "test_l",
+    "test_m",
+]
 JUNCTION_RAS_DATA = """Junct Name=1
 Junct Desc=, 0 , 0 ,-1 ,0
 Junct X Y & Text X Y=1028896.375,803601.4375,1028896.375,803601.4375
