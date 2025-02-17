@@ -580,7 +580,7 @@ class RASWalker(NetworkWalker):
             elif output == "distance":
                 target = [float(i) for i in r["junction_lengths"].split(",")]
             for riv, rch, t in zip(trib_rivers, trib_reaches, target):
-                tree_dict[f"{riv}_{rch}"] = t
+                tree_dict[f"{riv.ljust(16)},{rch.ljust(16)}"] = t
         return tree_dict
 
     @lru_cache

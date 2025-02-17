@@ -161,59 +161,6 @@ class RasFimConflater:
         if self.ras_metadata is not None:
             return self.ras_metadata.get("units")
 
-    # @property
-    # def xs_length_units(self):
-    #     """Length units of the source HEC-RAS model."""
-    #     if self.ras_metadata["units"] != "English":
-    #         raise NotImplementedError(
-    #             f"HEC-RAS units are {self.ras_metadata['units']}. Only 'English' units are supported at this time."
-    #         )
-    #     elif self.ras_metadata["units"] == "English":
-    #         ras_xs=self.ras_xs
-    #         ras_xs["r"]=ras_xs.apply(lambda row: self.populate_r_station(row),axis=1)
-    #         if ras_xs["r"].mean()>.9 and ras_xs["r"].mean()<1.1:
-    #             return "ft"
-    #         elif ras_xs["r"].mean()*METERS_PER_FOOT>.9 and ras_xs["r"].mean()*METERS_PER_FOOT<1.1:
-    #             raise ValueError(f"HEC-RAS units specified as English but cross section r values indicate meters")
-    #         elif ras_xs["r"].mean()/5280>.9 and ras_xs["r"].mean()/5280<1.1:
-    #             return "miles"
-    #         else:
-    #             raise ValueError(f"Unable to determine cross section length units from cross section r values")
-
-    # @property
-    # def river_station_units(self):
-    #     """Station units of the source HEC-RAS model."""
-    #     if self.ras_metadata["units"] != "English":
-    #         raise NotImplementedError(
-    #             f"HEC-RAS units are {self.ras_metadata['units']}. Only 'English' units are supported at this time."
-    #         )
-    #     elif self.ras_metadata["units"] == "English":
-    #         ras_xs=self.ras_xs
-    #         ras_xs["intersection_point"]=ras_xs.apply(lambda row: self.ras_centerlines(row.geometry).intersection(row.geometry),axis=1)
-    #         ras_xs["computed_river_station"]=ras_xs.apply(lambda row: self.ras_centerlines.project(row["intersection_point"])*METERS_PER_FOOT,axis=1)
-    #         ras_xs["computed_reach_length"]=ras_xs["computed_river_station"].diff()
-
-    #         ras_xs["reach_lengths_from_original_river_station"]=ras_xs["river_station"].diff()
-    #         ras_xs["reach_length_ratio"]=ras_xs["computed_reach_length"]/ras_xs["reach_lengths_from_original_river_station"]
-    #         if ras_xs["reach_length_ratio"].mean()>.9 and ras_xs["reach_length_ratio"].mean()<1.1:
-    #             return "ft"
-    #         elif ras_xs["reach_length_ratio"].mean()*METERS_PER_FOOT>.9 and ras_xs["reach_length_ratio"].mean()*METERS_PER_FOOT<1.1:
-    #             raise ValueError(f"HEC-RAS units specified as English but reach length r values indicate meters")
-    #         elif ras_xs["reach_length_ratio"].mean()/5280>.9 and ras_xs["reach_length_ratio"].mean()/5280<1.1:
-    #             return "miles"
-    #         else:
-    #             raise ValueError(f"Unable to determine reach length units from reach length r values")
-
-    # @property
-    # def flow_units(self):
-    #     """Flow units of the source HEC-RAS model."""
-    #     if self.gpkg_metadata["units"] != "English":
-    #         raise NotImplementedError(
-    #             f"HEC-RAS units are {self.ras_metadata['units']}. Only 'English' units are supported at this time."
-    #         )
-    #     elif self.ras_metadata["units"] == "English":
-    #         return "cfs"
-
     def populate_r_station(self, row: pd.Series, assume_ft: bool = True) -> str:
         """Populate the r value for a cross section. The r value is the ratio of the station to actual cross section length."""
         # TODO check if this is the correct way to calculate r
@@ -717,8 +664,8 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
 
 def correct_connectivity(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, us_xs: int, ds_xs: int) -> (int, int):
     """Check that us and ds are hydrologically connected. Select reach with most overlap if not."""
-    us_reach = "_".join(us_xs.split("_")[:2])
-    ds_reach = "_".join(ds_xs.split("_")[:2])
+    us_reach = f"{us_xs.split(" ")[0].ljust(16)},{us_xs.split(" ")[1].ljust(16)}"
+    ds_reach = f"{ds_xs.split(" ")[0].ljust(16)},{ds_xs.split(" ")[1].ljust(16)}"
     if rfc.ras_walker.are_connected(us_reach, ds_reach):
         return us_xs, ds_xs
 

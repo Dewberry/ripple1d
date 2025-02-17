@@ -201,15 +201,17 @@ def fix_junctions(rfc: RasFimConflater, conflation: dict) -> dict:
             children = _children
 
             # Find confluence
-            rr_serializer = lambda xs: f'{xs["river"]}_{xs["reach"]}'
+            rr_serializer = lambda xs: f"{xs['river'].ljust(16)},{xs['reach'].ljust(16)}"
             us_limits = [rr_serializer(conflation["reaches"][r]["us_xs"]) for r in children]
             confluence = rfc.ras_walker.get_confluence(us_limits[0], us_limits[1])
             if confluence is None:
                 continue  # hydrologically disconnected
 
             # Correct Parent
-            new_us_limit = rfc.ras_xs[rfc.ras_xs["river_reach"] == confluence]["river_station"].max()
-            new_us_limit = f"{confluence}_{new_us_limit}"
+            new_us_limit_river = rfc.ras_xs[rfc.ras_xs["river_reach"] == confluence]["river"].iloc[0]
+            new_us_limit_reach = rfc.ras_xs[rfc.ras_xs["river_reach"] == confluence]["reach"].iloc[0]
+            new_us_limit_station = rfc.ras_xs[rfc.ras_xs["river_reach"] == confluence]["river_station"].max()
+            new_us_limit = f"{new_us_limit_river} {new_us_limit_reach} {new_us_limit_station}"
             common_section = ras_xs_geometry_data(rfc, new_us_limit)
             conflation["reaches"][reach]["us_xs"] = common_section
 
