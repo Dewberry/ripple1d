@@ -41,6 +41,8 @@ def format_tables(ras_dir_name: str):
         nwm["geometry"] = nwm["geometry"].apply(lambda line: MultiLineString([line]))
     nwm["f100year"] = 100.0
     nwm["high_flow_threshold"] = 10.0
+    nwm["stream_order"] = 2
+    nwm.loc[~nwm["ID"].isin(nwm["to_id"].to_list()), "stream_order"] = 1
     nwm.to_parquet(pm.nwm_path, write_covering_bbox=True)
 
 
