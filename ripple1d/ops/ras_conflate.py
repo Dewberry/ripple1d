@@ -60,7 +60,7 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         raise ValueError(f"nwm_reach_id {nwm_reach_id} not conflating to the ras model geometry.")
 
 
-def conflate_model(source_model_directory: str, model_name: str, source_network: dict):
+def conflate_model(source_model_directory: str, model_name: str, source_network: dict, compute_metrics: bool = True):
     """Conflate a HEC-RAS model with NWM reaches.
 
     Parameters
@@ -79,8 +79,8 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
             must be 'nwm_hydrofabric' (required)
         - **version** (str):
             optional version number to log
-    task_id : str, optional
-        Task ID to use for logging, by default ""
+    compute_metrics : bool
+        Boolean indicating if conflation metrics should be computed.
 
     Returns
     -------
@@ -147,14 +147,15 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
     with open(conflation_file, "w") as f:
         f.write(json.dumps(conflation, indent=4))
 
-    try:
-        compute_conflation_metrics(source_model_directory, model_name, source_network)
-    except Exception as e:
-        logging.error(f"| Error: {e}")
-        logging.error(f"| Traceback: {traceback.format_exc()}")
+    if compute_metrics:
+        try:
+            compute_conflation_metrics(source_model_directory, model_name, source_network)
+        except Exception as e:
+            logging.error(f"| Error: {e}")
+            logging.error(f"| Traceback: {traceback.format_exc()}")
 
-    logging.info(f"conflate_model complete")
-    return {"conflation_file": conflation_file}
+        logging.info(f"conflate_model complete")
+        return {"conflation_file": conflation_file}
 
 
 def _conflate_model(source_model_directory: str, model_name: str, source_network: dict) -> dict:

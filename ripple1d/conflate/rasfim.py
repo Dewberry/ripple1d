@@ -589,6 +589,34 @@ def get_us_most_xs_from_junction(rfc, us_river, us_reach):
     return ds_xs_id
 
 
+def check_for_us_xs(river_reach_rs, xs_gdf: gpd.GeoDataFrame) -> str:
+    """
+    Check for another cross section upstream of the most upstream intersected cross section.
+
+    Retrieve the river_reach_rs id for the cross section upstream of the most upstream intersected
+    cross section. If there are no cross sections upstream of the
+    most upstream intersecting cross section, then return the most upstream intersecting cross section.
+    """
+    # get cross section using river_reach_rs
+    xs = xs_gdf.loc[xs_gdf["river_reach_rs"] == river_reach_rs].iloc[0]
+
+    # get river station of the us cross section
+    us_rs = xs_gdf.loc[
+        (xs_gdf["river_reach"] == xs["river_reach"]) & (xs_gdf["river_station"] > xs["river_station"]), "river_station"
+    ].min()
+
+    # return the river_reach_rs
+    if np.isnan(us_rs):
+        return river_reach_rs
+    elif isinstance(float(us_rs), float):
+        return xs_gdf.loc[
+            (xs_gdf["river_station"] == us_rs) & (xs_gdf["river_reach"] == xs["river_reach"]), "river_reach_rs"
+        ].iloc[0]
+
+    else:
+        return river_reach_rs
+
+
 def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     """
     Map the upstream and downstream cross sections for the nwm reach.
@@ -612,6 +640,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     start, end = endpoints_from_multiline(reach.geometry)
 
     # Begin with us_xs data
+
     us_xs = nearest_line_to_point(intersected_xs, start, column_id="river_reach_rs")
 
     # Add downstream xs data
@@ -619,6 +648,16 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
 
     # Check that us and ds are hydrologically connected. Select reach with most overlap if not
     us_xs, ds_xs = correct_connectivity(rfc, intersected_xs, us_xs, ds_xs)
+
+    # Add downstream xs data
+    ds_xs = nearest_line_to_point(intersected_xs, end, column_id="river_reach_rs")
+
+    # Check that us and ds are hydrologically connected. Select reach with most overlap if not
+    us_xs, ds_xs = correct_connectivity(rfc, intersected_xs, us_xs, ds_xs)
+
+    # detemine if us end of the nwm reach is between two cross sections. If so grab the upstream cross section
+    if reach.stream_order == 1:
+        us_xs = check_for_us_xs(us_xs, rfc.ras_xs)
 
     # Initialize us_xs data with min /max elevation, then build the dict with added info
     us_data = ras_xs_geometry_data(rfc, us_xs)

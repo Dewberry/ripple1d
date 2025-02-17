@@ -10,7 +10,7 @@ from tests.conflation_tests.plotting import plot_conflation
 def test_conflation(ras_dir_name: str, generate_plots: bool = False):
     """Run a specific test case."""
     pm = PathManager(ras_dir_name)
-    conflate_model(pm.ras_dir, pm.ras_model_name, pm.nwm_dict)
+    conflate_model(pm.ras_dir, pm.ras_model_name, pm.nwm_dict, False)
     if generate_plots:
         plot_conflation(pm.ras_path, pm.nwm_path, pm.conflation_file)
     ConflationFile(pm.conflation_file) == ConflationFile(pm.rubric_file)  # Validation
