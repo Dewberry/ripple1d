@@ -201,7 +201,7 @@ def fix_junctions(rfc: RasFimConflater, conflation: dict) -> dict:
             children = _children
 
             # Find confluence
-            rr_serializer = lambda xs: f"{xs["river"]}_{xs["reach"]}"
+            rr_serializer = lambda xs: f'{xs["river"]}_{xs["reach"]}'
             us_limits = [rr_serializer(conflation["reaches"][r]["us_xs"]) for r in children]
             confluence = rfc.ras_walker.get_confluence(us_limits[0], us_limits[1])
             if confluence is None:
@@ -249,10 +249,10 @@ def get_nwm_reaches(river_reach_name: str, rfc: RasFimConflater) -> list[str]:
                 us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point, start_reach_distance=100)
                 break
             except ValueError as e:
-                if truncate_distance > 10000:
+                if truncate_distance > (0.95 * river.length):
                     logging.info(f"Could not identifiy a network reach near the upstream end of {river_reach_name}")
                     break
-                truncate_distance += 100
+                truncate_distance += 0.05 * river.length
                 ras_start_point = river.interpolate(truncate_distance)
 
                 logging.debug(
