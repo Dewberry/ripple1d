@@ -576,7 +576,7 @@ class RASWalker(NetworkWalker):
             trib_rivers = r["us_rivers"].split(",")
             trib_reaches = r["us_reaches"].split(",")
             if output == "reach":
-                target = ["_".join([r["ds_rivers"], r["ds_reaches"]])] * 2
+                target = [f'{r["ds_rivers"].ljust(16)},{r["ds_reaches"].ljust(16)}'] * 2
             elif output == "distance":
                 target = [float(i) for i in r["junction_lengths"].split(",")]
             for riv, rch, t in zip(trib_rivers, trib_reaches, target):
@@ -587,8 +587,8 @@ class RASWalker(NetworkWalker):
     def reach_distance_modifiers(self, path: tuple[str]) -> dict:
         """Make a dictionary mapping river_reach to cumulative station increase across the path due to junctions."""
         offset = 0
-        path = path[:-1]  # remove first reach because any junction length there is irrelevant
         distance_dict = {i: 0 for i in path}  # intialize zeros
+        path = path[:-1]  # remove first reach because any junction length there is irrelevant
         for river_reach in path[::-1]:  # walk d/s to u/s
             offset += self.dist_dict[river_reach]
             distance_dict[river_reach] = offset

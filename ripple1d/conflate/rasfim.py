@@ -710,7 +710,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
         rfc.add_hull(xs_gdf, reach.geometry)
 
     if us_data == ds_data:
-        return {"eclipsed": True}
+        return
 
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 

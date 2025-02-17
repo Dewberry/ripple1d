@@ -96,7 +96,7 @@ class RippleGeopackageSubsetter:
     @property
     def us_river_reach(self) -> str:
         """Extract upstream river_reach from conflation parameters."""
-        return "_".join([self.us_river, self.us_reach])
+        return f"{self.us_river.ljust(16)},{self.us_reach.ljust(16)}"
 
     @property
     def ds_river(self) -> str:
@@ -116,7 +116,7 @@ class RippleGeopackageSubsetter:
     @property
     def ds_river_reach(self) -> str:
         """Extract downstream river_reach from conflation parameters."""
-        return "_".join([self.ds_river, self.ds_reach])
+        return f"{self.ds_river.ljust(16)},{self.ds_reach.ljust(16)}"
 
     @property
     @lru_cache
