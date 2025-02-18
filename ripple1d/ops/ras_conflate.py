@@ -140,9 +140,6 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
     conflation = _conflate_model(source_model_directory, model_name, source_network)
     logging.debug(f"Conflation results: {conflation}")
 
-    # if not conflated(metadata):
-    #     return f"no reaches conflated"
-
     conflation_file = os.path.join(source_model_directory, f"{model_name}.conflation.json")
     with open(conflation_file, "w") as f:
         f.write(json.dumps(conflation, indent=4))
@@ -155,7 +152,7 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
             logging.error(f"| Traceback: {traceback.format_exc()}")
 
         logging.info(f"conflate_model complete")
-        return {"conflation_file": conflation_file}
+    return {"conflation_file": conflation_file}
 
 
 def _conflate_model(source_model_directory: str, model_name: str, source_network: dict) -> dict:
@@ -303,15 +300,3 @@ def generate_metadata(source_network: dict, rfc: RasFimConflater) -> dict:
         "plan": rfc.primary_plan_file,
     }
     return metadata
-
-
-def conflated(metadata: dict) -> bool:
-    """Determine if any reaches conflated."""
-    count = 0
-    for reach_data in metadata["reaches"].values():
-        if not reach_data["eclipsed"]:
-            count += 1
-    if count == 0:
-        return False
-    else:
-        return True
