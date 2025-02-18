@@ -8,7 +8,9 @@ import geopandas as gpd
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import numpy as np
+import requests
 import shapely
+from flask import request
 from pyproj import CRS
 from shapely import LineString, Point, distance
 
@@ -72,7 +74,7 @@ class Plotter:
 
     @property
     def out_path(self) -> str:
-        return self.conflation_path.replace(".json", ".png")
+        return self.conflation_path.replace(".json", ".jpg")
 
     def add_default_ras_data(self):
         for layer, kwargs in self.layer_colors.items():
@@ -204,7 +206,13 @@ class Plotter:
             # Add an extra 10% for the legend
             ax.legend(fontsize="x-small", loc="lower right", ncols=len(self.nwm_reaches) + 1)
             ax.set_axis_off()
-            ctx.add_basemap(ax, crs=self.crs, source=ctx.providers.USGS.USImagery, attribution=False)
+            try:
+                ctx.add_basemap(ax, crs=self.crs, source=ctx.providers.USGS.USTopo, attribution=False)
+            except requests.exceptions.HTTPError as e:
+                try:
+                    ctx.add_basemap(ax, crs=self.crs, source=ctx.providers.Esri.WorldStreetMap, attribution=False)
+                except requests.exceptions.HTTPError as e:
+                    ctx.add_basemap(ax, crs=self.crs, source=ctx.providers.OpenStreetMap.Mapnik, attribution=False)
 
         height = abs(self.axs[0].get_ylim()[0] - self.axs[0].get_ylim()[1])
         width = abs(self.axs[0].get_xlim()[0] - self.axs[0].get_xlim()[1])

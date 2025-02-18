@@ -703,8 +703,8 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
 
 def correct_connectivity(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, us_xs: int, ds_xs: int) -> (int, int):
     """Check that us and ds are hydrologically connected. Select reach with most overlap if not."""
-    us_reach = f"{us_xs.split(" ")[0].ljust(16)},{us_xs.split(" ")[1].ljust(16)}"
-    ds_reach = f"{ds_xs.split(" ")[0].ljust(16)},{ds_xs.split(" ")[1].ljust(16)}"
+    us_reach = f'{us_xs.split(" ")[0].ljust(16)},{us_xs.split(" ")[1].ljust(16)}'
+    ds_reach = f'{ds_xs.split(" ")[0].ljust(16)},{ds_xs.split(" ")[1].ljust(16)}'
     if rfc.ras_walker.are_connected(us_reach, ds_reach):
         return us_xs, ds_xs
 
