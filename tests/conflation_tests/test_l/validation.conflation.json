@@ -2,13 +2,13 @@
     "reaches": {
         "1": {
             "us_xs": {
-                "river": "B",
+                "river": "A",
                 "reach": "A",
-                "xs_id": 1
+                "xs_id": 7
             },
             "ds_xs": {
                 "river": "A",
-                "reach": "B",
+                "reach": "A",
                 "xs_id": 1
             },
             "eclipsed": false
@@ -17,11 +17,11 @@
             "us_xs": {
                 "river": "A",
                 "reach": "A",
-                "xs_id": 6
+                "xs_id": 13
             },
             "ds_xs": {
                 "river": "A",
-                "reach": "B",
+                "reach": "A",
                 "xs_id": 7
             },
             "eclipsed": false

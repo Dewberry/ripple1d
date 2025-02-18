@@ -122,11 +122,11 @@ next downstream cross-section.
 
 Same as Test G but with the eclipsed reach downstream of the confluence.
 
-**Conflation Test J**
+**Conflation Test I**
 
-.. image:: ../images/conflation_tests/test_j.jpg
+.. image:: ../images/conflation_tests/test_i.jpg
   :width: 800
-  :alt: test j
+  :alt: test i
   :align: center
 
 
@@ -142,6 +142,18 @@ have a downstream cross-section at the first section downstream of the HEC-RAS
 junction and the downstream sub model to have an upstream cross-section at that
 section.
 
+**Conflation Test J**
+
+.. image:: ../images/conflation_tests/test_j.jpg
+  :width: 800
+  :alt: test j
+  :align: center
+
+
+This test was created in response to `github issue #311 <https://github.com/Dewberry/ripple1d/issues/311>`_.
+This scenario verifies that NWM reaches will not conflate to nearby HEC-RAS
+models that to not overlap the reach extents.
+
 **Conflation Test K**
 
 .. image:: ../images/conflation_tests/test_k.jpg
@@ -150,9 +162,9 @@ section.
   :align: center
 
 
-This test was created in response to `github issue #311 <https://github.com/Dewberry/ripple1d/issues/311>`_.
-This scenario verifies that NWM reaches will not conflate to nearby HEC-RAS
-models that to not overlap the reach extents.
+See description of Test J.  This complex confluence geometry is still locked
+such that the sub models will be on their appropriate tributary and contain the
+first cross-section downstream of the junction as their shared cross-section.
 
 **Conflation Test L**
 
@@ -162,26 +174,14 @@ models that to not overlap the reach extents.
   :align: center
 
 
-See description of Test J.  This complex confluence geometry is still locked
-such that the sub models will be on their appropriate tributary and contain the
-first cross-section downstream of the junction as their shared cross-section.
+In this example, the HEC-RAS model does not contain a junction.  Sub model 3
+will therefore not share a cross-section with 1 and 2.
 
 **Conflation Test M**
 
 .. image:: ../images/conflation_tests/test_m.jpg
   :width: 800
   :alt: test m
-  :align: center
-
-
-In this example, the HEC-RAS model does not contain a junction.  Sub model 3
-will therefore not share a cross-section with 1 and 2.
-
-**Conflation Test N**
-
-.. image:: ../images/conflation_tests/test_n.jpg
-  :width: 800
-  :alt: test n
   :align: center
 
 
