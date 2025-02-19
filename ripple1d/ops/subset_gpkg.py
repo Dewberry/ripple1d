@@ -99,6 +99,11 @@ class RippleGeopackageSubsetter:
         return f"{self.us_river.ljust(16)},{self.us_reach.ljust(16)}"
 
     @property
+    def us_river_reach_rs(self) -> str:
+        """Extract upstream river_reach_rs from conflation parameters."""
+        return f"{self.us_river} {self.us_reach} {self.us_rs}"
+
+    @property
     def ds_river(self) -> str:
         """Extract downstream river from conflation parameters."""
         return self.ripple1d_parameters["ds_xs"]["river"]
@@ -117,6 +122,11 @@ class RippleGeopackageSubsetter:
     def ds_river_reach(self) -> str:
         """Extract downstream river_reach from conflation parameters."""
         return f"{self.ds_river.ljust(16)},{self.ds_reach.ljust(16)}"
+
+    @property
+    def us_river_reach_rs(self) -> str:
+        """Extract downstream river_reach_rs from conflation parameters."""
+        return f"{self.ds_river} {self.ds_reach} {self.ds_rs}"
 
     @property
     @lru_cache
@@ -211,12 +221,86 @@ class RippleGeopackageSubsetter:
 
     @property
     @lru_cache
+    def xs_distance_modifiers(self) -> dict:
+        """Get a dictionary mapping the lowest cross-section along a reach to the junction distance below it."""
+        modifiers = {}
+        for k, v in self.reach_distance_modifiers.items():
+            subset = self.source_xs[self.source_xs["river_reach"] == k]
+            ds_xs = subset[subset["river_station"] == subset["river_station"].min()].iloc[0]
+            modifiers[ds_xs["river_reach_rs"]] = v
+        return modifiers
+
+    def update_ds_reach_lengths(self, row: pd.Series) -> str:
+        """Update ras data by increasing downstream distance at sections above a junction crossing."""
+        # Get distance increase
+        if row["river_reach_rs"] not in self.xs_distance_modifiers:
+            return row["ras_data"]
+        modifier = str(self.xs_distance_modifiers[row["river_reach_rs"]])
+
+        # Modify
+        ras_data = row["ras_data"]
+        lines = ras_data.splitlines()
+        data = lines[0].split(",")
+        for i in [2, 3, 4]:
+            data[i] = modifier
+        lines[0] = ",".join(data)
+        return "\n".join(lines) + "\n"
+
+    def update_xs_names(self, sections: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Update section IDs to auto-incremented."""
+        # Log original information
+        sections["source_river"] = sections["river"]
+        sections["source_reach"] = sections["reach"]
+        sections["source_river_station"] = sections["river_station"]
+
+        # Sort by reach path order then by river_station
+        sections["river_reach"] = pd.Categorical(
+            sections["river_reach"], categories=self.subset_reaches[::-1], ordered=True
+        )
+        sections = sections.sort_values(by=["river_reach", "river_station"])
+
+        # Update names
+        sections["river_station"] = [int(i) for i in range(1, len(sections) + 1)]
+        sections["river_reach_rs"] = (
+            sections["river"] + " " + sections["reach"] + " " + sections["river_station"].astype(str)
+        )
+        sections["ras_data"] = sections.apply(self.correct_ras_data, axis=1)
+        return sections
+
+    def update_structure_names(self, structures: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Update structure IDs to align with sections."""
+        # Log original information
+        structures["source_river"] = structures["river"]
+        structures["source_reach"] = structures["reach"]
+        structures["source_river_station"] = structures["river_station"]
+
+        # Update names
+        for i in structures.index:
+            sections = self.subset_xs[
+                (self.subset_xs["source_river"] == structures.loc[i, "source_river"])
+                & (self.subset_xs["source_reach"] == structures.loc[i, "source_reach"])
+            ]
+            structures.loc[i, "river_station"] = (
+                sections.iloc[(sections["source_river_station"] > structures.loc[i, "river_station"]).argmax()][
+                    "river_station"
+                ]
+                - 0.5
+            )
+        structures["river_reach_rs"] = (
+            structures["river"] + " " + structures["reach"] + " " + structures["river_station"].astype(str)
+        )
+        structures["ras_data"] = structures.apply(self.correct_ras_data, axis=1)
+        structures = self.rename_river_reach(structures)
+        return structures
+
+    @property
+    @lru_cache
     def subset_xs(self) -> gpd.GeoDataFrame:
         """Trim source XS to u/s and d/s limits and add all intermediate reaches."""
         sections = self.source_xs[self.source_xs["river_reach"].isin(self.subset_reaches)]
         sections = self.trim_reach(sections)
-        sections["source_river_station"] = sections["river_station"]
-        sections["river_station"] += sections["river_reach"].map(self.reach_distance_modifiers)
+        sections["ras_data"] = sections.apply(self.update_ds_reach_lengths, axis=1)
+        sections = self.update_xs_names(sections)
         return sections
 
     @property
@@ -228,12 +312,11 @@ class RippleGeopackageSubsetter:
 
         structures = self.source_structure[self.source_structure["river_reach"].isin(self.subset_reaches)]
         structures = self.trim_reach(structures)
-        structures["source_river_station"] = structures["river_station"]
-        structures["river_station"] += structures["river_reach"].map(self.reach_distance_modifiers)
 
         if len(structures) == 0:
             return None
         else:
+            structures = self.update_structure_names(structures)
             return structures
 
     @property
@@ -263,21 +346,26 @@ class RippleGeopackageSubsetter:
     @lru_cache
     def subset_gdfs(self) -> dict:
         """Subset the cross sections, structues, and river geometry for a given NWM reach."""
-        # subset geometry data
         subset_gdfs = {}
+
+        # Cross-sections
         subset_gdfs["XS"] = self.subset_xs
         if len(subset_gdfs["XS"]) <= 1:  # check if only 1 cross section for nwm_reach
             err_string = f"Sub model for {self.nwm_id} would have {len(subset_gdfs['XS'])} cross-sections but is not tagged as eclipsed. Skipping."
             logging.warning(err_string)
             raise SingleXSModel(err_string)
+
+        # River centerlines
         subset_gdfs["River"] = self.subset_river
+
+        # Structures
         if self.subset_structures is not None:
             subset_gdfs["Structure"] = self.subset_structures
+            subset_gdfs["Structure"] = self.rename_river_reach(subset_gdfs["Structure"])
 
-        # Update fields
-        for k in subset_gdfs:
-            subset_gdfs[k] = self.rename_river_reach(subset_gdfs[k])
-        subset_gdfs = self.update_river_station(subset_gdfs)
+        # Rename rivers
+        for i in subset_gdfs:
+            subset_gdfs[i] = self.rename_river_reach(subset_gdfs[i])
 
         return subset_gdfs
 
@@ -358,33 +446,6 @@ class RippleGeopackageSubsetter:
                 gdf.to_file(self.ripple_gpkg_file, layer=layer)
                 if layer == "XS":
                     self.ripple_xs_concave_hull.to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
-
-    def update_river_station(self, subset_gdfs: dict[gpd.GeoDataFrame]) -> dict:
-        """Convert river stations to autoincrementing names."""
-        xs = subset_gdfs["XS"]
-        xs_names = [*range(1, len(xs) + 1)][::-1]
-
-        if "Structure" in subset_gdfs:
-            structures = subset_gdfs["Structure"]
-            str_names = [xs_names[(xs["river_station"] > i).argmin()] + 0.5 for i in structures["river_station"]]
-            subset_gdfs["Structure"]["river_station"] = str_names
-            subset_gdfs["Structure"]["ras_data"] = subset_gdfs["Structure"][["ras_data", "river_station"]].apply(
-                self.correct_ras_data, axis=1
-            )
-
-        subset_gdfs["XS"]["river_station"] = xs_names
-        subset_gdfs["XS"]["river_reach_rs"] = (
-            subset_gdfs["XS"]["river"]
-            + " "
-            + subset_gdfs["XS"]["reach"]
-            + " "
-            + subset_gdfs["XS"]["river_station"].astype(str)
-        )
-        subset_gdfs["XS"]["ras_data"] = subset_gdfs["XS"][["ras_data", "river_station"]].apply(
-            self.correct_ras_data, axis=1
-        )
-
-        return subset_gdfs
 
     def correct_ras_data(self, row):
         """Make ras_data names consistent with river_station."""
