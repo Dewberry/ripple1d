@@ -175,7 +175,7 @@ tests/ras-data/PatuxentRiver/submodels
 tests/ras-data/winooski/submodels
 
 /ripple1d/models/
-.vscode/settings.json
+.vscode
 mip_models
 tests/ras-data/Baxter/submodels/
 ripple1d/tests/
@@ -188,3 +188,4 @@ py312/
 venv3/
 *huey.jsonld
 *flask.jsonld
+tests/conflation_tests/**/source_model.conflation*

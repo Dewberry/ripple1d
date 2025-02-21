@@ -18,6 +18,7 @@ import ripple1d
 from ripple1d.data_model import NwmReachModel, RippleSourceDirectory
 from ripple1d.errors import SingleXSModel
 from ripple1d.utils.ripple_utils import (
+    RASWalker,
     clip_ras_centerline,
     fix_reversed_xs,
     xs_concave_hull,
@@ -36,6 +37,8 @@ class RippleGeopackageSubsetter:
         self.conflation_json = conflation_json
         self.dst_project_dir = dst_project_dir
         self.nwm_id = nwm_id
+
+        self.walker = RASWalker(self.src_gpkg_path)
 
     @property
     @lru_cache
@@ -88,7 +91,17 @@ class RippleGeopackageSubsetter:
     @property
     def us_rs(self) -> str:
         """Extract upstream river station from conflation parameters."""
-        return self.ripple1d_parameters["us_xs"]["xs_id"]
+        return float(self.ripple1d_parameters["us_xs"]["xs_id"])
+
+    @property
+    def us_river_reach(self) -> str:
+        """Extract upstream river_reach from conflation parameters."""
+        return f"{self.us_river.ljust(16)},{self.us_reach.ljust(16)}"
+
+    @property
+    def us_river_reach_rs(self) -> str:
+        """Extract upstream river_reach_rs from conflation parameters."""
+        return f"{self.us_river} {self.us_reach} {self.us_rs}"
 
     @property
     def ds_river(self) -> str:
@@ -103,7 +116,17 @@ class RippleGeopackageSubsetter:
     @property
     def ds_rs(self) -> str:
         """Extract downstream river station from conflation parameters."""
-        return self.ripple1d_parameters["ds_xs"]["xs_id"]
+        return float(self.ripple1d_parameters["ds_xs"]["xs_id"])
+
+    @property
+    def ds_river_reach(self) -> str:
+        """Extract downstream river_reach from conflation parameters."""
+        return f"{self.ds_river.ljust(16)},{self.ds_reach.ljust(16)}"
+
+    @property
+    def us_river_reach_rs(self) -> str:
+        """Extract downstream river_reach_rs from conflation parameters."""
+        return f"{self.ds_river} {self.ds_reach} {self.ds_rs}"
 
     @property
     @lru_cache
@@ -185,59 +208,133 @@ class RippleGeopackageSubsetter:
         return ripple_xs_concave_hull
 
     @property
-    def juntion_tree_dict(self) -> dict:
-        """Create a dictionary mapping trib->outflow for all junctions."""
-        return self.junctions_to_dicts()[0]
+    @lru_cache
+    def subset_reaches(self) -> list[str]:
+        """Get a list of river_reach values on path from u/s to d/s XS."""
+        return self.walker.walk(self.us_river_reach, self.ds_river_reach)
 
     @property
-    def juntion_dist_dict(self) -> dict:
-        """Create a dictionary mapping trib->outflow for all junctions."""
-        return self.junctions_to_dicts()[1]
+    @lru_cache
+    def reach_distance_modifiers(self) -> dict:
+        """Get a dictionary of reach station offsets due to junction lengths."""
+        return self.walker.reach_distance_modifiers(self.subset_reaches)
+
+    @property
+    @lru_cache
+    def xs_distance_modifiers(self) -> dict:
+        """Get a dictionary mapping the lowest cross-section along a reach to the junction distance below it."""
+        modifiers = {}
+        for k, v in self.reach_distance_modifiers.items():
+            subset = self.source_xs[self.source_xs["river_reach"] == k]
+            ds_xs = subset[subset["river_station"] == subset["river_station"].min()].iloc[0]
+            modifiers[ds_xs["river_reach_rs"]] = v
+        return modifiers
+
+    def update_ds_reach_lengths(self, row: pd.Series) -> str:
+        """Update ras data by increasing downstream distance at sections above a junction crossing."""
+        # Get distance increase
+        if row["river_reach_rs"] not in self.xs_distance_modifiers:
+            return row["ras_data"]
+        modifier = str(self.xs_distance_modifiers[row["river_reach_rs"]])
+
+        # Modify
+        ras_data = row["ras_data"]
+        lines = ras_data.splitlines()
+        data = lines[0].split(",")
+        for i in [2, 3, 4]:
+            data[i] = modifier
+        lines[0] = ",".join(data)
+        return "\n".join(lines) + "\n"
+
+    def update_xs_names(self, sections: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Update section IDs to auto-incremented."""
+        # Log original information
+        sections["source_river"] = sections["river"]
+        sections["source_reach"] = sections["reach"]
+        sections["source_river_station"] = sections["river_station"]
+
+        # Sort by reach path order then by river_station
+        sections["river_reach"] = pd.Categorical(
+            sections["river_reach"], categories=self.subset_reaches[::-1], ordered=True
+        )
+        sections = sections.sort_values(by=["river_reach", "river_station"])
+
+        # Update names
+        sections["river_station"] = [int(i) for i in range(1, len(sections) + 1)]
+        sections["river_reach_rs"] = (
+            sections["river"] + " " + sections["reach"] + " " + sections["river_station"].astype(str)
+        )
+        sections["ras_data"] = sections.apply(self.correct_ras_data, axis=1)
+        return sections
+
+    def update_structure_names(self, structures: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Update structure IDs to align with sections."""
+        # Log original information
+        structures["source_river"] = structures["river"]
+        structures["source_reach"] = structures["reach"]
+        structures["source_river_station"] = structures["river_station"]
+
+        # Update names
+        for i in structures.index:
+            sections = self.subset_xs[
+                (self.subset_xs["source_river"] == structures.loc[i, "source_river"])
+                & (self.subset_xs["source_reach"] == structures.loc[i, "source_reach"])
+            ]
+            structures.loc[i, "river_station"] = (
+                sections.iloc[(sections["source_river_station"] > structures.loc[i, "river_station"]).argmax()][
+                    "river_station"
+                ]
+                - 0.5
+            )
+        structures["river_reach_rs"] = (
+            structures["river"] + " " + structures["reach"] + " " + structures["river_station"].astype(str)
+        )
+        structures["ras_data"] = structures.apply(self.correct_ras_data, axis=1)
+        structures = self.rename_river_reach(structures)
+        return structures
 
     @property
     @lru_cache
     def subset_xs(self) -> gpd.GeoDataFrame:
         """Trim source XS to u/s and d/s limits and add all intermediate reaches."""
-        subset_xs = pd.DataFrame(data=None, columns=self.source_xs.columns)  # empty copy to put subset into
-        subset_xs["source_river_station"] = []
-        cur_reach = (self.us_river, self.us_reach)
-        ds_reach = (self.ds_river, self.ds_reach)
-        _iter = 0
-        while True:  # Walk network until d/s reach
-            reach_xs = self.source_xs.query(f'river == "{cur_reach[0]}" & reach == "{cur_reach[1]}"')
-            reach_xs = self.trim_reach(reach_xs)
-            reach_xs["source_river_station"] = reach_xs["river_station"]
-            subset_xs["river_station"] += reach_xs["river_station"].max()
-            subset_xs = pd.concat([subset_xs, reach_xs]).copy()
+        sections = self.source_xs[self.source_xs["river_reach"].isin(self.subset_reaches)]
+        sections = self.trim_reach(sections)
+        sections["ras_data"] = sections.apply(self.update_ds_reach_lengths, axis=1)
+        sections = self.update_xs_names(sections)
+        return sections
 
-            if cur_reach == ds_reach:
-                break
-            elif _iter > 100 or cur_reach not in self.juntion_tree_dict:
-                err_string = "Could not traverse reaches such that u/s river reach led to d/s river reach."
-                err_string += "\n"
-                err_string += f"Broke on {cur_reach} at {_iter} iterations"
-                raise RuntimeError(err_string)
-            else:
-                _iter += 1
-                subset_xs["river_station"] += self.juntion_dist_dict[cur_reach]  # add junction d/s length
-                cur_reach = self.juntion_tree_dict[cur_reach]  # move to next d/s reach
+    @property
+    @lru_cache
+    def subset_structures(self) -> gpd.GeoDataFrame:
+        """Trim source structures to u/s and d/s limits and add all intermediate reaches."""
+        if self.source_structure is None:
+            return None
 
-        return gpd.GeoDataFrame(subset_xs)
+        structures = self.source_structure[self.source_structure["river_reach"].isin(self.subset_reaches)]
+        structures = self.trim_reach(structures)
+
+        if len(structures) == 0:
+            return None
+        else:
+            structures = self.update_structure_names(structures)
+            return structures
 
     @property
     @lru_cache
     def subset_river(self) -> gpd.GeoDataFrame:
         """Trim source centerline to u/s and d/s limits and add all intermediate reaches."""
+        # Make a new joined centerline
         coords = []
-        subset_rivers = []
-        for rr in self.subset_xs["river_reach"].unique():
-            tmp_river = self.source_river[self.source_river["river_reach"] == rr]
-            subset_rivers.append(tmp_river)
+        for river_reach in self.subset_reaches:
+            tmp_river = self.source_river[self.source_river["river_reach"] == river_reach]
             coords.extend(tmp_river.iloc[0]["geometry"].coords)
-
-        subset_rivers = gpd.GeoDataFrame(pd.concat(subset_rivers))
         tmp_line = LineString(coords)
-        tmp_xs = fix_reversed_xs(self.subset_xs, subset_rivers)
+
+        # Subset the river gdf to reverse cross-sections
+        rivers = self.source_river[self.source_river["river_reach"].isin(self.subset_reaches)]
+        tmp_xs = fix_reversed_xs(self.subset_xs, rivers)
+
+        # clip the joined centerline
         tmp_line = clip_ras_centerline(tmp_line, tmp_xs, 2)
         return gpd.GeoDataFrame(
             {"geometry": [tmp_line], "river": [self.nwm_id], "reach": [self.nwm_id]},
@@ -247,53 +344,28 @@ class RippleGeopackageSubsetter:
 
     @property
     @lru_cache
-    def subset_structures(self) -> gpd.GeoDataFrame | None:
-        """Extract structures between u/s and d/s limits."""
-        if self.source_structure is None:
-            return None
-
-        subset_structures = pd.DataFrame(
-            data=None, columns=self.source_structure.columns
-        )  # empty copy to put subset into
-        subset_structures["source_river_station"] = []
-        for river_reach in self.subset_xs["river_reach"].unique():
-            tmp_xs = self.subset_xs[self.subset_xs["river_reach"] == river_reach]
-            us_limit = tmp_xs["source_river_station"].max()  # TODO: can a structure be placed d/s of junction?
-            ds_limit = tmp_xs["source_river_station"].min()  # TODO: can a structure be placed u/s of junction?
-            tmp_structures = self.source_structure.loc[
-                (self.source_structure["river_reach"] == river_reach)
-                & (self.source_structure["river_station"] >= float(ds_limit))
-                & (self.source_structure["river_station"] <= float(us_limit))
-            ]
-            tmp_structures["source_river_station"] = tmp_structures["river_station"]
-            offset = tmp_xs["source_river_station"].iloc[0] - tmp_xs["river_station"].iloc[0]
-            tmp_structures["river_station"] = tmp_structures["river_station"] - offset
-            subset_structures = pd.concat([subset_structures, tmp_structures])
-
-        if len(subset_structures) == 0:
-            return None
-        else:
-            return gpd.GeoDataFrame(subset_structures)
-
-    @property
-    @lru_cache
     def subset_gdfs(self) -> dict:
         """Subset the cross sections, structues, and river geometry for a given NWM reach."""
-        # subset geometry data
         subset_gdfs = {}
+
+        # Cross-sections
         subset_gdfs["XS"] = self.subset_xs
         if len(subset_gdfs["XS"]) <= 1:  # check if only 1 cross section for nwm_reach
             err_string = f"Sub model for {self.nwm_id} would have {len(subset_gdfs['XS'])} cross-sections but is not tagged as eclipsed. Skipping."
             logging.warning(err_string)
             raise SingleXSModel(err_string)
+
+        # River centerlines
         subset_gdfs["River"] = self.subset_river
+
+        # Structures
         if self.subset_structures is not None:
             subset_gdfs["Structure"] = self.subset_structures
+            subset_gdfs["Structure"] = self.rename_river_reach(subset_gdfs["Structure"])
 
-        # Update fields
-        for k in subset_gdfs:
-            subset_gdfs[k] = self.rename_river_reach(subset_gdfs[k])
-        subset_gdfs = self.update_river_station(subset_gdfs)
+        # Rename rivers
+        for i in subset_gdfs:
+            subset_gdfs[i] = self.rename_river_reach(subset_gdfs[i])
 
         return subset_gdfs
 
@@ -345,37 +417,17 @@ class RippleGeopackageSubsetter:
         """Extract the CRS from the cross sections."""
         return self.source_xs.crs
 
-    def trim_reach(self, reach_xs: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-        """Trim a reach-specific XS gdf to the u/s and d/s limits."""
-        # Trim
-        river = reach_xs["river"].iloc[0]
-        reach = reach_xs["reach"].iloc[0]
-        if river == self.us_river and reach == self.us_reach:
-            reach_xs = reach_xs[reach_xs["river_station"] <= float(self.us_rs)]
-        if river == self.ds_river and reach == self.ds_reach:
-            reach_xs = reach_xs[reach_xs["river_station"] >= float(self.ds_rs)]
+    def trim_reach(self, sections: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Trim a XS gdf to the u/s and d/s limits."""
+        # Clip upper end
+        us_filter = (sections["river_reach"] == self.us_river_reach) & (sections["river_station"] > self.us_rs)
+        sections = sections[~us_filter]
 
-        return reach_xs
+        # Clip lower end
+        ds_filter = (sections["river_reach"] == self.ds_river_reach) & (sections["river_station"] < self.ds_rs)
+        sections = sections[~ds_filter]
 
-    @lru_cache
-    def junctions_to_dicts(self) -> tuple[dict, dict]:
-        """Make dicts that map trib->outflow and trib->d/s distance for all junctions."""
-        juntion_tree_dict = {}
-        juntion_dist_dict = {}
-
-        if self.source_junction is None:
-            return (juntion_tree_dict, juntion_dist_dict)
-
-        for r in self.source_junction.iterrows():
-            trib_rivers = r[1]["us_rivers"].split(",")
-            trib_reaches = r[1]["us_reaches"].split(",")
-            trib_dists = r[1]["junction_lengths"].split(",")
-            outlet = (r[1]["ds_rivers"], r[1]["ds_reaches"])
-            for riv, rch, dist in zip(trib_rivers, trib_reaches, trib_dists):
-                juntion_tree_dict[(riv, rch)] = outlet
-                juntion_dist_dict[(riv, rch)] = float(dist)
-
-        return (juntion_tree_dict, juntion_dist_dict)
+        return sections
 
     def write_ripple_gpkg(self) -> None:
         """Write the subsetted geopackage to the destination project directory."""
@@ -394,33 +446,6 @@ class RippleGeopackageSubsetter:
                 gdf.to_file(self.ripple_gpkg_file, layer=layer)
                 if layer == "XS":
                     self.ripple_xs_concave_hull.to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
-
-    def update_river_station(self, subset_gdfs: dict[gpd.GeoDataFrame]) -> dict:
-        """Convert river stations to autoincrementing names."""
-        xs = subset_gdfs["XS"]
-        xs_names = [*range(1, len(xs) + 1)][::-1]
-
-        if "Structure" in subset_gdfs:
-            structures = subset_gdfs["Structure"]
-            str_names = [xs_names[(xs["river_station"] > i).argmin()] + 0.5 for i in structures["river_station"]]
-            subset_gdfs["Structure"]["river_station"] = str_names
-            subset_gdfs["Structure"]["ras_data"] = subset_gdfs["Structure"][["ras_data", "river_station"]].apply(
-                self.correct_ras_data, axis=1
-            )
-
-        subset_gdfs["XS"]["river_station"] = xs_names
-        subset_gdfs["XS"]["river_reach_rs"] = (
-            subset_gdfs["XS"]["river"]
-            + " "
-            + subset_gdfs["XS"]["reach"]
-            + " "
-            + subset_gdfs["XS"]["river_station"].astype(str)
-        )
-        subset_gdfs["XS"]["ras_data"] = subset_gdfs["XS"][["ras_data", "river_station"]].apply(
-            self.correct_ras_data, axis=1
-        )
-
-        return subset_gdfs
 
     def correct_ras_data(self, row):
         """Make ras_data names consistent with river_station."""

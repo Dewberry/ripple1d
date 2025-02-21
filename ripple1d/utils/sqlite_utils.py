@@ -148,7 +148,7 @@ def check_overtopping(rm: RasManager, wses: pd.DataFrame):
     """Check if the crossection was overopped."""
     gdf = rm.current_plan.geom.xs_gdf
     gdf["river_reach_rs"] = gdf.apply(lambda x: rs_float(x.river_reach_rs), axis=1)
-    if not (gdf.river_reach_rs.values == wses.index.values).any():
+    if not (gdf.river_reach_rs_str.values == wses.index.values).any():
         raise ValueError(
             f"Cannot safely check overtopping of cross sections. The river_reach_rs of the geometry xs_gdf does not match the river_reach_rs from the plan hdf. The order of the cross sections may have changed."
         )
