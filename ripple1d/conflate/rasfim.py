@@ -217,7 +217,7 @@ class RasFimConflater:
             self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
         if "XS" in layers:
             xs = gpd.read_file(self.ras_gpkg, layer="XS")
-            self._ras_xs = xs[xs.intersects(self._ras_centerlines.union_all())]
+            self._ras_xs = xs  # xs[xs.intersects(self._ras_centerlines.union_all())]
         if "Junction" in layers:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
         if "Structure" in layers:
