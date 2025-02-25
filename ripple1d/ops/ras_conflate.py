@@ -158,13 +158,16 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
 def _conflate_model(source_model_directory: str, model_name: str, source_network: dict) -> dict:
     """Create dictionary mapping NWM reach to RAS u/s and d/s XS limits."""
     rfc = RasFimConflater(source_network["file_name"], source_model_directory, model_name)
-    local_nwm_reaches = list(set(chain.from_iterable([get_nwm_reaches(rr, rfc) for rr in rfc.ras_river_reach_names])))
+    local_nwm_reaches = list(
+        set(chain.from_iterable([get_nwm_reaches(rr, rfc) for rr in rfc.ras_river_reach_names]))
+    )  # time consuming but save
+    # local_nwm_reaches = list(rfc.local_nwm_reaches(buffer=1000)["ID"].values) #less time consuming but could potentially fail with multiple nwm reaches per single ras reach?
     conflation = {
         "reaches": ras_reaches_metadata(rfc, local_nwm_reaches),
         "metadata": generate_metadata(source_network, rfc),
     }
     conflation = find_eclipsed_reaches(rfc, conflation)
-    conflation = fix_junctions(rfc, conflation)
+    # conflation = fix_junctions(rfc, conflation)
     return conflation
 
 
