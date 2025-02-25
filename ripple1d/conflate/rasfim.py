@@ -651,7 +651,7 @@ def map_reach_xs(rfc: RasFimConflater, reach: gpd.GeoSeries) -> dict:
     us_xs, ds_xs = retrieve_us_ds_xs(rfc, intersected_xs, reach)
 
     # detemine if us end of the nwm reach is between two cross sections. If so grab the upstream cross section (only if stream order=1)
-    if reach.stream_order == 1:
+    if reach.stream_order == 1 and reach.ID not in rfc.nwm_reaches["to_id"].values:
         us_xs = check_for_us_xs(us_xs, rfc.ras_xs)
 
     # Initialize us_xs data with min /max elevation, then build the dict with added info
