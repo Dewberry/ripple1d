@@ -229,9 +229,24 @@ class RasFimConflater:
     def load_pq(self, nwm_pq: str):
         """Load the NWM data from the Parquet file."""
         try:
+            # read nwm reaches with bbox
             nwm_reaches = gpd.read_parquet(nwm_pq, bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
+            # select subset of nwm reaches using concave hull of cross sections
+            cch = gpd.GeoDataFrame(
+                {
+                    "geometry": [
+                        self._ras_xs.to_crs(self.common_crs).dissolve("river_reach").convex_hull.buffer(100).union_all()
+                    ]
+                },
+                geometry="geometry",
+                crs=self.common_crs,
+            )
+            nwm_reaches = nwm_reaches.loc[nwm_reaches.intersects(cch.iloc[0].geometry)]
+
+            # rename geometry
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
             self.nwm_reaches = nwm_reaches.set_geometry("geometry")
+
         except Exception as e:
             if type(e) == DriverError:
                 raise DriverError(f"Unable to read {nwm_pq}")
