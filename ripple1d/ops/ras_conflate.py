@@ -174,11 +174,16 @@ def _conflate_model(source_model_directory: str, model_name: str, source_network
 def find_eclipsed_reaches(rfc: RasFimConflater, conflation: dict) -> dict:
     """Update the conflation dictionary to add NWM reaches between HEC-RAS sections."""
     linked_reaches = get_linked_reaches(conflation["reaches"])
-    for us_xs, ds_xs in linked_reaches:
-        eclipsed = rfc.nwm_walker.walk(us_xs, ds_xs)
-        for r in eclipsed:
-            if not r in [us_xs, ds_xs]:
-                conflation["reaches"][r] = {"eclipsed": True} | rfc.get_nwm_reach_metadata(r)
+    for us_reach, ds_reach in linked_reaches:
+        try:
+            reaches = rfc.nwm_walker.walk(us_reach, ds_reach)
+            for r in reaches:
+                if not r in [us_reach, ds_reach]:
+                    conflation["reaches"][r] = {"eclipsed": True} | rfc.get_nwm_reach_metadata(r)
+        except InvalidNetworkPath as e:
+            logging.error(f"|Error: {e}")
+            # logging.error(f"|Traceback: {traceback.format_exc()}")
+
     return conflation
 
 
@@ -194,7 +199,7 @@ def fix_junctions(rfc: RasFimConflater, conflation: dict) -> dict:
             # walk tribs for eclipsed reaches
             _children = []
             for trib in children:
-                while conflation["reaches"][trib]["eclipsed"]:
+                while conflation["reaches"][trib]["eclipsed"]:  # only happens if the trib is eclipsed
                     children = [i for i in rfc.nwm_walker.tree_dict_us[trib] if i in conflation["reaches"]]
                     assert len(children) == 1, f"Failed finding a non-eclipsed child for {trib}.  Got {children}"
                     trib = children[0]
