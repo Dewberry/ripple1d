@@ -21,6 +21,7 @@ from ripple1d.conflate.rasfim import (
     ras_xs_geometry_data,
     walk_network,
 )
+from ripple1d.errors import InvalidNetworkPath
 from ripple1d.ops.metrics import compute_conflation_metrics
 from ripple1d.utils.ripple_utils import NWMWalker, clip_ras_centerline
 
@@ -48,8 +49,8 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         )
 
         ras_start_point, ras_stop_point = rfc.ras_start_end_points(river_reach_name=river_reach_name)
-        us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point)
-        ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
+        us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point)[0]
+        ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)[0]
 
         potential_reach_path = walk_network(local_nwm_reaches, us_most_reach_id, ds_most_reach_id)
         candidate_reaches = local_nwm_reaches.query(f"ID in {potential_reach_path}")
@@ -253,12 +254,13 @@ def get_nwm_reaches(river_reach_name: str, rfc: RasFimConflater) -> list[str]:
         truncate_distance = 0
         us_most_reach_id, ds_most_reach_id = None, None
         while True:
-            try:
-                us_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_start_point, start_reach_distance=100)
+            ids = nearest_line_to_point(local_nwm_reaches, ras_start_point, search_radius=100)
+            if len(ids) == 1:
+                us_most_reach_id = ids[0]
                 break
-            except ValueError as e:
+            else:
                 if truncate_distance > (0.95 * river.length):
-                    logging.info(f"Could not identifiy a network reach near the upstream end of {river_reach_name}")
+                    logging.info(f"Could not identifiy a network reach for {river_reach_name}")
                     break
                 truncate_distance += 0.05 * river.length
                 ras_start_point = river.interpolate(truncate_distance)
@@ -267,19 +269,34 @@ def get_nwm_reaches(river_reach_name: str, rfc: RasFimConflater) -> list[str]:
                     f"truncate_distance: {truncate_distance} | length {ras_start_point} |  river reach: {river_reach_name}"
                 )
         if us_most_reach_id is None:
-            raise RuntimeError(f"Could not identifiy a network reach near the upstream end of {river_reach_name}")
+            logging.info(
+                f"Could not identifiy a network reach near the upstream end of {river_reach_name}; i.e., the model did not conflate."
+            )
+            return []
 
-        try:
-            ds_most_reach_id = nearest_line_to_point(local_nwm_reaches, ras_stop_point)
-        except:
-            raise RuntimeError(f"Could not identifiy a network reach near the downstream end of {river_reach_name}")
-
-        logging.info(
-            f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
-        )
-
-        # walk network to get the potential reach ids
-        potential_reach_path = rfc.nwm_walker.walk(us_most_reach_id, ds_most_reach_id)
+        # get top 5 closest reaches
+        ds_most_reach_ids = nearest_line_to_point(local_nwm_reaches, ras_stop_point, number_of_returns=5)
+        if len(ds_most_reach_ids) == 0:
+            logging.error(f"Could not identifiy a network reach near the downstream end of {river_reach_name}")
+            return []
+        else:
+            for ds_most_reach_id in ds_most_reach_ids:
+                try:
+                    # walk network to get the potential reach ids
+                    potential_reach_path = rfc.nwm_walker.walk(us_most_reach_id, ds_most_reach_id)
+                    logging.debug(
+                        f"{river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}"
+                    )
+                    break
+                except InvalidNetworkPath:
+                    pass
+            if "potential_reach_path" in locals():
+                return potential_reach_path
+            else:
+                print(
+                    f"failure: {river_reach_name} | us_most_reach_id ={us_most_reach_id} and ds_most_reach_id = {ds_most_reach_id}. Tried ds_ids: {ds_most_reach_ids}"
+                )
+                return []
     except Exception as e:
         logging.error(f"river-reach: {river_reach_name} | Error: {e}")
         logging.error(f"river-reach: {river_reach_name} | Traceback: {traceback.format_exc()}")
