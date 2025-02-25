@@ -133,8 +133,11 @@ class RippleGeopackageSubsetter:
     def source_xs(self) -> gpd.GeoDataFrame:
         """Extract cross sections from the source geopackage."""
         xs = gpd.read_file(self.src_gpkg_path, layer="XS")
-        source_xs = xs[xs.intersects(self.source_river.union_all())]
-        return source_xs
+        xs_subsets = []
+        for _, row in self.source_river.iterrows():
+            xs_subset = xs.loc[xs["river_reach"] == row["river_reach"]]
+            xs_subsets.append(xs_subset.loc[xs_subset.intersects(row.geometry)])
+        return pd.concat(xs_subsets).reset_index(drop=True)
 
     @property
     @lru_cache

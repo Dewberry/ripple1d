@@ -6,6 +6,7 @@ import os
 import sqlite3
 import traceback
 from collections import OrderedDict
+from datetime import datetime
 from typing import List, Tuple
 
 import fiona
@@ -217,7 +218,7 @@ class RasFimConflater:
             self._ras_centerlines = gpd.read_file(self.ras_gpkg, layer="River")
         if "XS" in layers:
             xs = gpd.read_file(self.ras_gpkg, layer="XS")
-            self._ras_xs = xs[xs.intersects(self._ras_centerlines.union_all())]
+            self._ras_xs = xs  # xs[xs.intersects(self._ras_centerlines.union_all())]
         if "Junction" in layers:
             self._ras_junctions = gpd.read_file(self.ras_gpkg, layer="Junction")
         if "Structure" in layers:
@@ -229,9 +230,24 @@ class RasFimConflater:
     def load_pq(self, nwm_pq: str):
         """Load the NWM data from the Parquet file."""
         try:
+            # read nwm reaches with bbox
             nwm_reaches = gpd.read_parquet(nwm_pq, bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
+            # select subset of nwm reaches using concave hull of cross sections
+            cch = gpd.GeoDataFrame(
+                {
+                    "geometry": [
+                        self._ras_xs.to_crs(self.common_crs).dissolve("river_reach").convex_hull.buffer(100).union_all()
+                    ]
+                },
+                geometry="geometry",
+                crs=self.common_crs,
+            )
+            nwm_reaches = nwm_reaches.loc[nwm_reaches.intersects(cch.iloc[0].geometry)]
+
+            # rename geometry
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
             self.nwm_reaches = nwm_reaches.set_geometry("geometry")
+
         except Exception as e:
             if type(e) == DriverError:
                 raise DriverError(f"Unable to read {nwm_pq}")
@@ -452,26 +468,21 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
 
 
 def nearest_line_to_point(
-    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", start_reach_distance: int = 1e9
-) -> int:
-    """Return the ID of the line closest to the point."""
-    if not column_id in lines.columns:
-        raise ValueError(f"required `ID` column not found in GeoDataFrame with columns: {lines.columns}")
+    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", search_radius: int = 1e9, number_of_returns: int = 1
+) -> np.array:
+    """
+    Return the ID of the line(s) closest to the point.
 
-    limit = start_reach_distance * 0.9
-    # start_reach_distance = 100  # 1e9
-    start_reach_id = None
-    for _, row in lines.iterrows():
-        start_distance = row["geometry"].distance(point)
-        if start_distance < start_reach_distance:
-            start_reach_distance = start_distance
-            start_reach_id = row[column_id]
-
-    if start_reach_distance >= limit:  # 1e8:
-        raise ValueError(
-            f"Unable to associate reach with point, minimum distance for {start_reach_id} : {start_reach_distance}"
-        )
-    return start_reach_id
+    The number of lines to return is specified with the 'number_of_returns' arg.
+    The 'search_radius' is a max distance that a line can be away from the point to be returned.
+    """
+    lines["distance"] = lines.distance(point)  # compute distance to point for all lines
+    subset = lines.iloc[lines["distance"].argsort().values].iloc[
+        : number_of_returns + 1
+    ]  # grab closest x lines (number_of_returns)
+    return subset.loc[
+        subset["distance"] <= search_radius, column_id
+    ].values  # ensure the return lines are within the search radius
 
 
 def convert_linestring_to_points(
@@ -617,7 +628,7 @@ def check_for_us_xs(river_reach_rs, xs_gdf: gpd.GeoDataFrame) -> str:
         return river_reach_rs
 
 
-def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
+def map_reach_xs(rfc: RasFimConflater, reach: gpd.GeoSeries) -> dict:
     """
     Map the upstream and downstream cross sections for the nwm reach.
 
@@ -636,27 +647,11 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
         axis=1,
     )
 
-    # get start and end points of the nwm reach
-    start, end = endpoints_from_multiline(reach.geometry)
+    # find most us and ds xs making sure that they are hydrologicaly connected.
+    us_xs, ds_xs = retrieve_us_ds_xs(rfc, intersected_xs, reach)
 
-    # Begin with us_xs data
-
-    us_xs = nearest_line_to_point(intersected_xs, start, column_id="river_reach_rs")
-
-    # Add downstream xs data
-    ds_xs = nearest_line_to_point(intersected_xs, end, column_id="river_reach_rs")
-
-    # Check that us and ds are hydrologically connected. Select reach with most overlap if not
-    us_xs, ds_xs = correct_connectivity(rfc, intersected_xs, us_xs, ds_xs)
-
-    # Add downstream xs data
-    ds_xs = nearest_line_to_point(intersected_xs, end, column_id="river_reach_rs")
-
-    # Check that us and ds are hydrologically connected. Select reach with most overlap if not
-    us_xs, ds_xs = correct_connectivity(rfc, intersected_xs, us_xs, ds_xs)
-
-    # detemine if us end of the nwm reach is between two cross sections. If so grab the upstream cross section
-    if reach.stream_order == 1:
+    # detemine if us end of the nwm reach is between two cross sections. If so grab the upstream cross section (only if stream order=1)
+    if reach.stream_order == 1 and reach.ID not in rfc.nwm_reaches["to_id"].values:
         us_xs = check_for_us_xs(us_xs, rfc.ras_xs)
 
     # Initialize us_xs data with min /max elevation, then build the dict with added info
@@ -701,25 +696,70 @@ def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 
 
-def correct_connectivity(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, us_xs: int, ds_xs: int) -> (int, int):
+def retrieve_us_ds_xs(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, reach: gpd.GeoSeries) -> (str, str):
     """Check that us and ds are hydrologically connected. Select reach with most overlap if not."""
-    us_reach = f'{us_xs.split(" ")[0].ljust(16)},{us_xs.split(" ")[1].ljust(16)}'
-    ds_reach = f'{ds_xs.split(" ")[0].ljust(16)},{ds_xs.split(" ")[1].ljust(16)}'
-    if rfc.ras_walker.are_connected(us_reach, ds_reach):
+    if len(intersected_xs["river_reach"].unique()) == 1:
+        us_xs = intersected_xs.loc[
+            intersected_xs["river_station"] == intersected_xs["river_station"].max(), "river_reach_rs"
+        ].iloc[0]
+        ds_xs = intersected_xs.loc[
+            intersected_xs["river_station"] == intersected_xs["river_station"].min(), "river_reach_rs"
+        ].iloc[0]
         return us_xs, ds_xs
 
-    most_overlapping = intersected_xs["river_reach"].mode().iloc[0]
-    subset = intersected_xs[intersected_xs["river_reach"] == most_overlapping]
-    if rfc.ras_walker.are_connected(us_reach, most_overlapping):
-        new_ds = subset.iloc[subset["river_station"].argmin()]["river_reach_rs"]
-        return us_xs, new_ds
-    elif rfc.ras_walker.are_connected(most_overlapping, ds_reach):
-        new_us = subset.iloc[subset["river_station"].argmax()]["river_reach_rs"]
-        return new_us, ds_xs
-    else:
-        new_us = subset.iloc[subset["river_station"].argmax()]["river_reach_rs"]
-        new_ds = subset.iloc[subset["river_station"].argmin()]["river_reach_rs"]
-        return new_us, new_ds
+    intersected_xs["intersecting_point"] = intersected_xs.apply(
+        lambda x: x.geometry.intersection(reach.geometry), axis=1
+    )
+
+    intersected_xs["nwm_rs"] = intersected_xs.apply(
+        lambda x: (
+            reach.geometry.project(x.intersecting_point)
+            if isinstance(x.intersecting_point, Point)
+            else reach.geometry.project(x.intersecting_point.geoms[0])
+        ),
+        axis=1,
+    )
+    # compute coverage along the nwm reach of each ras river-reach
+    max_rs = intersected_xs.groupby(by=["river_reach"])["nwm_rs"].max()
+    min_rs = intersected_xs.groupby(by=["river_reach"])["nwm_rs"].min()
+    reach_coverage = pd.concat({"max_rs": max_rs, "min_rs": min_rs}, axis=1)
+    reach_coverage["coverage"] = reach_coverage["max_rs"] - reach_coverage["min_rs"]
+
+    reach_coverage.sort_values(by="min_rs", inplace=True)  # note nwm_rs is from us to ds; i.e., ds_rs>us_rs
+
+    linked_reaches = []
+    for _, row in reach_coverage.iterrows():  # start with the upstream most river station
+
+        if row["min_rs"] == reach_coverage["min_rs"].min():  # if this is the us most reach append to linked_reaches
+            linked_reaches.append([row.name])
+            previous_reach = row.name
+            continue
+        new_reach = None
+        for i, linked_reach in enumerate(linked_reaches):  # check if connected to previous (upstream) linked_reaches
+            if rfc.ras_walker.are_connected(linked_reach[-1], row.name):
+                new_reach = row.name
+                break
+        if new_reach is not None:
+            linked_reaches[i].append(row.name)
+        else:
+            linked_reaches.append(
+                [row.name]
+            )  # if not connected to previous linked reaches add a new set of linked reaches to the list of linked reaches
+        previous_reach = row.name
+
+    coverage = [
+        reach_coverage.loc[reach_coverage.index.isin(linked_reach), ["coverage"]].sum().iloc[0]
+        for linked_reach in linked_reaches
+    ]
+
+    selected_linked_reach = linked_reaches[coverage.index(max(coverage))]
+    us_reach = intersected_xs.loc[intersected_xs["river_reach"] == selected_linked_reach[0]]
+    ds_reach = intersected_xs.loc[intersected_xs["river_reach"] == selected_linked_reach[-1]]
+
+    us_xs = us_reach.loc[us_reach["river_station"] == us_reach["river_station"].max(), "river_reach_rs"].iloc[0]
+    ds_xs = ds_reach.loc[ds_reach["river_station"] == ds_reach["river_station"].min(), "river_reach_rs"].iloc[0]
+
+    return us_xs, ds_xs
 
 
 def validate_reach_conflation(reach_xs_data: dict, reach_id: str):
