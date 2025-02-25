@@ -467,26 +467,21 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
 
 
 def nearest_line_to_point(
-    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", start_reach_distance: int = 1e9
-) -> int:
-    """Return the ID of the line closest to the point."""
-    if not column_id in lines.columns:
-        raise ValueError(f"required `ID` column not found in GeoDataFrame with columns: {lines.columns}")
+    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", search_radius: int = 1e9, number_of_returns: int = 1
+) -> np.array:
+    """
+    Return the ID of the line(s) closest to the point.
 
-    limit = start_reach_distance * 0.9
-    # start_reach_distance = 100  # 1e9
-    start_reach_id = None
-    for _, row in lines.iterrows():
-        start_distance = row["geometry"].distance(point)
-        if start_distance < start_reach_distance:
-            start_reach_distance = start_distance
-            start_reach_id = row[column_id]
-
-    if start_reach_distance >= limit:  # 1e8:
-        raise ValueError(
-            f"Unable to associate reach with point, minimum distance for {start_reach_id} : {start_reach_distance}"
-        )
-    return start_reach_id
+    The number of lines to return is specified with the 'number_of_returns' arg.
+    The 'search_radius' is a max distance that a line can be away from the point to be returned.
+    """
+    lines["distance"] = lines.distance(point)  # compute distance to point for all lines
+    subset = lines.iloc[lines["distance"].argsort().values].iloc[
+        : number_of_returns + 1
+    ]  # grab closest x lines (number_of_returns)
+    return subset.loc[
+        subset["distance"] <= search_radius, column_id
+    ].values  # ensure the return lines are within the search radius
 
 
 def convert_linestring_to_points(
