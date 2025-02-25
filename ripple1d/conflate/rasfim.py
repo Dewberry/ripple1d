@@ -627,7 +627,7 @@ def check_for_us_xs(river_reach_rs, xs_gdf: gpd.GeoDataFrame) -> str:
         return river_reach_rs
 
 
-def map_reach_xs(rfc: RasFimConflater, reach: MultiLineString) -> dict:
+def map_reach_xs(rfc: RasFimConflater, reach: gpd.GeoSeries) -> dict:
     """
     Map the upstream and downstream cross sections for the nwm reach.
 
