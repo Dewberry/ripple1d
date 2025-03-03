@@ -66,6 +66,7 @@ def create_ras_terrain(
     terrain_agreement_el_repeats: int = 5,
     terrain_agreement_el_ramp_rate: float = 2.0,
     terrain_agreement_el_init: float = 0.5,
+    ignore_error: bool = True,
 ):
     """Create a RAS terrain file.
 
@@ -195,17 +196,22 @@ def create_ras_terrain(
     logging.info(f"create_ras_terrain complete")
 
     # Calculate terrain agreement metrics
-    agreement_path = compute_terrain_agreement_metrics(
-        submodel_directory,
-        terrain_path,
-        terrain_agreement_resolution,
-        resolution_units,
-        terrain_agreement_format,
-        terrain_agreement_el_repeats,
-        terrain_agreement_el_ramp_rate,
-        terrain_agreement_el_init,
-    )
-    result["terrain_agreement"] = agreement_path
+    try:
+        agreement_path = compute_terrain_agreement_metrics(
+            submodel_directory,
+            terrain_path,
+            terrain_agreement_resolution,
+            resolution_units,
+            terrain_agreement_format,
+            terrain_agreement_el_repeats,
+            terrain_agreement_el_ramp_rate,
+            terrain_agreement_el_init,
+        )
+        result["terrain_agreement"] = agreement_path
+    except Exception as e:
+        if not ignore_error:
+            raise e
+        result["terrain_agreement"] = None
     return result
 
 
