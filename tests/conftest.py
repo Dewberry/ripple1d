@@ -26,6 +26,7 @@ def setup_data(request):
     SOURCE_RAS_MODEL_DIRECTORY = os.path.join(TEST_DIR, f"ras-data\\{RAS_MODEL}")
     SUBMODELS_BASE_DIRECTORY = os.path.join(SOURCE_RAS_MODEL_DIRECTORY, "submodels")
     SUBMODELS_DIRECTORY = os.path.join(SUBMODELS_BASE_DIRECTORY, REACH_ID)
+    SUBMODEL_NAME = REACH_ID
     FIM_LIB_DIRECTORY = os.path.join(SUBMODELS_DIRECTORY, f"fims")
     request.cls.FIM_LIB_DIRECTORY = FIM_LIB_DIRECTORY
     request.cls.REACH_ID = RAS_MODEL
