@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "977032b0-6c0b-4437-9347-7061b817bdae",
+		"_postman_id": "aae308a3-7a55-4367-a5f4-8728c9165d68",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "29128857"
+		"_exporter_id": "38126273"
 	},
 	"item": [
 		{
@@ -162,7 +162,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"resolution\": 3,\r\n    \"resolution_units\": \"Meters\",\r\n    \"terrain_agreement_resolution\": 3\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"resolution\": 3,\r\n    \"resolution_units\": \"Meters\",\r\n    \"terrain_agreement_resolution\": 3,\r\n    \"terrain_agreement_ignore_error\": false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
