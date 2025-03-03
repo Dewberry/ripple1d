@@ -232,17 +232,6 @@ class RasFimConflater:
         try:
             # read nwm reaches with bbox
             nwm_reaches = gpd.read_parquet(nwm_pq, bbox=self._ras_xs.to_crs(self.common_crs).total_bounds)
-            # select subset of nwm reaches using concave hull of cross sections
-            cch = gpd.GeoDataFrame(
-                {
-                    "geometry": [
-                        self._ras_xs.to_crs(self.common_crs).dissolve("river_reach").convex_hull.buffer(100).union_all()
-                    ]
-                },
-                geometry="geometry",
-                crs=self.common_crs,
-            )
-            nwm_reaches = nwm_reaches.loc[nwm_reaches.intersects(cch.iloc[0].geometry)]
 
             # rename geometry
             nwm_reaches = nwm_reaches.rename(columns={"geom": "geometry"})
@@ -468,7 +457,7 @@ def endpoints_from_multiline(mline: MultiLineString) -> Tuple[Point, Point]:
 
 
 def nearest_line_to_point(
-    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", search_radius: int = 1e9, number_of_returns: int = 1
+    lines: gpd.GeoDataFrame, point: Point, column_id: str = "ID", search_radius: int = 1e9, number_of_returns: int = 0
 ) -> np.array:
     """
     Return the ID of the line(s) closest to the point.
