@@ -187,15 +187,11 @@ class RippleSourceModel:
 class RippleSourceDirectory:
     """Source Directory for Ripple to create NwmReachModel's. Should contain the conflation.json file and gpkg file for the source model."""
 
-    def __init__(self, source_directory: str):
+    def __init__(self, source_directory: str, model_name: str):
 
         self.source_directory = source_directory
         self.model_basename = os.path.basename(self.source_directory)
-
-    @property
-    def model_name(self):
-        """Model name."""
-        return self.model_basename
+        self.model_name = model_name
 
     def derive_path(self, extension: str):
         """Derive path."""

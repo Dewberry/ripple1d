@@ -495,7 +495,7 @@ class RippleGeopackageSubsetter:
             json.dump(ripple1d_parameters, f, indent=4)
 
 
-def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int):
+def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, model_name: str):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage.
 
     Create a new geopackage with information for a specific NWM reach.  The new geopackage contains layer for the river centerline, cross-sections, and structures.
@@ -508,6 +508,8 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         The path to export submodel HEC-RAS files to.
     nwm_id : int
         The id of the NWM reach to create a submodel for
+    model_name : str
+        The name of the HEC-RAS model.
     task_id : str, optional
         Task ID to use for logging, by default ""
 
@@ -527,7 +529,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         raise FileNotFoundError(
             f"cannot find directory for source model {source_model_directory}, please ensure dir exists"
         )
-    rsd = RippleSourceDirectory(source_model_directory)
+    rsd = RippleSourceDirectory(source_model_directory, model_name)
 
     logging.info(f"extract_submodel starting for nwm_id {nwm_id}")
 
