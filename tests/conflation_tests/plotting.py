@@ -128,13 +128,18 @@ class Plotter:
         return subs
 
     def clip_xs(self, subset, overlaps, r):
-        for xs_id in subset["river_reach_rs"].values:
+        for xs_id in subset["source_river_reach_rs"]:
             if xs_id in list(overlaps.keys()):
                 splits = len(overlaps[xs_id])
                 position = overlaps[xs_id].index(r)
-                geom = subset.loc[subset["river_reach_rs"] == xs_id, "geometry"].values[0]
-                subset.loc[subset["river_reach_rs"] == xs_id, "geometry"] = self.divide_section(geom, splits)[position]
+                geom = subset.loc[subset["source_river_reach_rs"] == xs_id, "geometry"].values[0]
+                subset.loc[subset["source_river_reach_rs"] == xs_id, "geometry"] = self.divide_section(geom, splits)[
+                    position
+                ]
         return subset
+
+    def format_source_id(self, row: dict) -> str:
+        return " ".join([str(row["source_river"]), str(row["source_reach"]), str(row["source_river_station"])])
 
     def generate_subset_gdfs(self) -> dict:
         # Create combo gdf
@@ -145,10 +150,11 @@ class Plotter:
                 continue
             subsetter = RippleGeopackageSubsetter(self.ras_path, self.conflation_path, None, r)
             subset = subsetter.subset_xs
+            subset["source_river_reach_rs"] = subset.apply(self.format_source_id, axis=1)
             subset_gdfs[r] = subset
 
             # log xs for duplicate detection
-            for xs_id in subset["river_reach_rs"]:
+            for xs_id in subset["source_river_reach_rs"]:
                 overlaps[xs_id].append(r)
 
         # split duplicated section geometry
@@ -207,7 +213,7 @@ class Plotter:
             ax.legend(fontsize="x-small", loc="lower right", ncols=len(self.nwm_reaches) + 1)
             ax.set_axis_off()
             try:
-                ctx.add_basemap(ax, crs=self.crs, source=ctx.providers.USGS.USTopo, attribution=False)
+                ctx.add_basemap(ax, crs=self.crs, source=ctx.providers.USGS.USImagery, attribution=False)
             except requests.exceptions.HTTPError as e:
                 try:
                     ctx.add_basemap(ax, crs=self.crs, source=ctx.providers.Esri.WorldStreetMap, attribution=False)
