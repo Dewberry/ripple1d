@@ -3,6 +3,10 @@ Postman collection
 
 For reference and documentation of the API, please open the postman collection for the version of ripple1d
 
+`v.0.10.1: <https://github.com/Dewberry/ripple1d/blob/58a873910f0dfe312f7d674793470389836aac5b/ripple1d/api/postman_collection.json>`_ This version contains new args for the conflate_model and compute_conflation_metrics endpoints :
+ - `model_name` (str)  added to  `extract_submodel`.  This is the name of the source model. Example: Red River.prj -> Red River (model_name)
+ - `terrain_agreement_ignore_error` (bool)  added to  `create_ras_terrain`.  If true, this will log and ignore any errors encountered in the terrain agreement calculation process.
+
 `v.0.10.0: <https://github.com/Dewberry/ripple1d/blob/93cf22cf11791d59820635be6c02327b39912b49/ripple1d/api/postman_collection.json>`_ This version contains new args for the conflate_model and compute_conflation_metrics endpoints :
  - `model_name` (str)  added to  `conflate_model`.  This is the name of the source model. Example: Red River.prj -> Red River (model_name)
  - `model_name` (str)  added to  `compute_conflation_metrics`.  This is the name of the source model.Example: Red River.prj -> Red River (model_name)
