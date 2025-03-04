@@ -1,17 +1,11 @@
 """Conflate HEC-RAS Model."""
 
-import copy
 import json
 import logging
 import os
 import traceback
-from datetime import datetime
 from itertools import chain, permutations
 from urllib.parse import quote
-
-import boto3
-import pandas as pd
-import pystac
 
 import ripple1d
 from ripple1d.conflate.rasfim import (
@@ -23,7 +17,7 @@ from ripple1d.conflate.rasfim import (
 )
 from ripple1d.errors import InvalidNetworkPath
 from ripple1d.ops.metrics import compute_conflation_metrics
-from ripple1d.utils.ripple_utils import NWMWalker, clip_ras_centerline
+from ripple1d.utils.ripple_utils import clip_ras_centerline
 
 logging.getLogger("fiona").setLevel(logging.ERROR)
 logging.getLogger("botocore").setLevel(logging.ERROR)
@@ -131,8 +125,8 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
     threshold listed for the reach in the NWM network.  The high flow is the
     100 year flow from the NWM network.
     """
-    logging.info(f"conflate_model starting")
-    if not "file_name" in source_network:
+    logging.info("conflate_model starting")
+    if "file_name" not in source_network:
         raise KeyError(f"source_network must contain 'file_name', invalid parameters: {source_network}")
 
     if not source_network["type"] == "nwm_hydrofabric":
@@ -152,7 +146,7 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
             logging.error(f"| Error: {e}")
             logging.error(f"| Traceback: {traceback.format_exc()}")
 
-        logging.info(f"conflate_model complete")
+        logging.info("conflate_model complete")
     return {"conflation_file": conflation_file}
 
 
@@ -168,7 +162,7 @@ def _conflate_model(source_model_directory: str, model_name: str, source_network
         "metadata": generate_metadata(source_network, rfc),
     }
     conflation = find_eclipsed_reaches(rfc, conflation)
-    # conflation = fix_junctions(rfc, conflation)
+    conflation = fix_junctions(rfc, conflation)
     return conflation
 
 
@@ -179,7 +173,7 @@ def find_eclipsed_reaches(rfc: RasFimConflater, conflation: dict) -> dict:
         try:
             reaches = rfc.nwm_walker.walk(us_reach, ds_reach)
             for r in reaches:
-                if not r in [us_reach, ds_reach]:
+                if r not in [us_reach, ds_reach]:
                     conflation["reaches"][r] = {"eclipsed": True} | rfc.get_nwm_reach_metadata(r)
         except InvalidNetworkPath as e:
             logging.error(f"|Error: {e}")

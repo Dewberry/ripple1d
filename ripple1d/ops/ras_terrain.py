@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import traceback
 from math import ceil, comb, pi
 from pathlib import Path
 
@@ -66,6 +67,7 @@ def create_ras_terrain(
     terrain_agreement_el_repeats: int = 5,
     terrain_agreement_el_ramp_rate: float = 2.0,
     terrain_agreement_el_init: float = 0.5,
+    terrain_agreement_ignore_error: bool = True,
 ):
     """Create a RAS terrain file.
 
@@ -105,6 +107,8 @@ def create_ras_terrain(
         21.5, etc.
     terrain_agreement_el_init : float, optional
         initial value for terrain agreement elevation increments, by default 0.5
+    terrain_agreement_ignore_error : bool, optional
+        whether to raise or log+ignore any errors encountered in the compute_terrain_agreement_metrics function.
     task_id : str, optional
         Task ID to use for logging, by default ""
 
@@ -195,17 +199,25 @@ def create_ras_terrain(
     logging.info(f"create_ras_terrain complete")
 
     # Calculate terrain agreement metrics
-    agreement_path = compute_terrain_agreement_metrics(
-        submodel_directory,
-        terrain_path,
-        terrain_agreement_resolution,
-        resolution_units,
-        terrain_agreement_format,
-        terrain_agreement_el_repeats,
-        terrain_agreement_el_ramp_rate,
-        terrain_agreement_el_init,
-    )
-    result["terrain_agreement"] = agreement_path
+    try:
+        agreement_path = compute_terrain_agreement_metrics(
+            submodel_directory,
+            terrain_path,
+            terrain_agreement_resolution,
+            resolution_units,
+            terrain_agreement_format,
+            terrain_agreement_el_repeats,
+            terrain_agreement_el_ramp_rate,
+            terrain_agreement_el_init,
+        )
+        result["terrain_agreement"] = agreement_path
+    except Exception as e:
+        if not terrain_agreement_ignore_error:
+            raise e
+        logging.error(f"| Error: {e}")
+        logging.error(f"| Traceback: {traceback.format_exc()}")
+
+        result["terrain_agreement"] = None
     return result
 
 

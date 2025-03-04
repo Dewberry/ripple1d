@@ -46,7 +46,7 @@ class RippleGeopackageSubsetter:
         """Metadata from the source model."""
         with sqlite3.connect(self.src_gpkg_path) as conn:
             cur = conn.cursor()
-            res = cur.execute(f"SELECT key,value from metadata")
+            res = cur.execute("SELECT key,value from metadata")
             return dict(res.fetchall())
 
     def copy_metadata_to_ripple1d_gpkg(self):
@@ -96,7 +96,10 @@ class RippleGeopackageSubsetter:
     @property
     def us_river_reach(self) -> str:
         """Extract upstream river_reach from conflation parameters."""
-        return f"{self.us_river.ljust(16)},{self.us_reach.ljust(16)}"
+        row = self.source_river[
+            (self.source_river["river"] == self.us_river) & (self.source_river["reach"] == self.us_reach)
+        ]
+        return row.iloc[0]["river_reach"]
 
     @property
     def us_river_reach_rs(self) -> str:
@@ -121,7 +124,10 @@ class RippleGeopackageSubsetter:
     @property
     def ds_river_reach(self) -> str:
         """Extract downstream river_reach from conflation parameters."""
-        return f"{self.ds_river.ljust(16)},{self.ds_reach.ljust(16)}"
+        row = self.source_river[
+            (self.source_river["river"] == self.ds_river) & (self.source_river["reach"] == self.ds_reach)
+        ]
+        return row.iloc[0]["river_reach"]
 
     @property
     def us_river_reach_rs(self) -> str:
@@ -206,7 +212,7 @@ class RippleGeopackageSubsetter:
         try:
             hulls = self.split_source_hull
             ripple_xs_concave_hull = gpd.GeoDataFrame({"geometry": hulls}, geometry="geometry", crs=self.crs)
-        except Exception as e:
+        except Exception:
             ripple_xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ripple_xs, self.ripple_river))
         return ripple_xs_concave_hull
 
@@ -441,7 +447,7 @@ class RippleGeopackageSubsetter:
             if layer == "Structure":
                 if (gdf["type"] == 6).any():
                     logging.warning(
-                        f"Lateral structures are not currently supported in ripple1d. The lateral structures will be dropped."
+                        "Lateral structures are not currently supported in ripple1d. The lateral structures will be dropped."
                     )
                     gdf = gdf.loc[gdf["type"] != 6, :]
 
@@ -495,7 +501,7 @@ class RippleGeopackageSubsetter:
             json.dump(ripple1d_parameters, f, indent=4)
 
 
-def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int):
+def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, model_name: str):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage.
 
     Create a new geopackage with information for a specific NWM reach.  The new geopackage contains layer for the river centerline, cross-sections, and structures.
@@ -508,6 +514,8 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         The path to export submodel HEC-RAS files to.
     nwm_id : int
         The id of the NWM reach to create a submodel for
+    model_name : str
+        The name of the HEC-RAS model.
     task_id : str, optional
         Task ID to use for logging, by default ""
 
@@ -527,7 +535,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         raise FileNotFoundError(
             f"cannot find directory for source model {source_model_directory}, please ensure dir exists"
         )
-    rsd = RippleSourceDirectory(source_model_directory)
+    rsd = RippleSourceDirectory(source_model_directory, model_name)
 
     logging.info(f"extract_submodel starting for nwm_id {nwm_id}")
 

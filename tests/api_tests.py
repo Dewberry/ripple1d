@@ -102,6 +102,7 @@ class TestApi(unittest.TestCase):
             "source_model_directory": self.SOURCE_RAS_MODEL_DIRECTORY,
             "submodel_directory": self.SUBMODELS_DIRECTORY,
             "nwm_id": self.REACH_ID,
+            "model_name": self.MODEL_NAME,
         }
         process = "extract_submodel"
         files = [self.GPKG_FILE]
