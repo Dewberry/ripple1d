@@ -1,12 +1,10 @@
 """Conflation classes and functions."""
 
-import json
 import logging
 import os
 import sqlite3
 import traceback
 from collections import OrderedDict
-from datetime import datetime
 from typing import List, Tuple
 
 import fiona
@@ -15,11 +13,11 @@ import numpy as np
 import pandas as pd
 import pyproj
 from fiona.errors import DriverError
-from shapely import LineString, MultiLineString, MultiPoint, Point, Polygon, box, reverse
-from shapely.ops import linemerge, nearest_points, split, transform
+from shapely import LineString, MultiLineString, Point, Polygon, box, reverse
+from shapely.ops import linemerge, nearest_points, transform
 
 from ripple1d.consts import METERS_PER_FOOT
-from ripple1d.errors import BadConflation, InvalidNetworkPath
+from ripple1d.errors import BadConflation
 from ripple1d.utils.ripple_utils import (
     NWMWalker,
     RASWalker,
@@ -184,7 +182,7 @@ class RasFimConflater:
             try:
                 point = validate_point(geom)
                 rs.append(reach.project(point))
-            except TypeError as e:
+            except TypeError:
                 rs.append(rs[-1])
 
         xs_gdf["rs"] = rs
@@ -400,7 +398,7 @@ class RasFimConflater:
                 if clip_to_xs:
                     centerline = clip_ras_centerline(centerline, self.xs_by_river_reach_name(river_reach_name), buffer)
                 return endpoints_from_multiline(centerline)
-            except Exception as e:
+            except Exception:
                 return endpoints_from_multiline(centerline)
 
     def ras_centerline_by_river_reach_name(self, river_reach_name: str) -> LineString:
@@ -685,22 +683,11 @@ def map_reach_xs(rfc: RasFimConflater, reach: gpd.GeoSeries) -> dict:
     return {"us_xs": us_data, "ds_xs": ds_data, "eclipsed": False}
 
 
-def retrieve_us_ds_xs(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, reach: gpd.GeoSeries) -> (str, str):
-    """Check that us and ds are hydrologically connected. Select reach with most overlap if not."""
-    if len(intersected_xs["river_reach"].unique()) == 1:
-        us_xs = intersected_xs.loc[
-            intersected_xs["river_station"] == intersected_xs["river_station"].max(), "river_reach_rs"
-        ].iloc[0]
-        ds_xs = intersected_xs.loc[
-            intersected_xs["river_station"] == intersected_xs["river_station"].min(), "river_reach_rs"
-        ].iloc[0]
-        return us_xs, ds_xs
-
-    intersected_xs["intersecting_point"] = intersected_xs.apply(
-        lambda x: x.geometry.intersection(reach.geometry), axis=1
-    )
-
-    intersected_xs["nwm_rs"] = intersected_xs.apply(
+def calculate_reach_coverage(xs: pd.DataFrame, reach: gpd.GeoDataFrame) -> pd.DataFrame:
+    """Aggregate intersected sections by reach, calculate coverage, and remove backwards reaches."""
+    # Calculate distances along NWM line
+    xs["intersecting_point"] = xs.apply(lambda x: x.geometry.intersection(reach.geometry), axis=1)
+    xs["nwm_rs"] = xs.apply(
         lambda x: (
             reach.geometry.project(x.intersecting_point)
             if isinstance(x.intersecting_point, Point)
@@ -708,13 +695,36 @@ def retrieve_us_ds_xs(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, re
         ),
         axis=1,
     )
-    # compute coverage along the nwm reach of each ras river-reach
-    max_rs = intersected_xs.groupby(by=["river_reach"])["nwm_rs"].max()
-    min_rs = intersected_xs.groupby(by=["river_reach"])["nwm_rs"].min()
-    reach_coverage = pd.concat({"max_rs": max_rs, "min_rs": min_rs}, axis=1)
-    reach_coverage["coverage"] = reach_coverage["max_rs"] - reach_coverage["min_rs"]
 
-    reach_coverage.sort_values(by="min_rs", inplace=True)  # note nwm_rs is from us to ds; i.e., ds_rs>us_rs
+    # Calculate coverage
+    reach_coverage = {}
+    for reach in xs["river_reach"].unique():
+        # Subset to reach of interest
+        subset = xs[xs["river_reach"] == reach]
+
+        # Calculate coverage
+        max_rs = subset["nwm_rs"].max()
+        min_rs = subset["nwm_rs"].min()
+        coverage = max_rs - min_rs
+
+        # Check if reaches are oriented opposite directions
+        ds_ras_rs = subset[subset["nwm_rs"] == max_rs]["river_station"].iloc[0]
+        us_ras_rs = subset[subset["nwm_rs"] == min_rs]["river_station"].iloc[0]
+        if us_ras_rs > ds_ras_rs:
+            reach_coverage[reach] = {"coverage": coverage, "min_rs": min_rs}
+
+    df = pd.DataFrame.from_dict(reach_coverage, orient="index")
+    return df.sort_values(by="min_rs", inplace=True)  # note nwm_rs is from us to ds; i.e., ds_rs>us_rs
+
+
+def retrieve_us_ds_xs(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, reach: gpd.GeoSeries) -> (str, str):
+    """Check that us and ds are hydrologically connected. Select reach with most overlap if not."""
+    if len(intersected_xs["river_reach"].unique()) == 1:
+        intersected_xs = intersected_xs.sort_values(by="river_station")
+        return intersected_xs["river_reach_rs"].iloc[-1], intersected_xs["river_reach_rs"].iloc[0]
+
+    # Calculate coverage
+    reach_coverage = calculate_reach_coverage(intersected_xs, reach)
 
     linked_reaches = []
     for _, row in reach_coverage.iterrows():  # start with the upstream most river station
