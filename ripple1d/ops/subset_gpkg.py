@@ -130,7 +130,7 @@ class RippleGeopackageSubsetter:
         return row.iloc[0]["river_reach"]
 
     @property
-    def us_river_reach_rs(self) -> str:
+    def ds_river_reach_rs(self) -> str:
         """Extract downstream river_reach_rs from conflation parameters."""
         return f"{self.ds_river} {self.ds_reach} {self.ds_rs}"
 
