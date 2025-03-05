@@ -710,11 +710,13 @@ def calculate_reach_coverage(xs: pd.DataFrame, reach: gpd.GeoDataFrame) -> pd.Da
         # Check if reaches are oriented opposite directions
         ds_ras_rs = subset[subset["nwm_rs"] == max_rs]["river_station"].iloc[0]
         us_ras_rs = subset[subset["nwm_rs"] == min_rs]["river_station"].iloc[0]
-        if us_ras_rs > ds_ras_rs:
+        if us_ras_rs >= ds_ras_rs:
             reach_coverage[reach] = {"coverage": coverage, "min_rs": min_rs}
 
+    if len(reach_coverage) == 0:
+        raise BadConflation(f"Reach {reach} has no cross-sections that overlap in the correct direction.")
     df = pd.DataFrame.from_dict(reach_coverage, orient="index")
-    return df.sort_values(by="min_rs", inplace=True)  # note nwm_rs is from us to ds; i.e., ds_rs>us_rs
+    return df.sort_values(by="min_rs")  # note nwm_rs is from us to ds; i.e., ds_rs>us_rs
 
 
 def retrieve_us_ds_xs(rfc: RasFimConflater, intersected_xs: gpd.GeoDataFrame, reach: gpd.GeoSeries) -> (str, str):
