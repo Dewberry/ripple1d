@@ -171,8 +171,9 @@ def clean_conflation(conflation: dict) -> dict:
     """Remove any straggler NWM reaches with matching u/s and d/s sections."""
     reaches = list(conflation["reaches"].keys())
     for r in reaches:
-        if conflation["reaches"][r]["us_xs"] == conflation["reaches"][r]["ds_xs"]:
-            del conflation["reaches"][r]
+        if not conflation["reaches"][r]["eclipsed"]:
+            if conflation["reaches"][r]["us_xs"] == conflation["reaches"][r]["ds_xs"]:
+                del conflation["reaches"][r]
     return conflation
 
 
