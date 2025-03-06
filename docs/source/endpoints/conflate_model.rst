@@ -189,3 +189,16 @@ In this scenario, a first order NWM reach only intersects some of the HEC-RAS
 cross-sections.  When additional cross-sections are available upstream of a
 first order tributary, ripple1d will extend one cross-section upstream of the
 last cross-section to provide complete reach coverage.
+
+**Conflation Test N**
+
+.. image:: ../images/conflation_tests/test_n.jpg
+  :width: 800
+  :alt: test n
+  :align: center
+
+
+When an NWM reach overlaps cross-sections from two HEC-RAS reaches, sections
+that would be conflated backwards are removed and then the RAS reached
+overlapping the largest continuous length of NWM reach are selected as the final
+conflated reach.
