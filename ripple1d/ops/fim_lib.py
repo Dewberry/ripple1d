@@ -58,6 +58,7 @@ def post_process_depth_grids(
         if resolution_units not in ["Feet", "Meters"]:
             raise ValueError(f"Invalid resolution_units: {resolution_units}. expected 'Feet' or 'Meters'")
 
+    profile_name_map = json.loads(rm.plans[plan_name].flow.description)
     for profile_name in rm.plans[plan_name].flow.profile_names:
         # construct the default path to the depth grid for this plan/profile
         src_dir = os.path.join(rm.ras_project._ras_dir, str(plan_name))
@@ -76,10 +77,11 @@ def post_process_depth_grids(
             else:
                 raise DepthGridNotFoundError(f"depth raster does not exists: {src_path}")
 
+        new_profile_name = profile_name_map[profile_name]
         if "kwse" in plan_name:
-            flow, depth = profile_name.split("-", 1)
+            flow, depth = new_profile_name.split("-", 1)
         elif "nd" in plan_name:
-            flow = f"f_{profile_name}"
+            flow = f"f_{new_profile_name}"
             depth = "z_nd"
 
         flow_sub_directory = os.path.join(dest_directory, depth)
