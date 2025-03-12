@@ -1,6 +1,7 @@
 """RAS Class and functions."""
 
 import glob
+import json
 import logging
 import os
 import platform
@@ -227,6 +228,7 @@ class RasManager:
         write_depth_grids: bool = False,
         show_ras: bool = False,
         run_ras: bool = True,
+        flow_file_description: str = "",
     ):
         """Create a new normal depth run."""
         if plan_flow_title in self.flows.keys():
@@ -240,7 +242,7 @@ class RasManager:
         rft = RasFlowText(flow_text_file, new_file=True)
 
         # write headers
-        rft.contents += rft.write_headers(plan_flow_title, profile_names)
+        rft.contents += rft.write_headers(plan_flow_title, profile_names, flow_file_description)
 
         for fcl in flow_change_locations:
             # write discharges
@@ -289,8 +291,12 @@ class RasManager:
 
         profile_names = [f"f_{flow}-z_{str(wse).replace('.','_')}" for flow, wse in zip(flows, wses)]
 
+        profile_name_map = {str(key): str(val) for key, val in zip(range(len(profile_names)), profile_names)}
+
+        description = json.dumps(profile_name_map)
+
         # write headers
-        rft.contents += rft.write_headers(plan_flow_title, profile_names)
+        rft.contents += rft.write_headers(plan_flow_title, [i for i in profile_name_map.keys()], description)
 
         # write discharges
         rft.contents += rft.write_discharges(flows, river, reach, us_river_station)
@@ -731,7 +737,7 @@ class RasPlanText(RasTextFile):
         else:
             self.contents.append("Run RASMapper= 0 ")
 
-    def read_rating_curves(self) -> dict:
+    def read_rating_curves(self, profile_name_map: dict) -> dict:
         """
         Read the flow and water surface elevations resulting from the computed plan.
 
@@ -763,8 +769,12 @@ class RasPlanText(RasTextFile):
             columns[0] = columns[0].apply(remove_multiple_spaces)
 
             # create dataframes for the wse and flow results
-            wse = pd.DataFrame(hdf.get(WSE_HDF_PATH), columns=columns[0].values, index=index[0].values).T
-            flow = pd.DataFrame(hdf.get(FLOW_HDF_PATH), columns=columns[0].values, index=index[0].values).T
+            wse = pd.DataFrame(
+                hdf.get(WSE_HDF_PATH), columns=columns[0].values, index=[profile_name_map[i] for i in index[0].values]
+            ).T
+            flow = pd.DataFrame(
+                hdf.get(FLOW_HDF_PATH), columns=columns[0].values, index=[profile_name_map[i] for i in index[0].values]
+            ).T
 
         return wse, flow
 
@@ -1168,7 +1178,7 @@ class RasFlowText(RasTextFile):
         """Profile names."""
         return search_contents(self.contents, "Profile Names").split(",")
 
-    def write_headers(self, title: str, profile_names: list[str]):
+    def write_headers(self, title: str, profile_names: list[str], description: str):
         """
         Write headers for flow content.
 
@@ -1183,6 +1193,9 @@ class RasFlowText(RasTextFile):
         lines = [
             f"Flow Title={title}",
             f"Number of Profiles= {len(profile_names)}",
+            "BEGIN FILE DESCRIPTION:",
+            description,
+            "END FILE DESCRIPTION:",
             f"Profile Names={','.join([str(pn) for pn in profile_names])}",
         ]
         return lines
@@ -1283,6 +1296,11 @@ class RasFlowText(RasTextFile):
 
                     if len(flow_change_locations) == self.n_flow_change_locations:
                         return flow_change_locations
+
+    @property
+    def description(self):
+        """Fetch the description of the flow file."""
+        return text_block_from_start_end_str("BEGIN FILE DESCRIPTION:", "END FILE DESCRIPTION:", self.contents, 1)[1]
 
 
 class RasUnsteadyText(RasTextFile):

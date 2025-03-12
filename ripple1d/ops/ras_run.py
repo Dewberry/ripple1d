@@ -101,14 +101,17 @@ def create_model_run_normal_depth(
             initial_flows.tolist(),
         )
 
+        profile_name_map = {str(key): str(val) for key, val in zip(range(len(initial_flows)), initial_flows)}
+
         pid = rm.normal_depth_run(
             f"{nwm_rm.model_name}_{plan_suffix}",
             nwm_rm.model_name,
             [fcl],
-            initial_flows.astype(str),
+            [i for i in profile_name_map.keys()],
             write_depth_grids=False,
             show_ras=show_ras,
             run_ras=True,
+            flow_file_description=json.dumps(profile_name_map),
         )
 
     logging.info("create_model_run_normal_depth complete")
@@ -197,15 +200,19 @@ def run_incremental_normal_depth(
         rm.geoms[nwm_rm.model_name].rivers[nwm_rm.model_name][nwm_rm.model_name].us_xs.river_station_str,
         flows.tolist(),
     )
+
+    profile_name_map = {str(key): str(val) for key, val in zip(range(len(flows)), flows)}
+
     # write and compute flow/plans for normal_depth run
     pid = rm.normal_depth_run(
         f"{nwm_rm.model_name}_{plan_suffix}",
         nwm_rm.model_name,
         [fcl],
-        flows.astype(str),
+        [i for i in profile_name_map.keys()],
         write_depth_grids=write_depth_grids,
         show_ras=show_ras,
         run_ras=True,
+        flow_file_description=json.dumps(profile_name_map),
     )
     logging.info("run_incremental_normal_depth complete")
     return {f"{nwm_rm.model_name}_{plan_suffix}": asdict(fcl), "pid": pid}
@@ -328,7 +335,10 @@ def get_flow_depth_arrays(
 ) -> tuple[pd.Series]:
     """Create new flow, depth,wse arrays from rating curve-plans results."""
     # read in flow/wse
-    wses, flows = rm.plan.read_rating_curves()
+    print(rm.plan.flow.description)
+    logging.info(rm.plan.flow.description)
+    profile_name_map = json.loads(rm.plan.flow.description)
+    wses, flows = rm.plan.read_rating_curves(profile_name_map)
 
     # get the river_reach_rs for the cross section representing the upstream end of this reach
     river_reach_rs = f"{river} {reach} {str(river_station)}"
