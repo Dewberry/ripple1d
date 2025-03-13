@@ -335,8 +335,6 @@ def get_flow_depth_arrays(
 ) -> tuple[pd.Series]:
     """Create new flow, depth,wse arrays from rating curve-plans results."""
     # read in flow/wse
-    print(rm.plan.flow.description)
-    logging.info(rm.plan.flow.description)
     profile_name_map = json.loads(rm.plan.flow.description)
     wses, flows = rm.plan.read_rating_curves(profile_name_map)
 
