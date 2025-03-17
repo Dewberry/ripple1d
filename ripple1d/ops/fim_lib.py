@@ -189,6 +189,9 @@ def find_missing_grids(
         if not os.path.exists(src_path):
             missing_grids.append(profile_name)
 
+    # rename to flow-formateed profile name
+    profile_name_map = json.loads(rm.plans[plan_name].flow.description)
+    missing_grids = [profile_name_map[i] for i in missing_grids]
     return missing_grids
 
 
