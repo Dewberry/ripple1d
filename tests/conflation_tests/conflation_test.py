@@ -18,7 +18,7 @@ def test_conflation(ras_dir_name: str, generate_plots: bool = False):
 
 def run_all():
     """Run all conflation tests."""
-    for test in TESTS:
+    for test in ["test_n"]:
         test_conflation(test, generate_plots=True)
 
 

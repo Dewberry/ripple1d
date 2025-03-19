@@ -12,6 +12,7 @@ TESTS = [
     "test_k",
     "test_l",
     "test_m",
+    "test_n",
 ]
 JUNCTION_RAS_DATA = """Junct Name=1
 Junct Desc=, 0 , 0 ,-1 ,0

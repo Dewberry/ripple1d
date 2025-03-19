@@ -163,6 +163,17 @@ def _conflate_model(source_model_directory: str, model_name: str, source_network
     }
     conflation = find_eclipsed_reaches(rfc, conflation)
     conflation = fix_junctions(rfc, conflation)
+    conflation = clean_conflation(conflation)
+    return conflation
+
+
+def clean_conflation(conflation: dict) -> dict:
+    """Remove any straggler NWM reaches with matching u/s and d/s sections."""
+    reaches = list(conflation["reaches"].keys())
+    for r in reaches:
+        if not conflation["reaches"][r]["eclipsed"]:
+            if conflation["reaches"][r]["us_xs"] == conflation["reaches"][r]["ds_xs"]:
+                del conflation["reaches"][r]
     return conflation
 
 
