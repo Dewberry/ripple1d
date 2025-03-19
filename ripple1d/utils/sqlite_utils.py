@@ -1,5 +1,6 @@
 """Utils for working with sqlite databases."""
 
+import json
 import os
 import sqlite3
 
@@ -112,8 +113,9 @@ def zero_depth_to_sqlite(
     # set the plan
     rm.plan = rm.plans[plan_name]
 
+    profile_name_map = json.loads(rm.plans[plan_name].flow.description)
     # read in flow/wse
-    wses, flows = rm.plan.read_rating_curves()
+    wses, flows = rm.plan.read_rating_curves(profile_name_map)
 
     # get river-reach-rs
     us_river_reach_rs = rm.plan.geom.rivers[nwm_id][nwm_id].us_xs.river_reach_rs_str
@@ -170,8 +172,9 @@ def rating_curves_to_sqlite(
         return
     rm.plan = rm.plans[plan_name]
 
+    profile_name_map = json.loads(rm.plans[plan_name].flow.description)
     # read in flow/wse
-    wses, flows = rm.plan.read_rating_curves()
+    wses, flows = rm.plan.read_rating_curves(profile_name_map)
     wses_t = wses.T
     wses_t["xs_overtopped"] = check_overtopping(rm, wses)
 
