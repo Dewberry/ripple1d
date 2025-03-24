@@ -32,6 +32,7 @@ from shapely import (
 )
 from shapely.ops import split, substring
 
+from ripple1d.consts import DEFAULT_MAX_WALK
 from ripple1d.errors import (
     InvalidNetworkPath,
     RASComputeError,
@@ -527,7 +528,10 @@ class NWMWalker(NetworkWalker):
     TO_ID_COL: str = "to_id"
 
     def __init__(
-        self, network_path: str, max_iter: int = 100, network_df: Optional[pd.DataFrame | gpd.GeoDataFrame] = None
+        self,
+        network_path: str,
+        max_iter: int = DEFAULT_MAX_WALK,
+        network_df: Optional[pd.DataFrame | gpd.GeoDataFrame] = None,
     ):
         self.max_iter: int = max_iter
         if network_df is not None:
