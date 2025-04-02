@@ -791,7 +791,8 @@ class RasGeomText(RasTextFile):
         self.units = units
         self.hdf_file = self._ras_text_file_path + ".hdf"
 
-        self.fix_htab_errors()
+        if len(ras_text_file_path) > 0:
+            self.fix_htab_errors()
 
     def __repr__(self):
         """Representation of the RasGeomText class."""
@@ -813,6 +814,7 @@ class RasGeomText(RasTextFile):
         inst._title = title
 
         inst.contents = inst._content_from_gpkg
+        inst.fix_htab_errors()
         return inst
 
     @property
@@ -950,6 +952,7 @@ class RasGeomText(RasTextFile):
         return junctions
 
     @property
+    @lru_cache
     @check_crs
     def cross_sections(self) -> dict:
         """A dictionary of the cross sections contained in the HEC-RAS geometry file."""
