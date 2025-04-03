@@ -454,7 +454,9 @@ class RippleGeopackageSubsetter:
             if gdf.shape[0] > 0:
                 gdf.to_file(self.ripple_gpkg_file, layer=layer)
                 if layer == "XS":
-                    self.ripple_xs_concave_hull.to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
+                    xs = fix_reversed_xs(gdf, self.subset_gdfs["River"])
+                    xs.sort_values(by="river_station", inplace=True, ascending=False)
+                    xs_concave_hull(xs).to_file(self.ripple_gpkg_file, driver="GPKG", layer="XS_concave_hull")
 
     def correct_ras_data(self, row):
         """Make ras_data names consistent with river_station."""
