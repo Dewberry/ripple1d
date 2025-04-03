@@ -43,7 +43,7 @@ def post_process_depth_grids(
     plan_name: str,
     dest_directory: str,
     accept_missing_grid: bool = False,
-    overviews=False,
+    cog=False,
     dest_crs: CRS = 5070,
     resolution: float = 3,
     resolution_units: str = "Meters",
@@ -88,10 +88,10 @@ def post_process_depth_grids(
         os.makedirs(flow_sub_directory, exist_ok=True)
         dest_path = os.path.join(flow_sub_directory, f"{flow}.tif")
         logging.debug(dest_path)
-        reproject_raster(src_path, dest_path, CRS(dest_crs), resolution, resolution_units)
+        reproject_raster(src_path, dest_path, CRS(dest_crs), resolution, resolution_units, tiled=True)
         logging.debug(f"Building overviews for: {dest_path}")
 
-        if overviews:
+        if cog:
             with rasterio.open(dest_path, "r+") as dst:
                 dst.build_overviews([4, 8, 16], Resampling.nearest)
                 dst.update_tags(ns="rio_overview", resampling="nearest")
@@ -201,7 +201,7 @@ def create_fim_lib(
     library_directory: str,
     cleanup: bool,
     ras_version: str = "631",
-    overviews: bool = False,
+    cog: bool = False,
     resolution: float = 3,
     resolution_units: str = "Meters",
     dest_crs: str = 5070,
@@ -223,8 +223,8 @@ def create_fim_lib(
         whether to delete the source depth grids once they've been processed
     ras_version : str, optional
         which version of HEC-RAS to use, by default "631"
-    overviews : bool, optional
-        whether to generate overviews for output rasters (overviews at levels
+    cog : bool, optional
+        whether to generate COGs for output rasters (overviews at levels
         [4, 8, 16]), by default False
     resolution : float, optional
         horizontal resolution to resample output raster to, by default 3
@@ -258,7 +258,7 @@ def create_fim_lib(
                 f"{nwm_rm.model_name}_{plan}",
                 nwm_rm.fim_results_directory,
                 accept_missing_grid=True,
-                overviews=overviews,
+                cog=cog,
                 resolution=resolution,
                 resolution_units=resolution_units,
                 dest_crs=dest_crs,
