@@ -354,7 +354,10 @@ def data_pairs_from_text_block(lines: list[str], width: int) -> list[tuple[float
         for i in range(0, len(line), width):
             x = line[i : int(i + width / 2)]
             y = line[int(i + width / 2) : int(i + width)]
-            pairs.append((float(x), float(y)))
+            try:
+                pairs.append((float(x), float(y)))
+            except ValueError:  # If a user has left a coordinate blank, skip point
+                continue
 
     return pairs
 
