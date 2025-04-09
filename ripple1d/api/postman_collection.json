@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "aae308a3-7a55-4367-a5f4-8728c9165d68",
+		"_postman_id": "977032b0-6c0b-4437-9347-7061b817bdae",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "38126273"
+		"_exporter_id": "29128857"
 	},
 	"item": [
 		{
@@ -133,7 +133,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"crs\": 3452,\r\n    \"metadata\": {\"stac_api\":\"https://stac2.dewberryanalytics.com\",  // optional\r\n                \"stac_collection_id\":\"ebfe-12090301_LowerColoradoCummins\",  // optional\r\n                \"stac_item_id\":\"137a9667-e5cf-4cea-b6ec-2e882a42fdc8\"}  // optional\r\n}\r\n",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"crs\": 3433,\r\n    \"metadata\": {\"stac_api\":\"https://stac2.dewberryanalytics.com\",  // optional\r\n                \"stac_collection_id\":\"ebfe-12090301_LowerColoradoCummins\",  // optional\r\n                \"stac_item_id\":\"137a9667-e5cf-4cea-b6ec-2e882a42fdc8\"}  // optional\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -162,7 +162,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"resolution\": 3,\r\n    \"resolution_units\": \"Meters\",\r\n    \"terrain_agreement_resolution\": 3,\r\n    \"terrain_agreement_ignore_error\": false\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"resolution\": 3,\r\n    \"resolution_units\": \"Meters\",\r\n    \"terrain_agreement_resolution\": 3\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -249,7 +249,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ikwse\",\r\n    \"min_elevation\": 60.0,\r\n    \"max_elevation\": 62.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":true,\r\n    \"write_depth_grids\":false\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plan_suffix\": \"ikwse\",\r\n    \"min_elevation\": 163.0,\r\n    \"max_elevation\": 165.0,\r\n    \"depth_increment\": 1.0,\r\n    \"ras_version\": \"631\",\r\n    \"show_ras\":true,\r\n    \"write_depth_grids\":false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -278,7 +278,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"library_directory\":\"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\\\\fims\",\r\n    \"cleanup\":true,\r\n    \"resolution\":3,\r\n    \"resolution_units\":\"Meters\"\r\n}",
+							"raw": "{\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"plans\": [\"nd\",\"kwse\"],\r\n    \"library_directory\":\"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\\\\fims\",\r\n    \"cleanup\":true,\r\n    \"resolution\":3,\r\n    \"resolution_units\":\"Meters\",\r\n    \"cog\":false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"

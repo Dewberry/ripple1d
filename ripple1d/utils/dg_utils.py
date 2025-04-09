@@ -120,8 +120,8 @@ def reproject_raster(
     dst_crs: CRS,
     resolution: float = None,
     resolution_units: str = None,
-    COMPRESS="DEFLATE",
-    PREDICTOR="3",
+    compress="DEFLATE",
+    predictor="3",
     num_threads=4,
     tiled=False,
     blocksize=512,
@@ -144,8 +144,8 @@ def reproject_raster(
                 "blockysize": blocksize,
                 "blockxsize": blocksize,
                 "tiled": tiled,
-                "COMPRESS": COMPRESS,
-                "PREDICTOR": PREDICTOR,
+                "COMPRESS": compress,
+                "PREDICTOR": predictor,
                 "num_threads": num_threads,
             }
         )
