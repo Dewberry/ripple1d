@@ -4,9 +4,10 @@ from collections import OrderedDict
 
 SUPPRESS_LOGS = ["boto3", "botocore", "geopandas", "fiona", "rasterio", "pyogrio", "shapely"]
 
-MAP_DEM_UNCLIPPED_SRC_URL = (
-    "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
-)
+# MAP_DEM_UNCLIPPED_SRC_URL = (
+#     "https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
+# )
+MAP_DEM_UNCLIPPED_SRC_URL = "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/USGS_Seamless_DEM_13.vrt"
 
 MAP_DEM_BUFFER_DIST_FT = 1000.0
 MAP_DEM_DIRNAME = "MapTerrain"
