@@ -29,6 +29,7 @@ from ripple1d.utils.ripple_utils import (
 )
 
 HIGH_FLOW_FACTOR = 1.2
+LOW_FLOW_FACTOR = 0.9
 
 NWM_CRS = """PROJCRS["USA_Contiguous_Albers_Equal_Area_Conic_USGS_version",
     BASEGEOGCRS["NAD83",DATUM["North American Datum 1983",
@@ -414,7 +415,7 @@ class RasFimConflater:
         metadata = {}
         flow_data = self.nwm_reaches[self.nwm_reaches["ID"] == reach_id].iloc[0]
         if isinstance(flow_data["high_flow_threshold"], float):
-            metadata["low_flow"] = int(round(flow_data["high_flow_threshold"], 2))
+            metadata["low_flow"] = int(round(flow_data["high_flow_threshold"] * LOW_FLOW_FACTOR, 2))
         else:
             metadata["low_flow"] = -9999
             logging.warning(f"No low flow data for {reach_id}")
