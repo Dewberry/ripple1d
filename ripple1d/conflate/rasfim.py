@@ -415,14 +415,14 @@ class RasFimConflater:
         metadata = {}
         flow_data = self.nwm_reaches[self.nwm_reaches["ID"] == reach_id].iloc[0]
         if isinstance(flow_data["high_flow_threshold"], float):
-            metadata["low_flow"] = int(round(flow_data["high_flow_threshold"] * LOW_FLOW_FACTOR, 2))
+            metadata["low_flow"] = int(flow_data["high_flow_threshold"] * LOW_FLOW_FACTOR)
         else:
             metadata["low_flow"] = -9999
             logging.warning(f"No low flow data for {reach_id}")
 
         try:
             high_flow = float(flow_data["f100year"]) * HIGH_FLOW_FACTOR
-            metadata["high_flow"] = int(round(high_flow, 2))
+            metadata["high_flow"] = int(high_flow)
         except:
             logging.warning(f"No high flow data for {reach_id}")
             metadata["high_flow"] = -9999
