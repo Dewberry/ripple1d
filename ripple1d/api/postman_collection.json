@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "977032b0-6c0b-4437-9347-7061b817bdae",
+		"_postman_id": "46d5b2d6-ccc4-4495-9f9e-6b17a5d6f234",
 		"name": "ripple1d",
 		"description": "Collection for processing existing HEC-RAS models for use in the production of Flood Inundation Maps (FIMs) and rating curves for use in near-real time flood forecasting on the NOAA National Water Model",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "29128857"
+		"_exporter_id": "38126273"
 	},
 	"item": [
 		{
@@ -75,7 +75,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"model_name\":\"{{source_model_name}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\nwm_bbox.parquet\",\r\n                        \"version\":\"2.1\",  // optional\r\n                        \"type\":\"nwm_hydrofabric\"}\r\n    \r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"model_name\":\"{{source_model_name}}\",\r\n    \"source_network\": {\"file_name\":\"{{nwm_data_directory}}\\\\nwm_bbox.parquet\",\r\n                        \"version\":\"2.1\",  // optional\r\n                        \"type\":\"nwm_hydrofabric\"},\r\n    \"min_flow_multiplier\": 0.9,\r\n    \"max_flow_multiplier\": 1.2\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
