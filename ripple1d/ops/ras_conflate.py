@@ -55,7 +55,14 @@ def conflate_single_nwm_reach(rfc: RasFimConflater, nwm_reach_id: int):
         raise ValueError(f"nwm_reach_id {nwm_reach_id} not conflating to the ras model geometry.")
 
 
-def conflate_model(source_model_directory: str, model_name: str, source_network: dict, compute_metrics: bool = True):
+def conflate_model(
+    source_model_directory: str,
+    model_name: str,
+    source_network: dict,
+    compute_metrics: bool = True,
+    min_flow_multiplier: float = 0.9,
+    max_flow_multiplier: float = 1.2,
+):
     """Conflate a HEC-RAS model with NWM reaches.
 
     Parameters
@@ -76,6 +83,12 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
             optional version number to log
     compute_metrics : bool
         Boolean indicating if conflation metrics should be computed.
+    min_flow_multiplier : float
+        Number that will be multiplied by the NWM "high flow threshold" to
+        define the low_flow value in the conflation json.
+    max_flow_multiplier : float
+        Number that will be multiplied by the NWM 100-year flow to define the
+        high_flow value in the conflation json.
 
     Returns
     -------
@@ -132,7 +145,12 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
     if not source_network["type"] == "nwm_hydrofabric":
         raise ValueError(f"source_network type must be 'nwm_hydrofabric', invalid parameters: {source_network}")
 
-    conflation = _conflate_model(source_model_directory, model_name, source_network)
+    if min_flow_multiplier > 1 or min_flow_multiplier < 0:
+        raise ValueError(f"min_flow_multiplier must be between 0 and 1.  Recieved {min_flow_multiplier}")
+
+    conflation = _conflate_model(
+        source_model_directory, model_name, source_network, min_flow_multiplier, max_flow_multiplier
+    )
     logging.debug(f"Conflation results: {conflation}")
 
     conflation_file = os.path.join(source_model_directory, f"{model_name}.conflation.json")
@@ -150,9 +168,21 @@ def conflate_model(source_model_directory: str, model_name: str, source_network:
     return {"conflation_file": conflation_file}
 
 
-def _conflate_model(source_model_directory: str, model_name: str, source_network: dict) -> dict:
+def _conflate_model(
+    source_model_directory: str,
+    model_name: str,
+    source_network: dict,
+    min_flow_multiplier: float = 0.9,
+    max_flow_multiplier: float = 1.2,
+) -> dict:
     """Create dictionary mapping NWM reach to RAS u/s and d/s XS limits."""
-    rfc = RasFimConflater(source_network["file_name"], source_model_directory, model_name)
+    rfc = RasFimConflater(
+        source_network["file_name"],
+        source_model_directory,
+        model_name,
+        min_flow_multiplier,
+        max_flow_multiplier,
+    )
     local_nwm_reaches = list(
         set(chain.from_iterable([get_nwm_reaches(rr, rfc) for rr in rfc.ras_river_reach_names]))
     )  # time consuming but save
