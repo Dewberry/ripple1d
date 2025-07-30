@@ -24,6 +24,7 @@ from shapely import (
     MultiPolygon,
     Point,
     Polygon,
+    buffer,
     concave_hull,
     line_merge,
     make_valid,
@@ -210,9 +211,14 @@ def xs_concave_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoDataFrame = None) -> 
         for _, j in junction.iterrows():
             polygons.append(junction_hull(xs, j))
 
-    return gpd.GeoDataFrame(
-        {"geometry": [union_all([make_valid(p) for p in polygons])]}, geometry="geometry", crs=xs.crs
-    )
+    all_valid = [make_valid(p) for p in polygons]
+    unioned = union_all(all_valid)
+    unioned = buffer(unioned, 0)
+    if unioned.interiors:
+        geom = Polygon(list(unioned.exterior.coords))
+    else:
+        geom = unioned
+    return gpd.GeoDataFrame({"geometry": [geom]}, geometry="geometry", crs=xs.crs)
 
 
 def determine_junction_xs(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
