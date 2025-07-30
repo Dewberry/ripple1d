@@ -102,7 +102,6 @@ class AssetFactory:
 
         for pattern, asset_class in self.extension_to_asset.items():
             if pattern.match(fpath):
-                # logger.debug(f"Matched {pattern} for {Path(fpath).name}: {asset_class}")
                 created_asset = asset_class.from_dict(asset.to_dict())
 
                 # Cache the created asset

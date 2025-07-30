@@ -30,14 +30,14 @@ def export_thumbnail(layers: list[Callable], title: str, crs: CRS, filepath: str
     for layer in layers:
         try:
             legend_handles += layer(ax)
-        except Exception as e:
-            logger.warning(f"Warning: Failed to process layer '{layer}' for thumbnail at {filepath}: {e}")
+        except Exception:
+            continue
 
     # Add OpenStreetMap basemap
     try:
         ctx.add_basemap(ax, crs=crs, source=ctx.providers.OpenStreetMap.Mapnik)
     except Exception as e:
-        logger.warning(f"Warning: Failed to add basemap for {filepath}: {e}")
+        pass
 
     # Formatting
     ax.set_title(title)

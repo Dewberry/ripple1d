@@ -188,22 +188,18 @@ class RASModelItem(Item):
             return self._geometry_cached
 
         if self.crs is None:
-            logger.warning("Geometry requested for model with no spatial reference.")
             self._geometry_cached = NULL_STAC_GEOMETRY
             return self._geometry_cached
 
         if len(self.geometry_assets) == 0:
-            logger.error("No geometry found for RAS item.")
             self._geometry_cached = NULL_STAC_GEOMETRY
             return self._geometry_cached
 
         geometries = []
         for i in self.geometry_assets:
-            logger.debug(f"Processing geometry from {i.href}")
             try:
                 geometries.append(i.geometry_wgs84)
             except Exception:
-                logger.warning(f"Unable to process geometry from {i.href}, skipping.")
                 continue
 
         unioned_geometry = union_all(geometries)
@@ -347,14 +343,12 @@ class RASModelItem(Item):
                     make = True
 
             if is_hdf and make:
-                logger.info(f"Writing: {thumbnail_dest}")
                 if not any([i in layers for i in ["mesh_areas", "breaklines", "bc_lines"]]):
                     continue
                 self.assets[f"{geom.href.rsplit('/')[-1][:-4]}_thumbnail"] = geom.thumbnail(
                     layers=layers, title=title_prefix, thumbnail_dest=thumbnail_dest, make_public=make_public
                 )
             elif is_text and make:
-                logger.info(f"Writing: {thumbnail_dest}")
                 if not any([i in layers for i in ["River", "XS", "Structure", "Junction"]]):
                     continue
                 self.assets[f"{geom.href.rsplit('/')[-1]}_thumbnail"] = geom.thumbnail(
@@ -476,7 +470,6 @@ class RASModelItem(Item):
         try:
             _ = subclass.extra_fields
         except ModelFileReaderError as e:
-            logger.error(e)
             return
 
         # Safely load file only if __file_class__ is not None
@@ -500,8 +493,6 @@ class RASModelItem(Item):
                     roles=["data"],
                 ),
             )
-        else:
-            logger.warning(f"No data found for {title.lower()}, unable to create asset.")
 
     def add_geospatial_assets(self, output_prefix: str):
         """Extract geospatial data from geometry hdf asset and adds them as Parquet assets.

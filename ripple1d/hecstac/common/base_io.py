@@ -37,7 +37,6 @@ class ModelFileReader:
             try:
                 self.content = open(self.path, "r").read()
             except UnicodeDecodeError as e:
-                logger.warning(f"File contains invalid utf-8 characters at byte {e.start}.")
                 self.content = open(self.path, "r", errors="ignore").read()
 
         else:
