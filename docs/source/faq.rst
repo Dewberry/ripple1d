@@ -105,9 +105,9 @@ Frequently Asked Questions
 
     For the initial normal depth run, discharges will range between the following.
 
-    * The minimum of the source model minimum flow and 1.2 times the National Water Model reach
+    * The minimum of the source model minimum flow and 0.9 times the National Water Model reach
       high_flow_threshold
-    * The maximum of the source model maximum flow and the 100-year discharge of
+    * The maximum of the source model maximum flow and 1.2 times the 100-year discharge of
       the National Water Model reach.
 
     Discharge intervals within that range are controlled by the user.

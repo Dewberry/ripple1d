@@ -222,11 +222,11 @@ Once submodel geometry has been set up, you can run various discharges through
 the model and record the results.  Ripple1d has several tools to develop
 SRCs for a NWM reach.
 
-* **Initial Normal Depth Run.** Discharges ranging from 1.2 times the reach
-  high flow threshold to the reach 1% AEP discharge will be incrementally run
+* **Initial Normal Depth Run.** Discharges ranging from 0.9 times the reach
+  high flow threshold to 1.2 times the reach 1% AEP discharge will be incrementally run
   through the reach submodel, and their associated flow depths at each
-  cross-section are recorded.  If the source model min flow is lower than 1.2
-  times the high flow threshold or the source model max flow is higher than the
+  cross-section are recorded.  If the source model min flow is lower than 0.9
+  times the high flow threshold or the source model max flow is higher than 1.2 times the
   1% AEP discharge, those flow bounds will be used instead
 
 * **Regularized Normal Depth Run.**  After the initial depth-discharge curve

@@ -561,7 +561,7 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
         rgs.write_ripple1d_parameters(ripple1d_parameters)
         gpkg_path = rgs.ripple_gpkg_file
-        conflation_file = rsd.conflation_file
+        conflation_file = rsd.conflation_file  # TODO: this gives a different path than write_ripple1d_parameters
 
     logging.info(f"extract_submodel complete for nwm_id {nwm_id}")
     return {"ripple1d_parameters": conflation_file, "ripple_gpkg_file": gpkg_path}
