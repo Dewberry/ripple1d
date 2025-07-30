@@ -180,6 +180,7 @@ def _conflate_model(
         source_network["file_name"],
         source_model_directory,
         model_name,
+        None,
         min_flow_multiplier,
         max_flow_multiplier,
     )
