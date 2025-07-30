@@ -87,18 +87,6 @@ def process__create_fim_lib():
     return enqueue_async_task(create_fim_lib)
 
 
-@app.route("/processes/nwm_reach_model_stac/execution", methods=["POST"])
-def process__nwm_reach_model_stac():
-    """Enqueue a task to create a stac item from a fim model."""
-    return enqueue_async_task(nwm_reach_model_stac)
-
-
-@app.route("/processes/fim_lib_stac/execution", methods=["POST"])
-def process__fim_lib_stac():
-    """Enqueue a task to create a stac item from a fim library."""
-    return enqueue_async_task(fim_lib_stac)
-
-
 @app.route("/ping", methods=["GET"])
 def ping():
     """Check the health of the service."""
