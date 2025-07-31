@@ -202,6 +202,7 @@ class TestApi(unittest.TestCase):
             "plans": ["nd", "kwse"],
             "library_directory": self.FIM_LIB_DIRECTORY,
             "cleanup": False,
+            "cog": True,
         }
         process = "create_fim_lib"
         files = [self.DEPTH_GRIDS_ND, self.DEPTH_GRIDS_KWSE]

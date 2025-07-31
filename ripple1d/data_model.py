@@ -654,7 +654,11 @@ class XS:
     def centerline_intersection_point(self):
         """A point located where the cross section and reach centerline intersect."""
         if self.cross_section_intersects_reach:
-            return self.reach_geom.intersection(self.geom)
+            intersection = self.reach_geom.intersection(self.geom)
+            if intersection.geom_type == "Point":
+                return intersection
+            if intersection.geom_type == "MultiPoint":
+                return intersection.geoms[0]
 
     @property
     def left_reach_length_ratio(self):

@@ -521,6 +521,9 @@ def get_wses(
         start_el += terrain_agreement_el_init
     end_el = min((xs[0, 1], xs[-1, 1]))
     end_el = ceil(end_el / terrain_agreement_el_init) * terrain_agreement_el_init  # Round to nearest init_inc
+    end_el = max(
+        end_el, start_el
+    )  # If section was poorly created with endpoints not on high ground, get at least one metric.
 
     increments = np.arange(0, 10, 1)
     increments = (terrain_agreement_el_ramp_rate**increments) * terrain_agreement_el_init

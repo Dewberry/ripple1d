@@ -2,45 +2,6 @@
 Technical Summary
 #################
 
-What is ripple1d?
-=================
-
-:code:`ripple1d` is a Python utility that repurposes HEC-RAS models for use in
-the production of Flood Inundation Maps (FIMs) and synthetic rating curves
-(SRCs) to support near-real-time flood forecasting within NOAA’s National Water
-Model (NWM).  With the utility, HEC-RAS models can be broken up into
-smaller sub models for each NWM reach within the modeled domain.  Sub models
-may then be used to develop reach-scale SRCs and FIM.
-
-ripple1d currently includes functions to:
-
-* Export HEC-RAS model geometry and metadata from proprietary HEC formats to
-  geopackages and `SpatioTemporal Asset Catalog (STAC)
-  <https://stacspec.org/en>`_ items;
-* Associate HEC-RAS model components (e.g. cross sections, structures, etc)
-  with NWM reaches;
-* Create NWM reach-specific HEC-RAS models;
-* Run HEC-RAS models for a range of hydraulic conditions;
-* Generate reach-scale SRCs;
-* Map inundation extents and depth grids; and
-* Incorporate updated topographic data in mapping to reflect current site
-  conditions.
-
-Why use ripple1d?
-=================
-
-While novel methods for mapping inundation extents across broad spatial scales
-are under active development, HEC-RAS models remain the industry standard, and
-large collections of engineer-certified HEC-RAS models have been developed in
-recent years in support of Federal Emergency Management Agency (FEMA) Digital
-Flood Insurance Rate Map (DFIRM) and Base Level Engineering (BLE) initiatives.
-ripple1d provides utilities to leverage these large catalogs in an operational
-flood forecasting setting by aligning HEC-RAS model domains with forecast
-domains. Aligning model domains reduces computational overhead and allows
-models to easily interface with other modules and functions of the NWM.
-
-How ripple1d works
-==================
 
 The following steps outline a typical workflow for setting up a HEC-RAS model
 for use in FIM and SRC production.
@@ -261,11 +222,11 @@ Once submodel geometry has been set up, you can run various discharges through
 the model and record the results.  Ripple1d has several tools to develop
 SRCs for a NWM reach.
 
-* **Initial Normal Depth Run.** Discharges ranging from 1.2 times the reach
-  high flow threshold to the reach 1% AEP discharge will be incrementally run
+* **Initial Normal Depth Run.** Discharges ranging from 0.9 times the reach
+  high flow threshold to 1.2 times the reach 1% AEP discharge will be incrementally run
   through the reach submodel, and their associated flow depths at each
-  cross-section are recorded.  If the source model min flow is lower than 1.2
-  times the high flow threshold or the source model max flow is higher than the
+  cross-section are recorded.  If the source model min flow is lower than 0.9
+  times the high flow threshold or the source model max flow is higher than 1.2 times the
   1% AEP discharge, those flow bounds will be used instead
 
 * **Regularized Normal Depth Run.**  After the initial depth-discharge curve

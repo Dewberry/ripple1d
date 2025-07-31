@@ -9,7 +9,7 @@ Ripple1D
 :code:`ripple1d` is a Python utility that repurposes HEC-RAS models for use in
 the production of Flood Inundation Maps (FIMs) and synthetic rating curves
 (SRCs) to support near-real-time flood forecasting within NOAA’s National Water
-Model (NWM). 
+Model (NWM).
 
 Navigating the documentation
 -----------------------------
@@ -38,6 +38,23 @@ Navigating the documentation
     .. grid-item-card::
         :text-align: center
 
+        **For Frequently Asked Questions**
+        ^^^
+
+        The FAQ provides quick answers to quick questions.
+
+        +++
+
+        .. button-ref:: faq
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            To the FAQ
+
+    .. grid-item-card::
+        :text-align: center
+
         **For user instructions**
         ^^^
 
@@ -52,24 +69,6 @@ Navigating the documentation
             :click-parent:
 
             To the User Guide
-
-    .. grid-item-card::
-        :text-align: center
-
-        **For detailed information**
-        ^^^
-
-        The API Reference provides a detailed technical reference for all
-        functions of ripple1d.
-
-        +++
-
-        .. button-ref:: api_reference
-            :expand:
-            :color: secondary
-            :click-parent:
-
-            To the API Reference
 
     .. grid-item-card::
         :text-align: center
@@ -89,15 +88,14 @@ Navigating the documentation
 
             To the Postman Collection
 
-
-
 .. toctree::
    :maxdepth: 1
    :hidden:
 
    Technical Summary <tech_summary.rst>
+   FAQ <faq.rst>
    User Guide <user_guide.rst>
-   API Reference <api_reference.rst>
    Postman Collection <postman.rst>
    Change Log <change_log.rst>
+   API Reference <api_reference.rst>
 
