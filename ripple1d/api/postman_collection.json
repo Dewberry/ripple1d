@@ -104,7 +104,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"model_name\":\"{{source_model_name}}\"\r\n}",
+							"raw": "{\r\n    \"source_model_directory\": \"{{source_model_directory}}\",\r\n    \"submodel_directory\": \"{{submodels_base_directory}}\\\\{{nwm_reach_id}}\",\r\n    \"nwm_id\": \"{{nwm_reach_id}}\",\r\n    \"model_name\":\"{{source_model_name}}\",\r\n    \"min_flow_multiplier_ras\": 1,\r\n    \"max_flow_multiplier_ras\": 1,\r\n    \"ignore_ras_flows\": false,\r\n    \"ignore_nwm_flows\": false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
