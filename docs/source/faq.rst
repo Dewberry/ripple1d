@@ -150,3 +150,17 @@ Frequently Asked Questions
     the confluencing reach(es) will be treated as seperate models.  This may lead
     to visible gaps in FIM where cross-sections are not overlapped from upstream
     model to downstream model.
+
+.. dropdown:: What is the concave hull layer of the RAS geometry geopackage?
+
+    The concave hull layer delineates the approximate area where HEC-RAS can map
+    inundation. The concave hull is created by generating polygons between each
+    adjacent pair of cross-sections in a model and merging them together. This
+    area is slightly different than the interpolation surface of RASMapper. The
+    interpolation surface has added functions to follow the stream centerline and
+    bank lines. An example of these small differences are shown below for the
+    HEC-RAS Muncie model.
+
+    .. image:: images/concave_hull_differences.jpeg
+        :alt: Concave Hull vs RAS Mapper
+        :width: 100%
