@@ -209,12 +209,7 @@ class RippleGeopackageSubsetter:
     @lru_cache
     def ripple_xs_concave_hull(self):
         """Get the concave hull of the cross sections."""
-        try:
-            hulls = self.split_source_hull
-            ripple_xs_concave_hull = gpd.GeoDataFrame({"geometry": hulls}, geometry="geometry", crs=self.crs)
-        except Exception:
-            ripple_xs_concave_hull = xs_concave_hull(fix_reversed_xs(self.ripple_xs, self.ripple_river))
-        return ripple_xs_concave_hull
+        return xs_concave_hull(fix_reversed_xs(self.ripple_xs, self.ripple_river))
 
     @property
     @lru_cache
