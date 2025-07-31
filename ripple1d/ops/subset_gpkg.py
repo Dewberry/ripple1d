@@ -31,12 +31,26 @@ warnings.filterwarnings("ignore")
 class RippleGeopackageSubsetter:
     """Subset a geopackage based on conflation with NWM hydrofabric."""
 
-    def __init__(self, src_gpkg_path: str, conflation_json: str, dst_project_dir: str, nwm_id: str = None):
+    def __init__(
+        self,
+        src_gpkg_path: str,
+        conflation_json: str,
+        dst_project_dir: str,
+        nwm_id: str = None,
+        min_flow_multiplier_ras: float = 1,
+        max_flow_multiplier_ras: float = 1,
+        ignore_ras_flows: bool = False,
+        ignore_nwm_flows: bool = False,
+    ):
 
         self.src_gpkg_path = src_gpkg_path
         self.conflation_json = conflation_json
         self.dst_project_dir = dst_project_dir
         self.nwm_id = nwm_id
+        self.min_flow_multiplier_ras = min_flow_multiplier_ras
+        self.max_flow_multiplier_ras = max_flow_multiplier_ras
+        self.ignore_ras_flows = ignore_ras_flows
+        self.ignore_nwm_flows = ignore_nwm_flows
 
         self.walker = RASWalker(self.src_gpkg_path)
 
@@ -402,7 +416,10 @@ class RippleGeopackageSubsetter:
     def min_flow(self) -> float:
         """Extract the min flow from the cross sections."""
         if "flows" in self.ripple_xs.columns:
-            return self.ripple_xs["flows"].str.split("\n", expand=True).astype(float).min().min()
+            return (
+                self.ripple_xs["flows"].str.split("\n", expand=True).astype(float).min().min()
+                * self.min_flow_multiplier_ras
+            )
         else:
             logging.warning(f"no flows specified in source model gpkg for {self.nwm_id}")
             return 10000000000000
@@ -411,7 +428,10 @@ class RippleGeopackageSubsetter:
     def max_flow(self) -> float:
         """Extract the max flow from the cross sections."""
         if "flows" in self.ripple_xs.columns:
-            return self.ripple_xs["flows"].str.split("\n", expand=True).astype(float).max().max()
+            return (
+                self.ripple_xs["flows"].str.split("\n", expand=True).astype(float).max().max()
+                * self.max_flow_multiplier_ras
+            )
         else:
             logging.warning(f"no flows specified in source model gpkg for {self.nwm_id}")
             return 0
@@ -484,8 +504,16 @@ class RippleGeopackageSubsetter:
         ripple1d_parameters["source_model_metadata"] = rsd.source_model_metadata
         ripple1d_parameters["crs"] = self.crs.to_wkt()
         ripple1d_parameters["version"] = ripple1d.__version__
-        ripple1d_parameters["high_flow"] = max([ripple1d_parameters["high_flow"], self.max_flow])
-        ripple1d_parameters["low_flow"] = min([ripple1d_parameters["low_flow"], self.min_flow])
+        if self.ignore_ras_flows:
+            ripple1d_parameters["high_flow"] = ripple1d_parameters["high_flow"]
+            ripple1d_parameters["low_flow"] = ripple1d_parameters["low_flow"]
+        elif self.ignore_nwm_flows:
+            ripple1d_parameters["high_flow"] = self.max_flow
+            ripple1d_parameters["low_flow"] = self.min_flow
+        else:
+            ripple1d_parameters["high_flow"] = max([ripple1d_parameters["high_flow"], self.max_flow])
+            ripple1d_parameters["low_flow"] = min([ripple1d_parameters["low_flow"], self.min_flow])
+        # Validate that RAS has flows when NWM ignored
         if ripple1d_parameters["high_flow"] == self.max_flow:
             ripple1d_parameters["notes"] = ["high_flow computed from source model flows"]
         if ripple1d_parameters["low_flow"] == self.min_flow:
@@ -498,7 +526,16 @@ class RippleGeopackageSubsetter:
             json.dump(ripple1d_parameters, f, indent=4)
 
 
-def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_id: int, model_name: str):
+def extract_submodel(
+    source_model_directory: str,
+    submodel_directory: str,
+    nwm_id: int,
+    model_name: str,
+    min_flow_multiplier_ras: float = 1,
+    max_flow_multiplier_ras: float = 1,
+    ignore_ras_flows: bool = False,
+    ignore_nwm_flows: bool = False,
+):
     """Use ripple conflation data to create a new GPKG from an existing ras geopackage.
 
     Create a new geopackage with information for a specific NWM reach.  The new geopackage contains layer for the river centerline, cross-sections, and structures.
@@ -513,8 +550,14 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         The id of the NWM reach to create a submodel for
     model_name : str
         The name of the HEC-RAS model.
-    task_id : str, optional
-        Task ID to use for logging, by default ""
+    min_flow_multiplier_ras : float
+        Number that will be multiplied by the RAS min modeled flow. Default is 1
+    max_flow_multiplier_ras : float
+        Number that will be multiplied by the RAS max modeled flow. Default is 1
+    ignore_ras_flows : bool
+        Whether to ignore HEC-RAS min and max flow when defining flow ranges. Default is False
+    ignore_nwm_flows : bool
+        Whether to ignore NWM min and max flow when defining flow ranges. Default is False
 
     Returns
     -------
@@ -528,6 +571,8 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
     FileNotFoundError
         Raised when no .conflation.json is found in the source model directory
     """
+    if ignore_nwm_flows and ignore_ras_flows:
+        raise RuntimeError("ignore_nwm_flows and ignore_ras_flows may not both be True")
     if not os.path.exists(source_model_directory):
         raise FileNotFoundError(
             f"cannot find directory for source model {source_model_directory}, please ensure dir exists"
@@ -550,7 +595,16 @@ def extract_submodel(source_model_directory: str, submodel_directory: str, nwm_i
         conflation_file = None
 
     else:
-        rgs = RippleGeopackageSubsetter(rsd.ras_gpkg_file, rsd.conflation_file, submodel_directory, nwm_id)
+        rgs = RippleGeopackageSubsetter(
+            rsd.ras_gpkg_file,
+            rsd.conflation_file,
+            submodel_directory,
+            nwm_id,
+            min_flow_multiplier_ras,
+            max_flow_multiplier_ras,
+            ignore_ras_flows,
+            ignore_nwm_flows,
+        )
         rgs.write_ripple_gpkg()
         rgs.copy_metadata_to_ripple1d_gpkg()
         ripple1d_parameters = rgs.update_ripple1d_parameters(rsd)
