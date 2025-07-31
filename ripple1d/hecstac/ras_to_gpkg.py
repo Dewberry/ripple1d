@@ -49,7 +49,6 @@ def gpkg_from_ras(source_model_directory: str, crs: str, metadata: dict):
     to the project directory with the same base name as the HEC-RAS project
     file.
     """
-    print("here")
     logging.info("gpkg_from_ras starting")
     prjs = glob.glob(f"{source_model_directory}/*.prj")
     ras_text_file_path = None
