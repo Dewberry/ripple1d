@@ -28,8 +28,6 @@ from ripple1d.utils.ripple_utils import (
     xs_concave_hull,
 )
 
-HIGH_FLOW_FACTOR = 1.2
-
 NWM_CRS = """PROJCRS["USA_Contiguous_Albers_Equal_Area_Conic_USGS_version",
     BASEGEOGCRS["NAD83",DATUM["North American Datum 1983",
     ELLIPSOID["GRS 1980",6378137,298.257222101004,LENGTHUNIT["metre",1]]],
@@ -84,6 +82,8 @@ class RasFimConflater:
         source_model_directory: str,
         ras_model_name: str,
         output_concave_hull_path: str = None,
+        min_flow_multiplier: float = 0.9,
+        max_flow_multiplier: float = 1.2,
     ):
         self.nwm_pq = nwm_pq
         self.source_model_directory = source_model_directory
@@ -92,6 +92,9 @@ class RasFimConflater:
 
         self.output_concave_hull_path = output_concave_hull_path
         self.nwm_reaches = None
+
+        self.min_flow_multiplier = min_flow_multiplier
+        self.max_flow_multiplier = max_flow_multiplier
 
         self._ras_centerlines = None
         self._ras_xs = None
@@ -414,17 +417,23 @@ class RasFimConflater:
         metadata = {}
         flow_data = self.nwm_reaches[self.nwm_reaches["ID"] == reach_id].iloc[0]
         if isinstance(flow_data["high_flow_threshold"], float):
-            metadata["low_flow"] = int(round(flow_data["high_flow_threshold"], 2))
+            metadata["low_flow"] = int(flow_data["high_flow_threshold"] * self.min_flow_multiplier)
         else:
             metadata["low_flow"] = -9999
             logging.warning(f"No low flow data for {reach_id}")
 
         try:
-            high_flow = float(flow_data["f100year"]) * HIGH_FLOW_FACTOR
-            metadata["high_flow"] = int(round(high_flow, 2))
+            high_flow = float(flow_data["f100year"]) * self.max_flow_multiplier
+            metadata["high_flow"] = int(high_flow)
         except:
             logging.warning(f"No high flow data for {reach_id}")
             metadata["high_flow"] = -9999
+
+        inverted = metadata["high_flow"] < metadata["low_flow"]
+        negative = metadata["low_flow"] < 0 or metadata["high_flow"] < 0
+        if negative or inverted:
+            raise RuntimeError(f'Invalid flow combination. Low: {metadata["low_flow"]}. High: {metadata["high_flow"]}')
+
         try:
             metadata["network_to_id"] = str(flow_data["to_id"])
         except:

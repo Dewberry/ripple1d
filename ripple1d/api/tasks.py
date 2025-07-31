@@ -161,17 +161,30 @@ def update_p_id(task_id: str, p_id: str):
     args = (task_id,)
     huey.storage.sql(expression, args, True)
 
+
 def task_status(only_task_id: str | None) -> dict[str, dict]:
     """Return dictionary of tasks, where key is task ID and value is subdict (status fields related to each task).
 
     If only_task_id is None, all tasks will be returned.
     If only_task_id is *not* None, only the provided task will be returned.
     """
-    fields = ["task_id","func_name","func_kwargs","huey_status","ogc_status","accept_time","dismiss_time","start_time","finish_time","status_time","finish_duration_minutes"]
+    fields = [
+        "task_id",
+        "func_name",
+        "func_kwargs",
+        "huey_status",
+        "ogc_status",
+        "accept_time",
+        "dismiss_time",
+        "start_time",
+        "finish_time",
+        "status_time",
+        "finish_duration_minutes",
+    ]
     if only_task_id is not None:
         filterer = f' WHERE task_id = "{only_task_id}"'
     else:
-        filterer = ''
+        filterer = ""
     expression = f'SELECT {", ".join(fields)} FROM task_status{filterer} ORDER BY status_time DESC;'
     results_raw = huey.storage.sql(expression, results=True)
     results_dict = {}
@@ -180,28 +193,30 @@ def task_status(only_task_id: str | None) -> dict[str, dict]:
         results_dict[task_id] = {k: v for k, v in zip(fields[1:], r[1:])}
     return results_dict
 
+
 def task_results(only_task_id: str | None) -> dict[str, dict]:
     """Return dictionary of tasks, where key is task ID and value is subdict with val, err, and tb.
 
     If only_task_id is None, all tasks will be returned.
     If only_task_id is *not* None, only the provided task will be returned.
     """
-    fields = ["task_id","stderr","results"]
+    fields = ["task_id", "stderr", "results"]
     if only_task_id is None:
-        only_task_id = '%'
+        only_task_id = "%"
     expression = f'SELECT {", ".join(fields)} FROM task_logs WHERE task_id = "{only_task_id}";'
     results_raw = huey.storage.sql(expression, results=True)
     results_dict = {}
     for r in results_raw:
         task_id = r[0]
         results_dict[task_id] = {}
-        results_dict[task_id]['val'] = r[2]
+        results_dict[task_id]["val"] = r[2]
         if r[1] is not None:
-            results_dict[task_id]['err'] = r[1].splitlines()[-1]
+            results_dict[task_id]["err"] = r[1].splitlines()[-1]
         else:
-            results_dict[task_id]['err'] = None
-        results_dict[task_id]['tb'] = r[1]
+            results_dict[task_id]["err"] = None
+        results_dict[task_id]["tb"] = r[1]
     return results_dict
+
 
 def task_summary(only_task_id: str | None) -> dict[str, dict]:
     """Return dictionary of tasks, where key is task ID and value is subdict with status and results.
@@ -213,10 +228,11 @@ def task_summary(only_task_id: str | None) -> dict[str, dict]:
     results = task_results(only_task_id)
     for t in status:
         if t in results:
-            status[t]['result'] = results[t]
+            status[t]["result"] = results[t]
         else:
-            status[t]['result'] = None
+            status[t]["result"] = None
     return status
+
 
 def fetch_one_query(task_id: str, field: str, table: str) -> str:
     """Return a fetch one query given table and field given task_id."""
@@ -287,6 +303,7 @@ def job_dismissed(task_id: str) -> bool:
     if results[0][0] == "None" or results[0][0] is None:
         return False
     return True
+
 
 def noop(task_id: str = None):
     """Do nothing except log a message. For ping endpoint and testing."""

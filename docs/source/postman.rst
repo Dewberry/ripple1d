@@ -3,8 +3,14 @@ Postman collection
 
 For reference and documentation of the API, please open the postman collection for the version of ripple1d
 
-`v.0.10.4: <https://github.com/Dewberry/ripple1d/blob/21114771abc134cebdae2fd3a78b28131fdea477/ripple1d/api/postman_collection.json>`_ This version contains a new optional args for the create_fim_lib :
+`v.0.10.4: <https://github.com/Dewberry/ripple1d/blob/77987266ec360536d07c6ff1e8546d15a210426e/ripple1d/api/postman_collection.json>`_ This version contains a new optional args for create_fim_lib and conflate_model:
  - `cog` (boolean)  added to  `create_fim_lib`.  This is a boolean indicating if the depth grids should be cloud optimized geotiffs or not.
+ - `min_flow_multiplier` (float)  added to  `conflate_model`.  This is the number that will be multiplied by the NWM "high flow threshold" to define the low_flow value in the conflation json.
+ - `max_flow_multiplier` (float)  added to  `conflate_model`.  This is the number that will be multiplied by the NWM 100-year flow to define the high_flow value in the conflation json.
+ - `min_flow_multiplier_ras` (float)  added to  `extract_submodel`.  This is the number that will be multiplied by the RAS min modeled flow. Default is 1.
+ - `max_flow_multiplier_ras` (float)  added to  `extract_submodel`.  This is the number that will be multiplied by the RAS max modeled flow. Default is 1.
+ - `ignore_ras_flows` (bool)  added to  `extract_submodel`.  Whether to ignore HEC-RAS min and max flow when defining flow ranges. Default is False.
+ - `ignore_nwm_flows` (bool)  added to  `extract_submodel`.  Whether to ignore NWM min and max flow when defining flow ranges. Default is False.
 
 `v.0.10.1-v.0.10.3: <https://github.com/Dewberry/ripple1d/blob/58a873910f0dfe312f7d674793470389836aac5b/ripple1d/api/postman_collection.json>`_ This version contains new args for the conflate_model and compute_conflation_metrics endpoints :
  - `model_name` (str)  added to  `extract_submodel`.  This is the name of the source model. Example: Red River.prj -> Red River (model_name)

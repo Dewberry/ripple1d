@@ -19,11 +19,13 @@ import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from pyproj import CRS
 from shapely import (
+    GeometryCollection,
     LineString,
     MultiPoint,
     MultiPolygon,
     Point,
     Polygon,
+    buffer,
     concave_hull,
     line_merge,
     make_valid,
@@ -193,26 +195,68 @@ def check_xs_direction(cross_sections: gpd.GeoDataFrame, reach: LineString):
     return cross_sections.loc[cross_sections["river_reach_rs"].isin(river_reach_rs)]
 
 
-def xs_concave_hull(xs: gpd.GeoDataFrame, junction: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
+def xs_concave_hull(xs_df: gpd.GeoDataFrame, junction: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     """Compute and return the concave hull (polygon) for a set of cross sections (lines all facing the same direction)."""
     polygons = []
-    for river_reach in xs["river_reach"].unique():
-        xs_subset = xs[xs["river_reach"] == river_reach]
-        points = xs_subset.boundary.explode(index_parts=True).unstack()
-        points_last_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[-1].coords]
-        points_first_xs = [Point(coord) for coord in xs_subset["geometry"].iloc[0].coords[::-1]]
-        polygon = Polygon(points_first_xs + list(points[0]) + points_last_xs + list(points[1])[::-1])
-        if isinstance(polygon, MultiPolygon):
-            polygons += list(polygon.geoms)
-        else:
-            polygons.append(polygon)
+    if len(xs_df) <= 0:
+        return None
+    assert not all(
+        [i.is_empty for i in xs_df.geometry]
+    ), "No valid cross-sections found.  Possibly non-georeferenced model"
+    assert len(xs_df) > 1, "Only one valid cross-section found."
+    for river_reach in xs_df["river_reach"].unique():
+        xs_subset = xs_df[xs_df["river_reach"] == river_reach].sort_values("river_station")
+        for i in range(len(xs_subset) - 1):
+            first = xs_subset.iloc[i]
+            last = xs_subset.iloc[i + 1]
+            first_pts = [Point(coord) for coord in first["geometry"].coords]
+            last_pts = [Point(coord) for coord in last["geometry"].coords]
+            if not LineString([first_pts[0], last_pts[0]]).intersects(LineString([first_pts[-1], last_pts[-1]])):
+                poly = Polygon(last_pts + first_pts[::-1])
+            else:
+                poly = Polygon(last_pts + first_pts)
+            if poly.is_valid:
+                polygons.append(poly)
+            else:
+                polygons.append(make_valid(poly))
+
     if junction is not None:
         for _, j in junction.iterrows():
-            polygons.append(junction_hull(xs, j))
+            polygons.append(junction_hull(xs_df, j))
+    out_hull = clean_polygons(polygons)
+    return gpd.GeoDataFrame({"geometry": [out_hull]}, geometry="geometry", crs=xs_df.crs)
 
-    return gpd.GeoDataFrame(
-        {"geometry": [union_all([make_valid(p) for p in polygons])]}, geometry="geometry", crs=xs.crs
-    )
+
+def clean_polygons(polygons: list) -> list:
+    """Unpack geometry collections, make polygons valid, and remove internal rings."""
+    polys = unpack_geoms(polygons)
+    polys = [make_valid(i) for i in polys]
+    unioned = union_all(polys)
+    unioned = remove_holes(unioned)
+    return unioned
+
+
+def unpack_geoms(geoms: list):
+    """Unpack multipolygons and geometry collections to polygon list."""
+    out = []
+    for i in geoms:
+        if isinstance(i, GeometryCollection):
+            for j in i.geoms:
+                out.extend(unpack_geoms([j]))
+        elif isinstance(i, MultiPolygon):
+            out.extend([j for j in i.geoms])
+        else:
+            out.append(i)
+    return out
+
+
+def remove_holes(geom):
+    """Remove internal holes in polygons."""
+    if isinstance(geom, Polygon):
+        return Polygon(geom.exterior)
+    elif isinstance(geom, MultiPolygon):
+        return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
+    return geom
 
 
 def determine_junction_xs(xs: gpd.GeoDataFrame, junction: gpd.GeoSeries) -> gpd.GeoDataFrame:
